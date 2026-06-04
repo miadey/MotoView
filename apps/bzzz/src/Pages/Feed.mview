@@ -1,0 +1,288 @@
+@page "/feed"
+@layout AppLayout
+@title "Feed — Bzzz"
+@description "Your Bzzz home timeline. Post short updates, follow people, repost and like — an X-style public feed running entirely on-chain on the Internet Computer."
+
+<div class="fd-wrap">
+    <div class="fd-main">
+        <header class="fd-head">
+            <h1>Home</h1>
+            <p class="fd-sub">@postCount posts on Bzzz · following @followingCount</p>
+        </header>
+
+        @if bound {
+            <div class="fd-composer bz-card">
+                <div class="fd-ava">@meAvatar</div>
+                <form class="fd-composer-form" @submit="post" secure>
+                    <ValidationSummary />
+                    <TextArea name="body" label="" bind="@body" required />
+                    <div class="fd-composer-foot">
+                        <span class="fd-counter">@(remaining()) left</span>
+                        <Button kind="primary" type="submit">Bzzz it</Button>
+                    </div>
+                </form>
+            </div>
+        } else {
+            <div class="fd-claim bz-card">
+                <span class="fd-claim-ico">🐝</span>
+                <div>
+                    <strong>Claim a handle to start posting.</strong>
+                    <p>Pick your handle on the <a href="/me">profile</a> page, then come back to share your first Bzzz.</p>
+                </div>
+            </div>
+        }
+
+        @if hasPosts {
+            <div class="fd-stream">
+                @for p in timeline {
+                    <article class="fd-post bz-card" id="post-@(p.id)">
+                        <div class="fd-ava">@(avatarOf(p.author))</div>
+                        <div class="fd-body">
+                            <div class="fd-post-head">
+                                <span class="fd-handle">@(at(p.authorHandle))</span>
+                                <span class="fd-dot">·</span>
+                                <span class="fd-time">@(rel(p.at))</span>
+                            </div>
+                            <div class="fd-text">@p.text</div>
+                            <div class="fd-actions">
+                                <a class="fd-act" href="/feed">
+                                    <span class="fd-act-ico">💬</span>
+                                    <span class="fd-act-n">@(p.replyCount)</span>
+                                </a>
+                                <button class="fd-act fd-act-repost @(repostClass(p.id))" @click="repost(p.id)" type="button" title="Repost">
+                                    <span class="fd-act-ico">🔁</span>
+                                    <span class="fd-act-n">@(p.reposts)</span>
+                                </button>
+                                <button class="fd-act fd-act-like @(likeClass(p.id))" @click="like(p.id)" type="button" title="Like">
+                                    <span class="fd-act-ico">@(heart(p.id))</span>
+                                    <span class="fd-act-n">@(p.likes)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        } else {
+            <div class="fd-empty bz-card">
+                <span class="fd-empty-ico">⚡</span>
+                <h3>Your timeline is quiet</h3>
+                <p>Be the first to post, or follow a few people to fill your home feed.</p>
+            </div>
+        }
+    </div>
+
+    <aside class="fd-rail">
+        <div class="fd-panel bz-card">
+            <h3 class="fd-panel-title">Who to follow</h3>
+            @if hasSuggestions {
+                <ul class="fd-suggest">
+                    @for s in suggestions {
+                        <li class="fd-suggest-row">
+                            <a class="fd-suggest-id" href="/u/@s.handle">
+                                <span class="fd-ava fd-ava-sm">@s.avatar</span>
+                                <span class="fd-suggest-meta">
+                                    <span class="fd-suggest-name">@s.display</span>
+                                    <span class="fd-suggest-handle">@(at(s.handle))</span>
+                                </span>
+                            </a>
+                            @if bound {
+                                <button class="fd-follow @(followClass(s.principal))" @click="toggleFollow(s.handle)" type="button">@(followLabel(s.principal))</button>
+                            }
+                        </li>
+                    }
+                </ul>
+            } else {
+                <p class="fd-panel-empty">No one else here yet. Invite a friend to Bzzz.</p>
+            }
+        </div>
+
+        <div class="fd-panel bz-card">
+            <h3 class="fd-panel-title">Your network</h3>
+            <div class="fd-stats">
+                <div class="fd-stat">
+                    <span class="fd-stat-n">@followingCount</span>
+                    <span class="fd-stat-l">Following</span>
+                </div>
+                <div class="fd-stat">
+                    <span class="fd-stat-n">@followerCount</span>
+                    <span class="fd-stat-l">Followers</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<style>
+    .fd-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; }
+    .fd-main { min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+
+    .fd-head h1 { margin: 0; font-size: 1.5rem; letter-spacing: -.02em; }
+    .fd-sub { margin: .2rem 0 0; color: var(--mv-text-soft); font-size: .88rem; }
+
+    .fd-composer { display: flex; gap: .75rem; padding: 1rem 1.1rem; }
+    .fd-composer-form { flex: 1; min-width: 0; }
+    .fd-composer-form textarea, .fd-composer-form .mv-input, .fd-composer-form input { width: 100%; box-sizing: border-box; }
+    .fd-composer-foot { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: .4rem; }
+    .fd-counter { color: var(--mv-text-soft); font-size: .82rem; font-variant-numeric: tabular-nums; }
+
+    .fd-ava { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%;
+        background: linear-gradient(135deg, #ede9fe, #f5d0fe); display: grid; place-items: center;
+        font-size: 1.4rem; box-shadow: inset 0 0 0 1px var(--mv-border); }
+    .fd-ava-sm { width: 36px; height: 36px; flex: 0 0 36px; font-size: 1.1rem; }
+
+    .fd-claim { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.2rem; }
+    .fd-claim-ico { font-size: 1.8rem; }
+    .fd-claim strong { display: block; }
+    .fd-claim p { margin: .2rem 0 0; color: var(--mv-text-soft); font-size: .9rem; }
+    .fd-claim a { color: var(--bz-accent); font-weight: 600; text-decoration: none; }
+
+    .fd-stream { display: flex; flex-direction: column; gap: .75rem; }
+    .fd-post { display: flex; gap: .75rem; padding: 1rem 1.1rem; transition: box-shadow .12s ease; }
+    .fd-post:hover { box-shadow: 0 6px 20px rgba(16,16,40,.10); }
+    .fd-body { flex: 1; min-width: 0; }
+    .fd-post-head { display: flex; align-items: baseline; gap: .4rem; font-size: .92rem; }
+    .fd-handle { font-weight: 700; color: var(--mv-text); }
+    .fd-dot { color: var(--mv-text-soft); }
+    .fd-time { color: var(--mv-text-soft); font-size: .85rem; }
+    .fd-text { margin: .25rem 0 .55rem; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
+
+    .fd-actions { display: flex; gap: 1.4rem; align-items: center; }
+    .fd-act { display: inline-flex; align-items: center; gap: .35rem; background: none; border: 0; cursor: pointer;
+        color: var(--mv-text-soft); font-size: .85rem; padding: .25rem .35rem; border-radius: 999px;
+        text-decoration: none; font: inherit; line-height: 1; transition: color .12s ease, background .12s ease; }
+    .fd-act-ico { font-size: 1rem; }
+    .fd-act-n { font-variant-numeric: tabular-nums; }
+    .fd-act:hover { background: var(--mv-muted); }
+    .fd-act-repost:hover, .fd-act-repost.is-on { color: #16a34a; }
+    .fd-act-like:hover, .fd-act-like.is-on { color: #e11d6b; }
+
+    .fd-empty { text-align: center; padding: 2.5rem 1.5rem; color: var(--mv-text-soft); }
+    .fd-empty-ico { font-size: 2.2rem; display: block; }
+    .fd-empty h3 { margin: .6rem 0 .25rem; color: var(--mv-text); }
+    .fd-empty p { margin: 0; font-size: .9rem; }
+
+    .fd-rail { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: calc(var(--bz-nav-h) + 1.25rem); }
+    .fd-panel { padding: 1rem 1.1rem; }
+    .fd-panel-title { margin: 0 0 .75rem; font-size: 1.05rem; }
+    .fd-panel-empty { margin: 0; color: var(--mv-text-soft); font-size: .88rem; }
+
+    .fd-suggest { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .65rem; }
+    .fd-suggest-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+    .fd-suggest-id { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: inherit; min-width: 0; }
+    .fd-suggest-meta { display: flex; flex-direction: column; min-width: 0; }
+    .fd-suggest-name { font-weight: 600; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fd-suggest-handle { color: var(--mv-text-soft); font-size: .8rem; }
+    .fd-follow { border: 1px solid var(--bz-accent); background: var(--bz-accent); color: #fff; font-weight: 600;
+        font-size: .8rem; padding: .35rem .8rem; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+    .fd-follow:hover { filter: brightness(1.05); }
+    .fd-follow.is-on { background: transparent; color: var(--bz-accent); }
+
+    .fd-stats { display: flex; gap: 1.5rem; }
+    .fd-stat { display: flex; flex-direction: column; }
+    .fd-stat-n { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .fd-stat-l { color: var(--mv-text-soft); font-size: .82rem; }
+
+    @media (max-width: 920px) {
+        .fd-wrap { grid-template-columns: 1fr; }
+        .fd-rail { position: static; order: -1; }
+    }
+</style>
+
+@code {
+    var bound : Bool = false;
+    var me : Principal = Principal.fromText("2vxsx-fae");
+    var meAvatar : Text = "🐝";
+
+    var timeline : [Feed.FeedPost] = [];
+    var hasPosts : Bool = false;
+    var postCount : Nat = 0;
+
+    var suggestions : [Identity.Profile] = [];
+    var hasSuggestions : Bool = false;
+    var followingCount : Nat = 0;
+    var followerCount : Nat = 0;
+
+    var body : Text = "";
+
+    func onLoad(ctx : Context) {
+        me := ctx.caller;
+        bound := Identity.isBound(ctx.caller);
+        meAvatar := Identity.avatarOf(ctx.caller);
+
+        timeline := Feed.homeTimeline(ctx.caller);
+        hasPosts := timeline.size() > 0;
+        postCount := Feed.postCount();
+
+        suggestions := whoToFollow(ctx.caller);
+        hasSuggestions := suggestions.size() > 0;
+        followingCount := Feed.followingCount(ctx.caller);
+        followerCount := Feed.followerCount(ctx.caller);
+    };
+
+    // People other than the caller, newest joiners first, capped at 5.
+    func whoToFollow(caller : Principal) : [Identity.Profile] {
+        let all = Identity.all();
+        let keep = Array.filter<Identity.Profile>(all, func(p : Identity.Profile) : Bool {
+            p.principal != caller
+        });
+        if (keep.size() <= 5) { keep } else { Array.subArray(keep, 0, 5) };
+    };
+
+    // ---- per-row display helpers (close over `me` loaded in onLoad) ----
+    func avatarOf(p : Principal) : Text { Identity.avatarOf(p) };
+    func rel(t : Int) : Text { Feed.relativeTime(t) };
+    func at(handle : Text) : Text { "@" # handle };
+    func remaining() : Nat {
+        let n = Text.size(body);
+        if (n >= 280) { 0 } else { 280 - n };
+    };
+
+    func heart(id : Nat) : Text {
+        if (Feed.hasLiked(me, id)) { "❤️" } else { "🤍" };
+    };
+    func likeClass(id : Nat) : Text {
+        if (Feed.hasLiked(me, id)) { "is-on" } else { "" };
+    };
+    func repostClass(id : Nat) : Text {
+        if (Feed.hasReposted(me, id)) { "is-on" } else { "" };
+    };
+    func followClass(p : Principal) : Text {
+        if (Feed.isFollowing(me, p)) { "is-on" } else { "" };
+    };
+    func followLabel(p : Principal) : Text {
+        if (Feed.isFollowing(me, p)) { "Following" } else { "Follow" };
+    };
+
+    // ---- handlers: mutate the service with ctx.caller; onLoad refreshes vars ----
+    func post(ctx : Context) : async () {
+        validate {
+            body required "Write something first.";
+        };
+        let id = Feed.post(ctx.caller, Identity.handleOf(ctx.caller), body);
+        if (id == 0) {
+            toast("Couldn't post that — check the length.");
+        } else {
+            body := "";
+            toast("Posted to Bzzz.");
+        };
+    };
+
+    func like(ctx : Context, id : Nat) : async () {
+        let _ = Feed.like(ctx.caller, id);
+    };
+
+    func repost(ctx : Context, id : Nat) : async () {
+        let _ = Feed.repost(ctx.caller, id);
+    };
+
+    func toggleFollow(ctx : Context, handle : Text) : async () {
+        switch (Identity.byHandleLookup(handle)) {
+            case (?prof) {
+                let nowFollowing = Feed.follow(ctx.caller, prof.principal);
+                if (nowFollowing) { toast("Following @" # handle); }
+                else { toast("Unfollowed @" # handle); };
+            };
+            case null { toast("Couldn't find that user."); };
+        };
+    };
+}

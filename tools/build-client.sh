@@ -31,6 +31,7 @@ escape_mo() {
 
 WASM_B64="$(base64 < dist/motoview.wasm | tr -d '\n')"
 JS_ESC="$(escape_mo glue/motoview.js)"
+AUTH_ESC="$(escape_mo glue/mv-auth.js)"
 CSS_ESC="$(escape_mo glue/motoview.css)"
 
 OUT="$ROOT/runtime/src/ClientAssets.mo"
@@ -48,6 +49,7 @@ module {
 HEADER
   printf '  let wasmB64 : Text = "%s";\n\n' "$WASM_B64"
   printf '  let clientJs : Text = "%s";\n\n' "$JS_ESC"
+  printf '  let authJs : Text = "%s";\n\n' "$AUTH_ESC"
   printf '  let css : Text = "%s";\n\n' "$CSS_ESC"
   cat <<'FOOTER'
   let favicon : Text = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\"><rect width=\"32\" height=\"32\" rx=\"7\" fill=\"#6d28d9\"/><path d=\"M7 23V9l5 7 5-7v14\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2.4\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"23\" cy=\"12\" r=\"2.4\" fill=\"#fff\"/></svg>";
@@ -55,6 +57,7 @@ HEADER
   public func assets() : Types.Assets {
     {
       clientJs;
+      authJs;
       clientWasm = Base64.decode(wasmB64);
       css;
       favicon;

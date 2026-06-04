@@ -8,7 +8,9 @@
 ///   * The browser synchronizes through versioned UI batches (`batchId`).
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
+import Nat32 "mo:base/Nat32";
 import Int "mo:base/Int";
+import Char "mo:base/Char";
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Buffer "mo:base/Buffer";
@@ -21,6 +23,10 @@ import Hash "Hash";
 import Router "Router";
 import Security "Security";
 import Html "Html";
+import Sha256 "Sha256";
+import Hex "Hex";
+import CertV2 "CertV2";
+import CertifiedData "mo:base/CertifiedData";
 
 module {
 
@@ -55,6 +61,205 @@ module {
       };
     };
 
+    // ---- Internet Identity session bridge --------------------------------
+    // An authenticated `mvEstablish(nonce)` update call (caller verified by the
+    // IC) records the principal under a client-chosen nonce. A normal
+    // GET /mv-session?nonce=... then exchanges the nonce for an HMAC session
+    // token (signed with the app secret) that the client stores in the
+    // `mv_session` cookie; every later request carries it and we resolve the
+    // real caller from it. No agent signing on the hot path.
+    let pending = HashMap.HashMap<Text, (Principal, Int)>(64, Text.equal, Text.hash);
+    let sessionTtlNs : Int = 24 * 60 * 60 * 1_000_000_000; // 24h
+
+    // The HMAC secret for session + secure-form tokens. It is installed at
+    // runtime from the canister's `raw_rand` (see the generated actor's
+    // http_request_update), so it is cryptographically random, per-canister, and
+    // never appears in source. `config.secret` is only an empty placeholder.
+    var mvSecret : Blob = config.secret;
+    public func setSecret(b : Blob) { if (b.size() == 32) { mvSecret := b } };
+    public func needsSecret() : Bool { mvSecret.size() != 32 };
+
+    // Static framework assets served as fast CERTIFIED QUERIES (response-cert v2,
+    // pass-through expression) instead of upgrading to an update call. certified_
+    // data is set on the first update (ensureCert); until then assets serve via
+    // the update path (consensus-valid), so it self-bootstraps.
+    let certAssets : [Text] = [
+      "/motoview.js", "/motoview.css", "/motoview.wasm", "/mv-auth.js",
+      "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
+      "/manifest.webmanifest", "/sw.js",
+    ];
+    // The static prefix of a route, up to its first `{param}` segment.
+    // "/u/{handle}" -> "/u" ; "/forum/t/{id:Nat}" -> "/forum/t".
+    func wildcardPrefix(route : Text) : Text {
+      let pre = Buffer.Buffer<Text>(4);
+      for (s in Text.tokens(route, #char '/')) {
+        if (Text.contains(s, #char '{')) { return "/" # Text.join("/", pre.vals()) };
+        pre.add(s);
+      };
+      "/" # Text.join("/", pre.vals());
+    };
+    // Entries committed into certified_data: static assets (exact), and pages
+    // marked @cacheable — non-parameterized routes exactly, parameterized routes
+    // as a wildcard over their static prefix (e.g. /u/{handle} -> /u/<*>).
+    let allCertPaths : [CertV2.Entry] = do {
+      let b = Buffer.Buffer<CertV2.Entry>(certAssets.size() + 4);
+      for (a in certAssets.vals()) { b.add({ path = a; wild = false }) };
+      for (p in pages.vals()) {
+        if (p.cacheable) {
+          if (Text.contains(p.route, #char '{')) { b.add({ path = wildcardPrefix(p.route); wild = true }) } else {
+            b.add({ path = p.route; wild = false });
+          };
+        };
+      };
+      Buffer.toArray(b);
+    };
+    var certReady : Bool = false;
+    public func ensureCert() {
+      if (not certReady) { CertifiedData.set(CertV2.rootHash(allCertPaths)); certReady := true };
+    };
+    func isCertAsset(path : Text) : Bool {
+      for (a in certAssets.vals()) { if (a == path) { return true } };
+      false;
+    };
+
+    var loginCounter : Nat = 0;
+    /// An unguessable single-use login nonce, bound to the browser via a
+    /// short-lived httpOnly cookie (see /mv-login-begin + /mv-session).
+    func freshNonce() : Text {
+      loginCounter += 1;
+      Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8("mv-login." # Nat.toText(loginCounter) # "." # Int.toText(Time.now()))));
+    };
+
+    /// Called from the generated actor's authenticated `mvEstablish` method.
+    public func establish(nonce : Text, who : Principal) {
+      // Hard cap to bound memory against unauthenticated flooding of
+      // mvEstablish: prune aggressively, and drop this entry if still full.
+      if (pending.size() >= 4096) {
+        let cutoff = Time.now() - 60 * 1_000_000_000; // 1 min
+        let dead = Buffer.Buffer<Text>(256);
+        for ((k, (_, t)) in pending.entries()) { if (t < cutoff) { dead.add(k) } };
+        for (k in dead.vals()) { pending.delete(k) };
+        if (pending.size() >= 4096) { return };
+      };
+      pending.put(nonce, (who, Time.now()));
+    };
+
+    // Per-principal session epoch. A token embeds the epoch it was minted at;
+    // bumping a principal's epoch (on /mv-logout) invalidates ALL their existing
+    // tokens server-side ("log out everywhere"), even un-expired ones. Synced to
+    // a stable var by the generated actor so revocations survive upgrades.
+    let epochs = HashMap.HashMap<Text, Nat>(64, Text.equal, Text.hash);
+    func epochOf(pt : Text) : Nat { switch (epochs.get(pt)) { case (?e) e; case null 0 } };
+    public func bumpEpoch(pt : Text) { epochs.put(pt, epochOf(pt) + 1) };
+    public func dumpEpochs() : [(Text, Nat)] { Iter.toArray(epochs.entries()) };
+    public func setEpochs(es : [(Text, Nat)]) { for ((k, v) in es.vals()) { epochs.put(k, v) } };
+
+    func sessionMac(body : Text) : Text {
+      Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8(body)));
+    };
+
+    func mintSession(p : Principal) : Text {
+      let pt = Principal.toText(p);
+      let body = pt # "." # Int.toText(Time.now() + sessionTtlNs) # "." # Nat.toText(epochOf(pt));
+      body # "." # sessionMac(body);
+    };
+
+    func verifySession(token : Text) : ?Principal {
+      let parts = Iter.toArray(Text.split(token, #char '.'));
+      if (parts.size() != 4) { return null };
+      let body = parts[0] # "." # parts[1] # "." # parts[2];
+      if (sessionMac(body) != parts[3]) { return null };
+      switch (parseNat(parts[1])) {
+        case (?exp) { if (Time.now() > exp) { return null } };
+        case null { return null };
+      };
+      switch (parseNat(parts[2])) {
+        case (?ep) { if (ep != epochOf(parts[0])) { return null } }; // revoked
+        case null { return null };
+      };
+      ?Principal.fromText(parts[0]);
+    };
+
+    /// Exchange a nonce (set by an authenticated mvEstablish within 5 min) for a
+    /// session. Returns (principalText, token) or null. Single-use.
+    func sessionFor(nonce : Text) : ?(Text, Text) {
+      switch (pending.get(nonce)) {
+        case (?(p, t)) {
+          if (nonce != "" and Time.now() - t < 5 * 60 * 1_000_000_000) {
+            pending.delete(nonce);
+            return ?(Principal.toText(p), mintSession(p));
+          };
+          null;
+        };
+        case null { null };
+      };
+    };
+
+    /// Build an httpOnly, always-Secure cookie header. (The IC boundary is HTTPS
+    /// in production; browsers also accept Secure cookies on localhost.) Secure
+    /// is unconditional rather than gated on a client-forgeable header.
+    func cookie(name : Text, value : Text, maxAge : Int, sameSite : Text) : Text {
+      name # "=" # value # "; Path=/; HttpOnly; Secure; SameSite=" # sameSite # "; Max-Age=" # Int.toText(maxAge);
+    };
+
+    /// A text response that also emits one or more Set-Cookie headers. The
+    /// session token is never exposed to JS (XSS-resistant).
+    func respCookies(body : Text, cookies : [Text]) : HttpResponse {
+      let hdrs = Buffer.Buffer<(Text, Text)>(cookies.size() + 2);
+      hdrs.add(("content-type", "text/plain"));
+      hdrs.add(("cache-control", "no-store"));
+      for (c in cookies.vals()) { hdrs.add(("Set-Cookie", c)) };
+      { status_code = 200; headers = Buffer.toArray(hdrs); body = Text.encodeUtf8(body); upgrade = null };
+    };
+
+    /// Read a named cookie from the request, "" if absent.
+    func cookieFromReq(req : HttpRequest, name : Text) : Text {
+      for ((k, v) in req.headers.vals()) {
+        if (lower(k) == "cookie") {
+          switch (cookieValue(v, name)) { case (?x) { return x }; case null {} };
+        };
+      };
+      "";
+    };
+
+    /// The effective caller: the principal from a valid mv_session cookie, else
+    /// the (anonymous) gateway caller.
+    func effectiveCaller(req : HttpRequest, fallback : Principal) : Principal {
+      for ((k, v) in req.headers.vals()) {
+        if (lower(k) == "cookie") {
+          switch (cookieValue(v, "mv_session")) {
+            case (?tok) { switch (verifySession(tok)) { case (?p) { return p }; case null {} } };
+            case null {};
+          };
+        };
+      };
+      fallback;
+    };
+
+    func cookieValue(cookie : Text, name : Text) : ?Text {
+      for (part in Text.split(cookie, #char ';')) {
+        let pair = Iter.toArray(Text.split(Text.trim(part, #char ' '), #char '='));
+        if (pair.size() == 2 and pair[0] == name) { return ?pair[1] };
+      };
+      null;
+    };
+
+    func lower(t : Text) : Text {
+      Text.map(t, func(c : Char) : Char {
+        if (c >= 'A' and c <= 'Z') { Char.fromNat32(Char.toNat32(c) + 32) } else { c };
+      });
+    };
+
+    func parseNat(t : Text) : ?Nat {
+      var n : Nat = 0;
+      var any = false;
+      for (c in t.chars()) {
+        let d = Char.toNat32(c);
+        if (d >= 48 and d <= 57) { n := n * 10 + Nat32.toNat(d - 48); any := true } else { return null };
+      };
+      if (any) { ?n } else { null };
+    };
+
     // ---- public entry points ---------------------------------------------
 
     /// Query entry point. On the IC, query `http_request` responses must be
@@ -63,17 +268,79 @@ module {
     /// request to an update call (validated by consensus, no certification
     /// needed). Certified *query* rendering for cacheable public pages is a
     /// roadmap optimization; the render/event protocol is unchanged.
-    public func httpRequest(_ : HttpRequest, _ : Principal) : HttpResponse {
+    public func httpRequest(req : HttpRequest, caller : Principal) : HttpResponse {
+      let (path, _) = Url.splitUrl(req.url);
+      // Serve static framework assets and @cacheable pages as certified queries
+      // (no upgrade). Until certified_data is set (first update), fall through.
+      switch (certifiedAsset(path)) { case (?r) { return r }; case null {} };
+      switch (certifiedPage(req, path, caller)) { case (?r) { return r }; case null {} };
       { status_code = 200; headers = jsonHeaders(); body = ""; upgrade = ?true };
+    };
+
+    func certHeaders(base : [(Text, Text)], target : CertV2.Entry, cert : Blob) : [(Text, Text)] {
+      let hdrs = Buffer.Buffer<(Text, Text)>(base.size() + 2);
+      for (h in base.vals()) { hdrs.add(h) };
+      hdrs.add(("IC-CertificateExpression", CertV2.expression));
+      hdrs.add(("IC-Certificate", CertV2.headerValue(allCertPaths, target, cert)));
+      Buffer.toArray(hdrs);
+    };
+
+    /// Build a certified-query response for a static asset, or null to fall back.
+    func certifiedAsset(path : Text) : ?HttpResponse {
+      if (not certReady or not isCertAsset(path)) { return null };
+      switch (CertifiedData.getCertificate()) {
+        case null { null };
+        case (?cert) {
+          switch (asset(path)) {
+            case null { null };
+            case (?r) { ?{ status_code = r.status_code; headers = certHeaders(r.headers, { path = path; wild = false }, cert); body = r.body; upgrade = null } };
+          };
+        };
+      };
+    };
+
+    /// Render a @cacheable page in the query context and serve it as a certified
+    /// query (pass-through expression accepts any body). Parameterized routes use
+    /// a wildcard over their static prefix. null to fall back to the update path.
+    func certifiedPage(req : HttpRequest, path : Text, caller : Principal) : ?HttpResponse {
+      if (not certReady) { return null };
+      switch (CertifiedData.getCertificate()) {
+        case null { null };
+        case (?cert) {
+          switch (Router.find(pages, path)) {
+            case null { null };
+            case (?(page, params)) {
+              if (not page.cacheable) { return null };
+              let (_, q) = Url.splitUrl(req.url);
+              let ctx = makeCtx("GET", path, Url.parsePairs(q), params, [], caller, "");
+              page.onLoad(ctx);
+              ignore page.takeRedirect();
+              let head = page.head(ctx);
+              let inner = page.render(ctx);
+              let bid = batchIdFor(path, head.title, inner);
+              let doc = renderDocument(page, ctx, head, inner, bid);
+              let base = [("content-type", "text/html"), ("cache-control", "no-store")];
+              let target : CertV2.Entry = if (Text.contains(page.route, #char '{')) {
+                { path = wildcardPrefix(page.route); wild = true };
+              } else { { path = path; wild = false } };
+              ?{ status_code = 200; headers = certHeaders(base, target, cert); body = Text.encodeUtf8(doc); upgrade = null };
+            };
+          };
+        };
+      };
     };
 
     /// Update entry point. Serves assets, SSR pages, render polls and events.
     public func httpRequestUpdate(req : HttpRequest, caller : Principal) : HttpResponse {
+      ensureCert();
       let (path, _) = Url.splitUrl(req.url);
+      // Resolve the real signed-in principal from the mv_session cookie (set
+      // after an Internet Identity login); falls back to the gateway caller.
+      let who = effectiveCaller(req, caller);
       if (Text.startsWith(path, #text "/_motoview/event")) {
-        serveEvent(req, caller);
+        serveEvent(req, who);
       } else {
-        serveGet(req, caller);
+        serveGet(req, who);
       };
     };
 
@@ -83,6 +350,42 @@ module {
     func serveGet(req : HttpRequest, caller : Principal) : HttpResponse {
       let (path, q) = Url.splitUrl(req.url);
       let qp = Url.parsePairs(q);
+
+      // II login step 1: hand the browser an unguessable nonce, bound to it via
+      // a short-lived httpOnly cookie. The client signs mvEstablish(nonce).
+      if (path == "/mv-login-begin") {
+        let n = freshNonce();
+        return respCookies(n, [cookie("mv_login", n, 300, "Strict")]);
+      };
+      // II login step 2: redeem. The nonce comes from the httpOnly mv_login
+      // cookie (NOT a URL param), so only the browser that began the login can
+      // redeem it — preventing login-CSRF and nonce theft.
+      if (path == "/mv-session") {
+        switch (sessionFor(cookieFromReq(req, "mv_login"))) {
+          case (?(who, tok)) {
+            return respCookies(who, [
+              cookie("mv_session", tok, 24 * 60 * 60, "Lax"),
+              cookie("mv_login", "", 0, "Strict"),
+            ]);
+          };
+          case null { return textResp("", "text/plain") };
+        };
+      };
+      // Who is the caller right now (resolved from the cookie)? For login UI.
+      if (path == "/mv-whoami") { return textResp(Principal.toText(caller), "text/plain") };
+      // Log out everywhere: bump the caller's epoch (invalidates all their
+      // outstanding tokens server-side) and clear this browser's cookie.
+      if (path == "/mv-logout") {
+        if (not Principal.isAnonymous(caller)) { bumpEpoch(Principal.toText(caller)) };
+        return respCookies("ok", [cookie("mv_session", "", 0, "Lax")]);
+      };
+      // Internet Identity alternative origins (for a stable cross-domain
+      // derivationOrigin). Configure via Config.altOrigins.
+      if (path == "/.well-known/ii-alternative-origins") {
+        let b = Buffer.Buffer<Text>(config.altOrigins.size());
+        for (o in config.altOrigins.vals()) { b.add("\"" # o # "\"") };
+        return textResp("{\"alternativeOrigins\":[" # Text.join(",", b.vals()) # "]}", "application/json");
+      };
 
       // static assets
       switch (asset(path)) { case (?r) { return r }; case null {} };
@@ -128,7 +431,7 @@ module {
             let schema = Url.getOr(form, "__mv_schema", "");
             switch (
               Security.verify(
-                config.secret,
+                mvSecret,
                 token,
                 pagePath,
                 handlerId,
@@ -154,6 +457,12 @@ module {
 
           let redirect = page.takeRedirect();
           if (redirect != "") { return jsonResp(Json.encodeBatch(redirectBatch(redirect))) };
+
+          // Re-run onLoad so the event response reflects the mutation the handler
+          // just made (otherwise pages that load their display state in onLoad
+          // wouldn't update until the next poll). Skip it when the handler set
+          // validation errors, so the submitted form + errors are preserved.
+          if (page.takeErrors().size() == 0) { page.onLoad(ctx) };
 
           // Render first so the page can show any validation errors it set,
           // then read those errors to decide the batch status.
@@ -286,6 +595,11 @@ module {
       if (not Text.contains(d, #text "motoview.js")) {
         d := Text.replace(d, #text "</body>", "<script src=\"/motoview.js\" defer></script></body>");
       };
+      // Internet Identity login, available to every app at /mv-auth.js. It is a
+      // no-op unless the page has a [data-mv-signin] element to wire.
+      if (not Text.contains(d, #text "mv-auth.js")) {
+        d := Text.replace(d, #text "</body>", "<script src=\"/mv-auth.js\" defer></script></body>");
+      };
       d;
     };
 
@@ -362,7 +676,7 @@ module {
         counter += 1;
         let nonce = Int.toText(Time.now()) # "-" # Nat.toText(counter);
         Security.mint(
-          config.secret,
+          mvSecret,
           path,
           handler,
           Principal.toText(caller),
@@ -406,12 +720,35 @@ module {
 
     func asset(path : Text) : ?HttpResponse {
       if (path == "/motoview.js") { return ?textResp(assets.clientJs, "text/javascript") };
+      if (path == "/mv-auth.js") { return ?textResp(assets.authJs, "text/javascript") };
       if (path == "/motoview.wasm") { return ?blobResp(assets.clientWasm, "application/wasm") };
       if (path == "/motoview.css") { return ?textResp(assets.css, "text/css") };
       if (path == "/favicon.svg" or path == "/favicon.ico") { return ?textResp(assets.favicon, "image/svg+xml") };
       if (path == "/robots.txt") { return ?textResp(robots(), "text/plain") };
       if (path == "/sitemap.xml") { return ?textResp(sitemap(), "application/xml") };
+      // PWA: makes every MotoView app installable on desktop & mobile.
+      if (path == "/manifest.webmanifest") { return ?textResp(manifest(), "application/manifest+json") };
+      if (path == "/sw.js") { return ?textResp(serviceWorker(), "text/javascript") };
       null;
+    };
+
+    /// A web app manifest derived from the app name (PWA installability).
+    func manifest() : Text {
+      "{\"name\":\"" # config.appName # "\",\"short_name\":\"" # config.appName
+      # "\",\"start_url\":\"/\",\"scope\":\"/\",\"display\":\"standalone\",\"orientation\":\"any\""
+      # ",\"background_color\":\"#ffffff\",\"theme_color\":\"#6d28d9\""
+      # ",\"icons\":[{\"src\":\"/favicon.svg\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"any maskable\"}]}";
+    };
+
+    /// A minimal service worker: cache-first for the static framework assets
+    /// (offline shell + fast loads); everything else falls through to network.
+    func serviceWorker() : Text {
+      "self.addEventListener('install',function(e){self.skipWaiting();});\n"
+      # "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});\n"
+      # "self.addEventListener('fetch',function(e){var p=new URL(e.request.url).pathname;"
+      # "if(p==='/motoview.js'||p==='/motoview.wasm'||p==='/motoview.css'||p==='/favicon.svg'||p==='/manifest.webmanifest'){"
+      # "e.respondWith(caches.open('motoview-v1').then(function(c){return c.match(e.request).then(function(r){"
+      # "return r||fetch(e.request).then(function(resp){c.put(e.request,resp.clone());return resp;});});}));}});\n";
     };
 
     func robots() : Text {

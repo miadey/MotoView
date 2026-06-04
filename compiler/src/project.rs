@@ -23,14 +23,68 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
 
     let page_files = list_mview(&pages_dir);
     let layout_files = list_mview(&layouts_dir);
-    let _component_files = list_mview(&components_dir);
+    let component_files = list_mview(&components_dir);
 
     // Service/Model modules (real Motoko) are imported into the generated actor
     // so page @code can call them (e.g. `Crm.all()`, `Crm.Deal`).
+    //
+    // Two flavours of service are supported:
+    //   * Stateless module  — `module { public func ... }`. Imported directly;
+    //     pages call `Name.func(...)`. State (if any) lives in the page @code.
+    //   * Stateful service  — a file `Name.mo` that exports `public class Name()`.
+    //     The compiler imports the module under a mangled alias and binds ONE
+    //     shared instance `let Name = Name__mod.Name();` at actor scope, before
+    //     the page objects. Because page objects close over the enclosing actor
+    //     scope, every page calls `Name.method(...)` against the same instance —
+    //     giving shared, cross-page, canister-lifetime state. This is what makes
+    //     real multi-page apps (chat/forum/feed/DMs) possible.
     let mut extra_imports = String::new();
+    let mut service_instances = String::new();
+    // Services that opt into upgrade-stable persistence by exposing
+    // `public func mvStableSave() : Blob` and `public func mvStableLoad(Blob)`.
+    let mut persistent_services: Vec<String> = Vec::new();
     for f in list_mo(&src.join("Services")) {
         let n = file_stem(&f);
-        extra_imports.push_str(&format!("import {} \"Services/{}\";\n", n, n));
+        let content = fs::read_to_string(&f).unwrap_or_default();
+        if is_stateful_service(&content, &n) {
+            extra_imports.push_str(&format!("import {n}__mod \"Services/{n}\";\n", n = n));
+            service_instances.push_str(&format!(
+                "  // shared, cross-page, canister-lifetime service instance\n  let {n} = {n}__mod.{n}();\n",
+                n = n
+            ));
+            if content.contains("public func mvStableSave") {
+                persistent_services.push(n.clone());
+            }
+        } else {
+            extra_imports.push_str(&format!("import {} \"Services/{}\";\n", n, n));
+        }
+    }
+    // Generate the stable backing + upgrade hooks. Each persistent service keeps
+    // its live state in non-stable collections; on `--mode upgrade` we snapshot
+    // it to a `stable var` Blob (preupgrade) and restore it (postupgrade), so
+    // state survives upgrades. See is_stateful_service for the service convention.
+    let mut persistence = String::new();
+    if !persistent_services.is_empty() {
+        persistence.push_str("  // ---- upgrade-stable persistence ----\n");
+        for n in &persistent_services {
+            persistence.push_str(&format!("  stable var {n}__state : Blob = \"\" : Blob;\n", n = n));
+        }
+        persistence.push_str("  system func preupgrade() {\n");
+        for n in &persistent_services {
+            persistence.push_str(&format!("    {n}__state := {n}.mvStableSave();\n", n = n));
+        }
+        persistence.push_str("  };\n  system func postupgrade() {\n");
+        for n in &persistent_services {
+            // Skip an empty snapshot — `from_candid` traps on a zero-length blob,
+            // which is exactly the value the stable var holds the first time an
+            // app WITHOUT persistence is upgraded to one WITH it. Skipping keeps
+            // the freshly-seeded state.
+            persistence.push_str(&format!(
+                "    if ({n}__state.size() > 0) {{ {n}.mvStableLoad({n}__state) }};\n",
+                n = n
+            ));
+        }
+        persistence.push_str("  };\n");
     }
     for f in list_mo(&src.join("Models")) {
         let n = file_stem(&f);
@@ -47,6 +101,30 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // Model type scanning is a roadmap feature; pass an empty registry for now.
     let models: HashMap<String, HashMap<String, String>> = HashMap::new();
 
+    // App components: parse src/Components/*.mview, register their params, and
+    // generate a render function per component. Pages then compile a `<Card .../>`
+    // tag to a call of `mvComponent_Card(...)`.
+    let mut components: HashMap<String, crate::codegen::CompInfo> = HashMap::new();
+    let mut parsed_components = Vec::new();
+    for cf in &component_files {
+        let name = file_stem(cf);
+        let source = fs::read_to_string(cf).map_err(|e| format!("{}: {}", cf.display(), e))?;
+        let file = parser::parse(&source, &name, FileKind::Component)?;
+        let slots = crate::codegen::collect_slot_names(&file.template);
+        components.insert(
+            name,
+            crate::codegen::CompInfo { params: file.code.params.clone(), slots },
+        );
+        parsed_components.push(file);
+    }
+    let mut component_funcs = String::new();
+    for (cf, file) in component_files.iter().zip(parsed_components.iter()) {
+        let mut cg = Codegen::new(&models, &components);
+        component_funcs.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, cf)));
+        component_funcs.push_str(&cg.gen_app_component(file));
+        component_funcs.push('\n');
+    }
+
     let mut page_objects = String::new();
     let mut page_records = String::new();
     let mut page_idents: Vec<String> = Vec::new();
@@ -56,8 +134,9 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let name = file_stem(pf);
         let source = fs::read_to_string(pf).map_err(|e| format!("{}: {}", pf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Page)?;
-        let mut cg = Codegen::new(&models);
+        let mut cg = Codegen::new(&models, &components);
         let pg = cg.gen_page(&file);
+        page_objects.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, pf)));
         page_objects.push_str(&pg.object_block);
         page_objects.push('\n');
         page_records.push_str(&pg.page_record);
@@ -71,13 +150,17 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let name = file_stem(lf);
         let source = fs::read_to_string(lf).map_err(|e| format!("{}: {}", lf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Layout)?;
-        let mut cg = Codegen::new(&models);
+        let mut cg = Codegen::new(&models, &components);
+        layout_funcs.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, lf)));
         layout_funcs.push_str(&cg.gen_layout(&file));
         layout_funcs.push('\n');
         layout_entries.push((name.clone(), format!("mvLayout_{}", name)));
     }
 
-    let secret = gen_secret(&opts.app_name);
+    // The real HMAC secret is installed at runtime from raw_rand (see the
+    // generated http_request_update). The compile-time value is only an empty
+    // placeholder — never a function of public input, never a usable secret.
+    let secret = "\"\"".to_string();
     let main = assemble(
         &opts.app_name,
         &page_objects,
@@ -87,6 +170,9 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         &layout_entries,
         &secret,
         &extra_imports,
+        &service_instances,
+        &persistence,
+        &component_funcs,
     );
 
     if let Some(parent) = opts.out.parent() {
@@ -116,6 +202,9 @@ fn assemble(
     layout_entries: &[(String, String)],
     secret: &str,
     extra_imports: &str,
+    service_instances: &str,
+    persistence: &str,
+    component_funcs: &str,
 ) -> String {
     let pages_arr = page_idents.join(", ");
     let layouts_arr = layout_entries
@@ -134,13 +223,25 @@ import MV "mo:motoview/Types";
 import Lib "mo:motoview";
 import Nat "mo:base/Nat";
 import Nat32 "mo:base/Nat32";
+import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Float "mo:base/Float";
 import Char "mo:base/Char";
 import Text "mo:base/Text";
 import Buffer "mo:base/Buffer";
+import Principal "mo:base/Principal";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
+import Option "mo:base/Option";
+import Time "mo:base/Time";
+import Bool "mo:base/Bool";
+import Random "mo:base/Random";
 {extra_imports}
 actor {{
+  // `Context` is the friendly alias for the request context passed to
+  // `onLoad(ctx : Context)` and to any handler whose first parameter is `ctx`.
+  type Context = MV.Ctx;
+
   // ---- conversion helpers used by generated event dispatch ----
   func mvNat(t : Text) : Nat {{
     var n : Nat = 0;
@@ -168,22 +269,52 @@ actor {{
     for ((kk, vv) in ctx.form.vals()) {{ if (kk == k) {{ return ?vv }} }};
     null;
   }};
+  // Read a route param (e.g. {{id:Nat}}) as Text; "" if absent.
+  func mvParamGet(ctx : MV.Ctx, k : Text) : Text {{
+    for ((kk, vv) in ctx.params.vals()) {{ if (kk == k) {{ return vv }} }};
+    "";
+  }};
 
+  // ---- shared service instances (stateful services) ----
+{service_instances}
+{persistence}
+{component_funcs}
 {page_objects}
 {page_records}
 {layout_funcs}
 
   let mvPages : [MV.Page] = [{pages_arr}];
   let mvLayouts : [MV.Layout] = [{layouts_arr}];
-  let mvConfig : MV.Config = {{ appName = {app_name:?}; secret = {secret} : Blob; seo = true }};
+  let mvConfig : MV.Config = {{ appName = {app_name:?}; secret = {secret} : Blob; seo = true; altOrigins = [] }};
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
+
+  // Session / secure-form HMAC secret: cryptographically random per canister
+  // (from the IC's raw_rand), kept in a stable var so it survives upgrades, and
+  // NEVER present in source. Installed lazily on the first update call below;
+  // restored into the app instance here after an upgrade.
+  stable var mvSecret : Blob = "" : Blob;
+  // Per-principal session epochs (logout-everywhere revocation), kept stable.
+  stable var mvEpochs : [(Text, Nat)] = [];
+  if (mvSecret.size() == 32) {{ mvApp.setSecret(mvSecret) }};
+  mvApp.setEpochs(mvEpochs);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {{
     mvApp.httpRequest(req, msg.caller);
   }};
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {{
-    mvApp.httpRequestUpdate(req, msg.caller);
+    if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
+    let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
+    mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
+    mvResp;
+  }};
+
+  // Internet Identity login bridge: an authenticated update call whose caller
+  // the IC has verified. Records the principal under the client's nonce so a
+  // following GET /mv-session can mint a session token bound to it.
+  public shared (msg) func mvEstablish(nonce : Text) : async () {{
+    if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
+    mvApp.establish(nonce, msg.caller);
   }};
 }};
 "#,
@@ -195,28 +326,79 @@ actor {{
         layouts_arr = layouts_arr,
         secret = secret,
         extra_imports = extra_imports,
+        service_instances = service_instances,
+        persistence = persistence,
+        component_funcs = component_funcs,
     )
 }
 
-/// Derive a 32-byte secret from the app name (MVP). Production apps should
-/// install a random secret (raw_rand) into a stable variable.
-fn gen_secret(app_name: &str) -> String {
-    let mut state: u64 = 0xcbf29ce484222325;
-    for b in app_name.bytes() {
-        state ^= b as u64;
-        state = state.wrapping_mul(0x100000001b3);
+/// A service file is "stateful" when it exports a `public class <Name>()` whose
+/// name matches the file stem. The compiler then instantiates one shared
+/// instance at actor scope (see `build`). Otherwise it is a stateless module.
+fn is_stateful_service(content: &str, name: &str) -> bool {
+    let needle = format!("public class {}", name);
+    // match `public class Name(` or `public class Name (` / `public class Name<`
+    content
+        .match_indices(&needle)
+        .any(|(i, _)| {
+            let after = &content[i + needle.len()..];
+            matches!(after.chars().next(), Some('(') | Some(' ') | Some('<') | Some('\t') | Some('\n'))
+        })
+}
+
+/// Path of a source file relative to the project dir (for `// mv:src` markers).
+fn rel_src(project_dir: &Path, file: &Path) -> String {
+    file.strip_prefix(project_dir)
+        .unwrap_or(file)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+/// Rewrite `moc` errors that point at the generated `main.mo` so they name the
+/// originating `.mview`/source region instead. Uses the `// mv:src <path>`
+/// markers emitted per page/component/layout. Returns the mapped report and
+/// whether any errors were found.
+pub fn map_moc_errors(main_mo: &str, moc_output: &str) -> (String, bool) {
+    // (generated line number, source path) for each marker, in order.
+    let mut markers: Vec<(usize, String)> = Vec::new();
+    for (i, line) in main_mo.lines().enumerate() {
+        if let Some(rest) = line.trim_start().strip_prefix("// mv:src ") {
+            markers.push((i + 1, rest.trim().to_string()));
+        }
     }
-    let mut out = String::from("\"");
-    for _ in 0..32 {
-        // xorshift64
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        let byte = (state & 0xFF) as u8;
-        out.push_str(&format!("\\{:02x}", byte));
+    let src_for = |gen_line: usize| -> Option<&String> {
+        markers
+            .iter()
+            .rev()
+            .find(|(l, _)| *l <= gen_line)
+            .map(|(_, p)| p)
+    };
+    let mut out = String::new();
+    let mut had_error = false;
+    for line in moc_output.lines() {
+        // e.g. ".../main.mo:6519.5-6519.11: syntax error [M0001], unexpected ..."
+        if let Some(pos) = line.find("main.mo:") {
+            let after = &line[pos + "main.mo:".len()..];
+            let gen_line: usize = after
+                .split(|c: char| !c.is_ascii_digit())
+                .next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let is_err = line.contains("error");
+            if is_err {
+                had_error = true;
+            }
+            let msg = line.splitn(2, ": ").nth(1).unwrap_or(line);
+            match src_for(gen_line) {
+                Some(src) => out.push_str(&format!("{}  ({}, generated main.mo:{})\n", msg, src, gen_line)),
+                None => out.push_str(&format!("{}  (generated main.mo:{})\n", msg, gen_line)),
+            }
+        } else if !line.trim().is_empty() {
+            out.push_str(line);
+            out.push('\n');
+        }
     }
-    out.push('"');
-    out
+    (out, had_error)
 }
 
 fn list_mview(dir: &Path) -> Vec<PathBuf> {

@@ -1,0 +1,334 @@
+@page "/forum/t/{id:Nat}"
+@layout AppLayout
+@title (topicTitle # " — Bzzz Forum")
+@description topicDescription
+
+<div class="ft-wrap">
+
+@if exists {
+
+    <header class="ft-head">
+        <div class="ft-cat">
+            <span class="ft-cat-sq" style="--c:@catColor"></span>
+            <a class="ft-cat-name" href="/forum/c/@categoryId">@catName</a>
+        </div>
+        <h1 class="ft-title">
+            @if pinned { <span class="ft-glyph" title="Pinned">📌</span> }
+            @if closed { <span class="ft-glyph" title="Closed">🔒</span> }
+            @if solved { <span class="ft-glyph" title="Solved">✅</span> }
+            @topicTitle
+        </h1>
+        @if hasTags {
+            <div class="ft-tags">
+                @for t in tags {
+                    <span class="ft-tag">@t</span>
+                }
+            </div>
+        }
+        <div class="ft-sub">
+            <span>@replyCount replies</span>
+            <span class="ft-dot">·</span>
+            <span>@views views</span>
+            <span class="ft-dot">·</span>
+            <span>last activity @activity</span>
+        </div>
+    </header>
+
+    @if isAuthor {
+        <div class="ft-mod">
+            <span class="ft-mod-label">Topic controls</span>
+            @if pinned {
+                <button class="ft-mod-btn" @click="togglePin">Unpin</button>
+            } else {
+                <button class="ft-mod-btn" @click="togglePin">Pin</button>
+            }
+            @if closed {
+                <button class="ft-mod-btn" @click="toggleClose">Reopen</button>
+            } else {
+                <button class="ft-mod-btn" @click="toggleClose">Close</button>
+            }
+            @if solved {
+                <button class="ft-mod-btn" @click="clearSolution">Clear solution</button>
+            }
+        </div>
+    }
+
+    <div class="ft-stream">
+        @for p in posts {
+            <article class="ft-post @(postClass(p.id))" id="post-@p.id">
+                @if isAccepted(p.id) {
+                    <div class="ft-solution-tag">✅ Solution</div>
+                }
+                <div class="ft-post-row">
+                    <div class="ft-avatar">@avatarFor(p.author)</div>
+                    <div class="ft-post-main">
+                        <div class="ft-post-head">
+                            <span class="ft-handle">@p.authorHandle</span>
+                            @if isOp(p.replyToPost) {
+                                <span class="ft-op-badge">OP</span>
+                            }
+                            <span class="ft-when">@when(p.at)</span>
+                        </div>
+                        <div class="ft-body">@p.body</div>
+                        <div class="ft-actions">
+                            @if likedBy(p.id) {
+                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Unlike">
+                                    <span class="ft-heart">♥</span>
+                                    <span class="ft-count">@p.likeCount</span>
+                                </button>
+                            } else {
+                                <button class="ft-act" @click="toggleLike(p.id)" title="Like">
+                                    <span class="ft-heart">♡</span>
+                                    @if hasLikes(p.likeCount) {
+                                        <span class="ft-count">@p.likeCount</span>
+                                    }
+                                </button>
+                            }
+                            <a class="ft-act" href="#reply" title="Reply">↩ Reply</a>
+                            @if isAccepted(p.id) {
+                                @if isAuthor {
+                                    <button class="ft-act ft-act-accepted" @click="unaccept" title="Unmark solution">✓ Solution</button>
+                                }
+                            } else if canAccept(p.replyToPost) {
+                                <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title="Mark as solution">Accept answer</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+
+    @if closed {
+        <div class="ft-closed-note">
+            🔒 This topic is closed. New replies are disabled.
+        </div>
+    } else {
+        <div class="ft-composer bz-card" id="reply">
+            <h3 class="ft-composer-title">Reply</h3>
+            @if signedIn {
+                <form @submit="submitReply" secure>
+                    <ValidationSummary />
+                    <TextArea name="body" label="Your reply" bind="@body" required />
+                    <div class="ft-composer-actions">
+                        <Button kind="primary" type="submit">Reply</Button>
+                    </div>
+                </form>
+            } else {
+                <p class="ft-signin-note">Pick a handle on <a href="/me">your profile</a> to join the discussion.</p>
+            }
+        </div>
+    }
+
+} else {
+
+    <div class="ft-empty bz-card">
+        <h2>Topic not found</h2>
+        <p>This topic doesn't exist or may have been removed.</p>
+        <a class="ft-back" href="/forum">← Back to the forum</a>
+    </div>
+
+}
+
+</div>
+
+<style>
+    .ft-wrap { max-width: 1100px; margin: 0 auto; color: #1a1a1a; }
+
+    .ft-head { padding: 0 0 1rem; border-bottom: 1px solid #e9ecef; margin-bottom: 1.25rem; }
+    .ft-cat { display: flex; align-items: center; gap: .45rem; margin-bottom: .55rem; }
+    .ft-cat-sq { width: 13px; height: 13px; border-radius: 3px; background: var(--c, #9aa0a6); display: inline-block; }
+    .ft-cat-name { color: #6b7177; text-decoration: none; font-size: .85rem; font-weight: 600; }
+    .ft-cat-name:hover { color: #0088CC; }
+    .ft-title { margin: 0; font-size: 1.7rem; line-height: 1.25; letter-spacing: -.01em; font-weight: 700; }
+    .ft-glyph { font-size: 1.15rem; margin-right: .2rem; }
+    .ft-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+    .ft-tag { background: #f1f3f5; color: #5c6166; font-size: .76rem; padding: .18rem .55rem; border-radius: 999px; border: 1px solid #e3e6e9; }
+    .ft-sub { margin-top: .7rem; color: #8a9097; font-size: .82rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+    .ft-dot { color: #c4c9ce; }
+
+    .ft-mod { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1.1rem;
+        background: #fff8f0; border: 1px solid #ffe2c2; border-radius: 10px; padding: .55rem .8rem; }
+    .ft-mod-label { font-size: .78rem; font-weight: 700; color: #b3621a; margin-right: .25rem; text-transform: uppercase; letter-spacing: .03em; }
+    .ft-mod-btn { background: #fff; border: 1px solid #e3a76a; color: #b3621a; border-radius: 8px;
+        padding: .32rem .7rem; font-size: .82rem; font-weight: 600; cursor: pointer; }
+    .ft-mod-btn:hover { background: #F15A24; border-color: #F15A24; color: #fff; }
+
+    .ft-stream { display: flex; flex-direction: column; gap: 0; }
+    .ft-post { background: #fff; border-bottom: 1px solid #ededed; padding: 1.15rem .25rem 1.25rem; position: relative; }
+    .ft-post:first-child { padding-top: .25rem; }
+    .ft-post.is-accepted { background: #f3fbf3; border: 1px solid #b7e3b7; border-radius: 12px;
+        margin: .4rem 0; padding: .9rem 1rem 1.1rem; }
+
+    .ft-solution-tag { display: inline-flex; align-items: center; gap: .3rem; color: #fff;
+        background: #009900; font-size: .74rem; font-weight: 700; padding: .2rem .6rem;
+        border-radius: 999px; margin-bottom: .6rem; letter-spacing: .02em; }
+
+    .ft-post-row { display: flex; gap: .9rem; align-items: flex-start; }
+    .ft-avatar { width: 45px; height: 45px; border-radius: 50%; flex: 0 0 45px;
+        display: grid; place-items: center; font-size: 1.35rem;
+        background: linear-gradient(135deg, #ede7fb, #e2d9fa); box-shadow: inset 0 0 0 1px rgba(109,40,217,.12); }
+    .ft-post-main { flex: 1; min-width: 0; }
+    .ft-post-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: .5rem; margin-bottom: .35rem; }
+    .ft-handle { font-weight: 700; color: #1a1a1a; font-size: .98rem; }
+    .ft-op-badge { font-size: .66rem; font-weight: 700; color: #6d28d9; background: #ede7fb;
+        border-radius: 4px; padding: .08rem .35rem; text-transform: uppercase; letter-spacing: .04em; }
+    .ft-when { color: #9aa0a6; font-size: .8rem; }
+    .ft-body { color: #2b2f33; line-height: 1.62; font-size: .96rem; white-space: pre-wrap; word-wrap: break-word; }
+
+    .ft-actions { display: flex; align-items: center; gap: .3rem; margin-top: .8rem; flex-wrap: wrap; }
+    .ft-act { display: inline-flex; align-items: center; gap: .28rem; background: transparent; border: none;
+        color: #8a9097; font-size: .84rem; font-weight: 600; padding: .3rem .55rem; border-radius: 7px;
+        cursor: pointer; text-decoration: none; }
+    .ft-act:hover { background: #f1f3f5; color: #5c6166; }
+    .ft-heart { font-size: 1rem; line-height: 1; }
+    .ft-act.ft-liked { color: #fa6c8d; }
+    .ft-act.ft-liked:hover { background: #fff0f3; }
+    .ft-count { font-variant-numeric: tabular-nums; }
+    .ft-act-accept { color: #009900; }
+    .ft-act-accept:hover { background: #eafaea; color: #007a00; }
+    .ft-act-accepted { color: #009900; }
+
+    .ft-closed-note { margin-top: 1.5rem; background: #fbf3f3; border: 1px solid #f0d6d6; color: #9a4040;
+        border-radius: 12px; padding: 1rem 1.2rem; font-weight: 600; text-align: center; }
+
+    .ft-composer { margin-top: 1.75rem; padding: 1.2rem 1.3rem 1.4rem; }
+    .ft-composer-title { margin: 0 0 .7rem; font-size: 1.1rem; }
+    .ft-composer-actions { margin-top: .7rem; }
+    .ft-signin-note { color: #6b7177; margin: 0; }
+    .ft-signin-note a { color: #0088CC; }
+
+    .ft-empty { padding: 2.5rem 2rem; text-align: center; }
+    .ft-empty h2 { margin: 0 0 .5rem; }
+    .ft-empty p { color: #6b7177; margin: 0 0 1rem; }
+    .ft-back { color: #0088CC; text-decoration: none; font-weight: 600; }
+
+    @media (max-width: 640px) {
+        .ft-title { font-size: 1.35rem; }
+        .ft-avatar { width: 38px; height: 38px; flex-basis: 38px; font-size: 1.1rem; }
+        .ft-post-row { gap: .65rem; }
+    }
+</style>
+
+@code {
+    var exists : Bool = false;
+    var categoryId : Nat = 0;
+    var topicTitle : Text = "Topic";
+    var topicDescription : Text = "A discussion on the Bzzz forum.";
+    var catName : Text = "";
+    var catColor : Text = "#9aa0a6";
+    var tags : [Text] = [];
+    var hasTags : Bool = false;
+    var pinned : Bool = false;
+    var closed : Bool = false;
+    var solved : Bool = false;
+    var acceptedId : Nat = 0;
+    var views : Nat = 0;
+    var replyCount : Nat = 0;
+    var activity : Text = "";
+    var isAuthor : Bool = false;
+    var signedIn : Bool = false;
+    var posts : [Forum.Post] = [];
+    var me : Principal = Principal.fromText("2vxsx-fae");
+
+    var body : Text = "";
+
+    // Full page visit: count a view, then load.
+    func onLoad(ctx : Context) {
+        Forum.bumpView(id);
+        load(ctx);
+    };
+
+    // Refresh page vars from the services without counting a new view
+    // (used by mutating handlers, since the runtime renders right after
+    // dispatch without re-running onLoad).
+    func load(ctx : Context) {
+        me := ctx.caller;
+        signedIn := Identity.isBound(ctx.caller);
+        switch (Forum.topic(id)) {
+            case (?t) {
+                exists := true;
+                categoryId := t.categoryId;
+                topicTitle := t.title;
+                topicDescription := "Discussion: " # t.title # " — on the Bzzz forum.";
+                catName := Forum.categoryName(t.categoryId);
+                catColor := Forum.categoryColor(t.categoryId);
+                tags := t.tags;
+                hasTags := t.tags.size() > 0;
+                pinned := t.pinned;
+                closed := t.closed;
+                acceptedId := t.acceptedPostId;
+                solved := t.acceptedPostId != 0;
+                views := t.views;
+                isAuthor := t.author == ctx.caller;
+                activity := Forum.topicActivity(id);
+                replyCount := Forum.replyCount(id);
+                posts := Forum.posts(id);
+            };
+            case null {
+                exists := false;
+            };
+        };
+    };
+
+    func avatarFor(p : Principal) : Text { Identity.avatarOf(p) };
+    func when(at : Int) : Text { Forum.relativeTime(at) };
+    func isOp(replyToPost : Nat) : Bool { replyToPost == 0 };
+    func canAccept(replyToPost : Nat) : Bool { isAuthor and replyToPost != 0 };
+    func isAccepted(postId : Nat) : Bool { postId != 0 and postId == acceptedId };
+    func hasLikes(n : Nat) : Bool { n > 0 };
+    func postClass(postId : Nat) : Text { if (isAccepted(postId)) "is-accepted" else "" };
+    func likedBy(postId : Nat) : Bool { Forum.hasLiked(me, postId) };
+
+    func toggleLike(ctx : Context, postId : Nat) : async () {
+        ignore Forum.like(ctx.caller, postId);
+        load(ctx);
+    };
+
+    func acceptPost(ctx : Context, postId : Nat) : async () {
+        if (Forum.accept(ctx.caller, id, postId)) {
+            toast("Marked as the solution.");
+        } else {
+            toast("Only the topic author can accept an answer.");
+        };
+        load(ctx);
+    };
+
+    func unaccept(ctx : Context) : async () {
+        ignore Forum.accept(ctx.caller, id, 0);
+        toast("Solution cleared.");
+        load(ctx);
+    };
+
+    func clearSolution(ctx : Context) : async () {
+        ignore Forum.accept(ctx.caller, id, 0);
+        toast("Solution cleared.");
+        load(ctx);
+    };
+
+    func togglePin(ctx : Context) : async () {
+        ignore Forum.setPinned(ctx.caller, id, not pinned);
+        load(ctx);
+    };
+
+    func toggleClose(ctx : Context) : async () {
+        ignore Forum.setClosed(ctx.caller, id, not closed);
+        load(ctx);
+    };
+
+    func submitReply(ctx : Context) : async () {
+        validate {
+            body required "Write a reply before posting.";
+        };
+        let handle = Identity.handleOf(ctx.caller);
+        let pid = Forum.reply(ctx.caller, handle, id, body, 0);
+        if (pid == 0) {
+            toast("This topic is closed.");
+        } else {
+            body := "";
+            toast("Reply posted.");
+        };
+        load(ctx);
+        if (pid != 0) { scrollTo("#post-" # Nat.toText(pid)) };
+    };
+}

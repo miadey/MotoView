@@ -102,6 +102,7 @@ module {
     layout : Text; // layout name, or "" for none
     authorize : Bool; // requires an authenticated caller
     role : Text; // required role, or "" for any authenticated caller
+    cacheable : Bool; // serve as a certified query (no update round-trip)
     onLoad : (Ctx) -> (); // data-loading lifecycle (runs on GET renders)
     render : (Ctx) -> Text; // inner HTML of the page body
     title : (Ctx) -> Text; // document title
@@ -131,12 +132,16 @@ module {
     appName : Text;
     secret : Blob; // server secret for signing secure-form tokens
     seo : Bool;
+    // Extra origins trusted as an Internet Identity derivationOrigin, served at
+    // /.well-known/ii-alternative-origins (for a stable principal across domains).
+    altOrigins : [Text];
   };
 
   /// Static client assets served by the canister. Populated by the runtime's
   /// `ClientAssets` module (the Rust→WASM bridge + its JS bootstrap + CSS).
   public type Assets = {
     clientJs : Text; // JS bootstrap/glue that loads the wasm bridge
+    authJs : Text; // hand-written Internet Identity login (served at /mv-auth.js)
     clientWasm : Blob; // the compiled Rust→WASM client ("the brain")
     css : Text; // bridge + base theme CSS
     favicon : Text; // SVG favicon markup

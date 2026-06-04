@@ -1,0 +1,374 @@
+@page "/servers/{id:Nat}"
+@layout AppLayout
+@title serverName # " — Bzzz server"
+@description serverName # " on Bzzz — channels, members, roles and moderation for a Discord-style community running on the Internet Computer."
+
+@if not exists {
+    <div class="bz-card sv-missing">
+        <div class="sv-missing-ico">🚫</div>
+        <h2>Server not found</h2>
+        <p>This server does not exist (or was deleted). <a href="/servers">Back to all servers</a>.</p>
+    </div>
+} else {
+    <div class="sv-head bz-card">
+        <div class="sv-head-main">
+            <div class="sv-title-row">
+                <h1>@serverName</h1>
+                <span class="sv-badge sv-badge-@kindClass">@kindLabel</span>
+                @if private_ {
+                    <span class="sv-lockchip">🔒 Private</span>
+                }
+            </div>
+            <p class="sv-meta">@(memberCount) @plural(memberCount, "member", "members") · @(channels.size()) @plural(channels.size(), "channel", "channels") · created @createdRel</p>
+            <p class="sv-role">Your role: <strong>@myRole</strong></p>
+        </div>
+        <div class="sv-head-actions">
+            @if isMember {
+                @if isOwner {
+                    <span class="sv-owner-note">You own this server</span>
+                } else {
+                    <button class="sv-btn sv-btn-ghost" @click="leave">Leave server</button>
+                }
+            } else {
+                <button class="sv-btn sv-btn-primary" @click="join">Join server</button>
+            }
+        </div>
+    </div>
+
+    <div class="sv-layout">
+        <section class="sv-col-main">
+            <div class="bz-card sv-panel">
+                <div class="sv-panel-head">
+                    <h2>Channels</h2>
+                    <span class="sv-count">@(channels.size())</span>
+                </div>
+
+                @if channels.size() == 0 {
+                    <p class="sv-empty">No channels yet. @if canMod { Create the first one below. } else { A moderator can create channels. }</p>
+                } else {
+                    <ul class="sv-channels">
+                        @for c in channels {
+                            <li class="sv-channel">
+                                <a class="sv-channel-link" href="/channel/@(c.id)">
+                                    <span class="sv-hash">#</span><span class="sv-cname">@c.name</span>
+                                </a>
+                                <span class="sv-channel-meta">
+                                    @if isLocked(c.id) { <span class="sv-lockchip sv-lockchip-sm">🔒 locked</span> }
+                                    <span class="sv-msgcount">@(msgCount(c.id)) msgs</span>
+                                </span>
+                                @if canMod {
+                                    <span class="sv-channel-mod">
+                                        @if isLocked(c.id) {
+                                            <button class="sv-chip-btn" @click="unlock(c.id)">Unlock</button>
+                                        } else {
+                                            <button class="sv-chip-btn" @click="lock(c.id)">Lock</button>
+                                        }
+                                    </span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+
+                @if canMod {
+                    <form class="sv-channel-form" @submit="createChannel" secure>
+                        <ValidationSummary />
+                        <div class="sv-channel-form-row">
+                            <InputText name="channelName" label="New channel name" bind="@channelName" required />
+                            <Button kind="primary" type="submit">Add channel</Button>
+                        </div>
+                        <p class="sv-hint">Lowercase letters, numbers, - and _ only (max 20 chars).</p>
+                    </form>
+                }
+            </div>
+
+            @if canMod {
+                <div class="bz-card sv-panel sv-modpanel">
+                    <div class="sv-panel-head">
+                        <h2>Moderation</h2>
+                        <span class="sv-modtag">@myRole tools</span>
+                    </div>
+                    <p class="sv-modnote">You can moderate this server. Lock channels above to stop non-mods from posting, and manage member roles in the rail.</p>
+                </div>
+            }
+        </section>
+
+        <aside class="sv-col-rail">
+            <div class="bz-card sv-panel">
+                <div class="sv-panel-head">
+                    <h2>Members</h2>
+                    <span class="sv-count">@memberCount</span>
+                </div>
+                @if memberRows.size() == 0 {
+                    <p class="sv-empty">No members yet.</p>
+                } else {
+                    <ul class="sv-members">
+                        @for mr in memberRows {
+                            <li class="sv-member">
+                                <span class="sv-ava">@(avatarOf(mr.principal))</span>
+                                <span class="sv-member-main">
+                                    <span class="sv-member-handle">@(handleOf(mr.principal))</span>
+                                    <span class="sv-member-role sv-role-@(roleClass(mr.principal))">@(roleLabel(mr.principal))</span>
+                                </span>
+                                @if canAdmin {
+                                    @if isOwnerPrincipal(mr.principal) {
+                                        <span class="sv-member-actions sv-owner-pill">Owner</span>
+                                    } else {
+                                        <span class="sv-member-actions">
+                                            @if isMod(mr.principal) {
+                                                <button class="sv-chip-btn" @click="revoke(pidText(mr.principal))">Revoke</button>
+                                            } else {
+                                                <button class="sv-chip-btn" @click="makeMod(pidText(mr.principal))">Make mod</button>
+                                            }
+                                            @if isOwner {
+                                                @if isAdminPrincipal(mr.principal) {
+                                                    <button class="sv-chip-btn" @click="revoke(pidText(mr.principal))">Demote</button>
+                                                } else {
+                                                    <button class="sv-chip-btn" @click="makeAdmin(pidText(mr.principal))">Make admin</button>
+                                                }
+                                            }
+                                        </span>
+                                    }
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </aside>
+    </div>
+}
+
+<style>
+    .sv-missing { text-align:center; padding:2.5rem 1.2rem; }
+    .sv-missing-ico { font-size:2.4rem; }
+    .sv-missing a { color:var(--bz-accent); font-weight:600; }
+
+    .sv-head { padding:1.2rem 1.3rem; display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; }
+    .sv-title-row { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+    .sv-title-row h1 { margin:0; font-size:1.6rem; letter-spacing:-.02em; }
+    .sv-meta { margin:.45rem 0 .15rem; color:var(--mv-text-soft); font-size:.9rem; }
+    .sv-role { margin:0; color:var(--mv-text-soft); font-size:.85rem; }
+    .sv-role strong { color:var(--mv-text); }
+
+    .sv-badge { font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:999px;
+        text-transform:uppercase; letter-spacing:.03em; }
+    .sv-badge-discussion { background:#ede9fe; color:#6d28d9; }
+    .sv-badge-forum { background:#dbeafe; color:#1d4ed8; }
+    .sv-badge-feed { background:#fce7f3; color:#be185d; }
+    .sv-lockchip { font-size:.74rem; font-weight:600; color:#92400e; background:#fef3c7; padding:.16rem .45rem; border-radius:999px; }
+    .sv-lockchip-sm { font-size:.68rem; }
+
+    .sv-btn { font-size:.85rem; font-weight:700; padding:.5rem .9rem; border-radius:10px; cursor:pointer; border:1px solid transparent; }
+    .sv-btn-primary { background:var(--bz-accent); color:#fff; }
+    .sv-btn-primary:hover { filter:brightness(1.08); }
+    .sv-btn-ghost { background:transparent; border-color:var(--mv-border); color:var(--mv-text); }
+    .sv-btn-ghost:hover { background:var(--mv-muted); }
+    .sv-owner-note { font-size:.82rem; color:var(--mv-text-soft); }
+
+    .sv-layout { display:grid; grid-template-columns:1fr 300px; gap:1.25rem; align-items:start; }
+    .sv-col-main { display:flex; flex-direction:column; gap:1.25rem; min-width:0; }
+    .sv-panel { padding:1.1rem 1.2rem; }
+    .sv-panel-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:.8rem; }
+    .sv-panel-head h2 { margin:0; font-size:1.1rem; }
+    .sv-count { font-size:.78rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted); padding:.16rem .5rem; border-radius:999px; }
+    .sv-modtag { font-size:.72rem; font-weight:700; color:#6d28d9; background:#ede9fe; padding:.16rem .5rem; border-radius:999px; }
+    .sv-empty { color:var(--mv-text-soft); font-size:.9rem; margin:0; }
+
+    .sv-channels { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.2rem; }
+    .sv-channel { display:flex; align-items:center; gap:.6rem; padding:.5rem .6rem; border-radius:9px; }
+    .sv-channel:hover { background:var(--mv-muted); }
+    .sv-channel-link { display:flex; align-items:baseline; gap:.15rem; text-decoration:none; color:var(--mv-text); font-weight:600; }
+    .sv-channel-link:hover .sv-cname { color:var(--bz-accent); }
+    .sv-hash { color:var(--mv-text-soft); font-weight:700; }
+    .sv-channel-meta { margin-left:auto; display:flex; align-items:center; gap:.5rem; }
+    .sv-msgcount { font-size:.76rem; color:var(--mv-text-soft); }
+    .sv-channel-mod { display:flex; gap:.3rem; }
+
+    .sv-channel-form { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--mv-border); }
+    .sv-channel-form-row { display:flex; gap:.6rem; align-items:end; }
+    .sv-hint { margin:.4rem 0 0; font-size:.76rem; color:var(--mv-text-soft); }
+
+    .sv-modpanel { background:linear-gradient(180deg, rgba(109,40,217,.04), transparent); }
+    .sv-modnote { margin:0; color:var(--mv-text-soft); font-size:.88rem; }
+
+    .sv-members { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.35rem; }
+    .sv-member { display:flex; align-items:center; gap:.55rem; padding:.4rem .35rem; border-radius:9px; }
+    .sv-member:hover { background:var(--mv-muted); }
+    .sv-ava { width:30px; height:30px; border-radius:50%; background:var(--mv-muted); display:grid; place-items:center; font-size:1.05rem; flex:none; }
+    .sv-member-main { display:flex; flex-direction:column; min-width:0; }
+    .sv-member-handle { font-weight:700; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sv-member-role { font-size:.7rem; font-weight:700; }
+    .sv-role-owner { color:#b45309; }
+    .sv-role-admin { color:#6d28d9; }
+    .sv-role-moderator { color:#1d4ed8; }
+    .sv-role-member { color:var(--mv-text-soft); }
+    .sv-member-actions { margin-left:auto; display:flex; gap:.25rem; }
+    .sv-owner-pill { font-size:.7rem; font-weight:700; color:#b45309; background:#fef3c7; padding:.14rem .45rem; border-radius:999px; }
+
+    .sv-chip-btn { font-size:.72rem; font-weight:700; padding:.22rem .5rem; border-radius:7px; cursor:pointer;
+        border:1px solid var(--mv-border); background:var(--mv-surface); color:var(--mv-text); }
+    .sv-chip-btn:hover { background:var(--bz-accent); color:#fff; border-color:var(--bz-accent); }
+
+    @media (max-width: 860px) {
+        .sv-layout { grid-template-columns:1fr; }
+        .sv-head { flex-direction:column; }
+    }
+</style>
+
+@code {
+    // The {id:Nat} route param is read from ctx.params (the runtime supplies
+    // route params there) into this page var during onLoad, so the template and
+    // render-time helpers can use it. Handlers re-read it from ctx for safety.
+    var id : Nat = 0;
+
+    var exists : Bool = false;
+    var serverName : Text = "Server";
+    var kindLabel : Text = "";
+    var kindClass : Text = "discussion";
+    var private_ : Bool = false;
+    var createdRel : Text = "";
+    var memberCount : Nat = 0;
+    // element types inferred from the service calls (stateful-service public
+    // types can't be named from a page — the page sees the instance, not the
+    // module). Initialized from benign calls; onLoad fills them per-request.
+    var channels = Chat.listRooms(0);
+    var memberRows = Servers.memberRecords(0);
+
+    var isMember : Bool = false;
+    var isOwner : Bool = false;
+    var canMod : Bool = false;
+    var canAdmin : Bool = false;
+    var myRole : Text = "Member";
+
+    // create-channel form field (auto-populated from the secure form)
+    var channelName : Text = "";
+
+    // Read a Nat route param out of ctx.params (e.g. {id:Nat} -> "id").
+    func paramNat(ctx : Context, k : Text) : Nat {
+        for ((kk, vv) in ctx.params.vals()) { if (kk == k) { return mvNat(vv) } };
+        0;
+    };
+
+    func onLoad(ctx : Context) {
+        id := paramNat(ctx, "id");
+        switch (Servers.server(id)) {
+            case null { exists := false };
+            case (?s) {
+                exists := true;
+                serverName := s.name;
+                kindLabel := Servers.kindLabel(s.kind);
+                kindClass := (switch (s.kind) {
+                    case (#Discussion) "discussion";
+                    case (#Forum) "forum";
+                    case (#Feed) "feed";
+                });
+                private_ := s.private_;
+                createdRel := Servers.relativeTime(s.createdAt);
+            };
+        };
+        memberCount := Servers.memberCount(id);
+        memberRows := Servers.memberRecords(id);
+        channels := Chat.listRooms(id);
+
+        isMember := Servers.isMember(id, ctx.caller);
+        isOwner := Servers.isOwner(id, ctx.caller);
+        canMod := Servers.canModerate(id, ctx.caller);
+        canAdmin := Servers.canAdmin(id, ctx.caller);
+        myRole := Servers.roleLabel(id, ctx.caller);
+    };
+
+    // ---- display helpers (thin: services do the work) ----
+    func msgCount(rid : Nat) : Nat { Chat.messageCount(rid) };
+    func isLocked(rid : Nat) : Bool { Servers.isLocked(rid) };
+
+    func handleOf(p : Principal) : Text { Identity.handleOf(p) };
+    func avatarOf(p : Principal) : Text { Identity.avatarOf(p) };
+    func roleLabel(p : Principal) : Text { Servers.roleLabel(id, p) };
+
+    func roleClass(p : Principal) : Text {
+        switch (Servers.roleOf(id, p)) {
+            case (#Owner) "owner";
+            case (#Admin) "admin";
+            case (#Moderator) "moderator";
+            case (#None) "member";
+        };
+    };
+
+    func isOwnerPrincipal(p : Principal) : Bool { Servers.isOwner(id, p) };
+    func isAdminPrincipal(p : Principal) : Bool { Servers.roleOf(id, p) == #Admin };
+    func isMod(p : Principal) : Bool {
+        switch (Servers.roleOf(id, p)) {
+            case (#Moderator) true;
+            case (#Admin) true;
+            case (_) false;
+        };
+    };
+
+    func plural(n : Nat, one : Text, many : Text) : Text {
+        if (n == 1) one else many;
+    };
+
+    // Principals travel through event args as Text (Principal.toText), then are
+    // rebuilt with Principal.fromText in the handler — the event wire is Text.
+    func pidText(p : Principal) : Text { Principal.toText(p) };
+
+    // ---- mutating handlers (re-read the server id from ctx for correctness) ----
+    func join(ctx : Context) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.joinAs(ctx.caller, sid, Identity.handleOf(ctx.caller));
+        toast("Joined the server.");
+    };
+
+    func leave(ctx : Context) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.leave(ctx.caller, sid);
+        toast("Left the server.");
+    };
+
+    func createChannel(ctx : Context) : async () {
+        validate {
+            channelName required "Name the channel.";
+            channelName minLength 2 "Channel name must be at least 2 characters.";
+        };
+        let sid = paramNat(ctx, "id");
+        let newRid = Chat.createRoom(channelName, sid);
+        if (newRid == 0) {
+            toast("Pick a valid channel name (a-z, 0-9, - or _).");
+            return;
+        };
+        ignore Servers.addChannel(ctx.caller, sid, newRid);
+        channelName := "";
+        toast("Channel created.");
+    };
+
+    func lock(ctx : Context, rid : Nat) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.lock(ctx.caller, sid, rid, true);
+        toast("Channel locked.");
+    };
+
+    func unlock(ctx : Context, rid : Nat) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.lock(ctx.caller, sid, rid, false);
+        toast("Channel unlocked.");
+    };
+
+    func makeMod(ctx : Context, targetText : Text) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.grant(ctx.caller, sid, Principal.fromText(targetText), #Moderator);
+        toast("Granted moderator.");
+    };
+
+    func makeAdmin(ctx : Context, targetText : Text) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.grant(ctx.caller, sid, Principal.fromText(targetText), #Admin);
+        toast("Granted admin.");
+    };
+
+    func revoke(ctx : Context, targetText : Text) : async () {
+        let sid = paramNat(ctx, "id");
+        ignore Servers.revoke(ctx.caller, sid, Principal.fromText(targetText));
+        toast("Role revoked.");
+    };
+}

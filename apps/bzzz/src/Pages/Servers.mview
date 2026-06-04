@@ -1,0 +1,193 @@
+@page "/servers"
+@layout AppLayout
+@title "Servers — Bzzz"
+@description "Browse and create Bzzz servers (guilds) — Discord-style communities with channels, roles and moderation, running on-chain on the Internet Computer."
+
+<div class="srv-head">
+    <div>
+        <h1>Servers</h1>
+        <p class="srv-sub">@(serverList.size()) @plural(serverList.size(), "community", "communities") on Bzzz · pick one to jump into its channels.</p>
+    </div>
+</div>
+
+@if not bound {
+    <div class="bz-card srv-notice">
+        <p>You are browsing as a guest. <a href="/me">Claim a handle</a> to create servers and join the conversation.</p>
+    </div>
+}
+
+<div class="bz-card srv-create">
+    <h3>Create a server</h3>
+    <form @submit="create" secure>
+        <ValidationSummary />
+        <div class="srv-create-grid">
+            <InputText name="name" label="Server name" bind="@name" required />
+            <div class="srv-field">
+                <span class="srv-label">Kind</span>
+                <select name="kind" class="srv-select">
+                    <option value="Discussion">Discussion (channels &amp; chat)</option>
+                    <option value="Forum">Forum (topics &amp; replies)</option>
+                    <option value="Feed">Feed (timeline)</option>
+                </select>
+            </div>
+        </div>
+        <div class="srv-create-actions">
+            <Button kind="primary" type="submit">Create server</Button>
+        </div>
+    </form>
+</div>
+
+@if serverList.size() == 0 {
+    <div class="bz-card srv-empty">
+        <div class="srv-empty-ico">💬</div>
+        <h3>No servers yet</h3>
+        <p>Be the first to start a community. Create a server above.</p>
+    </div>
+} else {
+    <div class="srv-grid">
+        @for s in serverList {
+            <article class="bz-card srv-card">
+                <div class="srv-card-top">
+                    <a class="srv-name" href="/servers/@(s.id)">@s.name</a>
+                    @switch s.kind {
+                        case (#Discussion) { <span class="srv-badge srv-badge-discussion">Discussion</span> }
+                        case (#Forum) { <span class="srv-badge srv-badge-forum">Forum</span> }
+                        case (#Feed) { <span class="srv-badge srv-badge-feed">Feed</span> }
+                    }
+                </div>
+                <p class="srv-summary">@(summaryOf(s.id))</p>
+                <div class="srv-card-foot">
+                    <span class="srv-role">@(roleOf(s.id))</span>
+                    @if isMemberOf(s.id) {
+                        @if isOwnerOf(s.id) {
+                            <span class="srv-owner-note">You own this server</span>
+                        } else {
+                            <button class="srv-btn srv-btn-ghost" @click="leave(s.id)">Leave</button>
+                        }
+                    } else {
+                        <button class="srv-btn srv-btn-primary" @click="join(s.id)">Join</button>
+                    }
+                    <a class="srv-btn srv-btn-link" href="/servers/@(s.id)">Open →</a>
+                </div>
+            </article>
+        }
+    </div>
+}
+
+<style>
+    .srv-head { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+    .srv-head h1 { margin:0 0 .2rem; font-size:1.7rem; letter-spacing:-.02em; }
+    .srv-sub { margin:0; color:var(--mv-text-soft); }
+    .srv-notice { padding:.85rem 1.1rem; margin-bottom:1rem; }
+    .srv-notice p { margin:0; color:var(--mv-text-soft); }
+    .srv-notice a { color:var(--bz-accent); font-weight:600; }
+
+    .srv-create { padding:1.1rem 1.2rem; margin-bottom:1.5rem; }
+    .srv-create h3 { margin:0 0 .8rem; font-size:1.1rem; }
+    .srv-create-grid { display:grid; grid-template-columns:2fr 1fr; gap:1rem; align-items:end; }
+    .srv-field { display:flex; flex-direction:column; gap:.35rem; }
+    .srv-label { font-size:.82rem; font-weight:600; color:var(--mv-text-soft); }
+    .srv-select { padding:.55rem .65rem; border:1px solid var(--mv-border); border-radius:10px;
+        background:var(--mv-surface); font-size:.92rem; color:var(--mv-text); }
+    .srv-create-actions { margin-top:.9rem; }
+
+    .srv-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1rem; }
+    .srv-card { padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.6rem; }
+    .srv-card-top { display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+    .srv-name { font-size:1.12rem; font-weight:800; color:var(--mv-text); text-decoration:none; letter-spacing:-.01em; }
+    .srv-name:hover { color:var(--bz-accent); }
+    .srv-summary { margin:0; color:var(--mv-text-soft); font-size:.88rem; }
+
+    .srv-badge { font-size:.72rem; font-weight:700; padding:.2rem .5rem; border-radius:999px; white-space:nowrap;
+        text-transform:uppercase; letter-spacing:.03em; }
+    .srv-badge-discussion { background:#ede9fe; color:#6d28d9; }
+    .srv-badge-forum { background:#dbeafe; color:#1d4ed8; }
+    .srv-badge-feed { background:#fce7f3; color:#be185d; }
+
+    .srv-card-foot { display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin-top:.2rem;
+        padding-top:.7rem; border-top:1px solid var(--mv-border); }
+    .srv-role { font-size:.74rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted);
+        padding:.16rem .5rem; border-radius:999px; }
+    .srv-owner-note { font-size:.78rem; color:var(--mv-text-soft); }
+
+    .srv-btn { font-size:.82rem; font-weight:700; padding:.4rem .75rem; border-radius:9px; cursor:pointer;
+        border:1px solid transparent; text-decoration:none; }
+    .srv-btn-primary { background:var(--bz-accent); color:#fff; }
+    .srv-btn-primary:hover { filter:brightness(1.08); }
+    .srv-btn-ghost { background:transparent; border-color:var(--mv-border); color:var(--mv-text); }
+    .srv-btn-ghost:hover { background:var(--mv-muted); }
+    .srv-btn-link { margin-left:auto; background:transparent; color:var(--bz-accent); padding:.4rem .3rem; }
+
+    .srv-empty { text-align:center; padding:2.5rem 1.2rem; }
+    .srv-empty-ico { font-size:2.4rem; }
+    .srv-empty h3 { margin:.5rem 0 .3rem; }
+    .srv-empty p { margin:0; color:var(--mv-text-soft); }
+
+    @media (max-width: 600px) {
+        .srv-create-grid { grid-template-columns:1fr; }
+    }
+</style>
+
+@code {
+    // type inferred from the service — stateful-service public types can't be
+    // named from a page (the page sees the instance, not the module), so we let
+    // Motoko infer the element type from the service call.
+    var serverList = Servers.servers();
+    var bound : Bool = false;
+    var me : Principal = Principal.fromText("2vxsx-fae");
+    var myHandle : Text = "";
+
+    // create-server form fields (auto-populated from the secure form)
+    var name : Text = "";
+    var kind : Text = "Discussion";
+
+    func onLoad(ctx : Context) {
+        me := ctx.caller;
+        bound := Identity.isBound(ctx.caller);
+        myHandle := Identity.handleOf(ctx.caller);
+        serverList := Servers.servers();
+    };
+
+    // ---- thin display helpers (logic lives in the services) ----
+    func summaryOf(id : Nat) : Text { Servers.summaryOf(id) };
+    func isMemberOf(id : Nat) : Bool { Servers.isMember(id, me) };
+    func isOwnerOf(id : Nat) : Bool { Servers.isOwner(id, me) };
+    func roleOf(id : Nat) : Text { Servers.roleLabel(id, me) };
+
+    func plural(n : Nat, one : Text, many : Text) : Text {
+        if (n == 1) one else many;
+    };
+
+    // ---- mutating handlers: call the service with ctx.caller; onLoad refreshes ----
+    // the kind variant is built inline as the createServer argument so it
+    // unifies with the service's ServerKind type without naming it from the page.
+    func create(ctx : Context) : async () {
+        validate {
+            name required "Give your server a name.";
+            name minLength 2 "Server name must be at least 2 characters.";
+        };
+        let newId = if (kind == "Forum") {
+            Servers.createServer(ctx.caller, name, #Forum);
+        } else if (kind == "Feed") {
+            Servers.createServer(ctx.caller, name, #Feed);
+        } else {
+            Servers.createServer(ctx.caller, name, #Discussion);
+        };
+        ignore Servers.joinAs(ctx.caller, newId, Identity.handleOf(ctx.caller));
+        serverList := Servers.servers();
+        name := "";
+        toast("Server created!");
+    };
+
+    func join(ctx : Context, id : Nat) : async () {
+        ignore Servers.joinAs(ctx.caller, id, Identity.handleOf(ctx.caller));
+        serverList := Servers.servers();
+        toast("Joined the server.");
+    };
+
+    func leave(ctx : Context, id : Nat) : async () {
+        ignore Servers.leave(ctx.caller, id);
+        serverList := Servers.servers();
+        toast("Left the server.");
+    };
+}

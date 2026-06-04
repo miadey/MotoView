@@ -1,0 +1,9 @@
+@page "/about"
+@layout AppLayout
+@cacheable
+@title "About Bzzz"
+@description "Bzzz is an open social super-app running entirely on the Internet Computer."
+<section class="bz-hero"><h1>About Bzzz</h1>
+<p>A Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on-chain. This page is public and static, so it is served as a fast certified query — no consensus round-trip.</p></section>
+<p style="margin-top:1.25rem;color:var(--mv-text-soft)">Open source. No backend to trust. Your messages, your canister.</p>
+@code { }

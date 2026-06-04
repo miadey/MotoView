@@ -23,6 +23,9 @@ pub struct MviewFile {
     pub description: Option<String>, // raw Motoko expression
     pub canonical: Option<String>,
     pub authorize: Option<Auth>,
+    /// `@cacheable` — serve this (public, non-caller-specific) page as a fast
+    /// certified query instead of upgrading to an update call.
+    pub cacheable: bool,
     pub head_extra: Vec<HeadMeta>,
     pub template: Vec<Node>,
     pub sections: Vec<(String, Vec<Node>)>,
@@ -42,6 +45,7 @@ impl MviewFile {
             description: None,
             canonical: None,
             authorize: None,
+            cacheable: false,
             head_extra: Vec::new(),
             template: Vec::new(),
             sections: Vec::new(),

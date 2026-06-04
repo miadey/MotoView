@@ -22,6 +22,7 @@ These declare what a `.mview` file *is* and what the browser sees in `<head>`.
 | `@page` (param) | `@page "/products/{id}"` | `@page "/products/{id}"` |
 | `@page` (typed) | `@page "/orders/{id:Nat}"` | `@page "/orders/{id:Nat}"` |
 | `@layout` | `@layout NAME` | `@layout Main` |
+| `@cacheable` | `@cacheable` | serve a public page as a fast certified query (parameterized routes via a wildcard) |
 | `@title` | `@title EXPR` | `@title "Product " # product.name` |
 | `@description` | `@description EXPR` | `@description product.summary` |
 | `@canonical` | `@canonical EXPR` | `@canonical "https://shop.ic0.app/p/" # id` |

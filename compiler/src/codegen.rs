@@ -14,19 +14,101 @@ pub struct PageGen {
     pub route: String,
 }
 
+/// What the codegen needs to know to call an app component: its ordered params
+/// and the names of the named slots it declares (`@slot "x"`).
+pub struct CompInfo {
+    pub params: Vec<ParamDecl>,
+    pub slots: Vec<String>,
+}
+
+/// Collect the named slots (`@slot "name"`) declared in a component template.
+pub fn collect_slot_names(nodes: &[Node]) -> Vec<String> {
+    let mut out = Vec::new();
+    fn walk(nodes: &[Node], out: &mut Vec<String>) {
+        for n in nodes {
+            match n {
+                Node::Slot(name) => {
+                    if !out.contains(name) {
+                        out.push(name.clone());
+                    }
+                }
+                Node::Element(e) => walk(&e.children, out),
+                Node::Component(c) => walk(&c.children, out),
+                Node::If(brs) => {
+                    for b in brs {
+                        walk(&b.body, out);
+                    }
+                }
+                Node::For { body, .. } => walk(body, out),
+                Node::Switch { cases, .. } => {
+                    for c in cases {
+                        walk(&c.body, out);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    walk(nodes, &mut out);
+    out
+}
+
 pub struct Codegen<'a> {
     types: HashMap<String, String>, // name -> Motoko type (vars, params, func returns)
     is_layout: bool,
+    is_component: bool,
     _models: &'a HashMap<String, HashMap<String, String>>,
+    // app components: name -> params + slot names. Used to compile `<MyCard .../>`
+    // to a call of the generated `mvComponent_MyCard(...)`.
+    components: &'a HashMap<String, CompInfo>,
 }
 
 impl<'a> Codegen<'a> {
-    pub fn new(models: &'a HashMap<String, HashMap<String, String>>) -> Self {
+    pub fn new(
+        models: &'a HashMap<String, HashMap<String, String>>,
+        components: &'a HashMap<String, CompInfo>,
+    ) -> Self {
         Codegen {
             types: HashMap::new(),
             is_layout: false,
+            is_component: false,
             _models: models,
+            components,
         }
+    }
+
+    /// Compile a `src/Components/*.mview` into a render function:
+    /// `func mvComponent_<Name>(<params>, mvChildren : Text) : Text { ... }`.
+    /// `@children` inside the template emits the passed default-slot content.
+    pub fn gen_app_component(&mut self, file: &MviewFile) -> String {
+        self.is_component = true;
+        self.is_layout = false;
+        self.build_type_env(&file.code);
+        let slots = collect_slot_names(&file.template);
+        let mut sig: Vec<String> = file
+            .code
+            .params
+            .iter()
+            .map(|p| format!("{} : {}", p.name, p.ty))
+            .collect();
+        sig.push("mvChildren : Text".to_string());
+        for sl in &slots {
+            sig.push(format!("mvSlot_{} : Text", sl));
+        }
+        let mut s = String::new();
+        s.push_str(&format!("  // ===== Component: {} =====\n", file.name));
+        s.push_str(&format!("  func mvComponent_{}({}) : Text {{\n", file.name, sig.join(", ")));
+        s.push_str("    let b = Html.Builder();\n");
+        s.push_str("    ignore mvChildren;\n");
+        for sl in &slots {
+            s.push_str(&format!("    ignore mvSlot_{};\n", sl));
+        }
+        let mut body = String::new();
+        self.gen_nodes(&file.template, &mut body, "    ");
+        s.push_str(&body);
+        s.push_str("    b.build();\n  };\n");
+        self.is_component = false;
+        s
     }
 
     fn build_type_env(&mut self, code: &CodeBlock) {
@@ -54,9 +136,47 @@ impl<'a> Codegen<'a> {
         self.build_type_env(&file.code);
         let obj = format!("{}Page", file.name);
 
+        // Route params (e.g. `/orders/{id:Nat}` -> ("id","Nat")) are made
+        // available by name everywhere in the page: emitted as object fields and
+        // refreshed from ctx.params at the start of every ctx-entry method.
+        let route_params = parse_route_params(file.route.as_deref().unwrap_or(""));
+        let declared: HashSet<String> = file.code.vars.iter().map(|v| v.name.clone()).collect();
+        // register their types so @id renders correctly
+        for (n, t) in &route_params {
+            self.types.insert(n.clone(), t.clone());
+        }
+        let set_params = {
+            let mut sp = String::new();
+            for (n, t) in &route_params {
+                let conv = convert_from_text(t, &format!("mvParamGet(ctx, \"{}\")", n));
+                sp.push_str(&format!("      {} := {};\n", n, conv));
+            }
+            sp
+        };
+        let set_params_inline = {
+            let mut sp = String::new();
+            for (n, t) in &route_params {
+                let conv = convert_from_text(t, &format!("mvParamGet(ctx, \"{}\")", n));
+                sp.push_str(&format!("{} := {}; ", n, conv));
+            }
+            sp
+        };
+
         let mut s = String::new();
         s.push_str(&format!("  // ===== Page: {} ({}) =====\n", file.name, file.route.clone().unwrap_or_default()));
         s.push_str(&format!("  let {} = object {{\n", obj));
+
+        // route-param fields (skip any the user already declared as state)
+        for (n, t) in &route_params {
+            if !declared.contains(n) {
+                let default = match t.as_str() {
+                    "Nat" | "Int" | "Nat8" | "Nat16" | "Nat32" | "Nat64" => "0".to_string(),
+                    "Text" => "\"\"".to_string(),
+                    _ => "\"\"".to_string(),
+                };
+                s.push_str(&format!("    var {} : {} = {};\n", n, t, default));
+            }
+        }
 
         // state
         for v in &file.code.vars {
@@ -96,6 +216,7 @@ impl<'a> Codegen<'a> {
         s.push_str("    public func mvRender(ctx : MV.Ctx) : Text {\n");
         s.push_str("      let b = Html.Builder();\n");
         s.push_str("      ignore ctx;\n");
+        s.push_str(&set_params);
         let mut body = String::new();
         self.gen_nodes(&file.template, &mut body, "      ");
         s.push_str(&body);
@@ -104,7 +225,8 @@ impl<'a> Codegen<'a> {
         // title / description / head
         let title_expr = file.title.clone().unwrap_or_else(|| "\"\"".into());
         s.push_str(&format!(
-            "    public func mvTitle(ctx : MV.Ctx) : Text {{ ignore ctx; {} }};\n",
+            "    public func mvTitle(ctx : MV.Ctx) : Text {{ ignore ctx; {}{} }};\n",
+            set_params_inline,
             self.as_text(&title_expr)
         ));
         let desc_expr = file.description.clone().unwrap_or_else(|| "\"\"".into());
@@ -112,7 +234,8 @@ impl<'a> Codegen<'a> {
         // head extra (from @section "head")
         let head_extra = self.gen_head_extra(file);
         s.push_str(&format!(
-            "    public func mvHead(ctx : MV.Ctx) : MV.Head {{ ignore ctx; {{ title = {}; description = {}; canonical = {}; extra = {} }} }};\n",
+            "    public func mvHead(ctx : MV.Ctx) : MV.Head {{ ignore ctx; {}{{ title = {}; description = {}; canonical = {}; extra = {} }} }};\n",
+            set_params_inline,
             self.as_text(&title_expr),
             self.as_text(&desc_expr),
             self.as_text(&canon_expr),
@@ -130,17 +253,18 @@ impl<'a> Codegen<'a> {
                 .map(|f| !f.params.is_empty())
                 .unwrap_or(false);
             if onload_takes_ctx {
-                s.push_str("    public func mvOnLoad(ctx : MV.Ctx) { onLoad(ctx) };\n");
+                s.push_str(&format!("    public func mvOnLoad(ctx : MV.Ctx) {{ ignore ctx; {}onLoad(ctx) }};\n", set_params_inline));
             } else {
-                s.push_str("    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx; onLoad() };\n");
+                s.push_str(&format!("    public func mvOnLoad(ctx : MV.Ctx) {{ ignore ctx; {}onLoad() }};\n", set_params_inline));
             }
         } else {
-            s.push_str("    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx };\n");
+            s.push_str(&format!("    public func mvOnLoad(ctx : MV.Ctx) {{ ignore ctx; {} }};\n", set_params_inline));
         }
 
         // dispatch
         s.push_str("    public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {\n");
         s.push_str("      ignore ctx; ignore mvArgs;\n");
+        s.push_str(&set_params);
         s.push_str("      mvErrors.clear(); // each interaction starts with a clean slate\n");
         s.push_str("      mvEffects.clear();\n");
         // two-way binding: populate bound vars from the submitted form,
@@ -184,13 +308,15 @@ impl<'a> Codegen<'a> {
             Some(a) => ("true", a.role.clone().unwrap_or_default()),
             None => ("false", String::new()),
         };
+        let cacheable = if file.cacheable { "true" } else { "false" };
         let rec = format!(
-            "  let {n}Def : MV.Page = {{\n    route = {route:?};\n    layout = {layout:?};\n    authorize = {auth};\n    role = {role:?};\n    onLoad = {o}.mvOnLoad;\n    render = {o}.mvRender;\n    title = {o}.mvTitle;\n    head = {o}.mvHead;\n    dispatch = {o}.mvDispatch;\n    takeErrors = {o}.mvTakeErrors;\n    takeRedirect = {o}.mvTakeRedirect;\n  }};\n",
+            "  let {n}Def : MV.Page = {{\n    route = {route:?};\n    layout = {layout:?};\n    authorize = {auth};\n    role = {role:?};\n    cacheable = {cacheable};\n    onLoad = {o}.mvOnLoad;\n    render = {o}.mvRender;\n    title = {o}.mvTitle;\n    head = {o}.mvHead;\n    dispatch = {o}.mvDispatch;\n    takeErrors = {o}.mvTakeErrors;\n    takeRedirect = {o}.mvTakeRedirect;\n  }};\n",
             n = file.name,
             route = route,
             layout = layout,
             auth = authorize,
             role = role,
+            cacheable = cacheable,
             o = obj,
         );
         let rec = rec.replace(
@@ -208,11 +334,20 @@ impl<'a> Codegen<'a> {
 
     fn gen_dispatch_call(&self, f: &FuncDecl) -> String {
         let mut args = Vec::new();
-        for (idx, (_n, t)) in f.params.iter().enumerate() {
-            // first ctx param? if a func takes ctx, we still pass args; but most
-            // handlers take typed value args bound to mvArgs[idx].
-            let access = format!("(if (mvArgs.size() > {i}) mvArgs[{i}] else \"\")", i = idx);
-            args.push(convert_from_text(t, &access));
+        // A handler may take the request context as its first parameter
+        // (`ctx : Context` / `ctx : MV.Ctx`, or simply a first param named `ctx`).
+        // We pass the live `ctx` for it and bind the remaining params to mvArgs.
+        // This is how a handler reads `ctx.caller`, `ctx.form`, route params, etc.
+        let mut arg_idx = 0usize;
+        for (pos, (n, t)) in f.params.iter().enumerate() {
+            let tt = t.trim();
+            if pos == 0 && (n == "ctx" || tt == "Context" || tt == "MV.Ctx") {
+                args.push("ctx".to_string());
+            } else {
+                let access = format!("(if (mvArgs.size() > {i}) mvArgs[{i}] else \"\")", i = arg_idx);
+                args.push(convert_from_text(t, &access));
+                arg_idx += 1;
+            }
         }
         format!("{}({})", f.name, args.join(", "))
     }
@@ -251,7 +386,11 @@ impl<'a> Codegen<'a> {
                 }
             }
             Node::Expr(e) => {
-                out.push_str(&format!("{}b.text({});\n", indent, self.as_text(e)));
+                if self.is_component && e.trim() == "children" {
+                    out.push_str(&format!("{}b.raw(mvChildren);\n", indent));
+                } else {
+                    out.push_str(&format!("{}b.text({});\n", indent, self.as_text(e)));
+                }
             }
             Node::Yield => {
                 out.push_str(&format!("{}b.raw(mvBody);\n", indent));
@@ -272,24 +411,44 @@ impl<'a> Codegen<'a> {
             Node::SectionRef(_) => {
                 // sections other than the default body are not wired in the MVP layout
             }
-            Node::Slot(_) => {}
+            Node::Slot(name) => {
+                if self.is_component {
+                    out.push_str(&format!("{}b.raw(mvSlot_{});\n", indent, name));
+                }
+            }
             Node::Effect { .. } => {
                 // effects in templates are emitted as data markers picked up by the client.
                 // (MVP: effects are primarily delivered via the batch; template effects are no-ops here.)
             }
             Node::If(branches) => {
+                // Emit `if (c) { } else if (c) { } else { };` as ONE statement:
+                // the `else`/`else if` must follow the preceding `}` with no
+                // semicolon; only the final branch terminates with `};`.
+                let n = branches.len();
                 for (k, br) in branches.iter().enumerate() {
-                    match &br.cond {
+                    let opener = match &br.cond {
                         Some(c) => {
-                            let kw = if k == 0 { "if" } else { "else if" };
-                            out.push_str(&format!("{}{} ({}) {{\n", indent, kw, c));
+                            if k == 0 {
+                                format!("if ({}) {{\n", c)
+                            } else {
+                                format!("else if ({}) {{\n", c)
+                            }
                         }
-                        None => {
-                            out.push_str(&format!("{}else {{\n", indent));
-                        }
+                        None => "else {\n".to_string(),
+                    };
+                    if k == 0 {
+                        out.push_str(&format!("{}{}", indent, opener));
+                    } else {
+                        // continue on the same line as the previous close brace
+                        out.push_str(&opener);
                     }
                     self.gen_nodes(&br.body, out, &format!("{}  ", indent));
-                    out.push_str(&format!("{}}};\n", indent));
+                    if k + 1 < n {
+                        // brace + space; the next branch's `else` follows directly
+                        out.push_str(&format!("{}}} ", indent));
+                    } else {
+                        out.push_str(&format!("{}}};\n", indent));
+                    }
                 }
             }
             Node::For { var, iter, body } => {
@@ -392,16 +551,75 @@ impl<'a> Codegen<'a> {
     }
 
     fn gen_component(&self, c: &Component, out: &mut String, indent: &str) {
-        // Built-in semantic components compile to plain HTML.
+        // Built-in semantic components compile to plain HTML (reserved names).
         if let Some(()) = self.gen_builtin(c, out, indent) {
             return;
         }
-        // Unknown / app components: render default content inside a tagged div
-        // (full app-component compilation is supported by compiling Components/*.mview;
-        //  here we degrade gracefully so unknown tags still render their children).
+        // App component (src/Components/<Name>.mview): call its generated render.
+        if let Some(info) = self.components.get(&c.name) {
+            let mut args: Vec<String> = info
+                .params
+                .iter()
+                .map(|p| self.prop_to_arg(c.props.iter().find(|a| a.name == p.name), p))
+                .collect();
+            args.push(self.build_children_text(&c.children));
+            // named slot content: the parent's @section "name" for this component
+            for sl in &info.slots {
+                let content = c
+                    .slots
+                    .iter()
+                    .find(|(n, _)| n == sl)
+                    .map(|(_, nodes)| self.build_children_text(nodes))
+                    .unwrap_or_else(|| "\"\"".to_string());
+                args.push(content);
+            }
+            out.push_str(&format!("{}b.raw(mvComponent_{}({}));\n", indent, c.name, args.join(", ")));
+            return;
+        }
+        // Unknown component: degrade gracefully so its children still render.
         out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-component mv-{}\\\">\");\n", indent, c.name.to_lowercase()));
         self.gen_nodes(&c.children, out, indent);
         out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+    }
+
+    /// Map a component prop (or its absence) to a Motoko argument of the param's
+    /// declared type.
+    fn prop_to_arg(&self, prop: Option<&Attr>, p: &ParamDecl) -> String {
+        match prop {
+            None => p.default.clone().unwrap_or_else(|| default_for_type(&p.ty)),
+            Some(a) => match &a.value {
+                AttrValue::Bool => "true".to_string(),
+                AttrValue::Literal(v) => literal_to_typed(v, &p.ty),
+                AttrValue::Expr(e) => e.clone(),
+                AttrValue::Concat(parts) => {
+                    let mut pieces = Vec::new();
+                    for part in parts {
+                        match part {
+                            AttrPart::Lit(l) => pieces.push(mo_str(l)),
+                            AttrPart::Expr(e) => pieces.push(self.as_text(e)),
+                        }
+                    }
+                    format!("({})", pieces.join(" # "))
+                }
+            },
+        }
+    }
+
+    /// Build the default-slot children into a `Text` expression (a do-block with
+    /// its own builder), passed as `mvChildren` to the component.
+    fn build_children_text(&self, children: &[Node]) -> String {
+        if children.is_empty() {
+            return "\"\"".to_string();
+        }
+        let mut tmp = String::new();
+        self.gen_nodes(children, &mut tmp, "");
+        let mut s = String::from("(do { let b = Html.Builder(); ");
+        for line in tmp.lines() {
+            s.push_str(line.trim());
+            s.push(' ');
+        }
+        s.push_str("b.build() })");
+        s
     }
 
     fn gen_builtin(&self, c: &Component, out: &mut String, indent: &str) -> Option<()> {
@@ -654,6 +872,53 @@ fn mo_attr_text(s: &str) -> String {
 /// (no surrounding quotes added).
 fn escape_mo_inner(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Parse route params from a path: `/orders/{id:Nat}/{tab}` ->
+/// [("id","Nat"), ("tab","Text")]. Untyped params default to Text.
+fn parse_route_params(route: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut rest = route;
+    while let Some(open) = rest.find('{') {
+        rest = &rest[open + 1..];
+        if let Some(close) = rest.find('}') {
+            let inner = &rest[..close];
+            let (name, ty) = match inner.split_once(':') {
+                Some((n, t)) => (n.trim().to_string(), t.trim().to_string()),
+                None => (inner.trim().to_string(), "Text".to_string()),
+            };
+            if !name.is_empty() {
+                out.push((name, ty));
+            }
+            rest = &rest[close + 1..];
+        } else {
+            break;
+        }
+    }
+    out
+}
+
+/// Default Motoko value for a component param type when no prop is given and the
+/// param declared no default.
+fn default_for_type(ty: &str) -> String {
+    match ty.trim() {
+        "Text" => "\"\"".to_string(),
+        "Bool" => "false".to_string(),
+        "Nat" | "Nat8" | "Nat16" | "Nat32" | "Nat64" | "Int" => "0".to_string(),
+        "Float" => "0.0".to_string(),
+        _ => "\"\"".to_string(),
+    }
+}
+
+/// Convert a literal prop value to a Motoko expression of the param's type.
+fn literal_to_typed(v: &str, ty: &str) -> String {
+    match ty.trim() {
+        "Bool" => {
+            if v == "true" { "true".to_string() } else { "false".to_string() }
+        }
+        "Nat" | "Nat8" | "Nat16" | "Nat32" | "Nat64" | "Int" | "Float" => v.to_string(),
+        _ => mo_str(v),
+    }
 }
 
 fn is_simple_literal(s: &str) -> bool {

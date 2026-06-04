@@ -1,0 +1,202 @@
+@page "/admin"
+@layout AppLayout
+@title "Admin — manage the Bzzz allowlist"
+@description "Super-admin console for Bzzz: see who you are, view the admin allowlist, and add or remove admins. Gated to the on-chain allowlist."
+
+<section class="bz-admin-head">
+    <h1>Admin console</h1>
+    <p class="bz-admin-sub">@(roleLine())</p>
+</section>
+
+@if isAdmin {
+    <div class="bz-card bz-whoami">
+        <div class="bz-whoami-row">
+            <span class="bz-whoami-label">You are</span>
+            <span class="bz-badge bz-badge-admin">Admin</span>
+        </div>
+        <div class="bz-whoami-row">
+            <span class="bz-whoami-label">Principal</span>
+            <code class="bz-principal">@whoamiPrincipal</code>
+        </div>
+        <div class="bz-whoami-row">
+            <span class="bz-whoami-label">Total admins</span>
+            <span>@adminCount</span>
+        </div>
+    </div>
+
+    <h2 class="bz-section-title">Admins</h2>
+    <div class="bz-card bz-admin-list">
+        @for a in admins {
+            <div class="bz-admin-row">
+                <div class="bz-admin-id">
+                    <span class="bz-admin-handle">@(handleLabel(a.handle))</span>
+                    <code class="bz-principal bz-principal-sm">@a.principalText</code>
+                </div>
+                <span class="bz-admin-granted">@(Admin.relativeTime(a.grantedAt, now))</span>
+                @if (canRemove and a.principalText != whoamiPrincipal) {
+                    <Button kind="danger" @click="remove(a.principalText)">Remove</Button>
+                } else if (a.principalText == whoamiPrincipal) {
+                    <span class="bz-admin-you">you</span>
+                } else {
+                    <span class="bz-admin-locked" title="The last admin cannot be removed">🔒</span>
+                }
+            </div>
+        }
+    </div>
+
+    <h2 class="bz-section-title">Add an admin</h2>
+    <div class="bz-card bz-add-admin">
+        <p class="bz-add-hint">Enter the handle of an existing Bzzz member to grant them admin rights.</p>
+        <form @submit="add" secure>
+            <ValidationSummary />
+            <InputText name="addHandle" label="Handle" bind="@addHandle" required />
+            <div class="bz-add-actions">
+                <Button kind="primary" type="submit">Grant admin</Button>
+            </div>
+        </form>
+    </div>
+} else {
+    <Alert kind="info">
+        This page is gated to the Bzzz admin allowlist. Your principal
+        (<code class="bz-principal">@whoamiPrincipal</code>) is not an admin.
+    </Alert>
+
+    @if (adminCount == 0) {
+        <div class="bz-card bz-bootstrap">
+            <div class="bz-bootstrap-ico">🛡️</div>
+            <h3>No admins yet</h3>
+            <p>The allowlist is empty. Claim the founding admin seat for this canister — the first caller becomes the bootstrap admin.</p>
+            <form @submit="claim" secure>
+                <Button kind="primary" type="submit">Claim bootstrap admin</Button>
+            </form>
+        </div>
+    } else {
+        <p class="bz-admin-sub">There @(adminVerb) currently @adminCount @(adminNoun) on Bzzz. Ask one of them to add you.</p>
+    }
+}
+
+<style>
+    .bz-admin-head { margin-bottom: 1.25rem; }
+    .bz-admin-head h1 { margin: 0 0 .25rem; font-size: 1.6rem; letter-spacing: -.02em; }
+    .bz-admin-sub { margin: 0; color: var(--mv-text-soft); font-size: .9rem; }
+
+    .bz-whoami { padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .55rem; margin-bottom: 1.5rem; }
+    .bz-whoami-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .bz-whoami-label { width: 110px; color: var(--mv-text-soft); font-size: .85rem; flex: 0 0 auto; }
+
+    .bz-badge { display: inline-flex; align-items: center; font-size: .72rem; font-weight: 700;
+        padding: .18rem .55rem; border-radius: 999px; text-transform: uppercase; letter-spacing: .05em; }
+    .bz-badge-admin { background: #ede9fe; color: #6d28d9; }
+
+    .bz-principal { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem;
+        background: var(--mv-muted); padding: .12rem .4rem; border-radius: 6px; word-break: break-all; }
+    .bz-principal-sm { font-size: .72rem; opacity: .8; }
+
+    .bz-section-title { font-size: 1.15rem; margin: 0 0 1rem; }
+
+    .bz-admin-list { padding: .35rem 0; margin-bottom: 1.5rem; }
+    .bz-admin-row { display: flex; align-items: center; gap: .8rem; padding: .7rem 1.2rem;
+        border-bottom: 1px solid var(--mv-border); }
+    .bz-admin-row:last-child { border-bottom: 0; }
+    .bz-admin-id { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1; }
+    .bz-admin-handle { font-weight: 700; font-size: .95rem; }
+    .bz-admin-granted { font-size: .78rem; color: var(--mv-text-soft); white-space: nowrap; flex: 0 0 auto; }
+    .bz-admin-you { font-size: .76rem; color: var(--mv-text-soft); font-style: italic; flex: 0 0 auto; }
+    .bz-admin-locked { font-size: 1rem; flex: 0 0 auto; }
+
+    .bz-add-admin { padding: 1.1rem 1.2rem; }
+    .bz-add-hint { margin: 0 0 .8rem; color: var(--mv-text-soft); font-size: .88rem; }
+    .bz-add-actions { margin-top: .8rem; }
+
+    .bz-bootstrap { text-align: center; padding: 2rem 1.5rem; margin-top: 1rem; }
+    .bz-bootstrap-ico { font-size: 2.4rem; }
+    .bz-bootstrap h3 { margin: .6rem 0 .3rem; font-size: 1.2rem; }
+    .bz-bootstrap p { margin: 0 auto 1.1rem; max-width: 48ch; color: var(--mv-text-soft); font-size: .9rem; }
+
+    @media (max-width: 560px) {
+        .bz-admin-row { flex-wrap: wrap; }
+        .bz-whoami-label { width: auto; }
+    }
+</style>
+
+@code {
+    var isAdmin : Bool = false;
+    var whoamiPrincipal : Text = "";
+    var adminCount : Nat = 0;
+    var admins : [Admin.AdminEntry] = [];
+    var canRemove : Bool = false;
+    var now : Int = 0;
+
+    // Helper words for the empty/non-admin states.
+    var adminVerb : Text = "are";
+    var adminNoun : Text = "admins";
+
+    // Bound form field for the add-admin form.
+    var addHandle : Text = "";
+
+    func onLoad(ctx : Context) {
+        let who = Admin.whoami(ctx.caller);
+        isAdmin := who.isAdmin;
+        whoamiPrincipal := who.principalText;
+        adminCount := who.adminCount;
+        admins := Admin.adminEntries();
+        // The last remaining admin can never be removed.
+        canRemove := adminCount > 1;
+        now := Time.now();
+        adminVerb := if (adminCount == 1) "is" else "are";
+        adminNoun := if (adminCount == 1) "admin" else "admins";
+    };
+
+    // A friendly line shown under the title in every state.
+    func roleLine() : Text {
+        if (isAdmin) {
+            "You have super-admin rights on this canister."
+        } else if (adminCount == 0) {
+            "No admins exist yet — the allowlist is open for bootstrap."
+        } else {
+            "You are signed in as a member."
+        };
+    };
+
+    // Show the handle if we have one, otherwise a placeholder.
+    func handleLabel(handle : Text) : Text {
+        if (Text.trim(handle, #char ' ') == "") "(no handle)" else "@" # handle;
+    };
+
+    func claim(ctx : Context) : async () {
+        let handle = Identity.handleOf(ctx.caller);
+        if (Admin.claimBootstrapWithHandle(ctx.caller, handle)) {
+            toast("You are now the founding admin of Bzzz.");
+        } else {
+            toast("Bootstrap is no longer available — an admin already exists.");
+        };
+    };
+
+    func add(ctx : Context) : async () {
+        validate {
+            addHandle required "Enter a handle to grant admin.";
+        };
+        switch (Identity.byHandleLookup(addHandle)) {
+            case (?prof) {
+                if (Admin.addAdminWithHandle(ctx.caller, prof.principal, prof.handle)) {
+                    addHandle := "";
+                    toast("Granted admin to @" # prof.handle # ".");
+                } else {
+                    toast("You don't have permission to add admins.");
+                };
+            };
+            case null {
+                toast("No member found with that handle.");
+            };
+        };
+    };
+
+    func remove(ctx : Context, targetText : Text) : async () {
+        let target = Principal.fromText(targetText);
+        if (Admin.removeAdmin(ctx.caller, target)) {
+            toast("Admin removed.");
+        } else {
+            toast("Couldn't remove that admin.");
+        };
+    };
+}

@@ -1,0 +1,18 @@
+{
+  "appId": "chat.bzzz.app",
+  "appName": "Bzzz",
+  "webDir": "www",
+  "server": {
+    "url": "https://YOUR_CANISTER_ID.icp0.io",
+    "cleartext": false,
+    "androidScheme": "https",
+    "iosScheme": "https"
+  },
+  "backgroundColor": "#6d28d9ff",
+  "ios": {
+    "contentInset": "always"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
