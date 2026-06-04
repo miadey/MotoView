@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@View.title</title>
+    @head
+    <style>
+        .counter-value { font-size: 1.4rem; }
+        .counter-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+        header.mv-nav { display: flex; gap: 1rem; align-items: center; border-bottom: 1px solid var(--mv-border); }
+    </style>
+</head>
+<body>
+    <header class="mv-nav mv-container" style="padding-top:1rem;padding-bottom:1rem">
+        <strong>▼ MotoView</strong>
+        <span style="color:var(--mv-text-soft)">counter example</span>
+    </header>
+
+    <main>
+        @yield
+    </main>
+
+    <footer class="mv-container" style="color:var(--mv-text-soft);font-size:.9rem">
+        Powered by MotoView on the Internet Computer · rendering is a query, events are updates.
+    </footer>
+</body>
+</html>

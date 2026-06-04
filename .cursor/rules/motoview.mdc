@@ -1,0 +1,131 @@
+---
+description: MotoView — Motoko-native, server-driven UI framework for ICP. How to write .mview and .mo correctly.
+globs:
+  - "**/*.mview"
+  - "**/*.mo"
+alwaysApply: false
+---
+
+# MotoView Project Rules
+
+MotoView is a **Motoko-native, server-driven UI framework for Internet Computer (ICP) canisters**.
+You write `.mview` files (template markup + Motoko in one file, Blazor/Blade/LiveView feel). It
+**compiles to Motoko** and deploys with `dfx`. Mental model: rendering is a query, events are
+updates, the browser syncs through versioned UI batches.
+
+## Hard rule: NO Node / npm / JS build tooling (core selling point)
+
+Never suggest or scaffold `package.json`, npm/yarn/pnpm/npx, Webpack/Vite/Rollup/esbuild/Babel,
+React/Vue/Svelte/agent-js, or any hand-written application JavaScript. The **only** browser code is
+the framework's own Rust→WebAssembly client (`/motoview.wasm`, `/motoview.js`, `/motoview.css`);
+the `motoview.js` glue ships with the framework — app developers never write or edit browser JS.
+
+## Stack
+
+- Compiler: Rust crate → `motoview` binary (installed via `cargo`), parses `.mview`, emits Motoko.
+- Runtime: Motoko library in `runtime/` (mops package `motoview`); serves HTTP from the canister.
+- Dev/deploy: `dfx` (DFINITY SDK).
+- Browser: Rust→WASM (brain: adaptive polling state machine, protocol, batch interpretation, event
+  sequencing) + tiny JS glue (hands: DOM/fetch/timer + focus/scroll/input preservation).
+
+## Project layout
+
+`src/Pages/*.mview`, `src/Layouts/*.mview`, `src/Components/*.mview`, `src/Services/*.mo`,
+`src/Models/*.mo`, `motoview.json`, `dfx.json`, `mops.toml`. Compiler output is a Motoko actor
+(`src/main.mo` / `src/Generated/`).
+
+## CLI
+
+```bash
+motoview new <app>        # scaffold
+motoview build            # compile .mview -> Motoko
+motoview dev              # build + dfx deploy + watch (local)
+motoview compile <file>   # compile one file (debugging)
+```
+
+Prereqs: `dfx`, `rustup` + `wasm32-unknown-unknown` target, `wasm-opt` (binaryen). Add runtime via
+mops `motoview` or local path dep in `dfx.json` args (`--package motoview ../../runtime/src`).
+
+## `.mview` directives
+
+- Structure: `@page "/path"` (also `"/products/{id}"`, typed `"/orders/{id:Nat}"`), `@layout NAME`,
+  `@title EXPR`, `@description EXPR`, `@canonical EXPR`, `@meta`, `@head`, `@section "name" { }`,
+  `@yield`, `@slot "name"`, `@authorize` / `@authorize role="Admin"`.
+- Code/style: `@code { ...Motoko... }`, `@style { ...css... }`, `@theme { tokens }`.
+- Control/output: `@if EXPR { } else { }`, `@for X in EXPR { }`, `@switch EXPR { case #Variant { } }`,
+  inline `@count` / `@user.name` / `@(expr)`, `@effect Focus("#x")`/`ScrollTo`/`Toast`, `@animate`.
+
+## Events
+
+`@click="handler"`, `@click="handler(arg)"`, `@submit="handler"`, `@input="handler"`, `@change`.
+Handler args are evaluated **server-side at render time** and baked into `data-mv-arg*`; the WASM
+client forwards `handlerId` + args; the server dispatches to typed Motoko functions. Developer just
+writes `@click="save"`.
+
+```razor
+@page "/counter"
+@code {
+  var count : Nat = 0;
+  func increment() { count += 1 };
+}
+<h1>Count: @count</h1>
+<Button kind="primary" @click="increment">Add one</Button>
+```
+
+## Forms, validation, security
+
+`<form @submit="send" secure>` with `bind="@model.field"`. The `secure` attribute mints a signed
+token (**HMAC-SHA256**) binding path + handler + caller principal + nonce + expiry + field-schema
+hash; the server re-derives the MAC and rejects mismatches, expired tokens, and replays (SHA-256 +
+HMAC implemented in Motoko, verified against standard vectors). Validate in handlers — never on the
+client:
+
+```motoko
+validate model {
+  name required "Name is required";
+  email required email;
+  price min 1 "Price must be at least 1";
+};
+```
+
+Errors return in the batch and re-render. Use `<ValidationSummary />` and per-field errors.
+
+## Components
+
+Capitalized tags are components; app components in `src/Components/*.mview` declare
+`param name : T [= default]`. Prefer built-in semantic components over class-string soup:
+`Button` (kind, size), `Card` (title), `Alert` (type), `Badge` (type), `InputText`/`InputEmail`/
+`InputNumber`/`TextArea` (name, label, bind, required, minLength), `ValidationSummary`, `Table`,
+`PageHeader`, `Grid` (columns).
+
+## Protocol (`motoview/1`)
+
+- First load: `GET /page` → server-rendered HTML; content in `<div id="mv-root">`.
+- Sync: `GET /_motoview/render?path=...&lastBatchId=...` → batch JSON, status
+  `changed` | `unchanged` | `redirect` | `validation-error` (`unchanged` omits html when `batchId`
+  matched).
+- Events: `POST` form-encoded `/_motoview/event` → served by `http_request_update` → new batch
+  immediately. `batchId` is a hash of rendered state.
+- Adaptive polling: hot ~350ms (~3s after interaction), warm ~2.5s visible, cold ~15s idle, hidden
+  ~45s, offline = exponential backoff.
+- IC transport (MVP): `http_request` returns `upgrade=true` so everything is served by
+  `http_request_update` (avoids query response-certification). Certified query rendering is Roadmap.
+
+## Verified vs Roadmap
+
+VERIFIED end to end: runtime + WASM client + dfx pipeline; counter example deployed to a local
+replica and exercised in a real browser (click → event → update → batch → DOM swap), adaptive
+polling picks up external changes, state persists; SHA-256/HMAC pass standard vectors. Examples:
+todo, contact form, products CRUD.
+
+ROADMAP (do NOT present as working): keyed-region / granular DOM patches, full Internet Identity
+login over HTTP, role stores, vetKeys encrypted state, certified query rendering,
+desktop/mobile/tablet shells, visual designer, push adapter.
+
+## DO / DON'T
+
+- DO write `.mview` (markup + `@code { }` Motoko); use only the directives, events, and components
+  named above; use `<form ... secure>` + `bind` + `validate model { }`; use `dfx`/`motoview` CLI.
+- DON'T add Node/npm/bundlers/React/app JavaScript; DON'T invent directives, attributes, flags,
+  file names, components, or numbers; DON'T do client-side validation; DON'T edit the framework's
+  WASM/JS glue; DON'T claim Roadmap features are implemented.

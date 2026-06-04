@@ -1,0 +1,17 @@
+[package]
+name = "motoview"
+version = "0.1.0"
+edition = "2021"
+description = "The MotoView compiler — turns .mview files into Motoko for the Internet Computer."
+license = "MIT"
+repository = "https://github.com/miadey/MotoView"
+
+[[bin]]
+name = "motoview"
+path = "src/main.rs"
+
+[dependencies]
+
+[profile.release]
+opt-level = 2
+lto = true

@@ -1,0 +1,33 @@
+@page "/"
+@layout MainLayout
+@title "Counter"
+@description "A live counter built with MotoView — rendering is a query, the +/- clicks are updates."
+
+<section class="mv-container">
+    <h1>Counter</h1>
+
+    <p class="counter-value">Current value: <strong>@count</strong></p>
+
+    <div class="counter-actions">
+        <button class="mv-btn mv-btn-primary" @click="increment(1)">+1</button>
+        <button class="mv-btn mv-btn-primary" @click="increment(5)">+5</button>
+        <button class="mv-btn mv-btn-secondary" @click="decrement">-1</button>
+        <button class="mv-btn mv-btn-ghost" @click="reset">Reset</button>
+    </div>
+</section>
+
+@code {
+    var count : Nat = 0;
+
+    func increment(by : Nat) : async () {
+        count += by;
+    };
+
+    func decrement() : async () {
+        if (count > 0) { count -= 1 };
+    };
+
+    func reset() : async () {
+        count := 0;
+    };
+}

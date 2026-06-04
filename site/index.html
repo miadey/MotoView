@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MotoView — Write Motoko. Ship interactive, SEO-friendly ICP apps.</title>
+  <meta name="description" content="MotoView is a Motoko-native, server-driven UI framework for Internet Computer canisters. Write .mview files, compile to Motoko, deploy with dfx. No frontend JavaScript." />
+  <meta property="og:title" content="MotoView" />
+  <meta property="og:description" content="Write Motoko. Ship interactive, SEO-friendly ICP apps. No frontend JavaScript." />
+  <meta name="theme-color" content="#6d28d9" />
+  <style>
+    :root {
+      --accent: #6d28d9;
+      --accent-dark: #5b21b6;
+      --accent-soft: #ede9fe;
+      --ink: #1e1b2e;
+      --muted: #6b7280;
+      --line: #e9e7f2;
+      --bg: #ffffff;
+      --bg-alt: #faf9fe;
+      --code-bg: #1c1730;
+      --radius: 14px;
+      --maxw: 1120px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; }
+    .brand .logo {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 16px;
+    }
+    .brand span { color: var(--ink); }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a { color: var(--muted); font-weight: 500; font-size: 15px; }
+    .nav-links a:hover { color: var(--ink); text-decoration: none; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 15px; line-height: 1;
+      padding: 13px 22px; border-radius: 10px; cursor: pointer;
+      border: 1px solid transparent; transition: transform .06s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .btn:hover { text-decoration: none; }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 8px 24px -8px rgba(109,40,217,.55); }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-ghost { background: #fff; color: var(--ink); border-color: var(--line); }
+    .btn-ghost:hover { border-color: #cfc9e6; background: var(--bg-alt); }
+    .btn-sm { padding: 9px 16px; font-size: 14px; }
+
+    /* Hero */
+    .hero { padding: 92px 0 72px; text-align: center; background:
+      radial-gradient(900px 420px at 50% -120px, var(--accent-soft), transparent 70%); }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent-soft); color: var(--accent-dark);
+      font-weight: 600; font-size: 13px; padding: 7px 14px; border-radius: 999px;
+      border: 1px solid #ddd4f7; margin-bottom: 26px;
+    }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+    h1.headline {
+      font-size: clamp(40px, 6vw, 68px); line-height: 1.05; letter-spacing: -0.035em;
+      font-weight: 800; margin: 0 0 22px;
+    }
+    h1.headline .grad {
+      background: linear-gradient(120deg, var(--accent), #c026d3);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .sub { font-size: clamp(17px, 2.4vw, 21px); color: var(--muted); max-width: 720px; margin: 0 auto 14px; }
+    .tech { font-size: 15px; color: #8b8aa0; max-width: 660px; margin: 0 auto 34px; font-style: italic; }
+    .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+    /* Features */
+    .section { padding: 76px 0; }
+    .section-alt { background: var(--bg-alt); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .eyebrow { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; text-align: center; }
+    .section h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.15; letter-spacing: -0.03em; text-align: center; margin: 10px 0 12px; font-weight: 800; }
+    .section .lede { text-align: center; color: var(--muted); max-width: 640px; margin: 0 auto 52px; font-size: 17px; }
+
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .card {
+      background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 28px 26px; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -22px rgba(40,20,80,.35); border-color: #ddd4f7; }
+    .card .ico {
+      width: 44px; height: 44px; border-radius: 11px; background: var(--accent-soft);
+      display: grid; place-items: center; margin-bottom: 16px;
+    }
+    .card .ico svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .card h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: -0.01em; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    /* Code section */
+    .split { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 48px; align-items: center; }
+    .split .copy h2 { text-align: left; margin-top: 0; }
+    .split .copy .lede { text-align: left; margin-left: 0; }
+    .split .copy .eyebrow { text-align: left; }
+    .split ul { list-style: none; padding: 0; margin: 8px 0 0; }
+    .split ul li { padding: 7px 0 7px 28px; position: relative; color: var(--ink); font-size: 15px; }
+    .split ul li::before {
+      content: ""; position: absolute; left: 0; top: 14px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d28d9' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/11px no-repeat;
+    }
+
+    .code-window {
+      background: var(--code-bg); border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 30px 60px -28px rgba(40,20,80,.55); border: 1px solid #2c2447;
+    }
+    .code-bar { display: flex; align-items: center; gap: 8px; padding: 13px 16px; background: #241d3d; border-bottom: 1px solid #2c2447; }
+    .code-bar .dots { display: flex; gap: 7px; }
+    .code-bar .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+    .code-bar .dots i:nth-child(1){ background:#ff5f57; } .code-bar .dots i:nth-child(2){ background:#febc2e; } .code-bar .dots i:nth-child(3){ background:#28c840; }
+    .code-bar .fname { color: #b9b2d6; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin-left: 6px; }
+    pre {
+      margin: 0; padding: 22px 24px; overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+      font-size: 13.5px; line-height: 1.65; color: #e6e1f5; tab-size: 2;
+    }
+    pre .k { color: #c084fc; }   /* directives / keywords */
+    pre .s { color: #86efac; }   /* strings */
+    pre .a { color: #7dd3fc; }   /* attributes / events */
+    pre .t { color: #f0abfc; }   /* tags */
+    pre .c { color: #7c759a; }   /* comments */
+    pre .n { color: #fbbf24; }   /* numbers / interpolation */
+
+    /* CTA band */
+    .band { text-align: center; padding: 80px 0; background: linear-gradient(135deg, var(--accent), #7c3aed 55%, #9333ea); color: #fff; }
+    .band h2 { color: #fff; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; margin: 0 0 14px; font-weight: 800; }
+    .band p { color: #ece6fb; max-width: 560px; margin: 0 auto 30px; font-size: 18px; }
+    .band .btn-primary { background: #fff; color: var(--accent-dark); box-shadow: 0 10px 30px -10px rgba(0,0,0,.4); }
+    .band .btn-primary:hover { background: #f3f0ff; }
+    .band .btn-ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.45); }
+    .band .btn-ghost:hover { background: rgba(255,255,255,.12); border-color: #fff; }
+
+    /* Footer */
+    footer { padding: 48px 0; border-top: 1px solid var(--line); }
+    .foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .foot .brand { font-size: 17px; }
+    .foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
+    .foot-links a { color: var(--muted); font-size: 14px; }
+    .copyright { color: #9a98ab; font-size: 14px; }
+
+    @media (max-width: 880px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .split { grid-template-columns: 1fr; gap: 32px; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 560px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero { padding: 64px 0 52px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="./" style="text-decoration:none">
+        <span class="logo">M</span>
+        <span>MotoView</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#code">How it works</a>
+        <a href="./docs/">Docs</a>
+        <a href="https://github.com/miadey/MotoView">GitHub</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="./docs/">Get started</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap">
+        <span class="pill"><span class="dot"></span> Motoko-native, server-driven UI for the Internet Computer</span>
+        <h1 class="headline">Write Motoko.<br />Ship interactive, <span class="grad">SEO-friendly</span> ICP apps.</h1>
+        <p class="sub">MotoView lets you build full ICP canister UIs in one language. Write <code>.mview</code> files, compile to Motoko, deploy with dfx — <strong>no frontend JavaScript</strong>.</p>
+        <p class="tech">Rendering is a query, events are updates, and the browser synchronizes through versioned UI batches.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="./docs/">Get started</a>
+          <a class="btn btn-ghost" href="https://github.com/miadey/MotoView">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section section-alt" id="features">
+      <div class="wrap">
+        <p class="eyebrow">Why MotoView</p>
+        <h2>One language, end to end</h2>
+        <p class="lede">No Node, no npm, no React, no agent-js glue, no duplicated validation. Just Motoko and dfx.</p>
+        <div class="grid">
+
+          <div class="card">
+            <div class="ico"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+            <h3>Write Motoko</h3>
+            <p>Template markup and Motoko code live together in one <code>.mview</code> file — a Blazor / Blade / LiveView feel.</p>
+          </div>
+
+          <div class="card">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <h3>Secure forms by default</h3>
+            <p>The <code>secure</code> attribute mints a signed HMAC-SHA256 token binding path, handler, caller, nonce and expiry. Replays and tampering are rejected server-side.</p>
+          </div>
+
+          <div class="card">
+            <div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+            <h3>SEO-friendly SSR</h3>
+            <p>First load returns server-rendered HTML inside <code>#mv-root</code> — real markup crawlers and users see instantly, not a blank shell.</p>
+          </div>
+
+          <div class="card">
+            <div class="ico"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+            <h3>No frontend JavaScript</h3>
+            <p>You ship zero application JavaScript. The only browser code is a Rust-compiled WASM client plus a tiny hand-written JS glue.</p>
+          </div>
+
+          <div class="card">
+            <div class="ico"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+            <h3>Server-driven</h3>
+            <p>Events POST to the canister, run typed Motoko handlers, and return a new versioned batch. Adaptive polling synchronizes the DOM.</p>
+          </div>
+
+          <div class="card">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></div>
+            <h3>Rust &rarr; WASM client</h3>
+            <p>The client "brain" — polling state machine, protocol, batch interpretation — is Rust compiled to WebAssembly, served from your canister.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CODE BESIDE THE UI -->
+    <section class="section" id="code">
+      <div class="wrap split">
+        <div class="copy">
+          <p class="eyebrow">Code beside the UI</p>
+          <h2>Markup and logic in one file</h2>
+          <p class="lede">The clicks are <strong>updates</strong>, the render is a <strong>query</strong>. State lives in <code>@code</code> right next to the buttons that change it — and persists across calls in your canister.</p>
+          <ul>
+            <li>Bake handler args server-side with <code>@click="increment(1)"</code></li>
+            <li>Interpolate state inline with <code>@count</code></li>
+            <li>State persists in the canister across calls</li>
+            <li>Compiles straight to a Motoko actor</li>
+          </ul>
+        </div>
+
+        <div class="code-window">
+          <div class="code-bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="fname">src/Pages/Counter.mview</span>
+          </div>
+<pre><span class="k">@page</span> <span class="s">"/"</span>
+<span class="k">@layout</span> MainLayout
+<span class="k">@title</span> <span class="s">"Counter"</span>
+
+<span class="t">&lt;section</span> <span class="a">class</span>=<span class="s">"mv-container"</span><span class="t">&gt;</span>
+  <span class="t">&lt;h1&gt;</span>Counter<span class="t">&lt;/h1&gt;</span>
+
+  <span class="t">&lt;p&gt;</span>Current value: <span class="t">&lt;strong&gt;</span><span class="n">@count</span><span class="t">&lt;/strong&gt;&lt;/p&gt;</span>
+
+  <span class="t">&lt;button</span> <span class="a">@click</span>=<span class="s">"increment(1)"</span><span class="t">&gt;</span>+1<span class="t">&lt;/button&gt;</span>
+  <span class="t">&lt;button</span> <span class="a">@click</span>=<span class="s">"increment(5)"</span><span class="t">&gt;</span>+5<span class="t">&lt;/button&gt;</span>
+  <span class="t">&lt;button</span> <span class="a">@click</span>=<span class="s">"decrement"</span><span class="t">&gt;</span>-1<span class="t">&lt;/button&gt;</span>
+  <span class="t">&lt;button</span> <span class="a">@click</span>=<span class="s">"reset"</span><span class="t">&gt;</span>Reset<span class="t">&lt;/button&gt;</span>
+<span class="t">&lt;/section&gt;</span>
+
+<span class="k">@code</span> {
+  <span class="k">var</span> count : Nat = <span class="n">0</span>;
+
+  <span class="k">func</span> increment(by : Nat) : <span class="k">async</span> () {
+    count += by;
+  };
+
+  <span class="k">func</span> decrement() : <span class="k">async</span> () {
+    <span class="k">if</span> (count &gt; 0) { count -= <span class="n">1</span> };
+  };
+
+  <span class="k">func</span> reset() : <span class="k">async</span> () {
+    count := <span class="n">0</span>;
+  };
+}</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA BAND -->
+    <section class="band">
+      <div class="wrap">
+        <h2>Build your first canister UI in Motoko</h2>
+        <p>Scaffold a project, run the dev loop, and deploy to a local replica with dfx — all without leaving Motoko.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="./docs/">Read the docs</a>
+          <a class="btn btn-ghost" href="https://github.com/miadey/MotoView">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <a class="brand" href="./" style="text-decoration:none">
+        <span class="logo">M</span>
+        <span>MotoView</span>
+      </a>
+      <nav class="foot-links">
+        <a href="./docs/">Docs</a>
+        <a href="#features">Features</a>
+        <a href="#code">How it works</a>
+        <a href="https://github.com/miadey/MotoView">GitHub</a>
+      </nav>
+      <span class="copyright">&copy; 2026 MotoView. Built on the Internet Computer.</span>
+    </div>
+  </footer>
+
+</body>
+</html>
