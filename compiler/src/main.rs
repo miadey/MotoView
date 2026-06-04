@@ -27,6 +27,7 @@ fn run(args: &[String]) -> i32 {
     let cmd = args.first().map(|s| s.as_str()).unwrap_or("help");
     match cmd {
         "build" => cmd_build(&args[1..]),
+        "check" => cmd_check(&args[1..]),
         "compile" => cmd_compile(&args[1..]),
         "new" => cmd_new(&args[1..]),
         "dev" => cmd_dev(&args[1..]),
@@ -52,6 +53,7 @@ fn print_help() {
          USAGE:\n\
          \x20 motoview new <name>            Scaffold a new MotoView project\n\
          \x20 motoview build [dir]           Compile .mview files into Motoko (src/main.mo)\n\
+         \x20 motoview check [dir]           Build, then type-check; errors point at your .mview\n\
          \x20 motoview compile <file.mview>  Compile a single file and print the Motoko\n\
          \x20 motoview dev [dir]             Build, then `dfx deploy` to the local replica\n\
          \x20 motoview version               Print the version\n\n\
@@ -177,6 +179,122 @@ fn cmd_compile(args: &[String]) -> i32 {
             1
         }
     }
+}
+
+/// Build, then type-check the generated actor with `moc`, rewriting any errors
+/// to name the originating .mview source instead of the generated main.mo.
+fn cmd_check(args: &[String]) -> i32 {
+    let dir = PathBuf::from(positional(args).unwrap_or("."));
+    let name = app_name_for(&dir, opt(args, "--name"));
+    let out = dir.join("src").join("main.mo");
+    let opts = project::BuildOptions {
+        project_dir: dir.clone(),
+        app_name: name,
+        out: out.clone(),
+    };
+    match project::build(&opts) {
+        Ok(summary) => print!("{}", summary),
+        Err(e) => {
+            eprintln!("build error: {}", e);
+            return 1;
+        }
+    }
+    let (moc, base) = match find_moc() {
+        Some(x) => x,
+        None => {
+            eprintln!("\nnote: `moc` not found under ~/.cache/dfinity/versions — run `dfx deploy`\nto type-check. Errors there map to src/main.mo; the `// mv:src <file>`\nmarkers above each region tell you which .mview it came from.");
+            return 0;
+        }
+    };
+    let main_mo = std::fs::read_to_string(&out).unwrap_or_default();
+    let mut cmd = Command::new(&moc);
+    cmd.arg("--check").arg("--package").arg("base").arg(&base);
+    for a in dfx_package_args(&dir) {
+        cmd.arg(a);
+    }
+    cmd.arg(&out);
+    let output = match cmd.output() {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("could not run moc: {}", e);
+            return 1;
+        }
+    };
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let (mapped, had_err) = project::map_moc_errors(&main_mo, &stderr);
+    if mapped.trim().is_empty() {
+        println!("\n\u{2713} no type errors");
+        0
+    } else {
+        println!();
+        print!("{}", mapped);
+        if had_err {
+            1
+        } else {
+            0
+        }
+    }
+}
+
+/// Locate the `moc` + base library that the active dfx uses (so `check` matches
+/// what `dfx deploy` will accept), falling back to the newest cached version.
+fn find_moc() -> Option<(PathBuf, PathBuf)> {
+    let home = std::env::var("HOME").ok()?;
+    let versions = PathBuf::from(home).join(".cache/dfinity/versions");
+    // Prefer the moc bundled with the active dfx version.
+    if let Ok(out) = Command::new("dfx").arg("--version").output() {
+        let v = String::from_utf8_lossy(&out.stdout);
+        if let Some(ver) = v.split_whitespace().nth(1) {
+            let dir = versions.join(ver.trim());
+            if dir.join("moc").exists() {
+                return Some((dir.join("moc"), dir.join("base")));
+            }
+        }
+    }
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&versions)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.join("moc").exists())
+        .collect();
+    dirs.sort();
+    let dir = dirs.pop()?;
+    Some((dir.join("moc"), dir.join("base")))
+}
+
+/// Extract the moc `--package` args from dfx.json, resolving relative package
+/// paths against the project dir so `moc` finds them.
+fn dfx_package_args(dir: &PathBuf) -> Vec<String> {
+    let txt = match std::fs::read_to_string(dir.join("dfx.json")) {
+        Ok(t) => t,
+        Err(_) => return vec![],
+    };
+    let args_str = match extract_json_string(&txt, "args") {
+        Some(s) => s,
+        None => return vec![],
+    };
+    args_str
+        .split_whitespace()
+        .map(|tok| {
+            if tok.contains('/') && !tok.starts_with('-') {
+                dir.join(tok).to_string_lossy().to_string()
+            } else {
+                tok.to_string()
+            }
+        })
+        .collect()
+}
+
+fn extract_json_string(txt: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{}\"", key);
+    let p = txt.find(&needle)?;
+    let after = &txt[p + needle.len()..];
+    let colon = after.find(':')?;
+    let rest = &after[colon + 1..];
+    let q1 = rest.find('"')?;
+    let rest2 = &rest[q1 + 1..];
+    let q2 = rest2.find('"')?;
+    Some(rest2[..q2].to_string())
 }
 
 fn cmd_dev(args: &[String]) -> i32 {

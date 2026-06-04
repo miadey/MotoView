@@ -122,6 +122,7 @@ actor {
   };
 
 
+  // mv:src src/Pages/Admin.mview
   // ===== Page: Admin (/admin) =====
   let AdminPage = object {
     var isAdmin : Bool = false;
@@ -501,6 +502,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Channel.mview
   // ===== Page: Channel (/channel/{rid:Nat}) =====
   let ChannelPage = object {
     var rid : Nat = 0;
@@ -1232,6 +1234,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Feed.mview
   // ===== Page: Feed (/feed) =====
   let FeedPage = object {
     var bound : Bool = false;
@@ -1794,6 +1797,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Forum.mview
   // ===== Page: Forum (/forum) =====
   let ForumPage = object {
     var categories : [Forum.Category] = [];
@@ -2133,6 +2137,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/ForumCategory.mview
   // ===== Page: ForumCategory (/forum/c/{id:Nat}) =====
   let ForumCategoryPage = object {
     var id : Nat = 0;
@@ -2480,6 +2485,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/ForumNew.mview
   // ===== Page: ForumNew (/forum/new) =====
   let ForumNewPage = object {
     var signedIn : Bool = false;
@@ -2851,6 +2857,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/ForumTopic.mview
   // ===== Page: ForumTopic (/forum/t/{id:Nat}) =====
   let ForumTopicPage = object {
     var id : Nat = 0;
@@ -3488,6 +3495,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Home.mview
   // ===== Page: Home (/) =====
   let HomePage = object {
     var bound : Bool = false;
@@ -3783,6 +3791,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Me.mview
   // ===== Page: Me (/me) =====
   let MePage = object {
     var bound : Bool = false;
@@ -4256,6 +4265,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Messages.mview
   // ===== Page: Messages (/messages) =====
   let MessagesPage = object {
     var bound : Bool = false;
@@ -4672,6 +4682,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Profile.mview
   // ===== Page: Profile (/u/{handle}) =====
   let ProfilePage = object {
     var handle : Text = "";
@@ -5076,6 +5087,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Server.mview
   // ===== Page: Server (/servers/{id:Nat}) =====
   let ServerPage = object {
     var id : Nat = 0;
@@ -5759,6 +5771,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Servers.mview
   // ===== Page: Servers (/servers) =====
   let ServersPage = object {
     var serverList = Servers.servers();
@@ -6129,6 +6142,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Status.mview
   // ===== Page: Status (/status) =====
   let StatusPage = object {
     var bound : Bool = false;
@@ -6511,6 +6525,7 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Thread.mview
   // ===== Page: Thread (/messages/{id:Nat}) =====
   let ThreadPage = object {
     var id : Nat = 0;
@@ -7015,6 +7030,7 @@ actor {
     takeRedirect = ThreadPage.mvTakeRedirect;
   };
 
+  // mv:src src/Layouts/AppLayout.mview
   // ===== Layout: AppLayout =====
   func mvLayout_AppLayout(ctx : MV.Ctx, mvHead : MV.Head, mvBody : Text) : Text {
     ignore ctx;

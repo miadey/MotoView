@@ -118,8 +118,9 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         parsed_components.push(file);
     }
     let mut component_funcs = String::new();
-    for file in &parsed_components {
+    for (cf, file) in component_files.iter().zip(parsed_components.iter()) {
         let mut cg = Codegen::new(&models, &components);
+        component_funcs.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, cf)));
         component_funcs.push_str(&cg.gen_app_component(file));
         component_funcs.push('\n');
     }
@@ -135,6 +136,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let file = parser::parse(&source, &name, FileKind::Page)?;
         let mut cg = Codegen::new(&models, &components);
         let pg = cg.gen_page(&file);
+        page_objects.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, pf)));
         page_objects.push_str(&pg.object_block);
         page_objects.push('\n');
         page_records.push_str(&pg.page_record);
@@ -149,6 +151,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let source = fs::read_to_string(lf).map_err(|e| format!("{}: {}", lf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Layout)?;
         let mut cg = Codegen::new(&models, &components);
+        layout_funcs.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, lf)));
         layout_funcs.push_str(&cg.gen_layout(&file));
         layout_funcs.push('\n');
         layout_entries.push((name.clone(), format!("mvLayout_{}", name)));
@@ -341,6 +344,61 @@ fn is_stateful_service(content: &str, name: &str) -> bool {
             let after = &content[i + needle.len()..];
             matches!(after.chars().next(), Some('(') | Some(' ') | Some('<') | Some('\t') | Some('\n'))
         })
+}
+
+/// Path of a source file relative to the project dir (for `// mv:src` markers).
+fn rel_src(project_dir: &Path, file: &Path) -> String {
+    file.strip_prefix(project_dir)
+        .unwrap_or(file)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+/// Rewrite `moc` errors that point at the generated `main.mo` so they name the
+/// originating `.mview`/source region instead. Uses the `// mv:src <path>`
+/// markers emitted per page/component/layout. Returns the mapped report and
+/// whether any errors were found.
+pub fn map_moc_errors(main_mo: &str, moc_output: &str) -> (String, bool) {
+    // (generated line number, source path) for each marker, in order.
+    let mut markers: Vec<(usize, String)> = Vec::new();
+    for (i, line) in main_mo.lines().enumerate() {
+        if let Some(rest) = line.trim_start().strip_prefix("// mv:src ") {
+            markers.push((i + 1, rest.trim().to_string()));
+        }
+    }
+    let src_for = |gen_line: usize| -> Option<&String> {
+        markers
+            .iter()
+            .rev()
+            .find(|(l, _)| *l <= gen_line)
+            .map(|(_, p)| p)
+    };
+    let mut out = String::new();
+    let mut had_error = false;
+    for line in moc_output.lines() {
+        // e.g. ".../main.mo:6519.5-6519.11: syntax error [M0001], unexpected ..."
+        if let Some(pos) = line.find("main.mo:") {
+            let after = &line[pos + "main.mo:".len()..];
+            let gen_line: usize = after
+                .split(|c: char| !c.is_ascii_digit())
+                .next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let is_err = line.contains("error");
+            if is_err {
+                had_error = true;
+            }
+            let msg = line.splitn(2, ": ").nth(1).unwrap_or(line);
+            match src_for(gen_line) {
+                Some(src) => out.push_str(&format!("{}  ({}, generated main.mo:{})\n", msg, src, gen_line)),
+                None => out.push_str(&format!("{}  (generated main.mo:{})\n", msg, gen_line)),
+            }
+        } else if !line.trim().is_empty() {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    (out, had_error)
 }
 
 fn list_mview(dir: &Path) -> Vec<PathBuf> {
