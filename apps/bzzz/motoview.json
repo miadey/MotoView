@@ -1,0 +1,6 @@
+{
+  "name": "bzzz",
+  "version": "0.1.0",
+  "src": "src",
+  "out": "src/main.mo"
+}

@@ -27,3 +27,10 @@ client/pkg/*.tmp
 # Local env
 .env
 .env.local
+
+# Internet Identity dev build (downloaded; reproducible)
+**/.ii/
+# Native client shells build output
+**/node_modules/
+**/src-tauri/target/
+**/gen/

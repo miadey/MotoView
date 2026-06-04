@@ -8,7 +8,9 @@
 ///   * The browser synchronizes through versioned UI batches (`batchId`).
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
+import Nat32 "mo:base/Nat32";
 import Int "mo:base/Int";
+import Char "mo:base/Char";
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Buffer "mo:base/Buffer";
@@ -21,6 +23,8 @@ import Hash "Hash";
 import Router "Router";
 import Security "Security";
 import Html "Html";
+import Sha256 "Sha256";
+import Hex "Hex";
 
 module {
 
@@ -55,6 +59,101 @@ module {
       };
     };
 
+    // ---- Internet Identity session bridge --------------------------------
+    // An authenticated `mvEstablish(nonce)` update call (caller verified by the
+    // IC) records the principal under a client-chosen nonce. A normal
+    // GET /mv-session?nonce=... then exchanges the nonce for an HMAC session
+    // token (signed with the app secret) that the client stores in the
+    // `mv_session` cookie; every later request carries it and we resolve the
+    // real caller from it. No agent signing on the hot path.
+    let pending = HashMap.HashMap<Text, (Principal, Int)>(64, Text.equal, Text.hash);
+    let sessionTtlNs : Int = 24 * 60 * 60 * 1_000_000_000; // 24h
+
+    /// Called from the generated actor's authenticated `mvEstablish` method.
+    public func establish(nonce : Text, who : Principal) {
+      pending.put(nonce, (who, Time.now()));
+      if (pending.size() > 512) {
+        let cutoff = Time.now() - 5 * 60 * 1_000_000_000;
+        let dead = Buffer.Buffer<Text>(32);
+        for ((k, (_, t)) in pending.entries()) { if (t < cutoff) { dead.add(k) } };
+        for (k in dead.vals()) { pending.delete(k) };
+      };
+    };
+
+    func sessionMac(body : Text) : Text {
+      Hex.encode(Sha256.hmac(config.secret, Text.encodeUtf8(body)));
+    };
+
+    func mintSession(p : Principal) : Text {
+      let body = Principal.toText(p) # "." # Int.toText(Time.now() + sessionTtlNs);
+      body # "." # sessionMac(body);
+    };
+
+    func verifySession(token : Text) : ?Principal {
+      let parts = Iter.toArray(Text.split(token, #char '.'));
+      if (parts.size() != 3) { return null };
+      let body = parts[0] # "." # parts[1];
+      if (sessionMac(body) != parts[2]) { return null };
+      switch (parseNat(parts[1])) {
+        case (?exp) { if (Time.now() > exp) { return null } };
+        case null { return null };
+      };
+      ?Principal.fromText(parts[0]);
+    };
+
+    /// Exchange a nonce (set by an authenticated mvEstablish within 5 min) for a
+    /// fresh session token. Single-use: the nonce is consumed.
+    func sessionFor(nonce : Text) : Text {
+      switch (pending.get(nonce)) {
+        case (?(p, t)) {
+          if (nonce != "" and Time.now() - t < 5 * 60 * 1_000_000_000) {
+            pending.delete(nonce);
+            return mintSession(p);
+          };
+          "";
+        };
+        case null { "" };
+      };
+    };
+
+    /// The effective caller: the principal from a valid mv_session cookie, else
+    /// the (anonymous) gateway caller.
+    func effectiveCaller(req : HttpRequest, fallback : Principal) : Principal {
+      for ((k, v) in req.headers.vals()) {
+        if (lower(k) == "cookie") {
+          switch (cookieValue(v, "mv_session")) {
+            case (?tok) { switch (verifySession(tok)) { case (?p) { return p }; case null {} } };
+            case null {};
+          };
+        };
+      };
+      fallback;
+    };
+
+    func cookieValue(cookie : Text, name : Text) : ?Text {
+      for (part in Text.split(cookie, #char ';')) {
+        let pair = Iter.toArray(Text.split(Text.trim(part, #char ' '), #char '='));
+        if (pair.size() == 2 and pair[0] == name) { return ?pair[1] };
+      };
+      null;
+    };
+
+    func lower(t : Text) : Text {
+      Text.map(t, func(c : Char) : Char {
+        if (c >= 'A' and c <= 'Z') { Char.fromNat32(Char.toNat32(c) + 32) } else { c };
+      });
+    };
+
+    func parseNat(t : Text) : ?Nat {
+      var n : Nat = 0;
+      var any = false;
+      for (c in t.chars()) {
+        let d = Char.toNat32(c);
+        if (d >= 48 and d <= 57) { n := n * 10 + Nat32.toNat(d - 48); any := true } else { return null };
+      };
+      if (any) { ?n } else { null };
+    };
+
     // ---- public entry points ---------------------------------------------
 
     /// Query entry point. On the IC, query `http_request` responses must be
@@ -70,10 +169,13 @@ module {
     /// Update entry point. Serves assets, SSR pages, render polls and events.
     public func httpRequestUpdate(req : HttpRequest, caller : Principal) : HttpResponse {
       let (path, _) = Url.splitUrl(req.url);
+      // Resolve the real signed-in principal from the mv_session cookie (set
+      // after an Internet Identity login); falls back to the gateway caller.
+      let who = effectiveCaller(req, caller);
       if (Text.startsWith(path, #text "/_motoview/event")) {
-        serveEvent(req, caller);
+        serveEvent(req, who);
       } else {
-        serveGet(req, caller);
+        serveGet(req, who);
       };
     };
 
@@ -83,6 +185,12 @@ module {
     func serveGet(req : HttpRequest, caller : Principal) : HttpResponse {
       let (path, q) = Url.splitUrl(req.url);
       let qp = Url.parsePairs(q);
+
+      // II session handshake: exchange a nonce (set by an authenticated
+      // mvEstablish call) for a session token the client stores as a cookie.
+      if (path == "/mv-session") {
+        return textResp(sessionFor(Url.getOr(qp, "nonce", "")), "text/plain");
+      };
 
       // static assets
       switch (asset(path)) { case (?r) { return r }; case null {} };
@@ -154,6 +262,12 @@ module {
 
           let redirect = page.takeRedirect();
           if (redirect != "") { return jsonResp(Json.encodeBatch(redirectBatch(redirect))) };
+
+          // Re-run onLoad so the event response reflects the mutation the handler
+          // just made (otherwise pages that load their display state in onLoad
+          // wouldn't update until the next poll). Skip it when the handler set
+          // validation errors, so the submitted form + errors are preserved.
+          if (page.takeErrors().size() == 0) { page.onLoad(ctx) };
 
           // Render first so the page can show any validation errors it set,
           // then read those errors to decide the batch status.
@@ -411,7 +525,29 @@ module {
       if (path == "/favicon.svg" or path == "/favicon.ico") { return ?textResp(assets.favicon, "image/svg+xml") };
       if (path == "/robots.txt") { return ?textResp(robots(), "text/plain") };
       if (path == "/sitemap.xml") { return ?textResp(sitemap(), "application/xml") };
+      // PWA: makes every MotoView app installable on desktop & mobile.
+      if (path == "/manifest.webmanifest") { return ?textResp(manifest(), "application/manifest+json") };
+      if (path == "/sw.js") { return ?textResp(serviceWorker(), "text/javascript") };
       null;
+    };
+
+    /// A web app manifest derived from the app name (PWA installability).
+    func manifest() : Text {
+      "{\"name\":\"" # config.appName # "\",\"short_name\":\"" # config.appName
+      # "\",\"start_url\":\"/\",\"scope\":\"/\",\"display\":\"standalone\",\"orientation\":\"any\""
+      # ",\"background_color\":\"#ffffff\",\"theme_color\":\"#6d28d9\""
+      # ",\"icons\":[{\"src\":\"/favicon.svg\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"any maskable\"}]}";
+    };
+
+    /// A minimal service worker: cache-first for the static framework assets
+    /// (offline shell + fast loads); everything else falls through to network.
+    func serviceWorker() : Text {
+      "self.addEventListener('install',function(e){self.skipWaiting();});\n"
+      # "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});\n"
+      # "self.addEventListener('fetch',function(e){var p=new URL(e.request.url).pathname;"
+      # "if(p==='/motoview.js'||p==='/motoview.wasm'||p==='/motoview.css'||p==='/favicon.svg'||p==='/manifest.webmanifest'){"
+      # "e.respondWith(caches.open('motoview-v1').then(function(c){return c.match(e.request).then(function(r){"
+      # "return r||fetch(e.request).then(function(resp){c.put(e.request,resp.clone());return resp;});});}));}});\n";
     };
 
     func robots() : Text {

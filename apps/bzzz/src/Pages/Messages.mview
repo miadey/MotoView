@@ -1,0 +1,232 @@
+@page "/messages"
+@layout AppLayout
+@title "Messages — end-to-end encrypted chats on Bzzz"
+@description "Your private WhatsApp-style conversations on Bzzz: encrypted 1:1 direct messages and group chats, running entirely on-chain on the Internet Computer."
+
+<div class="bz-msg-wrap">
+    <header class="bz-msg-head">
+        <div>
+            <h1>Messages</h1>
+            <p class="bz-msg-sub">🔒 End-to-end encrypted · 1:1 &amp; group chats</p>
+        </div>
+        <span class="bz-msg-e2ee">End-to-end encrypted</span>
+    </header>
+
+    @if bound {
+        <div class="bz-msg-new">
+            <div class="bz-card bz-msg-newcard">
+                <h3>New chat</h3>
+                <p class="bz-msg-hint">Start a direct message by their Bzzz handle.</p>
+                <form @submit="startChat" secure>
+                    <ValidationSummary />
+                    <InputText name="peerHandle" label="Handle" bind="@peerHandle" required />
+                    <div class="bz-msg-actions">
+                        <Button kind="primary" type="submit">Start chat</Button>
+                    </div>
+                </form>
+            </div>
+            <div class="bz-card bz-msg-newcard">
+                <h3>New group</h3>
+                <p class="bz-msg-hint">Name your group and add members by handle (comma separated).</p>
+                <form @submit="startGroupChat" secure>
+                    <ValidationSummary />
+                    <InputText name="groupName" label="Group name" bind="@groupName" required />
+                    <InputText name="groupHandles" label="Member handles" bind="@groupHandles" />
+                    <div class="bz-msg-actions">
+                        <Button kind="primary" type="submit">Create group</Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <h2 class="bz-msg-listtitle">Conversations</h2>
+        @if (convos.size() == 0) {
+            <div class="bz-card bz-msg-empty">
+                <div class="bz-msg-empty-ico">💬</div>
+                <h3>No conversations yet</h3>
+                <p>Start a direct message or create a group above to begin chatting securely.</p>
+            </div>
+        } else {
+            <ul class="bz-msg-list">
+                @for c in convos {
+                    <li>
+                        <a class="bz-msg-row" href="/messages/@c.id">
+                            <span class="bz-msg-avatar">@rowAvatar(c)</span>
+                            <span class="bz-msg-body">
+                                <span class="bz-msg-toprow">
+                                    <span class="bz-msg-name">@rowTitle(c)</span>
+                                    <span class="bz-msg-time">@rowTime(c)</span>
+                                </span>
+                                <span class="bz-msg-preview">@rowKind(c)</span>
+                            </span>
+                            @if (rowUnread(c) > 0) {
+                                <span class="bz-msg-badge">@rowUnread(c)</span>
+                            }
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+    } else {
+        <div class="bz-card bz-msg-empty">
+            <div class="bz-msg-empty-ico">🔒</div>
+            <h3>Pick a handle first</h3>
+            <p>You need a Bzzz handle before you can send encrypted messages. <a href="/">Claim your handle</a> to get started.</p>
+        </div>
+    }
+</div>
+
+@code {
+    // Identity of the viewer, cached for thin row helpers below.
+    var bound : Bool = false;
+    var me : Principal = Principal.fromText("2vxsx-fae");
+
+    // Conversation list for the caller, most-recently-active first.
+    var convos : [Messenger.Conversation] = [];
+
+    // Bound form fields.
+    var peerHandle : Text = "";
+    var groupName : Text = "";
+    var groupHandles : Text = "";
+
+    func onLoad(ctx : Context) {
+        me := ctx.caller;
+        bound := Identity.isBound(ctx.caller);
+        convos := Messenger.conversations(ctx.caller);
+    };
+
+    // ---- thin row helpers: wire the cached caller into service lookups -----
+
+    // Display title: group name, or the peer's handle for a direct convo.
+    func rowTitle(c : Messenger.Conversation) : Text {
+        switch (c.kind) {
+            case (#Group) { Messenger.titleFor(c.id, "") };
+            case (#Direct) {
+                switch (Messenger.directPeer(me, c.id)) {
+                    case (?p) { Identity.handleOf(p) };
+                    case null { c.name };
+                };
+            };
+        };
+    };
+
+    // Avatar glyph: peer avatar for a direct convo, a group glyph otherwise.
+    func rowAvatar(c : Messenger.Conversation) : Text {
+        switch (c.kind) {
+            case (#Group) { "👥" };
+            case (#Direct) {
+                switch (Messenger.directPeer(me, c.id)) {
+                    case (?p) { Identity.avatarOf(p) };
+                    case null { "🔒" };
+                };
+            };
+        };
+    };
+
+    // A short preview describing the conversation kind / member count.
+    func rowKind(c : Messenger.Conversation) : Text {
+        switch (c.kind) {
+            case (#Group) { Nat.toText(Messenger.memberCount(c.id)) # " members · encrypted" };
+            case (#Direct) { "Direct message · encrypted" };
+        };
+    };
+
+    func rowTime(c : Messenger.Conversation) : Text { Messenger.relativeTime(c.lastAt) };
+
+    func rowUnread(c : Messenger.Conversation) : Nat { Messenger.unreadCount(me, c.id) };
+
+    // ---- handlers: mutate the service, then onLoad refreshes page vars ------
+
+    func startChat(ctx : Context) : async () {
+        validate {
+            peerHandle required "Enter a handle to message.";
+            peerHandle minLength 2 "Handles are at least 2 characters.";
+        };
+        switch (Identity.byHandleLookup(peerHandle)) {
+            case null { toast("No Bzzz user with that handle."); };
+            case (?prof) {
+                if (prof.principal == ctx.caller) {
+                    toast("You can't start a chat with yourself.");
+                } else {
+                    let id = Messenger.startDirect(ctx.caller, prof.principal);
+                    peerHandle := "";
+                    toast("Chat with " # prof.handle # " ready.");
+                };
+            };
+        };
+    };
+
+    func startGroupChat(ctx : Context) : async () {
+        validate {
+            groupName required "Give your group a name.";
+        };
+        // Resolve comma-separated handles to principals; skip unknown / self.
+        var members : [Principal] = [];
+        var missing : Nat = 0;
+        for (raw in Text.split(groupHandles, #char ',')) {
+            let h = Text.trim(raw, #char ' ');
+            if (h != "") {
+                switch (Identity.byHandleLookup(h)) {
+                    case null { missing += 1; };
+                    case (?prof) {
+                        if (prof.principal != ctx.caller) {
+                            members := Array.append(members, [prof.principal]);
+                        };
+                    };
+                };
+            };
+        };
+        let id = Messenger.startGroup(ctx.caller, groupName, members);
+        groupName := "";
+        groupHandles := "";
+        if (missing > 0) {
+            toast("Group created — " # Nat.toText(missing) # " handle(s) weren't found.");
+        } else {
+            toast("Group created.");
+        };
+    };
+}
+
+<style>
+    .bz-msg-wrap { max-width: 720px; margin: 0 auto; }
+    .bz-msg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+    .bz-msg-head h1 { margin: 0; font-size: 1.7rem; letter-spacing: -.02em; }
+    .bz-msg-sub { margin: .25rem 0 0; color: var(--mv-text-soft); font-size: .9rem; }
+    .bz-msg-e2ee { flex: none; background: #e7f8ef; color: #047857; border: 1px solid #a7f3d0;
+        font-size: .72rem; font-weight: 700; padding: .3rem .6rem; border-radius: 999px; white-space: nowrap; }
+
+    .bz-msg-new { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.75rem; }
+    .bz-msg-newcard { padding: 1.1rem 1.2rem; }
+    .bz-msg-newcard h3 { margin: 0 0 .25rem; font-size: 1.02rem; }
+    .bz-msg-hint { margin: 0 0 .7rem; color: var(--mv-text-soft); font-size: .82rem; }
+    .bz-msg-actions { margin-top: .6rem; }
+
+    .bz-msg-listtitle { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--mv-text-soft); text-transform: uppercase; letter-spacing: .04em; }
+
+    .bz-msg-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--mv-border);
+        border-radius: 14px; overflow: hidden; background: var(--mv-surface); box-shadow: var(--mv-shadow); }
+    .bz-msg-list li + li .bz-msg-row { border-top: 1px solid var(--mv-border); }
+    .bz-msg-row { display: flex; align-items: center; gap: .85rem; padding: .85rem 1rem; text-decoration: none; color: inherit;
+        transition: background .12s ease; }
+    .bz-msg-row:hover { background: var(--mv-muted); }
+    .bz-msg-avatar { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--mv-muted);
+        display: grid; place-items: center; font-size: 1.4rem; }
+    .bz-msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+    .bz-msg-toprow { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+    .bz-msg-name { font-weight: 700; font-size: .98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bz-msg-time { flex: none; color: var(--mv-text-soft); font-size: .76rem; }
+    .bz-msg-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bz-msg-badge { flex: none; min-width: 22px; height: 22px; padding: 0 .4rem; border-radius: 999px;
+        background: var(--bz-accent, #6d28d9); color: #fff; font-size: .76rem; font-weight: 700;
+        display: grid; place-items: center; }
+
+    .bz-msg-empty { text-align: center; padding: 2.5rem 1.5rem; }
+    .bz-msg-empty-ico { font-size: 2.4rem; }
+    .bz-msg-empty h3 { margin: .6rem 0 .3rem; }
+    .bz-msg-empty p { margin: 0 auto; color: var(--mv-text-soft); max-width: 42ch; }
+
+    @media (max-width: 640px) {
+        .bz-msg-new { grid-template-columns: 1fr; }
+        .bz-msg-head { flex-direction: column; gap: .5rem; }
+    }
+</style>

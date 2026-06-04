@@ -1,0 +1,21 @@
+{
+  "name": "bzzz-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bzzz mobile shell (Capacitor) — loads the Bzzz canister UI in a native iOS/Android webview",
+  "scripts": {
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0",
+    "@capacitor/android": "^6.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0"
+  }
+}

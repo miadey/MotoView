@@ -704,11 +704,61 @@ impl Parser {
                 self_closing: self_closing || is_void,
             };
             if !self_closing && !is_void {
-                el.children = self.parse_nodes(StopAt::EndTag(tag.clone()))?;
+                // `<style>` and `<script>` are raw-text elements (as in HTML):
+                // their content is CSS/JS, not template markup. A bare `@` is a
+                // literal (so `@media`, `@keyframes`, `@import`, `@font-face`
+                // just work); only `@(expr)` interpolates, and `@@` is a literal @.
+                if tag == "style" || tag == "script" {
+                    el.children = self.parse_raw_text(&tag);
+                } else {
+                    el.children = self.parse_nodes(StopAt::EndTag(tag.clone()))?;
+                }
                 self.consume_end_tag(&tag)?;
             }
             Ok(Node::Element(el))
         }
+    }
+
+    /// Read the raw body of a `<style>`/`<script>` element until its end tag.
+    /// Only `@(expr)` interpolates; `@@` -> `@`; every other `@` is literal.
+    fn parse_raw_text(&mut self, tag: &str) -> Vec<Node> {
+        let mut nodes = Vec::new();
+        let mut text = String::new();
+        let end = format!("</{}", tag);
+        loop {
+            if self.eof() {
+                break;
+            }
+            if self.peek() == '<' && self.peek_at(1) == '/' && self.starts_with(&end) {
+                break;
+            }
+            let c = self.peek();
+            if c == '@' {
+                if self.peek_at(1) == '@' {
+                    text.push('@');
+                    self.bump();
+                    self.bump();
+                    continue;
+                }
+                if self.peek_at(1) == '(' {
+                    if !text.is_empty() {
+                        nodes.push(Node::Text(std::mem::take(&mut text)));
+                    }
+                    let e = self.read_at_expr();
+                    nodes.push(Node::Expr(e));
+                    continue;
+                }
+                // bare '@' (e.g. a CSS at-rule) is literal
+                text.push('@');
+                self.bump();
+                continue;
+            }
+            text.push(self.bump());
+        }
+        if !text.is_empty() {
+            nodes.push(Node::Text(text));
+        }
+        nodes
     }
 
     fn parse_children_with_slots(&mut self, tag: &str) -> Result<(Vec<Node>, Vec<(String, Vec<Node>)>), String> {
@@ -1074,10 +1124,12 @@ pub fn scan_code(body: &str) -> CodeBlock {
                 i += 1;
             }
             other => {
-                // unknown top-level construct: capture the statement verbatim
+                // unknown top-level construct (e.g. `type`, `class`): capture the
+                // statement verbatim, restoring the terminating `;` that
+                // read_statement strips (matches the `let` branch above).
                 let (decl, _raw) = read_statement(&chars, &mut i);
-                let combined = format!("{} {}", other, decl.trim());
-                if !combined.trim().is_empty() {
+                let combined = format!("{} {};", other, decl.trim());
+                if combined.trim() != ";" {
                     cb.extra.push(combined);
                 }
             }
@@ -1106,6 +1158,30 @@ fn read_statement(chars: &[char], i: &mut usize) -> (String, String) {
     while *i < chars.len() {
         let c = chars[*i];
         match c {
+            // Skip comments verbatim (see read_func): an apostrophe inside a
+            // comment must not be read as a char-literal delimiter.
+            '/' if *i + 1 < chars.len() && chars[*i + 1] == '/' => {
+                while *i < chars.len() && chars[*i] != '\n' {
+                    s.push(chars[*i]);
+                    *i += 1;
+                }
+            }
+            '/' if *i + 1 < chars.len() && chars[*i + 1] == '*' => {
+                s.push(chars[*i]);
+                *i += 1;
+                s.push(chars[*i]);
+                *i += 1;
+                while *i + 1 < chars.len() && !(chars[*i] == '*' && chars[*i + 1] == '/') {
+                    s.push(chars[*i]);
+                    *i += 1;
+                }
+                if *i + 1 < chars.len() {
+                    s.push(chars[*i]);
+                    *i += 1;
+                    s.push(chars[*i]);
+                    *i += 1;
+                }
+            }
             '"' | '\'' => {
                 let q = c;
                 s.push(c);
@@ -1231,6 +1307,31 @@ fn read_func(chars: &[char], i: &mut usize) -> FuncDecl {
         while *i < chars.len() {
             let c = chars[*i];
             match c {
+                // Skip comments verbatim so an apostrophe inside one (e.g. a
+                // word like `peer's`) is NOT mistaken for a char-literal/string
+                // delimiter — which would swallow code and corrupt brace counting.
+                '/' if *i + 1 < chars.len() && chars[*i + 1] == '/' => {
+                    while *i < chars.len() && chars[*i] != '\n' {
+                        body.push(chars[*i]);
+                        *i += 1;
+                    }
+                }
+                '/' if *i + 1 < chars.len() && chars[*i + 1] == '*' => {
+                    body.push(chars[*i]);
+                    *i += 1; // /
+                    body.push(chars[*i]);
+                    *i += 1; // *
+                    while *i + 1 < chars.len() && !(chars[*i] == '*' && chars[*i + 1] == '/') {
+                        body.push(chars[*i]);
+                        *i += 1;
+                    }
+                    if *i + 1 < chars.len() {
+                        body.push(chars[*i]);
+                        *i += 1; // *
+                        body.push(chars[*i]);
+                        *i += 1; // /
+                    }
+                }
                 '"' | '\'' => {
                     let q = c;
                     body.push(c);

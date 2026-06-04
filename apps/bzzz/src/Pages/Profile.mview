@@ -1,0 +1,197 @@
+@page "/u/{handle}"
+@layout AppLayout
+@title pageTitle
+@description pageDesc
+
+@if exists {
+    <section class="bz-prof-head bz-card mv-anim-fadein">
+        <div class="bz-prof-ava">@avatar</div>
+        <div class="bz-prof-id">
+            <h1>@display</h1>
+            <p class="bz-prof-handle">@@@handleText</p>
+            @if (Text.size(bio) > 0) {
+                <p class="bz-prof-bio">@bio</p>
+            }
+        </div>
+        @if isSelf {
+            <a class="bz-followbtn bz-followbtn-self" href="/me">Edit profile</a>
+        } else {
+            <form class="bz-followform" @submit="toggleFollow" secure>
+                @if following {
+                    <button type="submit" class="bz-followbtn bz-followbtn-on">Following</button>
+                } else {
+                    <button type="submit" class="bz-followbtn">Follow</button>
+                }
+            </form>
+        }
+    </section>
+
+    <div class="bz-prof-stats">
+        <div class="bz-stat">
+            <span class="bz-stat-n">@postCount</span>
+            <span class="bz-stat-l">Posts</span>
+        </div>
+        <div class="bz-stat">
+            <span class="bz-stat-n">@followers</span>
+            <span class="bz-stat-l">Followers</span>
+        </div>
+        <div class="bz-stat">
+            <span class="bz-stat-n">@followingN</span>
+            <span class="bz-stat-l">Following</span>
+        </div>
+    </div>
+
+    <div class="bz-card bz-prof-panel">
+        <h2>Posts</h2>
+        @if (posts.size() > 0) {
+            <div class="bz-posts">
+                @for p in posts {
+                    <article class="bz-post">
+                        <div class="bz-post-head">
+                            <span class="bz-post-ava">@avatar</span>
+                            <span class="bz-post-name">@display</span>
+                            <span class="bz-post-handle">@@@handleText</span>
+                            <span class="bz-post-dot">·</span>
+                            <span class="bz-post-time">@ago(p.at)</span>
+                        </div>
+                        <p class="bz-post-text">@p.text</p>
+                        <div class="bz-post-meta">
+                            <span>❤️ @p.likes</span>
+                            <span>🔁 @p.reposts</span>
+                            <span>💬 @p.replyCount</span>
+                        </div>
+                    </article>
+                }
+            </div>
+        } else {
+            <div class="bz-empty">
+                <div class="bz-empty-ico">⚡</div>
+                <p>@display hasn't posted anything yet.</p>
+            </div>
+        }
+    </div>
+} else {
+    <section class="bz-prof-head bz-card mv-anim-fadein">
+        <div class="bz-prof-ava">❓</div>
+        <div class="bz-prof-id">
+            <h1>User not found</h1>
+            <p class="bz-prof-handle">No one on Bzzz has claimed @@@handleText yet.</p>
+        </div>
+    </section>
+    <div class="bz-empty">
+        <a class="bz-link" href="/feed">← Back to the feed</a>
+    </div>
+}
+
+<style>
+    .bz-prof-head { display: flex; align-items: center; gap: 1.1rem; padding: 1.4rem 1.5rem; }
+    .bz-prof-ava { width: 76px; height: 76px; border-radius: 50%; flex: 0 0 auto;
+        background: linear-gradient(135deg, #6d28d9, #c026d3); color: #fff;
+        display: grid; place-items: center; font-size: 2.2rem;
+        box-shadow: 0 6px 18px rgba(109,40,217,.28); }
+    .bz-prof-id { flex: 1; }
+    .bz-prof-id h1 { margin: 0 0 .15rem; font-size: 1.55rem; letter-spacing: -.02em; }
+    .bz-prof-handle { margin: 0; color: var(--bz-accent); font-weight: 600; font-size: .95rem; }
+    .bz-prof-bio { margin: .5rem 0 0; color: var(--mv-text); font-size: .95rem; max-width: 60ch; }
+
+    .bz-followform { margin: 0; flex: 0 0 auto; }
+    .bz-followbtn { display: inline-block; border: 1px solid var(--bz-accent); background: var(--bz-accent);
+        color: #fff; font-weight: 700; font-size: .92rem; padding: .55rem 1.3rem; border-radius: 999px;
+        cursor: pointer; text-decoration: none; transition: background .12s ease, color .12s ease; }
+    .bz-followbtn:hover { background: #5b21b6; border-color: #5b21b6; }
+    .bz-followbtn-on { background: transparent; color: var(--bz-accent); }
+    .bz-followbtn-on:hover { background: #fde8ec; color: #c80001; border-color: #c80001; }
+    .bz-followbtn-self { background: transparent; color: var(--mv-text); border-color: var(--mv-border); }
+    .bz-followbtn-self:hover { background: var(--mv-muted); border-color: var(--mv-border); color: var(--mv-text); }
+
+    .bz-prof-stats { display: flex; gap: .75rem; margin: 1rem 0 1.25rem; }
+    .bz-stat { flex: 1; background: var(--mv-surface); border: 1px solid var(--mv-border);
+        border-radius: 12px; padding: .85rem 1rem; text-align: center; box-shadow: var(--mv-shadow); }
+    .bz-stat-n { display: block; font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
+    .bz-stat-l { display: block; color: var(--mv-text-soft); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+
+    .bz-prof-panel { padding: 1.2rem 1.3rem; }
+    .bz-prof-panel h2 { margin: 0 0 .6rem; font-size: 1.1rem; }
+
+    .bz-posts { display: flex; flex-direction: column; gap: .25rem; }
+    .bz-post { padding: .9rem .25rem; border-top: 1px solid var(--mv-border); }
+    .bz-post:first-child { border-top: none; padding-top: .25rem; }
+    .bz-post-head { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+    .bz-post-ava { width: 30px; height: 30px; border-radius: 50%; background: var(--mv-muted);
+        display: grid; place-items: center; font-size: 1rem; }
+    .bz-post-name { font-weight: 700; }
+    .bz-post-handle, .bz-post-time, .bz-post-dot { color: var(--mv-text-soft); font-size: .85rem; }
+    .bz-post-text { margin: .4rem 0 .5rem; white-space: pre-wrap; line-height: 1.45; }
+    .bz-post-meta { display: flex; gap: 1.1rem; color: var(--mv-text-soft); font-size: .85rem; }
+
+    .bz-empty { text-align: center; padding: 2rem 1rem; color: var(--mv-text-soft); }
+    .bz-empty-ico { font-size: 2rem; margin-bottom: .4rem; }
+    .bz-link { color: var(--bz-accent); font-weight: 600; text-decoration: none; }
+    .bz-link:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+        .bz-prof-head { flex-direction: column; text-align: center; }
+    }
+</style>
+
+@code {
+    var exists : Bool = false;
+    var isSelf : Bool = false;
+    var following : Bool = false;
+    var handleText : Text = "";
+    var display : Text = "";
+    var bio : Text = "";
+    var avatar : Text = "🐝";
+    var pageTitle : Text = "Profile — Bzzz";
+    var pageDesc : Text = "A Bzzz user profile — their posts, followers and bio.";
+    var target : Principal = Principal.fromText("aaaaa-aa");
+    var followers : Nat = 0;
+    var followingN : Nat = 0;
+    var postCount : Nat = 0;
+    var posts : [Feed.FeedPost] = [];
+
+    func onLoad(ctx : Context) {
+        load(ctx);
+    };
+
+    // Refresh page vars from the services. Also used by mutating handlers, since
+    // the runtime renders right after dispatch without re-running onLoad.
+    func load(ctx : Context) {
+        handleText := handle;
+        switch (Identity.byHandleLookup(handle)) {
+            case (?p) {
+                exists := true;
+                handleText := p.handle;
+                display := p.display;
+                bio := p.bio;
+                avatar := p.avatar;
+                target := p.principal;
+                isSelf := p.principal == ctx.caller;
+                following := Feed.isFollowing(ctx.caller, p.principal);
+                followers := Feed.followerCount(p.principal);
+                followingN := Feed.followingCount(p.principal);
+                posts := Feed.byAuthor(p.handle);
+                postCount := posts.size();
+                pageTitle := p.display # " (@" # p.handle # ") — Bzzz";
+                pageDesc := p.display # " on Bzzz: " # Nat.toText(followers) # " followers, " # Nat.toText(postCount) # " posts." # (if (Text.size(p.bio) > 0) { " " # p.bio } else { "" });
+            };
+            case null {
+                exists := false;
+                posts := [];
+                pageTitle := "Profile not found — Bzzz";
+                pageDesc := "No Bzzz user with that handle yet.";
+            };
+        };
+    };
+
+    func ago(at : Int) : Text { Feed.relativeTime(at) };
+
+    func toggleFollow(ctx : Context) : async () {
+        if (Feed.follow(ctx.caller, target)) {
+            toast("Following " # display # ".");
+        } else {
+            toast("Unfollowed " # display # ".");
+        };
+        load(ctx);
+    };
+}

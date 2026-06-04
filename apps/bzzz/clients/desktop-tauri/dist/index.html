@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bzzz</title>
+  <style>
+    html,body{height:100%;margin:0;background:#6d28d9;color:#fff;font-family:system-ui,sans-serif}
+    .wrap{height:100%;display:grid;place-items:center;text-align:center}
+  </style>
+</head>
+<body>
+  <!-- The main window is configured (tauri.conf.json -> app.windows[0].url) to
+       load the live Bzzz canister directly. This file is only the bundled
+       fallback frontend Tauri requires; it is shown if the remote URL is
+       unreachable. -->
+  <div class="wrap">
+    <div>
+      <h1>🐝 Bzzz</h1>
+      <p>Connecting to the Internet Computer…</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+@page "/"
+@layout AppLayout
+@title "Bzzz — social super-app on the Internet Computer"
+@description "Bzzz is a Discord, X, forum and WhatsApp super-app running entirely on-chain as a single Internet Computer canister, built with MotoView."
+
+<section class="bz-hero">
+    <h1>One app. Every conversation.</h1>
+    <p>Servers and channels like Discord. A public feed like X. A full forum. Encrypted direct messages and groups like WhatsApp. All on-chain, all in one canister.</p>
+</section>
+
+@if bound {
+    <p style="margin-top:1.25rem;color:var(--mv-text-soft)">Signed in as <strong>@me</strong> @avatar · @memberCount members on Bzzz.</p>
+} else {
+    <div class="bz-card mv-anim-fadein" style="margin-top:1.25rem;padding:1.2rem 1.3rem;max-width:520px">
+        <h3 style="margin:0 0 .6rem">Pick a handle to get started</h3>
+        <form @submit="claim" secure>
+            <ValidationSummary />
+            <InputText name="handle" label="Handle" bind="@handle" required />
+            <InputText name="display" label="Display name" bind="@display" />
+            <div style="margin-top:.6rem">
+                <Button kind="primary" type="submit">Join Bzzz</Button>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="bz-tiles">
+    <a class="bz-tile" href="/servers">
+        <div class="bz-tile-ico">💬</div>
+        <h3>Servers</h3>
+        <p>Communities with channels, roles, threads and moderation — Discord-style.</p>
+    </a>
+    <a class="bz-tile" href="/forum">
+        <div class="bz-tile-ico">📋</div>
+        <h3>Forum</h3>
+        <p>Categories, topics, replies, likes and accepted answers — a full Discourse-style forum.</p>
+    </a>
+    <a class="bz-tile" href="/feed">
+        <div class="bz-tile-ico">⚡</div>
+        <h3>Feed</h3>
+        <p>Post, follow, repost and read a home timeline — X-style.</p>
+    </a>
+    <a class="bz-tile" href="/messages">
+        <div class="bz-tile-ico">🔒</div>
+        <h3>Messages</h3>
+        <p>End-to-end encrypted 1:1 and group chats — WhatsApp-style.</p>
+    </a>
+    <a class="bz-tile" href="/status">
+        <div class="bz-tile-ico">📸</div>
+        <h3>Status</h3>
+        <p>Ephemeral 24-hour status updates for your contacts.</p>
+    </a>
+    <a class="bz-tile" href="/me">
+        <div class="bz-tile-ico">👤</div>
+        <h3>Profile</h3>
+        <p>Your handle, avatar and bio across every corner of Bzzz.</p>
+    </a>
+</div>
+
+@code {
+    var bound : Bool = false;
+    var me : Text = "";
+    var avatar : Text = "";
+    var memberCount : Nat = 0;
+    var handle : Text = "";
+    var display : Text = "";
+
+    func onLoad(ctx : Context) {
+        bound := Identity.isBound(ctx.caller);
+        me := Identity.handleOf(ctx.caller);
+        avatar := Identity.avatarOf(ctx.caller);
+        memberCount := Identity.count();
+    };
+
+    func claim(ctx : Context) : async () {
+        validate {
+            handle required "Choose a handle.";
+            handle minLength 2 "Handle must be at least 2 characters.";
+        };
+        if (Identity.bind(ctx.caller, handle, display)) {
+            bound := true;
+            me := Identity.handleOf(ctx.caller);
+            avatar := Identity.avatarOf(ctx.caller);
+            memberCount := Identity.count();
+            toast("Welcome to Bzzz, " # me # "!");
+        } else {
+            toast("That handle is taken — try another.");
+        };
+    };
+}

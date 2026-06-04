@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "canisters": {
+    "bzzz": {
+      "type": "motoko",
+      "main": "src/main.mo",
+      "args": "--package motoview ../../runtime/src"
+    },
+    "internet_identity": {
+      "type": "custom",
+      "candid": ".ii/internet_identity.did",
+      "wasm": ".ii/internet_identity_dev.wasm.gz"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4955",
+      "type": "ephemeral"
+    }
+  }
+}

@@ -1,0 +1,216 @@
+@page "/status"
+@layout AppLayout
+@title "Status — ephemeral 24-hour updates on Bzzz"
+@description "Post a colorful 24-hour status update and see what everyone on Bzzz is sharing right now — disappearing automatically after a day."
+
+<section class="bz-status-head">
+    <div>
+        <h1>Status</h1>
+        <p>Share a thought that vanishes in 24 hours. @activeCount live · @authorCount @(authorWord)</p>
+    </div>
+</section>
+
+@if bound {
+    <div class="bz-card bz-status-compose">
+        <h3>Post a status</h3>
+        <form @submit="post" secure>
+            <ValidationSummary />
+            <TextArea name="text" label="What's on your mind?" bind="@text" required />
+
+            <div class="bz-swatches" role="radiogroup" aria-label="Status color">
+                @for sw in swatches {
+                    <label class="bz-swatch" style="--sw:@sw.hex" title="@sw.name">
+                        @if sw.checked {
+                            <input type="radio" name="color" value="@sw.hex" checked />
+                        } else {
+                            <input type="radio" name="color" value="@sw.hex" />
+                        }
+                        <span class="bz-swatch-dot"></span>
+                    </label>
+                }
+            </div>
+
+            <div class="bz-preview" style="--c:@defaultColor">
+                <span class="bz-preview-label">Preview</span>
+                <span class="bz-preview-text">@(previewText())</span>
+            </div>
+
+            <div class="bz-status-actions">
+                <Button kind="primary" type="submit">Share status</Button>
+            </div>
+        </form>
+    </div>
+} else {
+    <Alert kind="info">
+        Pick a handle on your <a href="/me">profile</a> to post a status.
+    </Alert>
+}
+
+<h2 class="bz-section-title">Live now</h2>
+
+@if (statuses.size() == 0) {
+    <div class="bz-empty bz-card">
+        <div class="bz-empty-ico">📭</div>
+        <p>No active statuses. Be the first to share something today.</p>
+    </div>
+} else {
+    <div class="bz-status-grid">
+        @for s in statuses {
+            <article class="bz-status-card" style="--c:@s.color">
+                <header class="bz-status-author">
+                    <span class="bz-status-ava">@(Identity.avatarOf(s.author))</span>
+                    <div class="bz-status-meta">
+                        <span class="bz-status-handle">@@@s.authorHandle</span>
+                        <span class="bz-status-time">@(Status.relativeTime(s.at))</span>
+                    </div>
+                    <span class="bz-status-kind">@(Status.kindLabel(s.kind))</span>
+                </header>
+                @switch s.kind {
+                    case (#Text) {
+                        <p class="bz-status-text">@s.text</p>
+                    }
+                    case (#Image) {
+                        <div class="bz-status-image">
+                            <span class="bz-status-image-ico">🖼️</span>
+                            <span class="bz-status-image-ref">@s.text</span>
+                        </div>
+                    }
+                }
+                <footer class="bz-status-foot">
+                    <span class="bz-status-expires">⏳ @(Status.timeLeft(s.expiresAt))</span>
+                    <span class="bz-status-views">@s.views views</span>
+                </footer>
+            </article>
+        }
+    </div>
+}
+
+<style>
+    .bz-status-head { margin-bottom: 1.25rem; }
+    .bz-status-head h1 { margin: 0 0 .25rem; font-size: 1.6rem; letter-spacing: -.02em; }
+    .bz-status-head p { margin: 0; color: var(--mv-text-soft); font-size: .9rem; }
+
+    .bz-status-compose { padding: 1.2rem 1.3rem; margin-bottom: 1.5rem; }
+    .bz-status-compose h3 { margin: 0 0 .8rem; font-size: 1.1rem; }
+
+    .bz-swatches { display: flex; flex-wrap: wrap; gap: .55rem; margin: .8rem 0 .2rem; }
+    .bz-swatch { position: relative; cursor: pointer; display: inline-flex; }
+    .bz-swatch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .bz-swatch-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--sw);
+        display: inline-block; box-shadow: 0 0 0 2px var(--mv-surface), 0 0 0 3px var(--mv-border);
+        transition: transform .1s ease, box-shadow .1s ease; }
+    .bz-swatch:hover .bz-swatch-dot { transform: scale(1.08); }
+    .bz-swatch input:checked + .bz-swatch-dot { box-shadow: 0 0 0 2px var(--mv-surface), 0 0 0 4px var(--bz-accent); transform: scale(1.12); }
+
+    .bz-preview { margin: .9rem 0 .2rem; border-radius: 12px; padding: 1.5rem 1.2rem; min-height: 64px;
+        background: var(--c); color: #fff; display: flex; flex-direction: column; gap: .35rem;
+        text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    .bz-preview-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; opacity: .8; }
+    .bz-preview-text { font-size: 1.25rem; font-weight: 700; word-break: break-word; }
+
+    .bz-status-actions { margin-top: 1rem; }
+
+    .bz-section-title { font-size: 1.15rem; margin: 0 0 1rem; }
+
+    .bz-empty { text-align: center; padding: 2.5rem 1.5rem; color: var(--mv-text-soft); }
+    .bz-empty-ico { font-size: 2.2rem; }
+    .bz-empty p { margin: .6rem 0 0; }
+
+    .bz-status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .bz-status-card { border-radius: 14px; overflow: hidden; background: var(--c); color: #fff;
+        box-shadow: 0 6px 20px rgba(16,16,40,.16); display: flex; flex-direction: column;
+        min-height: 180px; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    .bz-status-author { display: flex; align-items: center; gap: .55rem; padding: .85rem 1rem .25rem; }
+    .bz-status-ava { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.25);
+        display: grid; place-items: center; font-size: 1.1rem; text-shadow: none; flex: 0 0 auto; }
+    .bz-status-meta { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+    .bz-status-handle { font-weight: 700; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bz-status-time { font-size: .75rem; opacity: .85; }
+    .bz-status-kind { margin-left: auto; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+        background: rgba(255,255,255,.22); padding: .15rem .45rem; border-radius: 999px; flex: 0 0 auto; }
+
+    .bz-status-text { flex: 1; margin: 0; padding: .6rem 1rem 1rem; font-size: 1.35rem; font-weight: 700;
+        line-height: 1.3; word-break: break-word; display: flex; align-items: center; }
+    .bz-status-image { flex: 1; margin: 0; padding: .6rem 1rem 1rem; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: .4rem; }
+    .bz-status-image-ico { font-size: 2rem; }
+    .bz-status-image-ref { font-size: .78rem; opacity: .85; word-break: break-all; text-align: center; }
+
+    .bz-status-foot { display: flex; align-items: center; justify-content: space-between;
+        padding: .6rem 1rem .85rem; font-size: .76rem; background: rgba(0,0,0,.16); }
+    .bz-status-expires { font-weight: 600; }
+    .bz-status-views { opacity: .85; }
+
+    @media (max-width: 560px) {
+        .bz-status-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+@code {
+    // A selectable color choice in the composer. `checked` marks the default
+    // swatch (the first one) so the radio group always has a selection.
+    type Swatch = { hex : Text; name : Text; checked : Bool };
+
+    var bound : Bool = false;
+    var statuses : [Status.Update] = [];
+    var activeCount : Nat = 0;
+    var authorCount : Nat = 0;
+    var authorWord : Text = "authors";
+
+    // The fallback color used when the form somehow submits no color, and for
+    // the static composer preview. Matches the first swatch.
+    var defaultColor : Text = "#075E54";
+
+    // Bound form field (TextArea two-way binding populates this before `post`).
+    var text : Text = "";
+
+    // Color choices offered in the composer (label + #hex). The colors echo the
+    // Bzzz / forum palette from the build spec.
+    var swatches : [Swatch] = [
+        { hex = "#075E54"; name = "Teal"; checked = true },
+        { hex = "#6d28d9"; name = "Violet"; checked = false },
+        { hex = "#c026d3"; name = "Magenta"; checked = false },
+        { hex = "#0088CC"; name = "Blue"; checked = false },
+        { hex = "#F15A24"; name = "Orange"; checked = false },
+        { hex = "#009900"; name = "Green"; checked = false },
+        { hex = "#c80001"; name = "Red"; checked = false },
+        { hex = "#1a1a1a"; name = "Ink"; checked = false },
+    ];
+
+    func onLoad(ctx : Context) {
+        bound := Identity.isBound(ctx.caller);
+        statuses := Status.active();
+        activeCount := Status.activeCount();
+        authorCount := Status.authorCount();
+        authorWord := if (authorCount == 1) "author" else "authors";
+    };
+
+    func previewText() : Text {
+        if (Text.trim(text, #char ' ') == "") "Your status will look like this" else text;
+    };
+
+    // Read a submitted form field by name from the live request context.
+    func formField(ctx : Context, key : Text) : Text {
+        switch (Array.find<(Text, Text)>(ctx.form, func((k, _v) : (Text, Text)) : Bool { k == key })) {
+            case (?kv) kv.1;
+            case null "";
+        };
+    };
+
+    func post(ctx : Context) : async () {
+        validate {
+            text required "Write something to share.";
+            text minLength 1 "Write something to share.";
+        };
+        let handle = Identity.handleOf(ctx.caller);
+        let picked = formField(ctx, "color");
+        let chosen = if (Text.trim(picked, #char ' ') == "") defaultColor else picked;
+        let _id = Status.postStatus(ctx.caller, handle, text, chosen);
+        text := "";
+        statuses := Status.active();
+        activeCount := Status.activeCount();
+        authorCount := Status.authorCount();
+        authorWord := if (authorCount == 1) "author" else "authors";
+        toast("Status posted — live for 24 hours.");
+    };
+}

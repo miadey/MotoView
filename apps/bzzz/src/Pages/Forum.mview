@@ -1,0 +1,158 @@
+@page "/forum"
+@layout AppLayout
+@title "Forum — Bzzz community discussions"
+@description "Browse categories and the latest topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer."
+
+<div class="fr-wrap">
+    <nav class="fr-subnav">
+        <a class="fr-tab active" href="/forum">Latest</a>
+        <a class="fr-tab" href="/forum?sort=new">New</a>
+        <a class="fr-tab" href="/forum?sort=top">Top</a>
+        <a class="fr-tab" href="#categories">Categories</a>
+        <span class="fr-subnav-spacer"></span>
+        <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
+    </nav>
+
+    <section id="categories" class="fr-section">
+        <h2 class="fr-section-h">Categories</h2>
+        @if (categories.size() == 0) {
+            <div class="fr-empty">No categories yet.</div>
+        } else {
+            <div class="fr-cats">
+                @for c in categories {
+                    <a class="fr-cat" href="/forum/c/@(c.id)">
+                        <span class="fr-sq" style="background:@c.color"></span>
+                        <span class="fr-cat-body">
+                            <span class="fr-cat-name">@c.name</span>
+                            <span class="fr-cat-desc">@c.description</span>
+                            <span class="fr-cat-counts">@(c.topicCount) topics · @(c.postCount) posts</span>
+                        </span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="fr-section">
+        <h2 class="fr-section-h">Latest</h2>
+        @if (topics.size() == 0) {
+            <div class="fr-empty">No topics yet. <a href="/forum/new">Start the first one →</a></div>
+        } else {
+            <table class="fr-table">
+                <thead>
+                    <tr>
+                        <th class="fr-th-topic">Topic</th>
+                        <th class="fr-th-num">Replies</th>
+                        <th class="fr-th-num">Views</th>
+                        <th class="fr-th-act">Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for t in topics {
+                        <tr class="fr-row">
+                            <td class="fr-td-topic">
+                                <a class="fr-title" href="/forum/t/@(t.id)">@glyphs(t.id)@t.title</a>
+                                <div class="fr-meta">
+                                    <a class="fr-badge" href="/forum/c/@(t.categoryId)">
+                                        <span class="fr-sq fr-sq-sm" style="background:@catColor(t.categoryId)"></span>
+                                        <span class="fr-badge-name">@catName(t.categoryId)</span>
+                                    </a>
+                                    @for tag in t.tags {
+                                        <span class="fr-pill">@tag</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="fr-td-num">@replies(t.id)</td>
+                            <td class="fr-td-num">@(t.views)</td>
+                            <td class="fr-td-act">@activity(t.id)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+</div>
+
+@code {
+    var categories : [Forum.Category] = [];
+    var topics : [Forum.Topic] = [];
+
+    func onLoad(ctx : Context) {
+        categories := Forum.categories();
+        topics := Forum.topicsLatest();
+    };
+
+    func glyphs(id : Nat) : Text { Forum.statusGlyphs(id) };
+    func replies(id : Nat) : Nat { Forum.replyCount(id) };
+    func activity(id : Nat) : Text { Forum.topicActivity(id) };
+    func catColor(id : Nat) : Text { Forum.categoryColor(id) };
+    func catName(id : Nat) : Text { Forum.categoryName(id) };
+}
+
+<style>
+    .fr-wrap { max-width: 1100px; margin: 0 auto; color: #1a1a1a; }
+
+    .fr-subnav { display: flex; align-items: center; gap: .25rem; flex-wrap: wrap;
+        border-bottom: 1px solid #e3e5e8; padding: .25rem 0 .5rem; margin-bottom: 1rem; }
+    .fr-tab { text-decoration: none; color: #555; font-weight: 600; font-size: .95rem;
+        padding: .45rem .7rem; border-radius: 8px; }
+    .fr-tab:hover { background: #eef0f2; color: #1a1a1a; }
+    .fr-tab.active { color: #1a1a1a; background: #e7eef5; }
+    .fr-subnav-spacer { flex: 1; }
+    .fr-newbtn { text-decoration: none; background: #0088CC; color: #fff; font-weight: 700;
+        font-size: .9rem; padding: .5rem .9rem; border-radius: 8px; }
+    .fr-newbtn:hover { background: #0077b3; color: #fff; }
+
+    .fr-section { margin: 1.5rem 0; }
+    .fr-section-h { font-size: 1.05rem; margin: 0 0 .6rem; color: #1a1a1a; font-weight: 700; }
+    .fr-empty { background: #fff; border: 1px solid #e3e5e8; border-radius: 10px;
+        padding: 1.5rem; text-align: center; color: #6c757d; }
+    .fr-empty a { color: #0088CC; text-decoration: none; font-weight: 600; }
+
+    .fr-cats { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem;
+        background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: .5rem; }
+    .fr-cat { display: flex; gap: .7rem; align-items: flex-start; padding: .7rem .8rem;
+        border-radius: 8px; text-decoration: none; color: inherit; }
+    .fr-cat:hover { background: #f5f6f7; }
+    .fr-cat-body { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+    .fr-cat-name { font-weight: 700; color: #1a1a1a; font-size: .98rem; }
+    .fr-cat-desc { font-size: .85rem; color: #6c757d; }
+    .fr-cat-counts { font-size: .78rem; color: #9aa0a6; margin-top: .15rem; }
+
+    .fr-sq { display: inline-block; width: 16px; height: 16px; border-radius: 3px; flex: none; }
+    .fr-sq-sm { width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; }
+
+    .fr-table { width: 100%; border-collapse: collapse; background: #fff;
+        border: 1px solid #e3e5e8; border-radius: 10px; overflow: hidden; }
+    .fr-table thead th { text-align: left; font-size: .78rem; text-transform: uppercase;
+        letter-spacing: .03em; color: #9aa0a6; font-weight: 700; padding: .6rem .8rem;
+        border-bottom: 1px solid #e3e5e8; background: #f8f9fa; }
+    .fr-th-num { text-align: right; width: 80px; }
+    .fr-th-act { text-align: right; width: 120px; }
+    .fr-row td { padding: .8rem; border-bottom: 1px solid #f0f1f2; vertical-align: top; }
+    .fr-row:last-child td { border-bottom: none; }
+    .fr-row:hover { background: #fafbfc; }
+
+    .fr-title { font-weight: 700; color: #1a1a1a; text-decoration: none; font-size: 1rem;
+        line-height: 1.35; }
+    .fr-title:hover { color: #0088CC; }
+    .fr-meta { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
+    .fr-badge { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none;
+        background: #f1f3f4; border-radius: 6px; padding: .15rem .45rem; font-size: .8rem;
+        color: #444; font-weight: 600; }
+    .fr-badge:hover { background: #e7eef5; }
+    .fr-pill { display: inline-block; background: #f1f3f4; color: #6c757d; border-radius: 999px;
+        padding: .1rem .55rem; font-size: .76rem; font-weight: 600; }
+
+    .fr-td-num { text-align: right; color: #6c757d; font-weight: 600; font-size: .92rem;
+        white-space: nowrap; }
+    .fr-td-act { text-align: right; color: #9aa0a6; font-size: .85rem; white-space: nowrap; }
+
+    @media (max-width: 720px) {
+        .fr-cats { grid-template-columns: 1fr; }
+        .fr-th-num, .fr-td-num { width: 56px; }
+        .fr-th-act, .fr-td-act { display: none; }
+        .fr-row td:nth-child(3) { display: none; }
+        .fr-table thead th:nth-child(3) { display: none; }
+    }
+</style>

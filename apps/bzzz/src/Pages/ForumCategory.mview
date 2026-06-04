@@ -1,0 +1,170 @@
+@page "/forum/c/{id:Nat}"
+@layout AppLayout
+@title "@catName — Bzzz forum category"
+@description "@catDescription"
+
+<div class="fr-wrap">
+    <nav class="fr-subnav">
+        <a class="fr-tab" href="/forum">Latest</a>
+        <a class="fr-tab" href="/forum?sort=new">New</a>
+        <a class="fr-tab" href="/forum?sort=top">Top</a>
+        <a class="fr-tab" href="/forum#categories">Categories</a>
+        <span class="fr-subnav-spacer"></span>
+        <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
+    </nav>
+
+    @if found {
+        <header class="fr-cat-head">
+            <span class="fr-sq fr-sq-lg" style="background:@catColor"></span>
+            <div class="fr-cat-head-body">
+                <h1 class="fr-cat-head-name">@catName</h1>
+                <p class="fr-cat-head-desc">@catDesc</p>
+                <p class="fr-cat-head-counts">@topicCount topics · @postCount posts</p>
+            </div>
+            <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
+        </header>
+
+        <section class="fr-section">
+            @if (topics.size() == 0) {
+                <div class="fr-empty">No topics in this category yet. <a href="/forum/new">Start the first one →</a></div>
+            } else {
+                <table class="fr-table">
+                    <thead>
+                        <tr>
+                            <th class="fr-th-topic">Topic</th>
+                            <th class="fr-th-num">Replies</th>
+                            <th class="fr-th-num">Views</th>
+                            <th class="fr-th-act">Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for t in topics {
+                            <tr class="fr-row">
+                                <td class="fr-td-topic">
+                                    <a class="fr-title" href="/forum/t/@(t.id)">@glyphs(t.id)@t.title</a>
+                                    <div class="fr-meta">
+                                        <a class="fr-badge" href="/forum/c/@(t.categoryId)">
+                                            <span class="fr-sq fr-sq-sm" style="background:@catColorOf(t.categoryId)"></span>
+                                            <span class="fr-badge-name">@catNameOf(t.categoryId)</span>
+                                        </a>
+                                        @for tag in t.tags {
+                                            <span class="fr-pill">@tag</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="fr-td-num">@replies(t.id)</td>
+                                <td class="fr-td-num">@(t.views)</td>
+                                <td class="fr-td-act">@activity(t.id)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    } else {
+        <div class="fr-empty">
+            <p>That category doesn't exist.</p>
+            <a href="/forum">← Back to the forum</a>
+        </div>
+    }
+</div>
+
+@code {
+    var found : Bool = false;
+    var catName : Text = "Category";
+    var catDesc : Text = "";
+    var catDescription : Text = "Topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer.";
+    var catColor : Text = "#9aa0a6";
+    var topicCount : Nat = 0;
+    var postCount : Nat = 0;
+    var topics : [Forum.Topic] = [];
+
+    func onLoad(ctx : Context) {
+        switch (Forum.category(id)) {
+            case (?c) {
+                found := true;
+                catName := c.name;
+                catDesc := c.description;
+                catDescription := "Topics in the " # c.name # " category on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer.";
+                catColor := c.color;
+                topicCount := c.topicCount;
+                postCount := c.postCount;
+            };
+            case null {
+                found := false;
+                catName := "Category";
+            };
+        };
+        topics := Forum.topics(id);
+    };
+
+    func glyphs(tid : Nat) : Text { Forum.statusGlyphs(tid) };
+    func replies(tid : Nat) : Nat { Forum.replyCount(tid) };
+    func activity(tid : Nat) : Text { Forum.topicActivity(tid) };
+    func catColorOf(cid : Nat) : Text { Forum.categoryColor(cid) };
+    func catNameOf(cid : Nat) : Text { Forum.categoryName(cid) };
+}
+
+<style>
+    .fr-wrap { max-width: 1100px; margin: 0 auto; color: #1a1a1a; }
+
+    .fr-subnav { display: flex; align-items: center; gap: .25rem; flex-wrap: wrap;
+        border-bottom: 1px solid #e3e5e8; padding: .25rem 0 .5rem; margin-bottom: 1rem; }
+    .fr-tab { text-decoration: none; color: #555; font-weight: 600; font-size: .95rem;
+        padding: .45rem .7rem; border-radius: 8px; }
+    .fr-tab:hover { background: #eef0f2; color: #1a1a1a; }
+    .fr-tab.active { color: #1a1a1a; background: #e7eef5; }
+    .fr-subnav-spacer { flex: 1; }
+    .fr-newbtn { text-decoration: none; background: #0088CC; color: #fff; font-weight: 700;
+        font-size: .9rem; padding: .5rem .9rem; border-radius: 8px; white-space: nowrap; }
+    .fr-newbtn:hover { background: #0077b3; color: #fff; }
+
+    .fr-cat-head { display: flex; align-items: flex-start; gap: 1rem; background: #fff;
+        border: 1px solid #e3e5e8; border-radius: 10px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+    .fr-cat-head-body { flex: 1; min-width: 0; }
+    .fr-cat-head-name { margin: 0; font-size: 1.4rem; color: #1a1a1a; font-weight: 800; }
+    .fr-cat-head-desc { margin: .25rem 0 0; color: #6c757d; font-size: .95rem; }
+    .fr-cat-head-counts { margin: .4rem 0 0; color: #9aa0a6; font-size: .82rem; }
+
+    .fr-sq { display: inline-block; width: 16px; height: 16px; border-radius: 3px; flex: none; }
+    .fr-sq-sm { width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; }
+    .fr-sq-lg { width: 32px; height: 32px; border-radius: 5px; margin-top: .2rem; }
+
+    .fr-section { margin: 1.5rem 0; }
+    .fr-empty { background: #fff; border: 1px solid #e3e5e8; border-radius: 10px;
+        padding: 1.5rem; text-align: center; color: #6c757d; }
+    .fr-empty a { color: #0088CC; text-decoration: none; font-weight: 600; }
+
+    .fr-table { width: 100%; border-collapse: collapse; background: #fff;
+        border: 1px solid #e3e5e8; border-radius: 10px; overflow: hidden; }
+    .fr-table thead th { text-align: left; font-size: .78rem; text-transform: uppercase;
+        letter-spacing: .03em; color: #9aa0a6; font-weight: 700; padding: .6rem .8rem;
+        border-bottom: 1px solid #e3e5e8; background: #f8f9fa; }
+    .fr-th-num { text-align: right; width: 80px; }
+    .fr-th-act { text-align: right; width: 120px; }
+    .fr-row td { padding: .8rem; border-bottom: 1px solid #f0f1f2; vertical-align: top; }
+    .fr-row:last-child td { border-bottom: none; }
+    .fr-row:hover { background: #fafbfc; }
+
+    .fr-title { font-weight: 700; color: #1a1a1a; text-decoration: none; font-size: 1rem;
+        line-height: 1.35; }
+    .fr-title:hover { color: #0088CC; }
+    .fr-meta { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
+    .fr-badge { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none;
+        background: #f1f3f4; border-radius: 6px; padding: .15rem .45rem; font-size: .8rem;
+        color: #444; font-weight: 600; }
+    .fr-badge:hover { background: #e7eef5; }
+    .fr-pill { display: inline-block; background: #f1f3f4; color: #6c757d; border-radius: 999px;
+        padding: .1rem .55rem; font-size: .76rem; font-weight: 600; }
+
+    .fr-td-num { text-align: right; color: #6c757d; font-weight: 600; font-size: .92rem;
+        white-space: nowrap; }
+    .fr-td-act { text-align: right; color: #9aa0a6; font-size: .85rem; white-space: nowrap; }
+
+    @media (max-width: 720px) {
+        .fr-th-act, .fr-td-act { display: none; }
+        .fr-row td:nth-child(3) { display: none; }
+        .fr-table thead th:nth-child(3) { display: none; }
+        .fr-cat-head { flex-wrap: wrap; }
+    }
+</style>
