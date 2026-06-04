@@ -1,0 +1,29 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+
+# dfx / ICP
+.dfx/
+**/.dfx/
+canister_ids.json
+.vessel/
+.mops/
+
+# Generated Motoko (from .mview compilation)
+**/src/Generated/
+**/.motoview/
+
+# WASM build artifacts that are rebuilt
+client/pkg/*.tmp
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+*.log
+
+# Local env
+.env
+.env.local

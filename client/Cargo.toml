@@ -1,0 +1,17 @@
+[package]
+name = "motoview-client"
+version = "0.1.0"
+edition = "2021"
+description = "The MotoView browser client — the protocol/polling brain, compiled to WASM."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
