@@ -10,6 +10,8 @@ mod ast;
 mod codegen;
 mod parser;
 mod project;
+#[cfg(test)]
+mod tests;
 
 use std::collections::HashMap;
 use std::path::PathBuf;

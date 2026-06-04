@@ -31,6 +31,9 @@ site:
 check:
 	./tools/check.sh runtime/src/App.mo runtime/src/lib.mo
 
+test:
+	cargo test --manifest-path compiler/Cargo.toml
+
 clean:
 	cargo clean --manifest-path compiler/Cargo.toml || true
 	cargo clean --manifest-path client/Cargo.toml || true
