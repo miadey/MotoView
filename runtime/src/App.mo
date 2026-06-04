@@ -25,6 +25,8 @@ import Security "Security";
 import Html "Html";
 import Sha256 "Sha256";
 import Hex "Hex";
+import CertV2 "CertV2";
+import CertifiedData "mo:base/CertifiedData";
 
 module {
 
@@ -76,6 +78,24 @@ module {
     var mvSecret : Blob = config.secret;
     public func setSecret(b : Blob) { if (b.size() == 32) { mvSecret := b } };
     public func needsSecret() : Bool { mvSecret.size() != 32 };
+
+    // Static framework assets served as fast CERTIFIED QUERIES (response-cert v2,
+    // pass-through expression) instead of upgrading to an update call. certified_
+    // data is set on the first update (ensureCert); until then assets serve via
+    // the update path (consensus-valid), so it self-bootstraps.
+    let certPaths : [Text] = [
+      "/motoview.js", "/motoview.css", "/motoview.wasm", "/mv-auth.js",
+      "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
+      "/manifest.webmanifest", "/sw.js",
+    ];
+    var certReady : Bool = false;
+    public func ensureCert() {
+      if (not certReady) { CertifiedData.set(CertV2.rootHash(certPaths)); certReady := true };
+    };
+    func isCertPath(path : Text) : Bool {
+      for (p in certPaths.vals()) { if (p == path) { return true } };
+      false;
+    };
 
     var loginCounter : Nat = 0;
     /// An unguessable single-use login nonce, bound to the browser via a
@@ -223,12 +243,37 @@ module {
     /// request to an update call (validated by consensus, no certification
     /// needed). Certified *query* rendering for cacheable public pages is a
     /// roadmap optimization; the render/event protocol is unchanged.
-    public func httpRequest(_ : HttpRequest, _ : Principal) : HttpResponse {
+    public func httpRequest(req : HttpRequest, _ : Principal) : HttpResponse {
+      let (path, _) = Url.splitUrl(req.url);
+      // Serve static framework assets as certified queries (no upgrade). Until
+      // certified_data is set (first update), fall through to the update path.
+      switch (certifiedAsset(path)) { case (?r) { return r }; case null {} };
       { status_code = 200; headers = jsonHeaders(); body = ""; upgrade = ?true };
+    };
+
+    /// Build a certified-query response for a static asset, or null to fall back.
+    func certifiedAsset(path : Text) : ?HttpResponse {
+      if (not certReady or not isCertPath(path)) { return null };
+      switch (CertifiedData.getCertificate()) {
+        case null { null };
+        case (?cert) {
+          switch (asset(path)) {
+            case null { null };
+            case (?r) {
+              let hdrs = Buffer.Buffer<(Text, Text)>(r.headers.size() + 2);
+              for (h in r.headers.vals()) { hdrs.add(h) };
+              hdrs.add(("IC-CertificateExpression", CertV2.expression));
+              hdrs.add(("IC-Certificate", CertV2.headerValue(certPaths, path, cert)));
+              ?{ status_code = r.status_code; headers = Buffer.toArray(hdrs); body = r.body; upgrade = null };
+            };
+          };
+        };
+      };
     };
 
     /// Update entry point. Serves assets, SSR pages, render polls and events.
     public func httpRequestUpdate(req : HttpRequest, caller : Principal) : HttpResponse {
+      ensureCert();
       let (path, _) = Url.splitUrl(req.url);
       // Resolve the real signed-in principal from the mv_session cookie (set
       // after an Internet Identity login); falls back to the gateway caller.
