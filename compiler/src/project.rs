@@ -150,6 +150,10 @@ actor {{
   func mvIsEmail(t : Text) : Bool {{
     Text.contains(t, #char '@') and Text.contains(t, #char '.');
   }};
+  func mvFormGet(ctx : MV.Ctx, k : Text) : ?Text {{
+    for ((kk, vv) in ctx.form.vals()) {{ if (kk == k) {{ return ?vv }} }};
+    null;
+  }};
 
 {page_objects}
 {page_records}

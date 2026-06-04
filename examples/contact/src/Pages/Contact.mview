@@ -1,0 +1,45 @@
+@page "/"
+@layout MainLayout
+@title "Contact us"
+@description "Get in touch — a secure MotoView form with server-side validation."
+
+<section class="mv-container">
+    <h1>Contact us</h1>
+    <p>Questions about MotoView? Send us a note. This form is secure and validated entirely on the server — no client JavaScript.</p>
+
+    @if sent {
+        <Alert type="success">Thanks! Your message was received.</Alert>
+    }
+
+    <form @submit="send" secure>
+        <ValidationSummary />
+
+        <InputText name="name" label="Name" bind="@name" required />
+        <InputEmail name="email" label="Email" bind="@email" required />
+        <TextArea name="message" label="Message" bind="@message" required />
+
+        <Button kind="primary" type="submit">Send message</Button>
+    </form>
+</section>
+
+@code {
+    var name : Text = "";
+    var email : Text = "";
+    var message : Text = "";
+    var sent : Bool = false;
+
+    func send() : async () {
+        validate {
+            name required "Please tell us your name.";
+            email required "We need an email to reply to.";
+            email email "That email address looks invalid.";
+            message minLength 10 "Please include at least 10 characters.";
+        };
+
+        // In a real app you would persist or forward `message` here.
+        sent := true;
+        name := "";
+        email := "";
+        message := "";
+    };
+}

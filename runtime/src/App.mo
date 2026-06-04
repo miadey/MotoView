@@ -13,6 +13,7 @@ import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Buffer "mo:base/Buffer";
 import HashMap "mo:base/HashMap";
+import Iter "mo:base/Iter";
 import Types "Types";
 import Url "Url";
 import Json "Json";
@@ -142,9 +143,11 @@ module {
           let redirect = page.takeRedirect();
           if (redirect != "") { return jsonResp(Json.encodeBatch(redirectBatch(redirect))) };
 
-          let errors = page.takeErrors();
+          // Render first so the page can show any validation errors it set,
+          // then read those errors to decide the batch status.
           let head = page.head(ctx);
           let inner = page.render(ctx);
+          let errors = page.takeErrors();
           let bid = batchIdFor(pagePath, head.title, inner);
 
           if (errors.size() > 0) {
@@ -215,7 +218,34 @@ module {
     };
 
     func batchIdFor(path : Text, title : Text, inner : Text) : Text {
-      Hash.batchId(path # "\u{1f}" # title # "\u{1f}" # inner);
+      // Mask secure-form token values: they are minted fresh on every render but
+      // do not represent UI state, so they must not affect the batchId (otherwise
+      // every poll would look "changed" and disrupt typing).
+      Hash.batchId(path # "\u{1f}" # title # "\u{1f}" # maskTokens(inner));
+    };
+
+    func maskTokens(t : Text) : Text {
+      let parts = Iter.toArray(Text.split(t, #text "data-mv-token=\""));
+      if (parts.size() <= 1) { return t };
+      var out = parts[0];
+      var i = 1;
+      while (i < parts.size()) {
+        out #= "data-mv-token=\"\"" # afterFirstQuote(parts[i]);
+        i += 1;
+      };
+      out;
+    };
+
+    func afterFirstQuote(s : Text) : Text {
+      let segs = Iter.toArray(Text.split(s, #char '\"'));
+      var out = "";
+      var i = 1;
+      while (i < segs.size()) {
+        if (i > 1) { out #= "\"" };
+        out #= segs[i];
+        i += 1;
+      };
+      out;
     };
 
     // ---- documents --------------------------------------------------------

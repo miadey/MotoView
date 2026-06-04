@@ -129,7 +129,16 @@ impl<'a> Codegen<'a> {
 
         // dispatch
         s.push_str("    public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {\n");
-        s.push_str("      ignore ctx;\n");
+        s.push_str("      ignore ctx; ignore mvArgs;\n");
+        s.push_str("      mvErrors.clear(); // each interaction starts with a clean slate\n");
+        // two-way binding: populate bound vars from the submitted form
+        let binds = collect_simple_binds(&file.template);
+        for (lvalue, name) in &binds {
+            s.push_str(&format!(
+                "      switch (mvFormGet(ctx, \"{}\")) {{ case (?mvV) {{ {} := mvV }}; case null {{}} }};\n",
+                name, lvalue
+            ));
+        }
         s.push_str("      switch mvH {\n");
         for f in &file.code.funcs {
             if f.name == "onLoad" {
@@ -141,7 +150,9 @@ impl<'a> Codegen<'a> {
         s.push_str("        case _ {};\n");
         s.push_str("      };\n    };\n");
 
-        s.push_str("    public func mvTakeErrors() : [(Text, Text)] { let e = Buffer.toArray(mvErrors); mvErrors.clear(); e };\n");
+        // Errors persist across render polls (so they don't flash away); they are
+        // cleared at the start of the next dispatch.
+        s.push_str("    public func mvTakeErrors() : [(Text, Text)] { Buffer.toArray(mvErrors) };\n");
         s.push_str("    public func mvTakeRedirect() : Text { let r = mvRedirect; mvRedirect := \"\"; r };\n");
         s.push_str("  };\n");
 
@@ -282,6 +293,11 @@ impl<'a> Codegen<'a> {
 
     fn gen_element(&self, el: &Element, out: &mut String, indent: &str) {
         out.push_str(&format!("{}b.raw(\"<{}\");\n", indent, el.tag));
+        // Server-driven forms must bypass native constraint validation so the
+        // submit reaches MotoView (server-side validation is the source of truth).
+        if el.tag == "form" && el.events.iter().any(|e| e.event == "submit") {
+            out.push_str(&format!("{}b.raw(\" novalidate\");\n", indent));
+        }
         // static + expr attributes
         for a in &el.attrs {
             self.gen_attr(a, out, indent);
@@ -620,6 +636,66 @@ fn convert_from_text(ty: &str, access: &str) -> String {
     }
 }
 
+/// Collect `bind="@var"` targets that are simple (dotless) lvalues, paired with
+/// their submitted field name. Used to wire two-way binding in dispatch.
+fn collect_simple_binds(nodes: &[Node]) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    walk_binds(nodes, &mut out);
+    // de-dup
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn walk_binds(nodes: &[Node], out: &mut Vec<(String, String)>) {
+    for n in nodes {
+        match n {
+            Node::Element(e) => {
+                if let Some(lv) = &e.bind {
+                    if !lv.contains('.') {
+                        out.push((lv.clone(), lv.clone()));
+                    }
+                }
+                walk_binds(&e.children, out);
+            }
+            Node::Component(c) => {
+                let bind = c.props.iter().find(|a| a.name == "bind").and_then(|a| match &a.value {
+                    AttrValue::Expr(e) => Some(e.clone()),
+                    AttrValue::Literal(v) => Some(v.trim_start_matches('@').to_string()),
+                    _ => None,
+                });
+                if let Some(lv) = bind {
+                    if !lv.contains('.') {
+                        let name = c
+                            .props
+                            .iter()
+                            .find(|a| a.name == "name")
+                            .and_then(|a| match &a.value {
+                                AttrValue::Literal(v) => Some(v.clone()),
+                                _ => None,
+                            })
+                            .unwrap_or_else(|| lv.clone());
+                        out.push((lv, name));
+                    }
+                }
+                walk_binds(&c.children, out);
+            }
+            Node::If(branches) => {
+                for br in branches {
+                    walk_binds(&br.body, out);
+                }
+            }
+            Node::For { body, .. } => walk_binds(body, out),
+            Node::Switch { cases, .. } => {
+                for c in cases {
+                    walk_binds(&c.body, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 fn collect_form_schema(el: &Element) -> String {
     let mut names = Vec::new();
     collect_input_names(&el.children, &mut names);
@@ -751,7 +827,11 @@ fn gen_validate_block(target: &str, block: &str) -> String {
         } else {
             msg
         };
-        let path = format!("{}.{}", target, field);
+        let path = if target.is_empty() {
+            field.to_string()
+        } else {
+            format!("{}.{}", target, field)
+        };
         let cond_fail = match check {
             "required" => format!("({} == \"\")", path),
             "email" => format!("(not mvIsEmail({}))", path),

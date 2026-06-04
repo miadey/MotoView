@@ -42,19 +42,22 @@ actor {
     null;
   };
 
-  // ===== Page: Counter (/) =====
-  let CounterPage = object {
-    var count : Nat = 0;
+  // ===== Page: Contact (/) =====
+  let ContactPage = object {
+    var name : Text = "";
+    var email : Text = "";
+    var message : Text = "";
+    var sent : Bool = false;
     let mvErrors = Buffer.Buffer<(Text, Text)>(0);
     var mvRedirect : Text = "";
-    func increment(by : Nat) {
-        count += by;
-    };
-    func decrement() {
-        if (count > 0) { count -= 1 };
-    };
-    func reset() {
-        count := 0;
+    func send() {
+         mvErrors.clear(); if (name == "") { mvErrors.add(("name", "Please tell us your name.")) }; if (email == "") { mvErrors.add(("email", "We need an email to reply to.")) }; if (not mvIsEmail(email)) { mvErrors.add(("email", "That email address looks invalid.")) }; if (message.size() < 10) { mvErrors.add(("message", "Please include at least 10 characters.")) }; if (mvErrors.size() > 0) { return }; 
+
+        // In a real app you would persist or forward `message` here.
+        sent := true;
+        name := "";
+        email := "";
+        message := "";
     };
     public func mvRender(ctx : MV.Ctx) : Text {
       let b = Html.Builder();
@@ -65,69 +68,86 @@ actor {
       b.raw("\n    ");
       b.raw("<h1");
       b.raw(">");
-      b.raw("Counter");
+      b.raw("Contact us");
       b.raw("</h1>");
-      b.raw("\n\n    ");
+      b.raw("\n    ");
       b.raw("<p");
-      b.raw(" class=\"counter-value\"");
       b.raw(">");
-      b.raw("Current value: ");
-      b.raw("<strong");
-      b.raw(">");
-      b.text(Nat.toText(count));
-      b.raw("</strong>");
+      b.raw("Questions about MotoView? Send us a note. This form is secure and validated entirely on the server — no client JavaScript.");
       b.raw("</p>");
       b.raw("\n\n    ");
-      b.raw("<div");
-      b.raw(" class=\"counter-actions\"");
+      if (sent) {
+        b.raw("\n        ");
+        b.raw("<div class=\"mv-alert mv-alert-success\">");
+        b.raw("Thanks! Your message was received.");
+        b.raw("</div>");
+        b.raw("\n    ");
+      };
+      b.raw("\n\n    ");
+      b.raw("<form");
+      b.raw(" novalidate");
+      b.raw(" data-mv-handler=\"send\" data-mv-event=\"submit\"");
+      b.raw(" data-mv-secure=\"1\"");
+      b.attr("data-mv-token", ctx.mintToken("send", "email,message,name"));
+      b.raw(" data-mv-schema=\"email,message,name\"");
       b.raw(">");
       b.raw("\n        ");
-      b.raw("<button");
-      b.raw(" class=\"mv-btn mv-btn-primary\"");
-      b.raw(" data-mv-handler=\"increment\" data-mv-event=\"click\"");
-      b.raw(" data-mv-arg0=\"1\"");
+      if (mvErrors.size() > 0) {
+        b.raw("<div class=\"mv-validation\"><strong>Please fix the following:</strong><ul>");
+        for ((mvF, mvM) in mvErrors.vals()) { b.raw("<li>"); b.text(mvM); b.raw("</li>") };
+        b.raw("</ul></div>");
+      };
+      b.raw("\n\n        ");
+      b.raw("<div class=\"mv-field\">");
+      b.raw("<label>Name *</label>");
+      b.raw("<input type=\"text\" class=\"mv-input\" name=\"name\" data-mv-key=\"name\"");
+      b.raw(" required");
+      b.attr("value", name);
       b.raw(">");
-      b.raw("+1");
-      b.raw("</button>");
+      for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "name") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
+      b.raw("</div>");
       b.raw("\n        ");
-      b.raw("<button");
-      b.raw(" class=\"mv-btn mv-btn-primary\"");
-      b.raw(" data-mv-handler=\"increment\" data-mv-event=\"click\"");
-      b.raw(" data-mv-arg0=\"5\"");
+      b.raw("<div class=\"mv-field\">");
+      b.raw("<label>Email *</label>");
+      b.raw("<input type=\"email\" class=\"mv-input\" name=\"email\" data-mv-key=\"email\"");
+      b.raw(" required");
+      b.attr("value", email);
       b.raw(">");
-      b.raw("+5");
-      b.raw("</button>");
+      for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "email") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
+      b.raw("</div>");
       b.raw("\n        ");
-      b.raw("<button");
-      b.raw(" class=\"mv-btn mv-btn-secondary\"");
-      b.raw(" data-mv-handler=\"decrement\" data-mv-event=\"click\"");
+      b.raw("<div class=\"mv-field\">");
+      b.raw("<label>Message *</label>");
+      b.raw("<textarea class=\"mv-textarea\" name=\"message\" data-mv-key=\"message\"");
+      b.raw(" required");
       b.raw(">");
-      b.raw("-1");
-      b.raw("</button>");
-      b.raw("\n        ");
-      b.raw("<button");
-      b.raw(" class=\"mv-btn mv-btn-ghost\"");
-      b.raw(" data-mv-handler=\"reset\" data-mv-event=\"click\"");
+      b.text(message);
+      b.raw("</textarea>");
+      for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "message") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
+      b.raw("</div>");
+      b.raw("\n\n        ");
+      b.raw("<button type=\"submit\" class=\"mv-btn mv-btn-primary\"");
       b.raw(">");
-      b.raw("Reset");
+      b.raw("Send message");
       b.raw("</button>");
       b.raw("\n    ");
-      b.raw("</div>");
+      b.raw("</form>");
       b.raw("\n");
       b.raw("</section>");
       b.raw("\n\n");
       b.build();
     };
-    public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; "Counter" };
-    public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; { title = "Counter"; description = "A live counter built with MotoView — rendering is a query, the +/- clicks are updates."; canonical = ""; extra = "" } };
+    public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; "Contact us" };
+    public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; { title = "Contact us"; description = "Get in touch — a secure MotoView form with server-side validation."; canonical = ""; extra = "" } };
     public func mvOnLoad(ctx : MV.Ctx) { ignore ctx };
     public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
       ignore ctx; ignore mvArgs;
       mvErrors.clear(); // each interaction starts with a clean slate
+      switch (mvFormGet(ctx, "email")) { case (?mvV) { email := mvV }; case null {} };
+      switch (mvFormGet(ctx, "message")) { case (?mvV) { message := mvV }; case null {} };
+      switch (mvFormGet(ctx, "name")) { case (?mvV) { name := mvV }; case null {} };
       switch mvH {
-        case "increment" { increment(mvNat((if (mvArgs.size() > 0) mvArgs[0] else ""))) };
-        case "decrement" { decrement() };
-        case "reset" { reset() };
+        case "send" { send() };
         case _ {};
       };
     };
@@ -136,18 +156,18 @@ actor {
   };
 
 
-  let CounterDef : MV.Page = {
+  let ContactDef : MV.Page = {
     route = "/";
     layout = "MainLayout";
     authorize = false;
     role = "";
-    onLoad = CounterPage.mvOnLoad;
-    render = CounterPage.mvRender;
-    title = CounterPage.mvTitle;
-    head = CounterPage.mvHead;
-    dispatch = CounterPage.mvDispatch;
-    takeErrors = CounterPage.mvTakeErrors;
-    takeRedirect = CounterPage.mvTakeRedirect;
+    onLoad = ContactPage.mvOnLoad;
+    render = ContactPage.mvRender;
+    title = ContactPage.mvTitle;
+    head = ContactPage.mvHead;
+    dispatch = ContactPage.mvDispatch;
+    takeErrors = ContactPage.mvTakeErrors;
+    takeRedirect = ContactPage.mvTakeRedirect;
   };
 
   // ===== Layout: MainLayout =====
@@ -179,11 +199,6 @@ actor {
     b.raw(mvHead.extra);
     if (mvHead.description != "") { b.raw("<meta name=\"description\" content=\""); b.text(mvHead.description); b.raw("\">") };
     if (mvHead.canonical != "") { b.raw("<link rel=\"canonical\" href=\""); b.text(mvHead.canonical); b.raw("\">") };
-    b.raw("\n    ");
-    b.raw("<style");
-    b.raw(">");
-    b.raw("\n        .counter-value { font-size: 1.4rem; }\n        .counter-actions { display: flex; gap: .5rem; flex-wrap: wrap; }\n        header.mv-nav { display: flex; gap: 1rem; align-items: center; border-bottom: 1px solid var(--mv-border); }\n    ");
-    b.raw("</style>");
     b.raw("\n");
     b.raw("</head>");
     b.raw("\n");
@@ -191,8 +206,8 @@ actor {
     b.raw(">");
     b.raw("\n    ");
     b.raw("<header");
-    b.raw(" class=\"mv-nav mv-container\"");
-    b.raw(" style=\"padding-top:1rem;padding-bottom:1rem\"");
+    b.raw(" class=\"mv-container\"");
+    b.raw(" style=\"padding-top:1rem;padding-bottom:0;display:flex;gap:1rem;align-items:center;border-bottom:1px solid var(--mv-border)\"");
     b.raw(">");
     b.raw("\n        ");
     b.raw("<strong");
@@ -203,7 +218,7 @@ actor {
     b.raw("<span");
     b.raw(" style=\"color:var(--mv-text-soft)\"");
     b.raw(">");
-    b.raw("counter example");
+    b.raw("contact example");
     b.raw("</span>");
     b.raw("\n    ");
     b.raw("</header>");
@@ -219,7 +234,7 @@ actor {
     b.raw(" class=\"mv-container\"");
     b.raw(" style=\"color:var(--mv-text-soft);font-size:.9rem\"");
     b.raw(">");
-    b.raw("\n        Powered by MotoView on the Internet Computer · rendering is a query, events are updates.\n    ");
+    b.raw("\n        Secure forms by default · powered by MotoView on the Internet Computer.\n    ");
     b.raw("</footer>");
     b.raw("\n");
     b.raw("</body>");
@@ -231,9 +246,9 @@ actor {
 
 
 
-  let mvPages : [MV.Page] = [CounterDef];
+  let mvPages : [MV.Page] = [ContactDef];
   let mvLayouts : [MV.Layout] = [{ name = "MainLayout"; render = mvLayout_MainLayout }];
-  let mvConfig : MV.Config = { appName = "counter"; secret = "\5b\d7\d4\25\ef\20\ae\6f\b5\4a\76\8c\41\e7\24\66\08\d2\f7\94\97\c2\05\91\12\4c\bc\31\e3\ca\b5\3a" : Blob; seo = true };
+  let mvConfig : MV.Config = { appName = "contact"; secret = "\b7\4a\f6\ff\44\66\82\c1\22\fc\1d\2b\17\91\a4\a3\fe\d3\3c\6e\7e\3e\b2\01\bb\e0\59\37\9d\d0\9f\60" : Blob; seo = true };
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {

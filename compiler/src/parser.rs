@@ -672,6 +672,13 @@ impl Parser {
         let is_void = VOID_TAGS.contains(&tag.as_str());
 
         if is_component {
+            // components keep `bind` as a prop so built-ins/binding can see it
+            if let Some(b) = bind.take() {
+                attrs.push(Attr {
+                    name: "bind".to_string(),
+                    value: AttrValue::Expr(b),
+                });
+            }
             let mut comp = Component {
                 name: tag.clone(),
                 props: attrs,
