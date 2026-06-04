@@ -122,6 +122,11 @@ impl Parser {
                         self.parse_directive_line(&kw)?;
                         continue;
                     }
+                    "cacheable" => {
+                        self.consume_keyword();
+                        self.file.cacheable = true;
+                        continue;
+                    }
                     "code" => {
                         self.parse_code_block()?;
                         continue;
@@ -870,7 +875,7 @@ fn is_top_level_kw(kw: &str) -> bool {
     matches!(
         kw,
         "page" | "layout" | "title" | "description" | "canonical" | "authorize" | "meta"
-            | "code" | "style" | "theme" | "section"
+            | "cacheable" | "code" | "style" | "theme" | "section"
     )
 }
 

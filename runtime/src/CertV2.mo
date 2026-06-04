@@ -18,6 +18,7 @@ import Buffer "mo:base/Buffer";
 import Array "mo:base/Array";
 import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
+import Iter "mo:base/Iter";
 
 module {
 
@@ -88,12 +89,13 @@ module {
     Blob.fromArray(Buffer.toArray(b));
   };
 
-  func buildBalanced(trees : [Tree]) : Tree { buildRange(trees, 0, trees.size()) };
-  func buildRange(trees : [Tree], lo : Nat, hi : Nat) : Tree {
+  // balanced fork of sorted (label, subtree) pairs, each wrapped as labeled().
+  func buildBalancedLabeled(pairs : [(Blob, Tree)]) : Tree { buildRangeL(pairs, 0, pairs.size()) };
+  func buildRangeL(pairs : [(Blob, Tree)], lo : Nat, hi : Nat) : Tree {
     if (hi - lo == 0) { return #empty };
-    if (hi - lo == 1) { return trees[lo] };
+    if (hi - lo == 1) { let (l, st) = pairs[lo]; return #labeled(l, st) };
     let mid = lo + (hi - lo) / 2;
-    #fork(buildRange(trees, lo, mid), buildRange(trees, mid, hi));
+    #fork(buildRangeL(pairs, lo, mid), buildRangeL(pairs, mid, hi));
   };
 
   // ---- base64 (RFC4648, standard) ----
@@ -128,7 +130,8 @@ module {
   // terminal = labeled("<$>", labeled(expr_hash, leaf("")))
   func terminal() : Tree { #labeled(terminalMarker(), #labeled(exprHash(), #leaf(""))) };
 
-  func seg(path : Text) : Blob { Text.encodeUtf8(Text.trimStart(path, #char '/')) };
+  // "/forum/new" -> ["forum","new"]; "/" -> []. Empty segments dropped.
+  func split(path : Text) : [Text] { Iter.toArray(Text.tokens(path, #char '/')) };
 
   func compareBlob(a : Blob, b : Blob) : { #less; #equal; #greater } {
     let aa = Blob.toArray(a);
@@ -143,41 +146,65 @@ module {
     if (aa.size() < bb.size()) { #less } else if (aa.size() > bb.size()) { #greater } else { #equal };
   };
 
-  func sortedSegs(paths : [Text]) : [Blob] {
-    Array.sort(Array.map<Text, Blob>(paths, seg), compareBlob);
+  // Recursively build the http_expr inner subtree over a set of segmented
+  // paths. At each depth, group by the segment; a path that ends here adds the
+  // terminal ("<$>" -> expr_hash -> leaf("")). Children sorted by label bytes.
+  func buildSubtree(paths : [[Text]], depth : Nat) : Tree {
+    var terminalHere = false;
+    let segSet = Buffer.Buffer<Text>(8);
+    for (p in paths.vals()) {
+      if (p.size() == depth) { terminalHere := true } else if (p.size() > depth) {
+        let s = p[depth];
+        var seen = false;
+        for (x in segSet.vals()) { if (x == s) { seen := true } };
+        if (not seen) { segSet.add(s) };
+      };
+    };
+    let pairs = Buffer.Buffer<(Blob, Tree)>(segSet.size() + 1);
+    if (terminalHere) { pairs.add((terminalMarker(), #labeled(exprHash(), #leaf("")))) };
+    for (s in segSet.vals()) {
+      let bucket = Buffer.Buffer<[Text]>(4);
+      for (p in paths.vals()) { if (p.size() > depth and p[depth] == s) { bucket.add(p) } };
+      pairs.add((Text.encodeUtf8(s), buildSubtree(Buffer.toArray(bucket), depth + 1)));
+    };
+    let sorted = Array.sort(Buffer.toArray(pairs), func(a : (Blob, Tree), b : (Blob, Tree)) : { #less; #equal; #greater } { compareBlob(a.0, b.0) });
+    buildBalancedLabeled(sorted);
   };
 
-  /// The full http_expr tree for the registered single-segment paths.
-  func tree(paths : [Text]) : Tree {
-    let segs = sortedSegs(paths);
-    let children = Array.map<Blob, Tree>(segs, func(s) { #labeled(s, terminal()) });
-    #labeled(httpExpr(), buildBalanced(children));
-  };
+  func segmented(paths : [Text]) : [[Text]] { Array.map<Text, [Text]>(paths, split) };
+
+  func tree(paths : [Text]) : Tree { #labeled(httpExpr(), buildSubtree(segmented(paths), 0)) };
 
   /// Root hash to install via CertifiedData.set.
   public func rootHash(paths : [Text]) : Blob { hash(tree(paths)) };
 
+  // Walk the inner subtree, keeping the witness path and pruning every sibling.
+  func pruneToPath(node : Tree, segs : [Text], depth : Nat) : Tree {
+    switch node {
+      case (#fork(l, r)) { #fork(pruneToPath(l, segs, depth), pruneToPath(r, segs, depth)) };
+      case (#labeled(lbl, sub)) {
+        var onPath = false;
+        if (depth < segs.size()) { onPath := (lbl == Text.encodeUtf8(segs[depth])) } else if (depth == segs.size()) {
+          onPath := (lbl == terminalMarker());
+        } else if (depth == segs.size() + 1) { onPath := (lbl == exprHash()) };
+        if (onPath) { #labeled(lbl, pruneToPath(sub, segs, depth + 1)) } else { #pruned(hash(#labeled(lbl, sub))) };
+      };
+      case other { other };
+    };
+  };
+
   /// Witness revealing one path; every sibling pruned (root hash preserved).
   func witness(paths : [Text], path : Text) : Tree {
-    let target = seg(path);
-    let segs = sortedSegs(paths);
-    let children = Array.map<Blob, Tree>(
-      segs,
-      func(s) {
-        if (compareBlob(s, target) == #equal) { #labeled(s, terminal()) } else {
-          #pruned(hash(#labeled(s, terminal())));
-        };
-      },
-    );
-    #labeled(httpExpr(), buildBalanced(children));
+    #labeled(httpExpr(), pruneToPath(buildSubtree(segmented(paths), 0), split(path), 0));
   };
 
   func exprPathCbor(path : Text) : Blob {
+    let segs = split(path);
     let b = Buffer.Buffer<Nat8>(48);
     selfDescribe(b);
-    cborHeader(b, 4, 3); // array of 3: ["http_expr", <seg>, "<$>"]
+    cborHeader(b, 4, segs.size() + 2); // ["http_expr", ...segments, "<$>"]
     cborBytes(b, httpExpr());
-    cborBytes(b, seg(path));
+    for (s in segs.vals()) { cborBytes(b, Text.encodeUtf8(s)) };
     cborBytes(b, terminalMarker());
     Blob.fromArray(Buffer.toArray(b));
   };

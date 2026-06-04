@@ -122,6 +122,57 @@ actor {
   };
 
 
+  // mv:src src/Pages/About.mview
+  // ===== Page: About (/about) =====
+  let AboutPage = object {
+    let mvErrors = Buffer.Buffer<(Text, Text)>(0);
+    var mvRedirect : Text = "";
+    let mvEffects = Buffer.Buffer<MV.Effect>(0);
+    public func toast(m : Text) { mvEffects.add({ kind = "toast"; target = m; value = "" }) };
+    public func animate(sel : Text, name : Text) { mvEffects.add({ kind = "animate"; target = sel; value = name }) };
+    public func focusOn(sel : Text) { mvEffects.add({ kind = "focus"; target = sel; value = "" }) };
+    public func scrollTo(sel : Text) { mvEffects.add({ kind = "scrollTo"; target = sel; value = "" }) };
+    public func mvRender(ctx : MV.Ctx) : Text {
+      let b = Html.Builder();
+      ignore ctx;
+      b.raw("<section");
+      b.raw(" class=\"bz-hero\"");
+      b.raw(">");
+      b.raw("<h1");
+      b.raw(">");
+      b.raw("About Bzzz");
+      b.raw("</h1>");
+      b.raw("\n");
+      b.raw("<p");
+      b.raw(">");
+      b.raw("A Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on-chain. This page is public and static, so it is served as a fast certified query — no consensus round-trip.");
+      b.raw("</p>");
+      b.raw("</section>");
+      b.raw("\n");
+      b.raw("<p");
+      b.raw(" style=\"margin-top:1.25rem;color:var(--mv-text-soft)\"");
+      b.raw(">");
+      b.raw("Open source. No backend to trust. Your messages, your canister.");
+      b.raw("</p>");
+      b.raw("\n");
+      b.build();
+    };
+    public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; "About Bzzz" };
+    public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; { title = "About Bzzz"; description = "Bzzz is an open social super-app running entirely on the Internet Computer."; canonical = ""; extra = "" } };
+    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx;  };
+    public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
+      ignore ctx; ignore mvArgs;
+      mvErrors.clear(); // each interaction starts with a clean slate
+      mvEffects.clear();
+      switch mvH {
+        case _ {};
+      };
+    };
+    public func mvTakeErrors() : [(Text, Text)] { Buffer.toArray(mvErrors) };
+    public func mvTakeRedirect() : Text { let r = mvRedirect; mvRedirect := ""; r };
+    public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
+  };
+
   // mv:src src/Pages/Admin.mview
   // ===== Page: Admin (/admin) =====
   let AdminPage = object {
@@ -6819,11 +6870,27 @@ actor {
   };
 
 
+  let AboutDef : MV.Page = {
+    route = "/about";
+    layout = "AppLayout";
+    authorize = false;
+    role = "";
+    cacheable = true;
+    onLoad = AboutPage.mvOnLoad;
+    render = AboutPage.mvRender;
+    title = AboutPage.mvTitle;
+    head = AboutPage.mvHead;
+    dispatch = AboutPage.mvDispatch;
+    takeErrors = AboutPage.mvTakeErrors;
+    takeEffects = AboutPage.mvTakeEffects;
+    takeRedirect = AboutPage.mvTakeRedirect;
+  };
   let AdminDef : MV.Page = {
     route = "/admin";
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = AdminPage.mvOnLoad;
     render = AdminPage.mvRender;
     title = AdminPage.mvTitle;
@@ -6838,6 +6905,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ChannelPage.mvOnLoad;
     render = ChannelPage.mvRender;
     title = ChannelPage.mvTitle;
@@ -6852,6 +6920,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = FeedPage.mvOnLoad;
     render = FeedPage.mvRender;
     title = FeedPage.mvTitle;
@@ -6866,6 +6935,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ForumPage.mvOnLoad;
     render = ForumPage.mvRender;
     title = ForumPage.mvTitle;
@@ -6880,6 +6950,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ForumCategoryPage.mvOnLoad;
     render = ForumCategoryPage.mvRender;
     title = ForumCategoryPage.mvTitle;
@@ -6894,6 +6965,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ForumNewPage.mvOnLoad;
     render = ForumNewPage.mvRender;
     title = ForumNewPage.mvTitle;
@@ -6908,6 +6980,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ForumTopicPage.mvOnLoad;
     render = ForumTopicPage.mvRender;
     title = ForumTopicPage.mvTitle;
@@ -6922,6 +6995,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = HomePage.mvOnLoad;
     render = HomePage.mvRender;
     title = HomePage.mvTitle;
@@ -6936,6 +7010,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = MePage.mvOnLoad;
     render = MePage.mvRender;
     title = MePage.mvTitle;
@@ -6950,6 +7025,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = MessagesPage.mvOnLoad;
     render = MessagesPage.mvRender;
     title = MessagesPage.mvTitle;
@@ -6964,6 +7040,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ProfilePage.mvOnLoad;
     render = ProfilePage.mvRender;
     title = ProfilePage.mvTitle;
@@ -6978,6 +7055,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ServerPage.mvOnLoad;
     render = ServerPage.mvRender;
     title = ServerPage.mvTitle;
@@ -6992,6 +7070,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ServersPage.mvOnLoad;
     render = ServersPage.mvRender;
     title = ServersPage.mvTitle;
@@ -7006,6 +7085,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = StatusPage.mvOnLoad;
     render = StatusPage.mvRender;
     title = StatusPage.mvTitle;
@@ -7020,6 +7100,7 @@ actor {
     layout = "AppLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ThreadPage.mvOnLoad;
     render = ThreadPage.mvRender;
     title = ThreadPage.mvTitle;
@@ -7203,7 +7284,7 @@ actor {
 
 
 
-  let mvPages : [MV.Page] = [AdminDef, ChannelDef, FeedDef, ForumDef, ForumCategoryDef, ForumNewDef, ForumTopicDef, HomeDef, MeDef, MessagesDef, ProfileDef, ServerDef, ServersDef, StatusDef, ThreadDef];
+  let mvPages : [MV.Page] = [AboutDef, AdminDef, ChannelDef, FeedDef, ForumDef, ForumCategoryDef, ForumNewDef, ForumTopicDef, HomeDef, MeDef, MessagesDef, ProfileDef, ServerDef, ServersDef, StatusDef, ThreadDef];
   let mvLayouts : [MV.Layout] = [{ name = "AppLayout"; render = mvLayout_AppLayout }];
   let mvConfig : MV.Config = { appName = "bzzz"; secret = "" : Blob; seo = true; altOrigins = [] };
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());

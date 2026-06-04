@@ -308,13 +308,15 @@ impl<'a> Codegen<'a> {
             Some(a) => ("true", a.role.clone().unwrap_or_default()),
             None => ("false", String::new()),
         };
+        let cacheable = if file.cacheable { "true" } else { "false" };
         let rec = format!(
-            "  let {n}Def : MV.Page = {{\n    route = {route:?};\n    layout = {layout:?};\n    authorize = {auth};\n    role = {role:?};\n    onLoad = {o}.mvOnLoad;\n    render = {o}.mvRender;\n    title = {o}.mvTitle;\n    head = {o}.mvHead;\n    dispatch = {o}.mvDispatch;\n    takeErrors = {o}.mvTakeErrors;\n    takeRedirect = {o}.mvTakeRedirect;\n  }};\n",
+            "  let {n}Def : MV.Page = {{\n    route = {route:?};\n    layout = {layout:?};\n    authorize = {auth};\n    role = {role:?};\n    cacheable = {cacheable};\n    onLoad = {o}.mvOnLoad;\n    render = {o}.mvRender;\n    title = {o}.mvTitle;\n    head = {o}.mvHead;\n    dispatch = {o}.mvDispatch;\n    takeErrors = {o}.mvTakeErrors;\n    takeRedirect = {o}.mvTakeRedirect;\n  }};\n",
             n = file.name,
             route = route,
             layout = layout,
             auth = authorize,
             role = role,
+            cacheable = cacheable,
             o = obj,
         );
         let rec = rec.replace(

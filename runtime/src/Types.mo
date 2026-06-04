@@ -102,6 +102,7 @@ module {
     layout : Text; // layout name, or "" for none
     authorize : Bool; // requires an authenticated caller
     role : Text; // required role, or "" for any authenticated caller
+    cacheable : Bool; // serve as a certified query (no update round-trip)
     onLoad : (Ctx) -> (); // data-loading lifecycle (runs on GET renders)
     render : (Ctx) -> Text; // inner HTML of the page body
     title : (Ctx) -> Text; // document title

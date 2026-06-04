@@ -88,12 +88,32 @@ module {
       "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
       "/manifest.webmanifest", "/sw.js",
     ];
+    // Pages marked `@cacheable` (and whose route has no params) are also served
+    // as certified queries — public, non-caller-specific pages.
+    let cacheableRoutes : [Text] = do {
+      let b = Buffer.Buffer<Text>(4);
+      for (p in pages.vals()) {
+        if (p.cacheable and not Text.contains(p.route, #char '{')) { b.add(p.route) };
+      };
+      Buffer.toArray(b);
+    };
+    // The full set committed into certified_data (assets + cacheable routes).
+    let allCertPaths : [Text] = do {
+      let b = Buffer.Buffer<Text>(certPaths.size() + cacheableRoutes.size());
+      for (x in certPaths.vals()) { b.add(x) };
+      for (x in cacheableRoutes.vals()) { b.add(x) };
+      Buffer.toArray(b);
+    };
     var certReady : Bool = false;
     public func ensureCert() {
-      if (not certReady) { CertifiedData.set(CertV2.rootHash(certPaths)); certReady := true };
+      if (not certReady) { CertifiedData.set(CertV2.rootHash(allCertPaths)); certReady := true };
     };
     func isCertPath(path : Text) : Bool {
       for (p in certPaths.vals()) { if (p == path) { return true } };
+      false;
+    };
+    func isCacheableRoute(path : Text) : Bool {
+      for (p in cacheableRoutes.vals()) { if (p == path) { return true } };
       false;
     };
 
@@ -243,12 +263,21 @@ module {
     /// request to an update call (validated by consensus, no certification
     /// needed). Certified *query* rendering for cacheable public pages is a
     /// roadmap optimization; the render/event protocol is unchanged.
-    public func httpRequest(req : HttpRequest, _ : Principal) : HttpResponse {
+    public func httpRequest(req : HttpRequest, caller : Principal) : HttpResponse {
       let (path, _) = Url.splitUrl(req.url);
-      // Serve static framework assets as certified queries (no upgrade). Until
-      // certified_data is set (first update), fall through to the update path.
+      // Serve static framework assets and @cacheable pages as certified queries
+      // (no upgrade). Until certified_data is set (first update), fall through.
       switch (certifiedAsset(path)) { case (?r) { return r }; case null {} };
+      switch (certifiedPage(req, path, caller)) { case (?r) { return r }; case null {} };
       { status_code = 200; headers = jsonHeaders(); body = ""; upgrade = ?true };
+    };
+
+    func certHeaders(base : [(Text, Text)], path : Text, cert : Blob) : [(Text, Text)] {
+      let hdrs = Buffer.Buffer<(Text, Text)>(base.size() + 2);
+      for (h in base.vals()) { hdrs.add(h) };
+      hdrs.add(("IC-CertificateExpression", CertV2.expression));
+      hdrs.add(("IC-Certificate", CertV2.headerValue(allCertPaths, path, cert)));
+      Buffer.toArray(hdrs);
     };
 
     /// Build a certified-query response for a static asset, or null to fall back.
@@ -259,12 +288,33 @@ module {
         case (?cert) {
           switch (asset(path)) {
             case null { null };
-            case (?r) {
-              let hdrs = Buffer.Buffer<(Text, Text)>(r.headers.size() + 2);
-              for (h in r.headers.vals()) { hdrs.add(h) };
-              hdrs.add(("IC-CertificateExpression", CertV2.expression));
-              hdrs.add(("IC-Certificate", CertV2.headerValue(certPaths, path, cert)));
-              ?{ status_code = r.status_code; headers = Buffer.toArray(hdrs); body = r.body; upgrade = null };
+            case (?r) { ?{ status_code = r.status_code; headers = certHeaders(r.headers, path, cert); body = r.body; upgrade = null } };
+          };
+        };
+      };
+    };
+
+    /// Render a @cacheable page in the query context and serve it as a certified
+    /// query (the pass-through expression accepts any body). null to fall back.
+    func certifiedPage(req : HttpRequest, path : Text, caller : Principal) : ?HttpResponse {
+      if (not certReady or not isCacheableRoute(path)) { return null };
+      switch (CertifiedData.getCertificate()) {
+        case null { null };
+        case (?cert) {
+          switch (Router.find(pages, path)) {
+            case null { null };
+            case (?(page, params)) {
+              if (not page.cacheable) { return null };
+              let (_, q) = Url.splitUrl(req.url);
+              let ctx = makeCtx("GET", path, Url.parsePairs(q), params, [], caller, "");
+              page.onLoad(ctx);
+              ignore page.takeRedirect();
+              let head = page.head(ctx);
+              let inner = page.render(ctx);
+              let bid = batchIdFor(path, head.title, inner);
+              let doc = renderDocument(page, ctx, head, inner, bid);
+              let base = [("content-type", "text/html"), ("cache-control", "no-store")];
+              ?{ status_code = 200; headers = certHeaders(base, path, cert); body = Text.encodeUtf8(doc); upgrade = null };
             };
           };
         };
