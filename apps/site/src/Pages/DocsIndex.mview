@@ -1,0 +1,14 @@
+@page "/docs"
+@layout DocLayout
+@cacheable
+@title "Documentation — MotoView"
+@description "MotoView documentation: build interactive, SEO-friendly Internet Computer canister UIs in Motoko — no frontend JavaScript."
+
+<article class="mv-prose">
+    <h1>MotoView Documentation</h1>
+    <p>MotoView is a Motoko-native, server-driven UI framework for the Internet Computer. You write <code>.mview</code> files — template markup and Motoko together — compile them to Motoko, and deploy with <code>dfx</code>. No frontend JavaScript, no npm, no agent-js.</p>
+    <p>New here? Start with the <a href="/docs/introduction">Introduction</a>, then run through the <a href="/docs/quickstart">Quickstart</a>. Use the sidebar to browse every topic.</p>
+    <blockquote>This very site is a MotoView canister — each docs page is rendered server-side and served as a <code>@@cacheable</code> certified query over <code>/docs/&lt;*&gt;</code>. We eat our own dog food.</blockquote>
+</article>
+
+@code { }

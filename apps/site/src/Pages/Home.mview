@@ -1,0 +1,126 @@
+@page "/"
+@layout HomeLayout
+@cacheable
+@title "MotoView — Write Motoko. Ship interactive, SEO-friendly ICP apps."
+@description "MotoView is a Motoko-native, server-driven UI framework for Internet Computer canisters. Write .mview files, compile to Motoko, deploy with dfx. No frontend JavaScript."
+
+<header>
+    <div class="wrap nav">
+        <a class="brand" href="/"><span class="logo">M</span><span>MotoView</span></a>
+        <nav class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#code">How it works</a>
+            <a href="/docs">Docs</a>
+            <a href="https://github.com/miadey/MotoView">GitHub</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/docs">Get started</a>
+    </div>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="wrap">
+            <span class="pill"><span class="dot"></span> Motoko-native, server-driven UI for the Internet Computer</span>
+            <h1 class="headline">Write Motoko.<br>Ship interactive, <span class="grad">SEO-friendly</span> ICP apps.</h1>
+            <p class="sub">MotoView lets you build full ICP canister UIs in one language. Write <code>.mview</code> files, compile to Motoko, deploy with dfx — <strong>no frontend JavaScript</strong>.</p>
+            <p class="tech">Rendering is a query, events are updates, and the browser synchronizes through versioned UI batches.</p>
+            <div class="hero-cta">
+                <a class="btn btn-primary" href="/docs">Get started</a>
+                <a class="btn btn-ghost" href="https://github.com/miadey/MotoView">View on GitHub</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt" id="features">
+        <div class="wrap">
+            <p class="eyebrow">Why MotoView</p>
+            <h2>One language, end to end</h2>
+            <p class="lede">No Node, no npm, no React, no agent-js glue, no duplicated validation. Just Motoko and dfx.</p>
+            <div class="grid">
+                <div class="card">
+                    <div class="ico">⌨️</div>
+                    <h3>Write Motoko</h3>
+                    <p>Template markup and Motoko code live together in one <code>.mview</code> file — a Blazor / Blade / LiveView feel.</p>
+                </div>
+                <div class="card">
+                    <div class="ico">🛡️</div>
+                    <h3>Secure forms by default</h3>
+                    <p>The <code>secure</code> attribute mints a signed HMAC-SHA256 token binding path, handler, caller, nonce and expiry. Replays and tampering are rejected server-side.</p>
+                </div>
+                <div class="card">
+                    <div class="ico">🔍</div>
+                    <h3>SEO-friendly SSR</h3>
+                    <p>First load returns server-rendered HTML — real markup crawlers and users see instantly, not a blank shell.</p>
+                </div>
+                <div class="card">
+                    <div class="ico">🚫</div>
+                    <h3>No frontend JavaScript</h3>
+                    <p>You ship zero application JavaScript. The only browser code is a Rust-compiled WASM client plus a tiny hand-written glue.</p>
+                </div>
+                <div class="card">
+                    <div class="ico">🔁</div>
+                    <h3>Server-driven</h3>
+                    <p>Events POST to the canister, run typed Motoko handlers, and return a new versioned batch. Adaptive polling synchronizes the DOM.</p>
+                </div>
+                <div class="card">
+                    <div class="ico">⚡</div>
+                    <h3>Certified &amp; persistent</h3>
+                    <p>Cacheable pages serve as certified queries; services opt into upgrade-stable persistence. Internet Identity login ships in the box.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="code">
+        <div class="wrap split">
+            <div class="copy">
+                <p class="eyebrow">Code beside the UI</p>
+                <h2>Markup and logic in one file</h2>
+                <p class="lede">The clicks are <strong>updates</strong>, the render is a <strong>query</strong>. State lives in <code>@@code</code> right next to the buttons that change it — and persists across calls in your canister.</p>
+                <ul>
+                    <li>Bake handler args server-side with <code>@@click="increment(1)"</code></li>
+                    <li>Interpolate state inline with <code>@@count</code></li>
+                    <li>State persists in the canister across calls</li>
+                    <li>Compiles straight to a Motoko actor</li>
+                </ul>
+            </div>
+            <div class="code-window">
+                <div class="code-bar">
+                    <span class="dots"><i></i><i></i><i></i></span>
+                    <span class="fname">src/Pages/Counter.mview</span>
+                </div>
+                @raw(codeSample)
+            </div>
+        </div>
+    </section>
+
+    <section class="band">
+        <div class="wrap">
+            <h2>Build your first canister UI in Motoko</h2>
+            <p>Scaffold a project, run the dev loop, and deploy to a local replica with dfx — all without leaving Motoko.</p>
+            <div class="hero-cta">
+                <a class="btn btn-primary" href="/docs">Read the docs</a>
+                <a class="btn btn-ghost" href="https://github.com/miadey/MotoView">View on GitHub</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div class="wrap foot">
+        <a class="brand" href="/"><span class="logo">M</span><span>MotoView</span></a>
+        <nav class="foot-links">
+            <a href="/docs">Docs</a>
+            <a href="#features">Features</a>
+            <a href="#code">How it works</a>
+            <a href="https://github.com/miadey/MotoView">GitHub</a>
+        </nav>
+        <span class="copyright">© 2026 MotoView. Built on the Internet Computer.</span>
+    </div>
+</footer>
+
+@code {
+    // The code window is raw HTML (it contains literal @-directives and &lt; entities),
+    // so it's emitted via @raw rather than parsed as template markup.
+    let codeSample : Text = "<pre class=\"code\"><span class=\"k\">@page</span> <span class=\"s\">\"/\"</span>\n<span class=\"k\">@layout</span> MainLayout\n<span class=\"k\">@title</span> <span class=\"s\">\"Counter\"</span>\n\n<span class=\"t\">&lt;section</span> <span class=\"a\">class</span>=<span class=\"s\">\"mv-container\"</span><span class=\"t\">&gt;</span>\n  <span class=\"t\">&lt;h1&gt;</span>Counter<span class=\"t\">&lt;/h1&gt;</span>\n  <span class=\"t\">&lt;p&gt;</span>Current value: <span class=\"t\">&lt;strong&gt;</span><span class=\"n\">@count</span><span class=\"t\">&lt;/strong&gt;&lt;/p&gt;</span>\n  <span class=\"t\">&lt;button</span> <span class=\"a\">@click</span>=<span class=\"s\">\"increment(1)\"</span><span class=\"t\">&gt;</span>+1<span class=\"t\">&lt;/button&gt;</span>\n  <span class=\"t\">&lt;button</span> <span class=\"a\">@click</span>=<span class=\"s\">\"decrement\"</span><span class=\"t\">&gt;</span>-1<span class=\"t\">&lt;/button&gt;</span>\n<span class=\"t\">&lt;/section&gt;</span>\n\n<span class=\"k\">@code</span> {\n  <span class=\"k\">var</span> count : Nat = <span class=\"n\">0</span>;\n  <span class=\"k\">func</span> increment(by : Nat) : <span class=\"k\">async</span> () { count += by; };\n  <span class=\"k\">func</span> decrement() : <span class=\"k\">async</span> () { <span class=\"k\">if</span> (count &gt; 0) { count -= <span class=\"n\">1</span> }; };\n}</pre>";
+}

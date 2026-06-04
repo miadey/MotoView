@@ -1,0 +1,66 @@
+@page "/docs/{slug}"
+@layout DocLayout
+@cacheable
+@title (docTitle # " — MotoView Docs")
+@description docDesc
+
+@if found {
+    <article class="mv-prose">
+        @raw(bodyHtml)
+    </article>
+    <div class="mv-pager">
+        @if hasPrev {
+            <a class="prev" href="/docs/@prevSlug">← @prevTitle</a>
+        } else {
+            <span></span>
+        }
+        @if hasNext {
+            <a class="next" href="/docs/@nextSlug">@nextTitle →</a>
+        } else {
+            <span></span>
+        }
+    </div>
+} else {
+    <article class="mv-prose">
+        <h1>Page not found</h1>
+        <p>There's no documentation page named <code>@slug</code>.</p>
+        <p><a href="/docs/@introSlug">← Start from the introduction</a></p>
+    </article>
+}
+
+@code {
+    var found : Bool = false;
+    var docTitle : Text = "Docs";
+    var docDesc : Text = "MotoView documentation.";
+    var bodyHtml : Text = "";
+    var prevSlug : Text = "";
+    var prevTitle : Text = "";
+    var nextSlug : Text = "";
+    var nextTitle : Text = "";
+    var hasPrev : Bool = false;
+    var hasNext : Bool = false;
+    var introSlug : Text = "introduction";
+
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        introSlug := Docs.firstSlug();
+        switch (Docs.get(slug)) {
+            case (?d) {
+                found := true;
+                docTitle := d.title;
+                docDesc := d.title # " — MotoView documentation. " # d.section # ".";
+                bodyHtml := d.html;
+                prevSlug := d.prevSlug;
+                prevTitle := d.prevTitle;
+                hasPrev := d.prevSlug != "";
+                nextSlug := d.nextSlug;
+                nextTitle := d.nextTitle;
+                hasNext := d.nextSlug != "";
+            };
+            case null {
+                found := false;
+                docTitle := "Not found";
+            };
+        };
+    };
+}
