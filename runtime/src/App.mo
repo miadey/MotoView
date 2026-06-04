@@ -69,19 +69,38 @@ module {
     let pending = HashMap.HashMap<Text, (Principal, Int)>(64, Text.equal, Text.hash);
     let sessionTtlNs : Int = 24 * 60 * 60 * 1_000_000_000; // 24h
 
+    // The HMAC secret for session + secure-form tokens. It is installed at
+    // runtime from the canister's `raw_rand` (see the generated actor's
+    // http_request_update), so it is cryptographically random, per-canister, and
+    // never appears in source. `config.secret` is only an empty placeholder.
+    var mvSecret : Blob = config.secret;
+    public func setSecret(b : Blob) { if (b.size() == 32) { mvSecret := b } };
+    public func needsSecret() : Bool { mvSecret.size() != 32 };
+
+    var loginCounter : Nat = 0;
+    /// An unguessable single-use login nonce, bound to the browser via a
+    /// short-lived httpOnly cookie (see /mv-login-begin + /mv-session).
+    func freshNonce() : Text {
+      loginCounter += 1;
+      Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8("mv-login." # Nat.toText(loginCounter) # "." # Int.toText(Time.now()))));
+    };
+
     /// Called from the generated actor's authenticated `mvEstablish` method.
     public func establish(nonce : Text, who : Principal) {
-      pending.put(nonce, (who, Time.now()));
-      if (pending.size() > 512) {
-        let cutoff = Time.now() - 5 * 60 * 1_000_000_000;
-        let dead = Buffer.Buffer<Text>(32);
+      // Hard cap to bound memory against unauthenticated flooding of
+      // mvEstablish: prune aggressively, and drop this entry if still full.
+      if (pending.size() >= 4096) {
+        let cutoff = Time.now() - 60 * 1_000_000_000; // 1 min
+        let dead = Buffer.Buffer<Text>(256);
         for ((k, (_, t)) in pending.entries()) { if (t < cutoff) { dead.add(k) } };
         for (k in dead.vals()) { pending.delete(k) };
+        if (pending.size() >= 4096) { return };
       };
+      pending.put(nonce, (who, Time.now()));
     };
 
     func sessionMac(body : Text) : Text {
-      Hex.encode(Sha256.hmac(config.secret, Text.encodeUtf8(body)));
+      Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8(body)));
     };
 
     func mintSession(p : Principal) : Text {
@@ -102,18 +121,45 @@ module {
     };
 
     /// Exchange a nonce (set by an authenticated mvEstablish within 5 min) for a
-    /// fresh session token. Single-use: the nonce is consumed.
-    func sessionFor(nonce : Text) : Text {
+    /// session. Returns (principalText, token) or null. Single-use.
+    func sessionFor(nonce : Text) : ?(Text, Text) {
       switch (pending.get(nonce)) {
         case (?(p, t)) {
           if (nonce != "" and Time.now() - t < 5 * 60 * 1_000_000_000) {
             pending.delete(nonce);
-            return mintSession(p);
+            return ?(Principal.toText(p), mintSession(p));
           };
-          "";
+          null;
         };
-        case null { "" };
+        case null { null };
       };
+    };
+
+    /// Build an httpOnly, always-Secure cookie header. (The IC boundary is HTTPS
+    /// in production; browsers also accept Secure cookies on localhost.) Secure
+    /// is unconditional rather than gated on a client-forgeable header.
+    func cookie(name : Text, value : Text, maxAge : Int, sameSite : Text) : Text {
+      name # "=" # value # "; Path=/; HttpOnly; Secure; SameSite=" # sameSite # "; Max-Age=" # Int.toText(maxAge);
+    };
+
+    /// A text response that also emits one or more Set-Cookie headers. The
+    /// session token is never exposed to JS (XSS-resistant).
+    func respCookies(body : Text, cookies : [Text]) : HttpResponse {
+      let hdrs = Buffer.Buffer<(Text, Text)>(cookies.size() + 2);
+      hdrs.add(("content-type", "text/plain"));
+      hdrs.add(("cache-control", "no-store"));
+      for (c in cookies.vals()) { hdrs.add(("Set-Cookie", c)) };
+      { status_code = 200; headers = Buffer.toArray(hdrs); body = Text.encodeUtf8(body); upgrade = null };
+    };
+
+    /// Read a named cookie from the request, "" if absent.
+    func cookieFromReq(req : HttpRequest, name : Text) : Text {
+      for ((k, v) in req.headers.vals()) {
+        if (lower(k) == "cookie") {
+          switch (cookieValue(v, name)) { case (?x) { return x }; case null {} };
+        };
+      };
+      "";
     };
 
     /// The effective caller: the principal from a valid mv_session cookie, else
@@ -186,11 +232,30 @@ module {
       let (path, q) = Url.splitUrl(req.url);
       let qp = Url.parsePairs(q);
 
-      // II session handshake: exchange a nonce (set by an authenticated
-      // mvEstablish call) for a session token the client stores as a cookie.
-      if (path == "/mv-session") {
-        return textResp(sessionFor(Url.getOr(qp, "nonce", "")), "text/plain");
+      // II login step 1: hand the browser an unguessable nonce, bound to it via
+      // a short-lived httpOnly cookie. The client signs mvEstablish(nonce).
+      if (path == "/mv-login-begin") {
+        let n = freshNonce();
+        return respCookies(n, [cookie("mv_login", n, 300, "Strict")]);
       };
+      // II login step 2: redeem. The nonce comes from the httpOnly mv_login
+      // cookie (NOT a URL param), so only the browser that began the login can
+      // redeem it — preventing login-CSRF and nonce theft.
+      if (path == "/mv-session") {
+        switch (sessionFor(cookieFromReq(req, "mv_login"))) {
+          case (?(who, tok)) {
+            return respCookies(who, [
+              cookie("mv_session", tok, 24 * 60 * 60, "Lax"),
+              cookie("mv_login", "", 0, "Strict"),
+            ]);
+          };
+          case null { return textResp("", "text/plain") };
+        };
+      };
+      // Who is the caller right now (resolved from the cookie)? For login UI.
+      if (path == "/mv-whoami") { return textResp(Principal.toText(caller), "text/plain") };
+      // Clear the session cookie.
+      if (path == "/mv-logout") { return respCookies("ok", [cookie("mv_session", "", 0, "Lax")]) };
 
       // static assets
       switch (asset(path)) { case (?r) { return r }; case null {} };
@@ -236,7 +301,7 @@ module {
             let schema = Url.getOr(form, "__mv_schema", "");
             switch (
               Security.verify(
-                config.secret,
+                mvSecret,
                 token,
                 pagePath,
                 handlerId,
@@ -400,6 +465,11 @@ module {
       if (not Text.contains(d, #text "motoview.js")) {
         d := Text.replace(d, #text "</body>", "<script src=\"/motoview.js\" defer></script></body>");
       };
+      // Internet Identity login, available to every app at /mv-auth.js. It is a
+      // no-op unless the page has a [data-mv-signin] element to wire.
+      if (not Text.contains(d, #text "mv-auth.js")) {
+        d := Text.replace(d, #text "</body>", "<script src=\"/mv-auth.js\" defer></script></body>");
+      };
       d;
     };
 
@@ -476,7 +546,7 @@ module {
         counter += 1;
         let nonce = Int.toText(Time.now()) # "-" # Nat.toText(counter);
         Security.mint(
-          config.secret,
+          mvSecret,
           path,
           handler,
           Principal.toText(caller),
@@ -520,6 +590,7 @@ module {
 
     func asset(path : Text) : ?HttpResponse {
       if (path == "/motoview.js") { return ?textResp(assets.clientJs, "text/javascript") };
+      if (path == "/mv-auth.js") { return ?textResp(assets.authJs, "text/javascript") };
       if (path == "/motoview.wasm") { return ?blobResp(assets.clientWasm, "application/wasm") };
       if (path == "/motoview.css") { return ?textResp(assets.css, "text/css") };
       if (path == "/favicon.svg" or path == "/favicon.ico") { return ?textResp(assets.favicon, "image/svg+xml") };

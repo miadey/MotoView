@@ -137,6 +137,7 @@ module {
   /// `ClientAssets` module (the Rust→WASM bridge + its JS bootstrap + CSS).
   public type Assets = {
     clientJs : Text; // JS bootstrap/glue that loads the wasm bridge
+    authJs : Text; // hand-written Internet Identity login (served at /mv-auth.js)
     clientWasm : Blob; // the compiled Rust→WASM client ("the brain")
     css : Text; // bridge + base theme CSS
     favicon : Text; // SVG favicon markup

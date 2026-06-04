@@ -131,7 +131,10 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         layout_entries.push((name.clone(), format!("mvLayout_{}", name)));
     }
 
-    let secret = gen_secret(&opts.app_name);
+    // The real HMAC secret is installed at runtime from raw_rand (see the
+    // generated http_request_update). The compile-time value is only an empty
+    // placeholder — never a function of public input, never a usable secret.
+    let secret = "\"\"".to_string();
     let main = assemble(
         &opts.app_name,
         &page_objects,
@@ -204,6 +207,7 @@ import Iter "mo:base/Iter";
 import Option "mo:base/Option";
 import Time "mo:base/Time";
 import Bool "mo:base/Bool";
+import Random "mo:base/Random";
 {extra_imports}
 actor {{
   // `Context` is the friendly alias for the request context passed to
@@ -255,11 +259,19 @@ actor {{
   let mvConfig : MV.Config = {{ appName = {app_name:?}; secret = {secret} : Blob; seo = true }};
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
 
+  // Session / secure-form HMAC secret: cryptographically random per canister
+  // (from the IC's raw_rand), kept in a stable var so it survives upgrades, and
+  // NEVER present in source. Installed lazily on the first update call below;
+  // restored into the app instance here after an upgrade.
+  stable var mvSecret : Blob = "" : Blob;
+  if (mvSecret.size() == 32) {{ mvApp.setSecret(mvSecret) }};
+
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {{
     mvApp.httpRequest(req, msg.caller);
   }};
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {{
+    if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
     mvApp.httpRequestUpdate(req, msg.caller);
   }};
 
@@ -267,6 +279,7 @@ actor {{
   // the IC has verified. Records the principal under the client's nonce so a
   // following GET /mv-session can mint a session token bound to it.
   public shared (msg) func mvEstablish(nonce : Text) : async () {{
+    if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
     mvApp.establish(nonce, msg.caller);
   }};
 }};
@@ -296,27 +309,6 @@ fn is_stateful_service(content: &str, name: &str) -> bool {
             let after = &content[i + needle.len()..];
             matches!(after.chars().next(), Some('(') | Some(' ') | Some('<') | Some('\t') | Some('\n'))
         })
-}
-
-/// Derive a 32-byte secret from the app name (MVP). Production apps should
-/// install a random secret (raw_rand) into a stable variable.
-fn gen_secret(app_name: &str) -> String {
-    let mut state: u64 = 0xcbf29ce484222325;
-    for b in app_name.bytes() {
-        state ^= b as u64;
-        state = state.wrapping_mul(0x100000001b3);
-    }
-    let mut out = String::from("\"");
-    for _ in 0..32 {
-        // xorshift64
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        let byte = (state & 0xFF) as u8;
-        out.push_str(&format!("\\{:02x}", byte));
-    }
-    out.push('"');
-    out
 }
 
 fn list_mview(dir: &Path) -> Vec<PathBuf> {

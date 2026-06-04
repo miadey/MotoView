@@ -15,6 +15,10 @@
  */
 (function () {
   "use strict";
+  // Served by the MotoView runtime at /mv-auth.js and auto-injected into every
+  // page. Self-initializes on any [data-mv-signin] element. Session cookie is
+  // set httpOnly by the server (GET /mv-session); this script never reads/writes
+  // the cookie — UI state comes from GET /mv-whoami.
   var te = new TextEncoder();
   function cat() { var as = arguments, n = 0, i; for (i = 0; i < as.length; i++) n += as[i].length; var o = new Uint8Array(n), k = 0; for (i = 0; i < as.length; i++) { o.set(as[i], k); k += as[i].length; } return o; }
 
@@ -87,8 +91,15 @@
   function apiOrigin() { return location.protocol + "//" + location.host.replace(/^[a-z0-9-]+\.(raw\.)?/, ""); }
 
   // ---- the one authenticated call: mvEstablish(nonce) ----
-  // identity = { sign(msg)->Promise<Uint8Array>, pubkeyDer:Uint8Array, delegations?:[...] }
-  async function establish(identity, nonce) {
+  // identity = { sign, pubkeyDer, delegations? }. The canister records the
+  // principal under `nonce`; GET /mv-session then sets the httpOnly session
+  // cookie and returns the principal text. No cookie is touched from JS.
+  async function establish(identity) {
+    // Step 1: get a server-generated, browser-bound nonce (httpOnly mv_login
+    // cookie). We never choose the nonce, and it never travels in a URL — this
+    // prevents login-CSRF and nonce theft.
+    var nonce = (await (await fetch("/mv-login-begin", { cache: "no-store", credentials: "same-origin" })).text()).trim();
+    if (!nonce) throw new Error("could not begin login");
     var canisterId = appCanisterId();
     var canisterBytes = principalToBytes(canisterId);
     var sender = cat(sha224(identity.pubkeyDer), new Uint8Array([0x02]));
@@ -119,46 +130,42 @@
     var body = cat(new Uint8Array([0xd9, 0xd9, 0xf7]), cbMap(env));
     var res = await fetch(apiOrigin() + "/api/v2/canister/" + canisterId + "/call", { method: "POST", headers: { "content-type": "application/cbor" }, body: body });
     if (res.status >= 400) throw new Error("call rejected: " + res.status + " " + (await res.text()).slice(0, 200));
-    // exchange the nonce for a session token (poll the gateway)
-    var tok = "";
-    for (var i = 0; i < 15 && !tok; i++) { await new Promise(function (r) { setTimeout(r, 500); }); tok = (await (await fetch("/mv-session?nonce=" + encodeURIComponent(nonce), { cache: "no-store" })).text()).trim(); }
-    if (!tok) throw new Error("the call was accepted but the session was not established");
-    return tok;
+    // Step 3: redeem. The server reads the nonce from the httpOnly mv_login
+    // cookie (not from us), so only this browser can complete the login.
+    var who = "";
+    for (var i = 0; i < 15 && !who; i++) { await new Promise(function (r) { setTimeout(r, 500); });
+      who = (await (await fetch("/mv-session", { cache: "no-store", credentials: "same-origin" })).text()).trim();
+    }
+    if (!who) throw new Error("the call was accepted but the session was not established");
+    return who; // principal text (cookie already set httpOnly by the server)
   }
 
-  function setSession(token) { document.cookie = "mv_session=" + token + "; path=/; max-age=86400; samesite=Lax"; }
-
-  // ---- a locally generated Ed25519 identity (dev login) ----
   async function ephemeralIdentity() {
     var kp = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
     var raw = new Uint8Array(await crypto.subtle.exportKey("raw", kp.publicKey));
-    return {
-      pubkeyDer: derEd(raw),
-      sign: async function (m) { return new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, kp.privateKey, m)); }
-    };
+    return { pubkeyDer: derEd(raw), sign: async function (m) { return new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, kp.privateKey, m)); } };
   }
 
-  // ---- Internet Identity delegation flow (postMessage) ----
-  // Generates a SESSION key, sends its DER pubkey to II, receives a delegation
-  // chain for the user's identity; signs the call with the session key.
-  async function iiIdentity(iiUrl) {
+  async function iiIdentity(iiUrl, derivationOrigin) {
+    var ipOrigin = new URL(String(iiUrl)).origin; // exact Internet Identity origin
     var sk = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
-    var sessRaw = new Uint8Array(await crypto.subtle.exportKey("raw", sk.publicKey));
-    var sessDer = derEd(sessRaw);
-    var win = window.open(iiUrl + "#authorize", "ii-window", "width=420,height=640");
+    var sessDer = derEd(new Uint8Array(await crypto.subtle.exportKey("raw", sk.publicKey)));
+    var win = window.open(ipOrigin + "/#authorize", "ii-window", "width=420,height=640");
     if (!win) throw new Error("popup blocked — allow popups and retry");
     var result = await new Promise(function (resolve, reject) {
       var timer = setTimeout(function () { reject(new Error("II login timed out")); }, 5 * 60 * 1000);
       function onMsg(ev) {
-        if (ev.source !== win) return;
+        // Gate on the exact II origin AND the popup window — never trust a
+        // message just because it occupies the popup, and never broadcast the
+        // session key / derivationOrigin to a wildcard target.
+        if (ev.origin !== ipOrigin || ev.source !== win) return;
         var d = ev.data || {};
         if (d.kind === "authorize-ready") {
-          win.postMessage({ kind: "authorize-client", sessionPublicKey: sessDer, maxTimeToLive: BigInt(8) * 60n * 60n * 1000000000n }, "*");
-        } else if (d.kind === "authorize-client-success") {
-          window.removeEventListener("message", onMsg); clearTimeout(timer); resolve(d);
-        } else if (d.kind === "authorize-client-failure") {
-          window.removeEventListener("message", onMsg); clearTimeout(timer); reject(new Error(d.text || "II login failed"));
-        }
+          var req = { kind: "authorize-client", sessionPublicKey: sessDer, maxTimeToLive: BigInt(8) * 60n * 60n * 1000000000n };
+          if (derivationOrigin) req.derivationOrigin = derivationOrigin;
+          win.postMessage(req, ipOrigin);
+        } else if (d.kind === "authorize-client-success") { window.removeEventListener("message", onMsg); clearTimeout(timer); resolve(d); }
+        else if (d.kind === "authorize-client-failure") { window.removeEventListener("message", onMsg); clearTimeout(timer); reject(new Error(d.text || "II login failed")); }
       }
       window.addEventListener("message", onMsg);
     });
@@ -166,20 +173,42 @@
     var delegations = result.delegations.map(function (d) {
       return { delegation: { pubkey: new Uint8Array(d.delegation.pubkey), expiration: BigInt(d.delegation.expiration) }, signature: new Uint8Array(d.signature) };
     });
-    return {
-      pubkeyDer: userKey,                 // sender = self-auth(userPublicKey)
-      delegations: delegations,           // userKey -> sessionKey, signed by II
-      sign: async function (m) { return new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, sk.privateKey, m)); }
-    };
+    return { pubkeyDer: userKey, delegations: delegations, sign: async function (m) { return new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, sk.privateKey, m)); } };
   }
 
-  function newNonce() { var b = crypto.getRandomValues(new Uint8Array(12)); return Array.from(b).map(function (x) { return x.toString(16).padStart(2, "0"); }).join(""); }
+  function iiUrl() { return window.MV_II_URL || (location.protocol === "https:" ? "https://identity.ic0.app" : null); }
+  async function whoami() { try { return (await (await fetch("/mv-whoami", { cache: "no-store", credentials: "same-origin" })).text()).trim(); } catch (e) { return ""; } }
 
   window.mvAuth = {
-    principalOfToken: function (t) { return (t || "").split(".")[0] || ""; },
-    devLogin: async function () { var id = await ephemeralIdentity(); var tok = await establish(id, newNonce()); setSession(tok); return mvAuth.principalOfToken(tok); },
-    iiLogin: async function (iiUrl) { var id = await iiIdentity(iiUrl); var tok = await establish(id, newNonce()); setSession(tok); return mvAuth.principalOfToken(tok); },
-    logout: function () { document.cookie = "mv_session=; path=/; max-age=0"; },
+    devLogin: async function () { return establish(await ephemeralIdentity()); },
+    iiLogin: async function (url, derivationOrigin) { return establish(await iiIdentity(url || iiUrl(), derivationOrigin || window.MV_II_DERIVATION_ORIGIN)); },
+    logout: async function () { try { await fetch("/mv-logout", { credentials: "same-origin" }); } catch (e) {} },
+    whoami: whoami, iiUrl: iiUrl,
     _sha256: sha256, _sha224: sha224, _principal: bytesToPrincipal
   };
+
+  // ---- default UI: wire any [data-mv-signin] element (zero app code) ----
+  function shortP(p) { return p && p.length > 12 ? p.slice(0, 5) + "…" + p.slice(-3) : p; }
+  async function paintButtons() {
+    var els = document.querySelectorAll("[data-mv-signin]"); if (!els.length) return;
+    var who = await whoami(); var anon = !who || who === "2vxsx-fae";
+    els.forEach(function (b) {
+      b.dataset.state = anon ? "out" : "in";
+      if (anon) { b.textContent = iiUrl() ? "Sign in" : "Sign in (dev)"; b.title = iiUrl() ? "Sign in with Internet Identity" : "Local dev login (real signed call)"; }
+      else { b.textContent = "⏋ " + shortP(who); b.title = "Signed in as " + who + " — click to sign out"; }
+    });
+  }
+  async function onSigninClick(ev) {
+    var b = ev.currentTarget;
+    if (b.dataset.state === "in") { await mvAuth.logout(); location.reload(); return; }
+    var prev = b.textContent; b.textContent = "…";
+    try { var u = iiUrl(); if (u) await mvAuth.iiLogin(u); else await mvAuth.devLogin(); location.reload(); }
+    catch (e) { alert("Sign in failed: " + e.message); b.textContent = prev; paintButtons(); }
+  }
+  function initUI() {
+    var els = document.querySelectorAll("[data-mv-signin]");
+    els.forEach(function (b) { if (!b._mvWired) { b._mvWired = true; b.addEventListener("click", onSigninClick); } });
+    if (els.length) paintButtons();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initUI); else initUI();
 })();
