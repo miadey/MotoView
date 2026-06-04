@@ -256,7 +256,7 @@ actor {{
 
   let mvPages : [MV.Page] = [{pages_arr}];
   let mvLayouts : [MV.Layout] = [{layouts_arr}];
-  let mvConfig : MV.Config = {{ appName = {app_name:?}; secret = {secret} : Blob; seo = true }};
+  let mvConfig : MV.Config = {{ appName = {app_name:?}; secret = {secret} : Blob; seo = true; altOrigins = [] }};
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
 
   // Session / secure-form HMAC secret: cryptographically random per canister
@@ -264,7 +264,10 @@ actor {{
   // NEVER present in source. Installed lazily on the first update call below;
   // restored into the app instance here after an upgrade.
   stable var mvSecret : Blob = "" : Blob;
+  // Per-principal session epochs (logout-everywhere revocation), kept stable.
+  stable var mvEpochs : [(Text, Nat)] = [];
   if (mvSecret.size() == 32) {{ mvApp.setSecret(mvSecret) }};
+  mvApp.setEpochs(mvEpochs);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {{
     mvApp.httpRequest(req, msg.caller);
@@ -272,7 +275,9 @@ actor {{
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {{
     if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
-    mvApp.httpRequestUpdate(req, msg.caller);
+    let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
+    mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
+    mvResp;
   }};
 
   // Internet Identity login bridge: an authenticated update call whose caller

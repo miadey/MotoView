@@ -131,6 +131,9 @@ module {
     appName : Text;
     secret : Blob; // server secret for signing secure-form tokens
     seo : Bool;
+    // Extra origins trusted as an Internet Identity derivationOrigin, served at
+    // /.well-known/ii-alternative-origins (for a stable principal across domains).
+    altOrigins : [Text];
   };
 
   /// Static client assets served by the canister. Populated by the runtime's

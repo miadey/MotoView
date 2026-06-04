@@ -99,22 +99,37 @@ module {
       pending.put(nonce, (who, Time.now()));
     };
 
+    // Per-principal session epoch. A token embeds the epoch it was minted at;
+    // bumping a principal's epoch (on /mv-logout) invalidates ALL their existing
+    // tokens server-side ("log out everywhere"), even un-expired ones. Synced to
+    // a stable var by the generated actor so revocations survive upgrades.
+    let epochs = HashMap.HashMap<Text, Nat>(64, Text.equal, Text.hash);
+    func epochOf(pt : Text) : Nat { switch (epochs.get(pt)) { case (?e) e; case null 0 } };
+    public func bumpEpoch(pt : Text) { epochs.put(pt, epochOf(pt) + 1) };
+    public func dumpEpochs() : [(Text, Nat)] { Iter.toArray(epochs.entries()) };
+    public func setEpochs(es : [(Text, Nat)]) { for ((k, v) in es.vals()) { epochs.put(k, v) } };
+
     func sessionMac(body : Text) : Text {
       Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8(body)));
     };
 
     func mintSession(p : Principal) : Text {
-      let body = Principal.toText(p) # "." # Int.toText(Time.now() + sessionTtlNs);
+      let pt = Principal.toText(p);
+      let body = pt # "." # Int.toText(Time.now() + sessionTtlNs) # "." # Nat.toText(epochOf(pt));
       body # "." # sessionMac(body);
     };
 
     func verifySession(token : Text) : ?Principal {
       let parts = Iter.toArray(Text.split(token, #char '.'));
-      if (parts.size() != 3) { return null };
-      let body = parts[0] # "." # parts[1];
-      if (sessionMac(body) != parts[2]) { return null };
+      if (parts.size() != 4) { return null };
+      let body = parts[0] # "." # parts[1] # "." # parts[2];
+      if (sessionMac(body) != parts[3]) { return null };
       switch (parseNat(parts[1])) {
         case (?exp) { if (Time.now() > exp) { return null } };
+        case null { return null };
+      };
+      switch (parseNat(parts[2])) {
+        case (?ep) { if (ep != epochOf(parts[0])) { return null } }; // revoked
         case null { return null };
       };
       ?Principal.fromText(parts[0]);
@@ -254,8 +269,19 @@ module {
       };
       // Who is the caller right now (resolved from the cookie)? For login UI.
       if (path == "/mv-whoami") { return textResp(Principal.toText(caller), "text/plain") };
-      // Clear the session cookie.
-      if (path == "/mv-logout") { return respCookies("ok", [cookie("mv_session", "", 0, "Lax")]) };
+      // Log out everywhere: bump the caller's epoch (invalidates all their
+      // outstanding tokens server-side) and clear this browser's cookie.
+      if (path == "/mv-logout") {
+        if (not Principal.isAnonymous(caller)) { bumpEpoch(Principal.toText(caller)) };
+        return respCookies("ok", [cookie("mv_session", "", 0, "Lax")]);
+      };
+      // Internet Identity alternative origins (for a stable cross-domain
+      // derivationOrigin). Configure via Config.altOrigins.
+      if (path == "/.well-known/ii-alternative-origins") {
+        let b = Buffer.Buffer<Text>(config.altOrigins.size());
+        for (o in config.altOrigins.vals()) { b.add("\"" # o # "\"") };
+        return textResp("{\"alternativeOrigins\":[" # Text.join(",", b.vals()) # "]}", "application/json");
+      };
 
       // static assets
       switch (asset(path)) { case (?r) { return r }; case null {} };
