@@ -81,10 +81,12 @@
 &lt;PageHeader&gt;@product.name&lt;/PageHeader&gt;</code></pre>
 <p>The available head directives are:</p>
 <ul><li><code>@title EXPR</code> — sets the document <code>&lt;title&gt;</code>.</li><li><code>@description EXPR</code> — the meta description.</li><li><code>@canonical EXPR</code> — the canonical URL.</li><li><code>@meta</code> — additional meta tags.</li></ul>
-<p>For anything else you need in <code>&lt;head&gt;</code>, use the <code>@head</code> directive to emit raw markup.</p>
-<pre class="lang-razor"><code>@head {
+<p>For anything else you need in <code>&lt;head&gt;</code> — Open Graph tags, structured data — define a <code>@section "head"</code> block on the page. Its markup is collected into the document head where the layout places <code>@head</code>.</p>
+<pre class="lang-razor"><code>@section "head" {
   &lt;meta property="og:type" content="product" /&gt;
+  &lt;meta property="og:title" content="@product.name" /&gt;
 }</code></pre>
+<p>(In a layout, <code>@head</code> is the placeholder that receives the page title, meta description, canonical link, and any <code>@section "head"</code> content.)</p>
 <h2 id="putting-it-together">Putting It Together</h2>
 <p>A typical detail page combines a typed route, a data load in <code>@code</code>, computed SEO, and a template that handles the missing case.</p>
 <pre class="lang-razor"><code>@page "/products/{id:Nat}"

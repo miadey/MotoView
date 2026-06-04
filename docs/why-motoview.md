@@ -92,4 +92,4 @@ If you have written Blade, Razor, or LiveView, this will feel familiar — the d
 
 **No JavaScript build chain.** The only browser code is a small Rust-to-WebAssembly client (the polling state machine, the protocol, batch interpretation) plus a hand-written JS glue for the unavoidable DOM, fetch, and timer primitives. No npm, no bundler. Your toolchain is `dfx`, `rustup`, and the `motoview` compiler — and nothing else gets between you and your app.
 
-One language. One source of truth for validation. One build. Ready to write some Motoko? Start with [Getting Started](getting-started.md).
+One language. One source of truth for validation. One build. Ready to write some Motoko? Start with [Getting Started](quickstart.md).

@@ -104,13 +104,16 @@ The available head directives are:
 - `@canonical EXPR` — the canonical URL.
 - `@meta` — additional meta tags.
 
-For anything else you need in `<head>`, use the `@head` directive to emit raw markup.
+For anything else you need in `<head>` — Open Graph tags, structured data — define a `@section "head"` block on the page. Its markup is collected into the document head where the layout places `@head`.
 
 ```razor
-@head {
+@section "head" {
   <meta property="og:type" content="product" />
+  <meta property="og:title" content="@product.name" />
 }
 ```
+
+(In a layout, `@head` is the placeholder that receives the page title, meta description, canonical link, and any `@section "head"` content.)
 
 ## Putting It Together
 

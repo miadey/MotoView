@@ -41,7 +41,19 @@ module {
 
     let expiryNs : Int = 15 * 60 * 1_000_000_000; // 15 minutes
     var counter : Nat = 0;
-    let consumed = HashMap.HashMap<Text, Bool>(256, Text.equal, Text.hash);
+    // consumed nonce -> the time it stops mattering (token expiry). Pruned so
+    // replay-protection state stays bounded.
+    let consumed = HashMap.HashMap<Text, Int>(256, Text.equal, Text.hash);
+
+    func consumeNonce(nonce : Text) {
+      consumed.put(nonce, Time.now() + expiryNs);
+      if (consumed.size() > 4096) {
+        let now = Time.now();
+        let dead = Buffer.Buffer<Text>(64);
+        for ((k, exp) in consumed.entries()) { if (exp < now) { dead.add(k) } };
+        for (k in dead.vals()) { consumed.delete(k) };
+      };
+    };
 
     // ---- public entry points ---------------------------------------------
 
@@ -131,7 +143,7 @@ module {
               case (#ok({ nonce })) {
                 switch (consumed.get(nonce)) {
                   case (?_) { return jsonResp(Json.encodeBatch(securityErrorBatch("replayed submission"))) };
-                  case null { consumed.put(nonce, true) };
+                  case null { consumeNonce(nonce) };
                 };
               };
             };

@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
                             let end = (self.i + 4).min(self.b.len());
                             let hex = std::str::from_utf8(&self.b[self.i..end]).ok()?;
                             let code = u32::from_str_radix(hex, 16).ok()?;
-                            self.i += 4;
+                            self.i = end; // advance by the bytes actually consumed
                             if let Some(ch) = char::from_u32(code) {
                                 let mut buf = [0u8; 4];
                                 out.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());

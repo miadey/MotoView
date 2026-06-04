@@ -47,29 +47,50 @@ Events are state transitions, so they are served by `http_request_update`. The h
 
 Every sync and every event resolves to a *batch*: a versioned snapshot of the UI with a status that tells the client what to do.
 
-**`changed`** — state moved; here is the new markup to swap into `#mv-root`.
+Every batch carries a `"protocol": "motoview/1"` field. The fields below are exactly what the runtime emits (`runtime/src/Json.mo`).
+
+**`changed`** — state moved; here is the new markup to swap into `target` (always `"mv-root"` in the MVP full-container-replace mode). Includes the document `head` and any client `effects`.
 
 ```json
-{ "v": "motoview/1", "status": "changed", "batchId": "9f3c1a07", "html": "<div>…</div>" }
+{
+  "protocol": "motoview/1",
+  "status": "changed",
+  "batchId": "9f3c1a07",
+  "mode": "replace",
+  "target": "mv-root",
+  "html": "<section>…</section>",
+  "head": { "title": "Dashboard", "description": "", "canonical": "" },
+  "effects": []
+}
 ```
 
 **`unchanged`** — the rendered state hashes to the `lastBatchId` the client sent, so `html` is omitted entirely. This is the common case while polling and it keeps the wire quiet.
 
 ```json
-{ "v": "motoview/1", "status": "unchanged", "batchId": "9f3c1a07" }
+{ "protocol": "motoview/1", "status": "unchanged", "batchId": "9f3c1a07" }
 ```
 
 **`redirect`** — the handler or guard wants the client somewhere else.
 
 ```json
-{ "v": "motoview/1", "status": "redirect", "location": "/login" }
+{ "protocol": "motoview/1", "status": "redirect", "location": "/login" }
 ```
 
-**`validation-error`** — a `validate model { … }` block failed; the batch carries the re-rendered form (with `<ValidationSummary />` and per-field errors populated) so the user sees exactly what to fix.
+**`validation-error`** — a `validate model { … }` block failed; the batch carries the re-rendered form (with `<ValidationSummary />` and per-field errors populated) plus the `errors` map, so the user sees exactly what to fix.
 
 ```json
-{ "v": "motoview/1", "status": "validation-error", "batchId": "44ed90b2", "html": "<form>…</form>" }
+{
+  "protocol": "motoview/1",
+  "status": "validation-error",
+  "batchId": "44ed90b2",
+  "target": "mv-root",
+  "html": "<form>…</form>",
+  "errors": { "email": "That email address looks invalid." },
+  "effects": []
+}
 ```
+
+> The `mode` field on a `changed` batch is `"replace"` in the MVP (full-container replace). Keyed-region and patch modes are on the [roadmap](roadmap.md).
 
 ## batchId
 

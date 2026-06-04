@@ -130,5 +130,5 @@ A clean compile and a working counter confirm all four moving parts agree: the `
 ## Next steps
 
 - [Quickstart](quickstart.md) — build your first page from scratch.
-- [Project Layout](project-layout.md) — where `.mview` files, services, and config live.
+- [Project Layout](project-structure.md) — where `.mview` files, services, and config live.
 - [Events](events.md) — how `@click`, `@submit`, and `@input` flow to typed Motoko handlers.

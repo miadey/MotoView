@@ -127,4 +127,4 @@ motoview build
 motoview dev
 ```
 
-When you're ready to make pages interactive, head to [Events](events.md) and [Forms & Validation](forms-and-validation.md).
+When you're ready to make pages interactive, head to [Events](events.md) and [Forms & Validation](forms.md).

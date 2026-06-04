@@ -38,14 +38,33 @@ Content-Type: application/x-www-form-urlencoded</code></pre>
 <p>Events are state transitions, so they are served by <code>http_request_update</code>. The handler runs, mutates state, and the server immediately renders and returns the <strong>new batch</strong> in the same response. There is no waiting for the next poll tick after an interaction — the round trip carries the fresh UI back with it. See <a href="events.html">Events</a> for how handler arguments are evaluated server-side and dispatched to typed Motoko functions.</p>
 <h2 id="the-batch-json">The batch JSON</h2>
 <p>Every sync and every event resolves to a <em>batch</em>: a versioned snapshot of the UI with a status that tells the client what to do.</p>
-<p><strong><code>changed</code></strong> — state moved; here is the new markup to swap into <code>#mv-root</code>.</p>
-<pre class="lang-json"><code>{ "v": "motoview/1", "status": "changed", "batchId": "9f3c1a07", "html": "&lt;div&gt;…&lt;/div&gt;" }</code></pre>
+<p>Every batch carries a <code>"protocol": "motoview/1"</code> field. The fields below are exactly what the runtime emits (<code>runtime/src/Json.mo</code>).</p>
+<p><strong><code>changed</code></strong> — state moved; here is the new markup to swap into <code>target</code> (always <code>"mv-root"</code> in the MVP full-container-replace mode). Includes the document <code>head</code> and any client <code>effects</code>.</p>
+<pre class="lang-json"><code>{
+  "protocol": "motoview/1",
+  "status": "changed",
+  "batchId": "9f3c1a07",
+  "mode": "replace",
+  "target": "mv-root",
+  "html": "&lt;section&gt;…&lt;/section&gt;",
+  "head": { "title": "Dashboard", "description": "", "canonical": "" },
+  "effects": []
+}</code></pre>
 <p><strong><code>unchanged</code></strong> — the rendered state hashes to the <code>lastBatchId</code> the client sent, so <code>html</code> is omitted entirely. This is the common case while polling and it keeps the wire quiet.</p>
-<pre class="lang-json"><code>{ "v": "motoview/1", "status": "unchanged", "batchId": "9f3c1a07" }</code></pre>
+<pre class="lang-json"><code>{ "protocol": "motoview/1", "status": "unchanged", "batchId": "9f3c1a07" }</code></pre>
 <p><strong><code>redirect</code></strong> — the handler or guard wants the client somewhere else.</p>
-<pre class="lang-json"><code>{ "v": "motoview/1", "status": "redirect", "location": "/login" }</code></pre>
-<p><strong><code>validation-error</code></strong> — a <code>validate model { … }</code> block failed; the batch carries the re-rendered form (with <code>&lt;ValidationSummary /&gt;</code> and per-field errors populated) so the user sees exactly what to fix.</p>
-<pre class="lang-json"><code>{ "v": "motoview/1", "status": "validation-error", "batchId": "44ed90b2", "html": "&lt;form&gt;…&lt;/form&gt;" }</code></pre>
+<pre class="lang-json"><code>{ "protocol": "motoview/1", "status": "redirect", "location": "/login" }</code></pre>
+<p><strong><code>validation-error</code></strong> — a <code>validate model { … }</code> block failed; the batch carries the re-rendered form (with <code>&lt;ValidationSummary /&gt;</code> and per-field errors populated) plus the <code>errors</code> map, so the user sees exactly what to fix.</p>
+<pre class="lang-json"><code>{
+  "protocol": "motoview/1",
+  "status": "validation-error",
+  "batchId": "44ed90b2",
+  "target": "mv-root",
+  "html": "&lt;form&gt;…&lt;/form&gt;",
+  "errors": { "email": "That email address looks invalid." },
+  "effects": []
+}</code></pre>
+<blockquote>The <code>mode</code> field on a <code>changed</code> batch is <code>"replace"</code> in the MVP (full-container replace). Keyed-region and patch modes are on the <a href="roadmap.html">roadmap</a>.</blockquote>
 <h2 id="batchid">batchId</h2>
 <p>The <code>batchId</code> is a hash of the rendered state. It is the version stamp that makes the protocol idempotent and cheap:</p>
 <ul><li>The client sends its current <code>batchId</code> as <code>lastBatchId</code> on every render query.</li><li>If the freshly rendered output hashes to the same value, the server answers <code>unchanged</code> and skips sending markup.</li><li>Only a genuine state change produces a new <code>batchId</code>, and only then does the DOM get swapped.</li></ul>

@@ -256,15 +256,16 @@ pub unsafe extern "C" fn mv_on_response(req_id: u32, status: u32, body_ptr: *mut
             b.schedule(wait);
             return;
         }
+        let _ = kind; // taken only to evict from the pending set
         b.backoff = BACKOFF_START_MS;
         if let Some(v) = json::parse(&body) {
             let _ = b.apply(&v, now);
         }
-        // After handling any response, reschedule the next poll.
-        if kind.is_some() {
-            let ms = b.interval(now);
-            b.schedule(ms);
-        }
+        // Always reschedule the next poll. Even if this response was for an
+        // evicted/superseded request, the loop must keep going. Stale timers
+        // are ignored via the generation check in mv_on_timer.
+        let ms = b.interval(now);
+        b.schedule(ms);
     });
 }
 

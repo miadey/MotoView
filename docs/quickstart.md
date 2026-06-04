@@ -94,7 +94,7 @@ A few things are worth pointing out:
 
 Click **Increment** in the browser. Under the hood, the WASM client posts the event to `/_motoview/event`; the canister runs `increment`, re-renders, and returns a new versioned batch; the client swaps the changed DOM. The click-to-update round trip happens immediately — no waiting for the next poll.
 
-Adaptive polling also keeps the page fresh on its own: it runs hot (~350ms) for a few seconds after you interact, settles to warm (~2.5s) while the tab is visible, and backs off to cold (~15s) when idle. So if `count` changes from another caller, the page picks it up. For the full state machine and protocol, see [Architecture](architecture.md).
+Adaptive polling also keeps the page fresh on its own: it runs hot (~350ms) for a few seconds after you interact, settles to warm (~2.5s) while the tab is visible, and backs off to cold (~15s) when idle. So if `count` changes from another caller, the page picks it up. For the full state machine and protocol, see [Architecture](protocol.md).
 
 ## Edit a handler, watch it change
 
@@ -114,5 +114,5 @@ That is the core loop: write Motoko, the markup renders on the server, events di
 
 - [Pages and Routing](pages-and-routing.md) — `@page`, typed route params like `/orders/{id:Nat}`, and layouts.
 - [Events](events.md) — handler arguments, `@input`, `@change`, and `@submit`.
-- [Forms and Validation](forms-and-validation.md) — `secure` forms, `bind="@model.field"`, and `validate`.
+- [Forms and Validation](forms.md) — `secure` forms, `bind="@model.field"`, and `validate`.
 - [Components](components.md) — the built-in semantic components and building your own.

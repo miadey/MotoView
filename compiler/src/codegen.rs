@@ -315,7 +315,9 @@ impl<'a> Codegen<'a> {
                 // forms: handled at the <form> level
                 out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"submit\\\"\");\n", indent, ev.handler));
                 if el.secure {
-                    let schema = collect_form_schema(el);
+                    // schema = sorted form field names; escaped defensively even
+                    // though field names are identifiers.
+                    let schema = escape_mo_inner(&collect_form_schema(el));
                     out.push_str(&format!("{}b.raw(\" data-mv-secure=\\\"1\\\"\");\n", indent));
                     out.push_str(&format!("{}b.attr(\"data-mv-token\", ctx.mintToken(\"{}\", \"{}\"));\n", indent, ev.handler, schema));
                     out.push_str(&format!("{}b.raw(\" data-mv-schema=\\\"{}\\\"\");\n", indent, schema));
@@ -619,6 +621,12 @@ fn mo_attr_text(s: &str) -> String {
         }
     }
     out
+}
+
+/// Escape a value for embedding inside a Motoko/HTML double-quoted context
+/// (no surrounding quotes added).
+fn escape_mo_inner(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn is_simple_literal(s: &str) -> bool {
