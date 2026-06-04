@@ -127,8 +127,6 @@ module {
   func exprHash() : Blob { Sha256.hash(Text.encodeUtf8(expression)) };
   func terminalMarker() : Blob { Text.encodeUtf8("<$>") };
   func httpExpr() : Blob { Text.encodeUtf8("http_expr") };
-  // terminal = labeled("<$>", labeled(expr_hash, leaf("")))
-  func terminal() : Tree { #labeled(terminalMarker(), #labeled(exprHash(), #leaf(""))) };
 
   // "/forum/new" -> ["forum","new"]; "/" -> []. Empty segments dropped.
   func split(path : Text) : [Text] { Iter.toArray(Text.tokens(path, #char '/')) };
@@ -146,73 +144,90 @@ module {
     if (aa.size() < bb.size()) { #less } else if (aa.size() > bb.size()) { #greater } else { #equal };
   };
 
-  // Recursively build the http_expr inner subtree over a set of segmented
-  // paths. At each depth, group by the segment; a path that ends here adds the
-  // terminal ("<$>" -> expr_hash -> leaf("")). Children sorted by label bytes.
-  func buildSubtree(paths : [[Text]], depth : Nat) : Tree {
-    var terminalHere = false;
+  func wildcardMarker() : Blob { Text.encodeUtf8("<*>") };
+  func markerOf(wild : Bool) : Blob { if (wild) { wildcardMarker() } else { terminalMarker() } };
+
+  // A certified entry: a path (exact) or a static prefix (wildcard). For a
+  // wildcard entry the terminal is "<*>", which matches the prefix and anything
+  // below it — used for parameterized routes like /u/{handle} (prefix "/u").
+  public type Entry = { path : Text; wild : Bool };
+
+  func addDistinctText(b : Buffer.Buffer<Text>, s : Text) {
+    for (x in b.vals()) { if (x == s) { return } };
+    b.add(s);
+  };
+  func addDistinctBlob(b : Buffer.Buffer<Blob>, v : Blob) {
+    for (x in b.vals()) { if (x == v) { return } };
+    b.add(v);
+  };
+
+  // Recursively build the http_expr inner subtree. Each entry contributes a
+  // terminal marker ("<$>" or "<*>") at the depth where its segments end.
+  func buildSubtree(entries : [([Text], Bool)], depth : Nat) : Tree {
+    let markers = Buffer.Buffer<Blob>(2);
     let segSet = Buffer.Buffer<Text>(8);
-    for (p in paths.vals()) {
-      if (p.size() == depth) { terminalHere := true } else if (p.size() > depth) {
-        let s = p[depth];
-        var seen = false;
-        for (x in segSet.vals()) { if (x == s) { seen := true } };
-        if (not seen) { segSet.add(s) };
+    for (e in entries.vals()) {
+      let (segs, wild) = e;
+      if (segs.size() == depth) { addDistinctBlob(markers, markerOf(wild)) } else if (segs.size() > depth) {
+        addDistinctText(segSet, segs[depth]);
       };
     };
-    let pairs = Buffer.Buffer<(Blob, Tree)>(segSet.size() + 1);
-    if (terminalHere) { pairs.add((terminalMarker(), #labeled(exprHash(), #leaf("")))) };
+    let pairs = Buffer.Buffer<(Blob, Tree)>(markers.size() + segSet.size());
+    for (m in markers.vals()) { pairs.add((m, #labeled(exprHash(), #leaf("")))) };
     for (s in segSet.vals()) {
-      let bucket = Buffer.Buffer<[Text]>(4);
-      for (p in paths.vals()) { if (p.size() > depth and p[depth] == s) { bucket.add(p) } };
+      let bucket = Buffer.Buffer<([Text], Bool)>(4);
+      for (e in entries.vals()) { if (e.0.size() > depth and e.0[depth] == s) { bucket.add(e) } };
       pairs.add((Text.encodeUtf8(s), buildSubtree(Buffer.toArray(bucket), depth + 1)));
     };
     let sorted = Array.sort(Buffer.toArray(pairs), func(a : (Blob, Tree), b : (Blob, Tree)) : { #less; #equal; #greater } { compareBlob(a.0, b.0) });
     buildBalancedLabeled(sorted);
   };
 
-  func segmented(paths : [Text]) : [[Text]] { Array.map<Text, [Text]>(paths, split) };
+  func segmented(entries : [Entry]) : [([Text], Bool)] {
+    Array.map<Entry, ([Text], Bool)>(entries, func(e) { (split(e.path), e.wild) });
+  };
 
-  func tree(paths : [Text]) : Tree { #labeled(httpExpr(), buildSubtree(segmented(paths), 0)) };
+  func tree(entries : [Entry]) : Tree { #labeled(httpExpr(), buildSubtree(segmented(entries), 0)) };
 
   /// Root hash to install via CertifiedData.set.
-  public func rootHash(paths : [Text]) : Blob { hash(tree(paths)) };
+  public func rootHash(entries : [Entry]) : Blob { hash(tree(entries)) };
 
-  // Walk the inner subtree, keeping the witness path and pruning every sibling.
-  func pruneToPath(node : Tree, segs : [Text], depth : Nat) : Tree {
+  // Walk the inner subtree, keeping the witness path (segments then `marker`)
+  // and pruning every sibling.
+  func pruneToPath(node : Tree, segs : [Text], marker : Blob, depth : Nat) : Tree {
     switch node {
-      case (#fork(l, r)) { #fork(pruneToPath(l, segs, depth), pruneToPath(r, segs, depth)) };
+      case (#fork(l, r)) { #fork(pruneToPath(l, segs, marker, depth), pruneToPath(r, segs, marker, depth)) };
       case (#labeled(lbl, sub)) {
         var onPath = false;
         if (depth < segs.size()) { onPath := (lbl == Text.encodeUtf8(segs[depth])) } else if (depth == segs.size()) {
-          onPath := (lbl == terminalMarker());
+          onPath := (lbl == marker);
         } else if (depth == segs.size() + 1) { onPath := (lbl == exprHash()) };
-        if (onPath) { #labeled(lbl, pruneToPath(sub, segs, depth + 1)) } else { #pruned(hash(#labeled(lbl, sub))) };
+        if (onPath) { #labeled(lbl, pruneToPath(sub, segs, marker, depth + 1)) } else { #pruned(hash(#labeled(lbl, sub))) };
       };
       case other { other };
     };
   };
 
-  /// Witness revealing one path; every sibling pruned (root hash preserved).
-  func witness(paths : [Text], path : Text) : Tree {
-    #labeled(httpExpr(), pruneToPath(buildSubtree(segmented(paths), 0), split(path), 0));
+  func witness(entries : [Entry], target : Entry) : Tree {
+    #labeled(httpExpr(), pruneToPath(buildSubtree(segmented(entries), 0), split(target.path), markerOf(target.wild), 0));
   };
 
-  func exprPathCbor(path : Text) : Blob {
-    let segs = split(path);
+  func exprPathCbor(target : Entry) : Blob {
+    let segs = split(target.path);
     let b = Buffer.Buffer<Nat8>(48);
     selfDescribe(b);
-    cborHeader(b, 4, segs.size() + 2); // ["http_expr", ...segments, "<$>"]
+    cborHeader(b, 4, segs.size() + 2); // ["http_expr", ...segments, "<$>"|"<*>"]
     cborBytes(b, httpExpr());
     for (s in segs.vals()) { cborBytes(b, Text.encodeUtf8(s)) };
-    cborBytes(b, terminalMarker());
+    cborBytes(b, markerOf(target.wild));
     Blob.fromArray(Buffer.toArray(b));
   };
 
-  /// The IC-Certificate header value for `path`, given the system certificate.
-  public func headerValue(paths : [Text], path : Text, cert : Blob) : Text {
+  /// The IC-Certificate header value for the certified `target` (exact path or
+  /// wildcard prefix), given the full entry set and the system certificate.
+  public func headerValue(entries : [Entry], target : Entry, cert : Blob) : Text {
     "certificate=:" # base64(cert)
-    # ":, tree=:" # base64(encodeTree(witness(paths, path)))
-    # ":, version=2, expr_path=:" # base64(exprPathCbor(path)) # ":";
+    # ":, tree=:" # base64(encodeTree(witness(entries, target)))
+    # ":, version=2, expr_path=:" # base64(exprPathCbor(target)) # ":";
   };
 };

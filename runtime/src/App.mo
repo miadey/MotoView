@@ -83,37 +83,42 @@ module {
     // pass-through expression) instead of upgrading to an update call. certified_
     // data is set on the first update (ensureCert); until then assets serve via
     // the update path (consensus-valid), so it self-bootstraps.
-    let certPaths : [Text] = [
+    let certAssets : [Text] = [
       "/motoview.js", "/motoview.css", "/motoview.wasm", "/mv-auth.js",
       "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
       "/manifest.webmanifest", "/sw.js",
     ];
-    // Pages marked `@cacheable` (and whose route has no params) are also served
-    // as certified queries — public, non-caller-specific pages.
-    let cacheableRoutes : [Text] = do {
-      let b = Buffer.Buffer<Text>(4);
-      for (p in pages.vals()) {
-        if (p.cacheable and not Text.contains(p.route, #char '{')) { b.add(p.route) };
+    // The static prefix of a route, up to its first `{param}` segment.
+    // "/u/{handle}" -> "/u" ; "/forum/t/{id:Nat}" -> "/forum/t".
+    func wildcardPrefix(route : Text) : Text {
+      let pre = Buffer.Buffer<Text>(4);
+      for (s in Text.tokens(route, #char '/')) {
+        if (Text.contains(s, #char '{')) { return "/" # Text.join("/", pre.vals()) };
+        pre.add(s);
       };
-      Buffer.toArray(b);
+      "/" # Text.join("/", pre.vals());
     };
-    // The full set committed into certified_data (assets + cacheable routes).
-    let allCertPaths : [Text] = do {
-      let b = Buffer.Buffer<Text>(certPaths.size() + cacheableRoutes.size());
-      for (x in certPaths.vals()) { b.add(x) };
-      for (x in cacheableRoutes.vals()) { b.add(x) };
+    // Entries committed into certified_data: static assets (exact), and pages
+    // marked @cacheable — non-parameterized routes exactly, parameterized routes
+    // as a wildcard over their static prefix (e.g. /u/{handle} -> /u/<*>).
+    let allCertPaths : [CertV2.Entry] = do {
+      let b = Buffer.Buffer<CertV2.Entry>(certAssets.size() + 4);
+      for (a in certAssets.vals()) { b.add({ path = a; wild = false }) };
+      for (p in pages.vals()) {
+        if (p.cacheable) {
+          if (Text.contains(p.route, #char '{')) { b.add({ path = wildcardPrefix(p.route); wild = true }) } else {
+            b.add({ path = p.route; wild = false });
+          };
+        };
+      };
       Buffer.toArray(b);
     };
     var certReady : Bool = false;
     public func ensureCert() {
       if (not certReady) { CertifiedData.set(CertV2.rootHash(allCertPaths)); certReady := true };
     };
-    func isCertPath(path : Text) : Bool {
-      for (p in certPaths.vals()) { if (p == path) { return true } };
-      false;
-    };
-    func isCacheableRoute(path : Text) : Bool {
-      for (p in cacheableRoutes.vals()) { if (p == path) { return true } };
+    func isCertAsset(path : Text) : Bool {
+      for (a in certAssets.vals()) { if (a == path) { return true } };
       false;
     };
 
@@ -272,32 +277,33 @@ module {
       { status_code = 200; headers = jsonHeaders(); body = ""; upgrade = ?true };
     };
 
-    func certHeaders(base : [(Text, Text)], path : Text, cert : Blob) : [(Text, Text)] {
+    func certHeaders(base : [(Text, Text)], target : CertV2.Entry, cert : Blob) : [(Text, Text)] {
       let hdrs = Buffer.Buffer<(Text, Text)>(base.size() + 2);
       for (h in base.vals()) { hdrs.add(h) };
       hdrs.add(("IC-CertificateExpression", CertV2.expression));
-      hdrs.add(("IC-Certificate", CertV2.headerValue(allCertPaths, path, cert)));
+      hdrs.add(("IC-Certificate", CertV2.headerValue(allCertPaths, target, cert)));
       Buffer.toArray(hdrs);
     };
 
     /// Build a certified-query response for a static asset, or null to fall back.
     func certifiedAsset(path : Text) : ?HttpResponse {
-      if (not certReady or not isCertPath(path)) { return null };
+      if (not certReady or not isCertAsset(path)) { return null };
       switch (CertifiedData.getCertificate()) {
         case null { null };
         case (?cert) {
           switch (asset(path)) {
             case null { null };
-            case (?r) { ?{ status_code = r.status_code; headers = certHeaders(r.headers, path, cert); body = r.body; upgrade = null } };
+            case (?r) { ?{ status_code = r.status_code; headers = certHeaders(r.headers, { path = path; wild = false }, cert); body = r.body; upgrade = null } };
           };
         };
       };
     };
 
     /// Render a @cacheable page in the query context and serve it as a certified
-    /// query (the pass-through expression accepts any body). null to fall back.
+    /// query (pass-through expression accepts any body). Parameterized routes use
+    /// a wildcard over their static prefix. null to fall back to the update path.
     func certifiedPage(req : HttpRequest, path : Text, caller : Principal) : ?HttpResponse {
-      if (not certReady or not isCacheableRoute(path)) { return null };
+      if (not certReady) { return null };
       switch (CertifiedData.getCertificate()) {
         case null { null };
         case (?cert) {
@@ -314,7 +320,10 @@ module {
               let bid = batchIdFor(path, head.title, inner);
               let doc = renderDocument(page, ctx, head, inner, bid);
               let base = [("content-type", "text/html"), ("cache-control", "no-store")];
-              ?{ status_code = 200; headers = certHeaders(base, path, cert); body = Text.encodeUtf8(doc); upgrade = null };
+              let target : CertV2.Entry = if (Text.contains(page.route, #char '{')) {
+                { path = wildcardPrefix(page.route); wild = true };
+              } else { { path = path; wild = false } };
+              ?{ status_code = 200; headers = certHeaders(base, target, cert); body = Text.encodeUtf8(doc); upgrade = null };
             };
           };
         };

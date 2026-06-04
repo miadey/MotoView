@@ -3546,6 +3546,56 @@ actor {
     public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
+  // mv:src src/Pages/Greet.mview
+  // ===== Page: Greet (/greet/{name}) =====
+  let GreetPage = object {
+    var name : Text = "";
+    let mvErrors = Buffer.Buffer<(Text, Text)>(0);
+    var mvRedirect : Text = "";
+    let mvEffects = Buffer.Buffer<MV.Effect>(0);
+    public func toast(m : Text) { mvEffects.add({ kind = "toast"; target = m; value = "" }) };
+    public func animate(sel : Text, name : Text) { mvEffects.add({ kind = "animate"; target = sel; value = name }) };
+    public func focusOn(sel : Text) { mvEffects.add({ kind = "focus"; target = sel; value = "" }) };
+    public func scrollTo(sel : Text) { mvEffects.add({ kind = "scrollTo"; target = sel; value = "" }) };
+    public func mvRender(ctx : MV.Ctx) : Text {
+      let b = Html.Builder();
+      ignore ctx;
+      name := mvParamGet(ctx, "name");
+      b.raw("<section");
+      b.raw(" class=\"bz-hero\"");
+      b.raw(">");
+      b.raw("<h1");
+      b.raw(">");
+      b.raw("Hello, ");
+      b.text(name);
+      b.raw(" 👋");
+      b.raw("</h1>");
+      b.raw("\n");
+      b.raw("<p");
+      b.raw(">");
+      b.raw("This parameterized public page is certified with a wildcard (/greet/&lt;*&gt;) and served as a fast certified query — any name under /greet is covered by one cert entry.");
+      b.raw("</p>");
+      b.raw("</section>");
+      b.raw("\n");
+      b.build();
+    };
+    public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; name := mvParamGet(ctx, "name"); "Hello" };
+    public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; name := mvParamGet(ctx, "name"); { title = "Hello"; description = "A public, parameterized page served as a certified query via a wildcard."; canonical = ""; extra = "" } };
+    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx; name := mvParamGet(ctx, "name");  };
+    public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
+      ignore ctx; ignore mvArgs;
+      name := mvParamGet(ctx, "name");
+      mvErrors.clear(); // each interaction starts with a clean slate
+      mvEffects.clear();
+      switch mvH {
+        case _ {};
+      };
+    };
+    public func mvTakeErrors() : [(Text, Text)] { Buffer.toArray(mvErrors) };
+    public func mvTakeRedirect() : Text { let r = mvRedirect; mvRedirect := ""; r };
+    public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
+  };
+
   // mv:src src/Pages/Home.mview
   // ===== Page: Home (/) =====
   let HomePage = object {
@@ -6990,6 +7040,21 @@ actor {
     takeEffects = ForumTopicPage.mvTakeEffects;
     takeRedirect = ForumTopicPage.mvTakeRedirect;
   };
+  let GreetDef : MV.Page = {
+    route = "/greet/{name}";
+    layout = "AppLayout";
+    authorize = false;
+    role = "";
+    cacheable = true;
+    onLoad = GreetPage.mvOnLoad;
+    render = GreetPage.mvRender;
+    title = GreetPage.mvTitle;
+    head = GreetPage.mvHead;
+    dispatch = GreetPage.mvDispatch;
+    takeErrors = GreetPage.mvTakeErrors;
+    takeEffects = GreetPage.mvTakeEffects;
+    takeRedirect = GreetPage.mvTakeRedirect;
+  };
   let HomeDef : MV.Page = {
     route = "/";
     layout = "AppLayout";
@@ -7284,7 +7349,7 @@ actor {
 
 
 
-  let mvPages : [MV.Page] = [AboutDef, AdminDef, ChannelDef, FeedDef, ForumDef, ForumCategoryDef, ForumNewDef, ForumTopicDef, HomeDef, MeDef, MessagesDef, ProfileDef, ServerDef, ServersDef, StatusDef, ThreadDef];
+  let mvPages : [MV.Page] = [AboutDef, AdminDef, ChannelDef, FeedDef, ForumDef, ForumCategoryDef, ForumNewDef, ForumTopicDef, GreetDef, HomeDef, MeDef, MessagesDef, ProfileDef, ServerDef, ServersDef, StatusDef, ThreadDef];
   let mvLayouts : [MV.Layout] = [{ name = "AppLayout"; render = mvLayout_AppLayout }];
   let mvConfig : MV.Config = { appName = "bzzz"; secret = "" : Blob; seo = true; altOrigins = [] };
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
