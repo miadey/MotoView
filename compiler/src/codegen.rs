@@ -5,7 +5,7 @@
 //! wires all pages/layouts into one actor exposing http_request[_update].
 
 use crate::ast::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct PageGen {
     pub name: String,
@@ -66,9 +66,15 @@ impl<'a> Codegen<'a> {
         for e in &file.code.extra {
             s.push_str(&format!("    {}\n", e));
         }
-        // error + redirect sinks
+        // error + redirect + effect sinks (and declarative effect helpers usable
+        // from @code: toast(...), animate("#sel","pulse"), focusOn(...), scrollTo(...))
         s.push_str("    let mvErrors = Buffer.Buffer<(Text, Text)>(0);\n");
         s.push_str("    var mvRedirect : Text = \"\";\n");
+        s.push_str("    let mvEffects = Buffer.Buffer<MV.Effect>(0);\n");
+        s.push_str("    public func toast(m : Text) { mvEffects.add({ kind = \"toast\"; target = m; value = \"\" }) };\n");
+        s.push_str("    public func animate(sel : Text, name : Text) { mvEffects.add({ kind = \"animate\"; target = sel; value = name }) };\n");
+        s.push_str("    public func focusOn(sel : Text) { mvEffects.add({ kind = \"focus\"; target = sel; value = \"\" }) };\n");
+        s.push_str("    public func scrollTo(sel : Text) { mvEffects.add({ kind = \"scrollTo\"; target = sel; value = \"\" }) };\n");
         // user functions (async stripped) with validate translated
         for f in &file.code.funcs {
             let params = f
@@ -77,8 +83,13 @@ impl<'a> Codegen<'a> {
                 .map(|(n, t)| format!("{} : {}", n, t))
                 .collect::<Vec<_>>()
                 .join(", ");
+            // Emit the (async-stripped) return type so non-unit helpers type-check.
+            let ret = match &f.ret {
+                Some(r) if !r.is_empty() => format!(" : {}", r),
+                _ => String::new(),
+            };
             let body = translate_validate(&f.body);
-            s.push_str(&format!("    func {}({}) {{{}}};\n", f.name, params, body));
+            s.push_str(&format!("    func {}({}){} {{{}}};\n", f.name, params, ret, body));
         }
 
         // render
@@ -131,17 +142,25 @@ impl<'a> Codegen<'a> {
         s.push_str("    public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {\n");
         s.push_str("      ignore ctx; ignore mvArgs;\n");
         s.push_str("      mvErrors.clear(); // each interaction starts with a clean slate\n");
-        // two-way binding: populate bound vars from the submitted form
+        s.push_str("      mvEffects.clear();\n");
+        // two-way binding: populate bound vars from the submitted form,
+        // converting to the bound var's declared type.
         let binds = collect_simple_binds(&file.template);
         for (lvalue, name) in &binds {
+            let ty = self.types.get(lvalue).cloned().unwrap_or_default();
+            let conv = convert_from_text(&ty, "mvV");
             s.push_str(&format!(
-                "      switch (mvFormGet(ctx, \"{}\")) {{ case (?mvV) {{ {} := mvV }}; case null {{}} }};\n",
-                name, lvalue
+                "      switch (mvFormGet(ctx, \"{}\")) {{ case (?mvV) {{ {} := {} }}; case null {{}} }};\n",
+                name, lvalue, conv
             ));
         }
+        // Only funcs referenced as event handlers (@click/@submit/@input or a
+        // data-mv-drop drop target) are dispatchable. Helper funcs used from the
+        // template (e.g. dealsIn, money) are not.
+        let handlers = collect_handlers(&file.template);
         s.push_str("      switch mvH {\n");
         for f in &file.code.funcs {
-            if f.name == "onLoad" {
+            if f.name == "onLoad" || !handlers.contains(&f.name) {
                 continue;
             }
             let call = self.gen_dispatch_call(f);
@@ -154,6 +173,8 @@ impl<'a> Codegen<'a> {
         // cleared at the start of the next dispatch.
         s.push_str("    public func mvTakeErrors() : [(Text, Text)] { Buffer.toArray(mvErrors) };\n");
         s.push_str("    public func mvTakeRedirect() : Text { let r = mvRedirect; mvRedirect := \"\"; r };\n");
+        // Effects are one-shot: returned (and cleared) for the event response only.
+        s.push_str("    public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };\n");
         s.push_str("  };\n");
 
         // Page record
@@ -171,6 +192,10 @@ impl<'a> Codegen<'a> {
             auth = authorize,
             role = role,
             o = obj,
+        );
+        let rec = rec.replace(
+            "    takeRedirect = ",
+            &format!("    takeEffects = {o}.mvTakeEffects;\n    takeRedirect = ", o = obj),
         );
 
         PageGen {
@@ -568,7 +593,9 @@ impl<'a> Codegen<'a> {
                 if e.chars().all(|c| c.is_ascii_digit()) && !e.is_empty() {
                     e.to_string()
                 } else {
-                    format!("debug_show({})", e)
+                    // Type unknown (e.g. a record field on a loop variable):
+                    // debug_show then strip wrapping quotes so Text displays cleanly.
+                    format!("Html.unquote(debug_show({}))", e)
                 }
             }
         }
@@ -641,6 +668,55 @@ fn convert_from_text(ty: &str, access: &str) -> String {
         "Int" => format!("mvInt({})", access),
         "Bool" => format!("({} == \"true\")", access),
         _ => access.to_string(),
+    }
+}
+
+/// Collect the names of functions referenced as event handlers in the template
+/// (events `@click`/`@submit`/`@input`/`@change` and `data-mv-drop` targets).
+fn collect_handlers(nodes: &[Node]) -> HashSet<String> {
+    let mut out = HashSet::new();
+    walk_handlers(nodes, &mut out);
+    out
+}
+
+fn walk_handlers(nodes: &[Node], out: &mut HashSet<String>) {
+    for n in nodes {
+        match n {
+            Node::Element(e) => {
+                for ev in &e.events {
+                    out.insert(ev.handler.clone());
+                }
+                for a in &e.attrs {
+                    if a.name == "data-mv-drop" {
+                        if let AttrValue::Literal(v) = &a.value {
+                            out.insert(v.clone());
+                        }
+                    }
+                }
+                walk_handlers(&e.children, out);
+            }
+            Node::Component(c) => {
+                for ev in &c.events {
+                    out.insert(ev.handler.clone());
+                }
+                walk_handlers(&c.children, out);
+                for (_n, body) in &c.slots {
+                    walk_handlers(body, out);
+                }
+            }
+            Node::If(branches) => {
+                for br in branches {
+                    walk_handlers(&br.body, out);
+                }
+            }
+            Node::For { body, .. } => walk_handlers(body, out),
+            Node::Switch { cases, .. } => {
+                for c in cases {
+                    walk_handlers(&c.body, out);
+                }
+            }
+            _ => {}
+        }
     }
 }
 

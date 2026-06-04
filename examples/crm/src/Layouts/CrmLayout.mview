@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { background: #f4f4f8; }
+        .crm-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+        .crm-nav { display: flex; align-items: center; gap: .75rem; padding: .6rem 0 1.1rem; }
+        .crm-logo { font-weight: 800; color: var(--mv-primary); font-size: 1.15rem; }
+        .crm-pill { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mv-text-soft); background: #eceaf6; padding: .2rem .55rem; border-radius: 999px; }
+        .crm-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+        .crm-header h1 { margin: 0; font-size: 1.8rem; }
+        .crm-sub { margin: .15rem 0 0; color: var(--mv-text-soft); }
+        .crm-sub strong { color: var(--mv-primary); }
+
+        .crm-form { background: #fff; border: 1px solid var(--mv-border); border-radius: 14px; padding: 1.1rem 1.3rem; box-shadow: var(--mv-shadow); margin-bottom: 1.25rem; }
+        .crm-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .25rem 1rem; }
+        .crm-form-actions { display: flex; gap: .6rem; margin-top: .6rem; }
+
+        .kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; }
+        .kanban-col { background: #ecebf3; border-radius: 14px; padding: .7rem; display: flex; flex-direction: column; gap: .6rem; min-height: 180px; border-top: 3px solid #9aa0ad; transition: background .15s ease; }
+        #col-Lead { border-top-color: #64748b; }
+        #col-Contacted { border-top-color: #2563eb; }
+        #col-Proposal { border-top-color: #d97706; }
+        #col-Won { border-top-color: #16a34a; }
+        .kanban-col-head { display: flex; align-items: center; justify-content: space-between; padding: .2rem .35rem; }
+        .kanban-col-title { font-weight: 700; font-size: .95rem; }
+        .kanban-col-count { background: #fff; color: var(--mv-text-soft); font-size: .78rem; font-weight: 700; border-radius: 999px; padding: .05rem .5rem; }
+        .kanban-col-body { display: flex; flex-direction: column; gap: .55rem; min-height: 40px; }
+
+        .deal-card { background: #fff; border: 1px solid var(--mv-border); border-radius: 11px; padding: .7rem .8rem; box-shadow: 0 1px 2px rgba(16,16,40,.05); transition: transform .12s ease, box-shadow .12s ease; }
+        .deal-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(16,16,40,.10); }
+        .deal-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+        .deal-title { font-weight: 700; font-size: .95rem; line-height: 1.3; }
+        .deal-del { border: none; background: transparent; color: var(--mv-text-soft); cursor: pointer; font-size: .85rem; line-height: 1; padding: .1rem .25rem; border-radius: 6px; }
+        .deal-del:hover { background: #fee2e2; color: var(--mv-danger); }
+        .deal-company { color: var(--mv-text-soft); font-size: .85rem; margin: .15rem 0 .5rem; }
+        .deal-meta { display: flex; align-items: center; justify-content: space-between; }
+        .deal-value { font-weight: 800; color: var(--mv-primary); }
+        .deal-contact { font-size: .78rem; color: var(--mv-text-soft); }
+        .deal-move { display: flex; gap: .35rem; margin-top: .6rem; }
+        .deal-move-btn { flex: 1; border: 1px solid var(--mv-border); background: #fafaff; color: var(--mv-text); border-radius: 7px; padding: .2rem 0; cursor: pointer; font-size: .8rem; }
+        .deal-move-btn:hover { background: var(--mv-primary); color: #fff; border-color: var(--mv-primary); }
+
+        .crm-hint { text-align: center; color: var(--mv-text-soft); font-size: .85rem; margin-top: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="crm-shell">
+        <nav class="crm-nav">
+            <span class="crm-logo">▼ MotoView CRM</span>
+            <span class="crm-pill">Pipeline</span>
+        </nav>
+        @yield
+    </div>
+</body>
+</html>

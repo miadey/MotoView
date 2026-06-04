@@ -160,6 +160,7 @@ module {
           let head = page.head(ctx);
           let inner = page.render(ctx);
           let errors = page.takeErrors();
+          let effects = page.takeEffects();
           let bid = batchIdFor(pagePath, head.title, inner);
 
           if (errors.size() > 0) {
@@ -168,7 +169,7 @@ module {
               batchId = bid;
               html = inner;
               head;
-              effects = [];
+              effects;
               target = "mv-root";
               location = "";
               errors;
@@ -180,7 +181,7 @@ module {
             batchId = bid;
             html = inner;
             head;
-            effects = [];
+            effects;
             target = "mv-root";
             location = "";
             errors = [];

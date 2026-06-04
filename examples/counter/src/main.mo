@@ -47,13 +47,18 @@ actor {
     var count : Nat = 0;
     let mvErrors = Buffer.Buffer<(Text, Text)>(0);
     var mvRedirect : Text = "";
-    func increment(by : Nat) {
+    let mvEffects = Buffer.Buffer<MV.Effect>(0);
+    public func toast(m : Text) { mvEffects.add({ kind = "toast"; target = m; value = "" }) };
+    public func animate(sel : Text, name : Text) { mvEffects.add({ kind = "animate"; target = sel; value = name }) };
+    public func focusOn(sel : Text) { mvEffects.add({ kind = "focus"; target = sel; value = "" }) };
+    public func scrollTo(sel : Text) { mvEffects.add({ kind = "scrollTo"; target = sel; value = "" }) };
+    func increment(by : Nat) : () {
         count += by;
     };
-    func decrement() {
+    func decrement() : () {
         if (count > 0) { count -= 1 };
     };
-    func reset() {
+    func reset() : () {
         count := 0;
     };
     public func mvRender(ctx : MV.Ctx) : Text {
@@ -124,6 +129,7 @@ actor {
     public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
       ignore ctx; ignore mvArgs;
       mvErrors.clear(); // each interaction starts with a clean slate
+      mvEffects.clear();
       switch mvH {
         case "increment" { increment(mvNat((if (mvArgs.size() > 0) mvArgs[0] else ""))) };
         case "decrement" { decrement() };
@@ -133,6 +139,7 @@ actor {
     };
     public func mvTakeErrors() : [(Text, Text)] { Buffer.toArray(mvErrors) };
     public func mvTakeRedirect() : Text { let r = mvRedirect; mvRedirect := ""; r };
+    public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
 
@@ -147,6 +154,7 @@ actor {
     head = CounterPage.mvHead;
     dispatch = CounterPage.mvDispatch;
     takeErrors = CounterPage.mvTakeErrors;
+    takeEffects = CounterPage.mvTakeEffects;
     takeRedirect = CounterPage.mvTakeRedirect;
   };
 

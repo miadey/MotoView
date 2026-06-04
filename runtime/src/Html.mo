@@ -22,12 +22,19 @@ module {
     s;
   };
 
-  /// Generic display fallback for values whose type the compiler could not
-  /// resolve. Uses `debug_show` and strips one layer of wrapping quotes so a
-  /// `Text` value renders without the surrounding quotes.
-  public func show(t : Text) : Text {
-    // The compiler passes already-stringified values here; kept for symmetry.
-    t;
+  /// Strip one layer of surrounding double-quotes. The compiler wraps
+  /// type-unknown expressions as `Html.unquote(debug_show(expr))`, so a `Text`
+  /// field (which `debug_show` renders as `"value"`) displays as `value`, while
+  /// numbers/variants (`5`, `#Won`) pass through unchanged.
+  public func unquote(t : Text) : Text {
+    let n = t.size();
+    if (n >= 2 and Text.startsWith(t, #char '\"') and Text.endsWith(t, #char '\"')) {
+      let chars = Text.toArray(t);
+      var out = "";
+      var i = 1;
+      while (i + 1 < n) { out #= Text.fromChar(chars[i]); i += 1 };
+      out;
+    } else { t };
   };
 
   /// An append-only HTML buffer. Joins in O(n) at `build()`.

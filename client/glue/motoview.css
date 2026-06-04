@@ -109,6 +109,12 @@ h2 { font-size: 1.35rem; }
 .mv-toast { background: #1c1b29; color: #fff; padding: 0.7rem 1rem; border-radius: var(--mv-radius-sm); box-shadow: var(--mv-shadow); opacity: 1; transform: translateY(0); transition: opacity 0.3s ease, transform 0.3s ease; }
 .mv-toast-out { opacity: 0; transform: translateY(8px); }
 
+/* ---- Drag & drop affordances ---- */
+.mv-dragging { opacity: .45; transform: rotate(1.5deg); }
+.mv-drop-over { outline: 2px dashed var(--mv-primary); outline-offset: -5px; background: rgba(109, 40, 217, 0.06); }
+[draggable="true"] { cursor: grab; }
+[draggable="true"]:active { cursor: grabbing; }
+
 /* ---- Animations ---- */
 @keyframes mv-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 .mv-anim-pulse { animation: mv-pulse 0.4s ease; }

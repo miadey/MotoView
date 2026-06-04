@@ -1,0 +1,134 @@
+@page "/"
+@layout CrmLayout
+@title "Pipeline — MotoView CRM"
+@description "A drag-and-drop sales pipeline built with MotoView — no frontend JavaScript."
+
+<div class="crm-header">
+    <div>
+        <h1>Pipeline</h1>
+        <p class="crm-sub">@dealCount() open deals · <strong>@money(pipelineValue())</strong> in flight</p>
+    </div>
+    <button class="mv-btn mv-btn-primary mv-btn-large" @click="toggleCreate">+ New deal</button>
+</div>
+
+@if creating {
+    <div class="crm-form mv-anim-fadein">
+        <form @submit="createDeal" secure>
+            <ValidationSummary />
+            <div class="crm-form-grid">
+                <InputText name="title" label="Deal" bind="@title" required />
+                <InputText name="company" label="Company" bind="@company" required />
+                <InputText name="contact" label="Contact" bind="@contact" />
+                <InputNumber name="value" label="Value ($)" bind="@value" required />
+            </div>
+            <div class="crm-form-actions">
+                <Button kind="primary" type="submit">Create deal</Button>
+                <Button kind="secondary" @click="toggleCreate">Cancel</Button>
+            </div>
+        </form>
+    </div>
+}
+
+<div class="kanban">
+    @for stage in stages {
+        <section class="kanban-col" id="col-@stage" data-mv-drop="dropDeal" data-mv-dropval="@stage">
+            <header class="kanban-col-head">
+                <span class="kanban-col-title">@stage</span>
+                <span class="kanban-col-count">@countIn(stage)</span>
+            </header>
+            <div class="kanban-col-body">
+                @for deal in dealsIn(stage) {
+                    <article class="deal-card" draggable="true" data-mv-drag="@(deal.id)">
+                        <div class="deal-card-top">
+                            <span class="deal-title">@deal.title</span>
+                            <button class="deal-del" @click="removeDeal(deal.id)" title="Remove deal">✕</button>
+                        </div>
+                        <div class="deal-company">@deal.company</div>
+                        <div class="deal-meta">
+                            <span class="deal-value">@money(deal.value)</span>
+                            <span class="deal-contact">@deal.contact</span>
+                        </div>
+                        <div class="deal-move">
+                            <button class="deal-move-btn" @click="moveBack(deal.id)" title="Move back">◀</button>
+                            <button class="deal-move-btn" @click="moveFwd(deal.id)" title="Move forward">▶</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+<p class="crm-hint">Drag a card between columns, or use the ◀ ▶ buttons. Everything runs on-chain — no frontend JavaScript.</p>
+
+@code {
+    var deals : [Crm.Deal] = Crm.seed();
+    var nextId : Nat = 7;
+    var stages : [Text] = Crm.stages;
+
+    var creating : Bool = false;
+    var title : Text = "";
+    var company : Text = "";
+    var contact : Text = "";
+    var value : Nat = 0;
+
+    func dealsIn(s : Text) : [Crm.Deal] { Crm.byStage(deals, s) };
+    func countIn(s : Text) : Nat { Crm.countByStage(deals, s) };
+    func dealCount() : Nat { deals.size() };
+    func pipelineValue() : Nat { Crm.total(deals) };
+    func money(n : Nat) : Text { "$" # group(Nat.toText(n)) };
+
+    func group(s : Text) : Text {
+        let chars = Text.toArray(s);
+        let len = chars.size();
+        var out = "";
+        var i = 0;
+        while (i < len) {
+            if (i > 0 and (len - i) % 3 == 0) { out #= "," };
+            out #= Text.fromChar(chars[i]);
+            i += 1;
+        };
+        out;
+    };
+
+    func toggleCreate() : async () {
+        creating := not creating;
+    };
+
+    func createDeal() : async () {
+        validate {
+            title required "Give the deal a name.";
+            company required "Which company is this for?";
+            value min 1 "Set a deal value greater than zero.";
+        };
+
+        deals := Crm.add(deals, nextId, title, company, contact, value);
+        nextId += 1;
+        creating := false;
+        title := "";
+        company := "";
+        contact := "";
+        value := 0;
+        toast("Deal added to Lead");
+    };
+
+    func moveFwd(id : Nat) : async () {
+        deals := Crm.advance(deals, id, 1);
+        toast("Moved forward");
+    };
+
+    func moveBack(id : Nat) : async () {
+        deals := Crm.advance(deals, id, -1);
+    };
+
+    func removeDeal(id : Nat) : async () {
+        deals := Crm.remove(deals, id);
+        toast("Deal removed");
+    };
+
+    func dropDeal(id : Nat, stage : Text) : async () {
+        deals := Crm.move(deals, id, stage);
+        toast("Moved to " # stage);
+        animate("#col-" # stage, "pulse");
+    };
+}

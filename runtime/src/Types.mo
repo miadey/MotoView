@@ -113,6 +113,9 @@ module {
     // Pending client-side navigation requested via `Navigation.go(path)`;
     // returns and clears it ("" if none).
     takeRedirect : () -> Text;
+    // Declarative effects (toast/animate/focus/scrollTo) emitted by the last
+    // dispatch; returns and clears the page's effect buffer.
+    takeEffects : () -> [Effect];
   };
 
   /// A compiled layout. `render` receives the page's inner HTML (`body`) plus

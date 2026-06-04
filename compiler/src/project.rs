@@ -25,6 +25,18 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     let layout_files = list_mview(&layouts_dir);
     let _component_files = list_mview(&components_dir);
 
+    // Service/Model modules (real Motoko) are imported into the generated actor
+    // so page @code can call them (e.g. `Crm.all()`, `Crm.Deal`).
+    let mut extra_imports = String::new();
+    for f in list_mo(&src.join("Services")) {
+        let n = file_stem(&f);
+        extra_imports.push_str(&format!("import {} \"Services/{}\";\n", n, n));
+    }
+    for f in list_mo(&src.join("Models")) {
+        let n = file_stem(&f);
+        extra_imports.push_str(&format!("import {} \"Models/{}\";\n", n, n));
+    }
+
     if page_files.is_empty() {
         return Err(format!(
             "no .mview pages found in {}",
@@ -74,6 +86,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         &layout_funcs,
         &layout_entries,
         &secret,
+        &extra_imports,
     );
 
     if let Some(parent) = opts.out.parent() {
@@ -102,6 +115,7 @@ fn assemble(
     layout_funcs: &str,
     layout_entries: &[(String, String)],
     secret: &str,
+    extra_imports: &str,
 ) -> String {
     let pages_arr = page_idents.join(", ");
     let layouts_arr = layout_entries
@@ -125,7 +139,7 @@ import Float "mo:base/Float";
 import Char "mo:base/Char";
 import Text "mo:base/Text";
 import Buffer "mo:base/Buffer";
-
+{extra_imports}
 actor {{
   // ---- conversion helpers used by generated event dispatch ----
   func mvNat(t : Text) : Nat {{
@@ -180,6 +194,7 @@ actor {{
         pages_arr = pages_arr,
         layouts_arr = layouts_arr,
         secret = secret,
+        extra_imports = extra_imports,
     )
 }
 
@@ -207,6 +222,21 @@ fn gen_secret(app_name: &str) -> String {
 fn list_mview(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     collect_mview(dir, &mut out);
+    out.sort();
+    out
+}
+
+/// List top-level `.mo` files directly in `dir` (non-recursive).
+fn list_mo(dir: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.is_file() && p.extension().and_then(|s| s.to_str()) == Some("mo") {
+                out.push(p);
+            }
+        }
+    }
     out.sort();
     out
 }

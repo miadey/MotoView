@@ -241,6 +241,69 @@
     emit(fragFor(el, evName, ev.target.value));
   }
 
+  // ---- drag & drop -> server-driven move event ----------------------------
+  // Cards: draggable="true" data-mv-drag="<id>". Drop zones: data-mv-drop="<handler>"
+  // data-mv-dropval="<value>". On drop the WASM brain receives handler(id, value).
+  var dragVal = null;
+
+  function closestWith(el, attr) {
+    while (el && el.nodeType === 1) {
+      if (el.hasAttribute && el.hasAttribute(attr)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function onDragStart(ev) {
+    var el = closestWith(ev.target, "data-mv-drag");
+    if (!el) return;
+    dragVal = el.getAttribute("data-mv-drag");
+    if (ev.dataTransfer) {
+      ev.dataTransfer.effectAllowed = "move";
+      try { ev.dataTransfer.setData("text/plain", dragVal); } catch (e) {}
+    }
+    el.classList.add("mv-dragging");
+  }
+
+  function clearDropHighlights() {
+    var hi = document.querySelectorAll(".mv-drop-over");
+    for (var i = 0; i < hi.length; i++) hi[i].classList.remove("mv-drop-over");
+  }
+
+  function onDragEnd(ev) {
+    var el = closestWith(ev.target, "data-mv-drag");
+    if (el) el.classList.remove("mv-dragging");
+    clearDropHighlights();
+  }
+
+  function onDragOver(ev) {
+    var col = closestWith(ev.target, "data-mv-drop");
+    if (col) {
+      ev.preventDefault();
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+      col.classList.add("mv-drop-over");
+    }
+  }
+
+  function onDragLeave(ev) {
+    var col = closestWith(ev.target, "data-mv-drop");
+    if (col && !col.contains(ev.relatedTarget)) col.classList.remove("mv-drop-over");
+  }
+
+  function onDrop(ev) {
+    var col = closestWith(ev.target, "data-mv-drop");
+    if (!col) return;
+    ev.preventDefault();
+    clearDropHighlights();
+    var handler = col.getAttribute("data-mv-drop");
+    var dropval = col.getAttribute("data-mv-dropval") || "";
+    if (dragVal != null && handler) {
+      emit([enc1("__mv_handler", handler), enc1("__mv_event", "drop"),
+            enc1("__mv_arg0", dragVal), enc1("__mv_arg1", dropval)].join("&"));
+    }
+    dragVal = null;
+  }
+
   // ---- bootstrap ----------------------------------------------------------
 
   function start() {
@@ -255,6 +318,11 @@
     document.addEventListener("submit", onSubmit, true);
     document.addEventListener("input", onInput, true);
     document.addEventListener("change", onInput, true);
+    document.addEventListener("dragstart", onDragStart, true);
+    document.addEventListener("dragend", onDragEnd, true);
+    document.addEventListener("dragover", onDragOver, true);
+    document.addEventListener("dragleave", onDragLeave, true);
+    document.addEventListener("drop", onDrop, true);
     document.addEventListener("visibilitychange", function () {
       if (wasm) wasm.mv_on_visibility(document.hidden ? 1 : 0);
     });

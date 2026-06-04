@@ -50,7 +50,12 @@ actor {
     var sent : Bool = false;
     let mvErrors = Buffer.Buffer<(Text, Text)>(0);
     var mvRedirect : Text = "";
-    func send() {
+    let mvEffects = Buffer.Buffer<MV.Effect>(0);
+    public func toast(m : Text) { mvEffects.add({ kind = "toast"; target = m; value = "" }) };
+    public func animate(sel : Text, name : Text) { mvEffects.add({ kind = "animate"; target = sel; value = name }) };
+    public func focusOn(sel : Text) { mvEffects.add({ kind = "focus"; target = sel; value = "" }) };
+    public func scrollTo(sel : Text) { mvEffects.add({ kind = "scrollTo"; target = sel; value = "" }) };
+    func send() : () {
          mvErrors.clear(); if (name == "") { mvErrors.add(("name", "Please tell us your name.")) }; if (email == "") { mvErrors.add(("email", "We need an email to reply to.")) }; if (not mvIsEmail(email)) { mvErrors.add(("email", "That email address looks invalid.")) }; if (message.size() < 10) { mvErrors.add(("message", "Please include at least 10 characters.")) }; if (mvErrors.size() > 0) { return }; 
 
         // In a real app you would persist or forward `message` here.
@@ -143,6 +148,7 @@ actor {
     public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
       ignore ctx; ignore mvArgs;
       mvErrors.clear(); // each interaction starts with a clean slate
+      mvEffects.clear();
       switch (mvFormGet(ctx, "email")) { case (?mvV) { email := mvV }; case null {} };
       switch (mvFormGet(ctx, "message")) { case (?mvV) { message := mvV }; case null {} };
       switch (mvFormGet(ctx, "name")) { case (?mvV) { name := mvV }; case null {} };
@@ -153,6 +159,7 @@ actor {
     };
     public func mvTakeErrors() : [(Text, Text)] { Buffer.toArray(mvErrors) };
     public func mvTakeRedirect() : Text { let r = mvRedirect; mvRedirect := ""; r };
+    public func mvTakeEffects() : [MV.Effect] { let e = Buffer.toArray(mvEffects); mvEffects.clear(); e };
   };
 
 
@@ -167,6 +174,7 @@ actor {
     head = ContactPage.mvHead;
     dispatch = ContactPage.mvDispatch;
     takeErrors = ContactPage.mvTakeErrors;
+    takeEffects = ContactPage.mvTakeEffects;
     takeRedirect = ContactPage.mvTakeRedirect;
   };
 
