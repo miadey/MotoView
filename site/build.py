@@ -21,7 +21,7 @@ NAV = [
     ("Prologue", ["introduction", "why-motoview"]),
     ("Getting Started", ["installation", "quickstart", "project-structure"]),
     ("The .mview Format", ["mview-files", "pages-and-routing", "layouts", "components", "control-flow"]),
-    ("Interactivity", ["events", "forms", "validation", "state"]),
+    ("Interactivity", ["events", "forms", "validation", "state", "drag-drop-and-effects"]),
     ("Styling", ["styling-and-themes", "svg"]),
     ("Architecture", ["protocol", "security", "client-bridge", "runtime"]),
     ("Deployment", ["deployment", "cli"]),

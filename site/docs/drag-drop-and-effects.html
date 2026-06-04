@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drag &amp; Drop, Effects &amp; Services — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li><li><a class="active" href="drag-drop-and-effects.html">Drag &amp; Drop, Effects &amp; Services</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="drag-drop-effects-services">Drag &amp; Drop, Effects &amp; Services</h1>
+<p>The <a href="https://github.com/miadey/MotoView/tree/main/examples/crm">CRM example</a> — a drag-and-drop sales-pipeline Kanban — exercises three capabilities that make MotoView apps feel alive without a line of frontend JavaScript: <strong>drag-and-drop</strong>, <strong>handler-triggered effects</strong>, and <strong>services</strong>.</p>
+<h2 id="drag-drop">Drag &amp; drop</h2>
+<p>Drag-and-drop is server-driven. Mark a draggable item with <code>data-mv-drag</code> (its value is the argument passed to your handler) and a drop zone with <code>data-mv-drop</code> (the handler name) plus <code>data-mv-dropval</code> (a second argument). When the user drops, the WASM client dispatches <code>handler(dragValue, dropValue)</code> as a normal event.</p>
+<pre class="lang-razor"><code>&lt;section class="kanban-col" id="col-@stage" data-mv-drop="dropDeal" data-mv-dropval="@stage"&gt;
+    @for deal in dealsIn(stage) {
+        &lt;article class="deal-card" draggable="true" data-mv-drag="@(deal.id)"&gt;
+            &lt;span class="deal-title"&gt;@deal.title&lt;/span&gt;
+        &lt;/article&gt;
+    }
+&lt;/section&gt;</code></pre>
+<pre class="lang-motoko"><code>@code {
+    func dropDeal(id : Nat, stage : Text) : async () {
+        deals := Crm.move(deals, id, stage);
+        toast("Moved to " # stage);
+        animate("#col-" # stage, "pulse");
+    };
+}</code></pre>
+<p>The glue handles <code>dragstart</code>/<code>dragover</code>/<code>drop</code>, highlights the active drop zone (<code>.mv-drop-over</code>), and tilts the dragged card (<code>.mv-dragging</code>). You only write the handler.</p>
+<h2 id="effects-from-handlers">Effects from handlers</h2>
+<p>Inside any <code>@code</code> function you can queue declarative effects that run on the client after the batch is applied:</p>
+<ul><li><code>toast("Deal added")</code> — a transient notification.</li><li><code>animate("#panel", "pulse")</code> — add an animation class (<code>pulse</code>, <code>fadein</code>) briefly.</li><li><code>focusOn("#email")</code> — move focus to a selector.</li><li><code>scrollTo("#errors")</code> — smooth-scroll an element into view.</li></ul>
+<p>Effects ride back in the render batch's <code>effects</code> array, so they fire exactly once per event — never on a poll.</p>
+<h2 id="services-models">Services &amp; models</h2>
+<p>A <code>.mview</code> file is markup plus Motoko, but heavier logic belongs in plain Motoko modules. Drop them in <code>src/Services/<em>.mo</code> or <code>src/Models/</em>.mo</code> and the compiler imports them into the generated actor automatically — page <code>@code</code> can then call them.</p>
+<pre class="lang-motoko"><code>// src/Services/Crm.mo  — a stateless service (a Motoko module is a library)
+module {
+    public type Deal = { id : Nat; title : Text; company : Text; value : Nat; stage : Text };
+    public func byStage(deals : [Deal], s : Text) : [Deal] {
+        Array.filter&lt;Deal&gt;(deals, func(d) { d.stage == s });
+    };
+    public func move(deals : [Deal], id : Nat, stage : Text) : [Deal] { /* ... */ };
+}</code></pre>
+<pre class="lang-razor"><code>@code {
+    var deals : [Crm.Deal] = Crm.seed();           // state lives in the page
+    func dealsIn(s : Text) : [Crm.Deal] { Crm.byStage(deals, s) };
+}</code></pre>
+<blockquote>A Motoko <code>module</code> is stateless, so keep mutable state (the <code>var deals</code>) in the page <code>@code</code> and let the service provide pure transforms. See <a href="state.html">State</a>.</blockquote>
+<h2 id="run-the-crm">Run the CRM</h2>
+<pre class="lang-bash"><code>cd examples/crm
+dfx start --background &amp;&amp; dfx deploy
+# open http://&lt;canister-id&gt;.localhost:4943/  and drag a card between columns</code></pre>
+    </article>
+    <div class="mv-pager"><a class="prev" href="state.html">← State</a><a class="next" href="styling-and-themes.html">Styling &amp; Themes →</a></div>
+  </main>
+</div>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 **Write Motoko. Ship interactive, SEO-friendly ICP apps. No frontend JavaScript.**
 
-![status: counter verified end-to-end](https://img.shields.io/badge/status-counter%20verified%20end--to--end-success)
+![status: examples verified end-to-end](https://img.shields.io/badge/status-examples%20verified%20end--to--end-success)
 ![compiler: Rust](https://img.shields.io/badge/compiler-Rust-orange)
 ![runtime: Motoko](https://img.shields.io/badge/runtime-Motoko-7048e8)
 ![client: WASM](https://img.shields.io/badge/client-WebAssembly-654ff0)
@@ -114,9 +114,16 @@ The `@click="increment(5)"` handler argument is evaluated server-side at render 
 
 ## Verified status
 
-The runtime, the WASM client, and the `dfx` pipeline are **verified end to end**: the counter example above was deployed to a local replica and exercised in a real browser. Clicking updates state via `event -> update -> batch -> DOM swap`, adaptive polling picks up external changes, and state persists across calls. SHA-256 and HMAC pass standard test vectors.
+The runtime, the WASM client, and the `dfx` pipeline are **verified end to end** in a real browser on a local replica. Three examples ship under `examples/`, each compiled from `.mview` and exercised live:
 
-Additional examples — a todo list, a contact form, and a products CRUD — are included under `examples/`.
+- **`examples/counter`** — the canonical demo. Clicking updates state via `event -> update -> batch -> DOM swap`; adaptive polling picks up external changes; state persists across calls.
+- **`examples/contact`** — a **secure, server-validated form**. Invalid submits show persistent field errors; valid submits succeed. HMAC-SHA256 tokens + replay protection (verified against standard SHA-256/HMAC test vectors).
+- **`examples/crm`** — a **CRM sales-pipeline Kanban** with **drag-and-drop** between stages (plus ◀ ▶ move buttons), create/delete, live pipeline totals, toast notifications, and column pulse animations. The deal logic lives in `src/Services/Crm.mo` (real Motoko); the page holds the state. **No frontend JavaScript** — the drag-and-drop is the WASM client talking to on-chain handlers.
+
+```bash
+cd examples/crm && dfx start --background && dfx deploy
+# open the printed http://<canister-id>.localhost:4943/  — drag a card between columns
+```
 
 ## Features
 
@@ -126,6 +133,9 @@ Additional examples — a todo list, a contact form, and a products CRUD — are
 - Secure forms with `bind="@model.field"`, signed HMAC-SHA256 tokens, and replay/expiry rejection.
 - Handler-side validation (`validate model { ... }`) with `<ValidationSummary />` and per-field errors.
 - Built-in semantic components — `Button`, `Card`, `Alert`, `Badge`, `InputText` / `InputEmail` / `InputNumber` / `TextArea`, `ValidationSummary`, `Table`, `PageHeader`, `Grid` — plus your own components in `src/Components/*.mview`.
+- Drag-and-drop: mark cards with `data-mv-drag` and drop zones with `data-mv-drop` / `data-mv-dropval`; a drop dispatches a typed Motoko handler — fully server-driven (see the CRM example).
+- Effects from handlers: call `toast("Saved")`, `animate("#panel", "pulse")`, `focusOn("#email")` or `scrollTo(...)` from `@code` and they ride back in the render batch.
+- Services & models: put real Motoko in `src/Services/*.mo` and `src/Models/*.mo`; the compiler imports them into the generated actor so page `@code` can call them.
 - The `motoview/1` protocol: server-rendered first load, batch-based sync with `changed` / `unchanged` / `redirect` / `validation-error` statuses, and content-hashed `batchId`s so unchanged batches skip re-rendering.
 - Adaptive polling: hot (~350ms after an interaction), warm (~2.5s while visible), cold (~15s when idle), hidden (~45s), and exponential backoff when offline — with event responses returning the new batch immediately.
 
@@ -135,7 +145,7 @@ Additional examples — a todo list, a contact form, and a products CRUD — are
 compiler/   Rust crate — the motoview binary (parses .mview, generates Motoko)
 runtime/    Motoko library (the "motoview" mops package) — serves HTTP from the canister
 client/     Rust → WebAssembly browser client + tiny hand-written JS glue (no bundler)
-examples/   counter, todo, contact, products
+examples/   counter, contact (secure form), crm (drag-and-drop Kanban)
 docs/        documentation
 site/        project site
 skills/      AI agent skills for working with MotoView
