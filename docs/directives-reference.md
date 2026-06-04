@@ -109,6 +109,13 @@ Print a value into the rendered HTML.
 | Field | `@user.name` | `Hello, @user.name` |
 | Count | `@count` | `Total: @count` |
 | Expression | `@(expr)` | `@(price * qty)` |
+| Raw HTML | `@raw(expr)` | `@raw(doc.html)` |
+
+`@user.name`, `@count` and `@(expr)` are **HTML-escaped** — safe by default.
+`@raw(expr)` emits the expression **without escaping**, for trusted server-side
+HTML (e.g. markdown you rendered yourself). The expression must already be
+`Text`. Never pass user input to `@raw` — it bypasses escaping. To print a
+literal `@`, write `@@`.
 
 ## Events
 

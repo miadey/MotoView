@@ -111,6 +111,15 @@ fn double_at_escapes_to_literal() {
 }
 
 #[test]
+fn raw_directive_emits_unescaped_html() {
+    let g = page("@page \"/\"\n<div>@raw(body)</div>\n@code { var body : Text = \"<b>hi</b>\"; }");
+    assert!(g.contains("b.raw(body)"), "@raw must emit b.raw (unescaped):\n{g}");
+    // the surrounding @expr default still escapes
+    let e = page("@page \"/\"\n<div>@body</div>\n@code { var body : Text = \"x\"; }");
+    assert!(e.contains("b.text(body)"), "@expr must still escape:\n{e}");
+}
+
+#[test]
 fn app_component_call_maps_props_and_defaults() {
     let models: HashMap<String, HashMap<String, String>> = HashMap::new();
     let mut comps: HashMap<String, CompInfo> = HashMap::new();

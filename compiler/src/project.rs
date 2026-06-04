@@ -52,7 +52,13 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
                 "  // shared, cross-page, canister-lifetime service instance\n  let {n} = {n}__mod.{n}();\n",
                 n = n
             ));
-            if content.contains("public func mvStableSave") {
+            // A real declaration starts its (trimmed) line — don't be fooled by
+            // the string occurring inside an embedded string literal or comment
+            // (e.g. a docs page that documents the persistence API).
+            if content
+                .lines()
+                .any(|l| l.trim_start().starts_with("public func mvStableSave"))
+            {
                 persistent_services.push(n.clone());
             }
         } else {
@@ -337,13 +343,16 @@ actor {{
 /// instance at actor scope (see `build`). Otherwise it is a stateless module.
 fn is_stateful_service(content: &str, name: &str) -> bool {
     let needle = format!("public class {}", name);
-    // match `public class Name(` or `public class Name (` / `public class Name<`
-    content
-        .match_indices(&needle)
-        .any(|(i, _)| {
-            let after = &content[i + needle.len()..];
-            matches!(after.chars().next(), Some('(') | Some(' ') | Some('<') | Some('\t') | Some('\n'))
-        })
+    // A real declaration starts its (trimmed) line — ignore the string occurring
+    // inside an embedded string literal/comment (e.g. a docs page about services).
+    content.lines().any(|l| {
+        let l = l.trim_start();
+        l.starts_with(&needle)
+            && matches!(
+                l[needle.len()..].chars().next(),
+                Some('(') | Some(' ') | Some('<') | Some('\t')
+            )
+    })
 }
 
 /// Path of a source file relative to the project dir (for `// mv:src` markers).

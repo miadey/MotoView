@@ -392,6 +392,19 @@ impl<'a> Codegen<'a> {
                     out.push_str(&format!("{}b.text({});\n", indent, self.as_text(e)));
                 }
             }
+            // `@raw(expr)` — trusted HTML, emitted without escaping. The
+            // expression is emitted verbatim and must be `Text` (else moc errors);
+            // we deliberately do NOT route through as_text (no debug_show wrap).
+            Node::Raw(e) => {
+                let e = e.trim();
+                // keep the layout `View.x` -> head-field convenience
+                let expr = if self.is_layout {
+                    e.strip_prefix("View.").map(|r| format!("mvHead.{}", r)).unwrap_or_else(|| e.to_string())
+                } else {
+                    e.to_string()
+                };
+                out.push_str(&format!("{}b.raw({});\n", indent, expr));
+            }
             Node::Yield => {
                 out.push_str(&format!("{}b.raw(mvBody);\n", indent));
             }

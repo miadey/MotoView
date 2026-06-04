@@ -98,17 +98,36 @@ module {
       };
       "/" # Text.join("/", pre.vals());
     };
-    // Entries committed into certified_data: static assets (exact), and pages
-    // marked @cacheable — non-parameterized routes exactly, parameterized routes
-    // as a wildcard over their static prefix (e.g. /u/{handle} -> /u/<*>).
+    // Wildcard prefixes contributed by parameterized @cacheable routes.
+    let wildPrefixes : [Text] = do {
+      let b = Buffer.Buffer<Text>(4);
+      for (p in pages.vals()) {
+        if (p.cacheable and Text.contains(p.route, #char '{')) { b.add(wildcardPrefix(p.route)) };
+      };
+      Buffer.toArray(b);
+    };
+    func isWildPrefix(path : Text) : Bool {
+      for (w in wildPrefixes.vals()) { if (w == path) { return true } };
+      false;
+    };
+    // The certified entry for a @cacheable page route (or null = serve via the
+    // always-correct update path). A page is certified as: a wildcard over its
+    // static prefix if parameterized; otherwise an exact entry — EXCEPT the root
+    // "/" and exact routes that collide with a wildcard prefix (e.g. /docs when
+    // /docs/{slug} exists). Those two response shapes are rejected by the IC
+    // boundary's response-verification today, so they fall back to update calls.
+    func certEntryFor(route : Text, path : Text) : ?CertV2.Entry {
+      if (Text.contains(route, #char '{')) { ?{ path = wildcardPrefix(route); wild = true } } else if (route == "/" or isWildPrefix(route)) {
+        null;
+      } else { ?{ path = path; wild = false } };
+    };
+    // Entries committed into certified_data: static assets + certifiable pages.
     let allCertPaths : [CertV2.Entry] = do {
       let b = Buffer.Buffer<CertV2.Entry>(certAssets.size() + 4);
       for (a in certAssets.vals()) { b.add({ path = a; wild = false }) };
       for (p in pages.vals()) {
         if (p.cacheable) {
-          if (Text.contains(p.route, #char '{')) { b.add({ path = wildcardPrefix(p.route); wild = true }) } else {
-            b.add({ path = p.route; wild = false });
-          };
+          switch (certEntryFor(p.route, p.route)) { case (?e) { b.add(e) }; case null {} };
         };
       };
       Buffer.toArray(b);
@@ -311,19 +330,21 @@ module {
             case null { null };
             case (?(page, params)) {
               if (not page.cacheable) { return null };
-              let (_, q) = Url.splitUrl(req.url);
-              let ctx = makeCtx("GET", path, Url.parsePairs(q), params, [], caller, "");
-              page.onLoad(ctx);
-              ignore page.takeRedirect();
-              let head = page.head(ctx);
-              let inner = page.render(ctx);
-              let bid = batchIdFor(path, head.title, inner);
-              let doc = renderDocument(page, ctx, head, inner, bid);
-              let base = [("content-type", "text/html"), ("cache-control", "no-store")];
-              let target : CertV2.Entry = if (Text.contains(page.route, #char '{')) {
-                { path = wildcardPrefix(page.route); wild = true };
-              } else { { path = path; wild = false } };
-              ?{ status_code = 200; headers = certHeaders(base, target, cert); body = Text.encodeUtf8(doc); upgrade = null };
+              switch (certEntryFor(page.route, path)) {
+                case null { null }; // not safely certifiable -> update path
+                case (?target) {
+                  let (_, q) = Url.splitUrl(req.url);
+                  let ctx = makeCtx("GET", path, Url.parsePairs(q), params, [], caller, "");
+                  page.onLoad(ctx);
+                  ignore page.takeRedirect();
+                  let head = page.head(ctx);
+                  let inner = page.render(ctx);
+                  let bid = batchIdFor(path, head.title, inner);
+                  let doc = renderDocument(page, ctx, head, inner, bid);
+                  let base = [("content-type", "text/html"), ("cache-control", "no-store")];
+                  ?{ status_code = 200; headers = certHeaders(base, target, cert); body = Text.encodeUtf8(doc); upgrade = null };
+                };
+              };
             };
           };
         };

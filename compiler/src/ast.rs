@@ -110,6 +110,9 @@ pub enum Node {
     Text(String),
     /// `@expr` — escaped output of a Motoko expression.
     Expr(String),
+    /// `@raw(expr)` — TRUSTED, unescaped HTML output (escape hatch). The
+    /// expression must already be `Text` of safe HTML; never use on user input.
+    Raw(String),
     If(Vec<IfBranch>),
     For {
         var: String,

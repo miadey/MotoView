@@ -404,6 +404,19 @@ impl Parser {
                         flush!();
                         nodes.push(self.parse_effect()?);
                     }
+                    "raw" => {
+                        // @raw(expr) — emit trusted HTML unescaped. Only a directive
+                        // when followed by `(`; otherwise `raw` is a normal @expr.
+                        flush!();
+                        self.consume_keyword();
+                        self.skip_spaces();
+                        if self.peek() == '(' {
+                            let e = self.read_paren_inner();
+                            nodes.push(Node::Raw(e));
+                        } else {
+                            nodes.push(Node::Expr("raw".to_string()));
+                        }
+                    }
                     _ => {
                         // @expr
                         flush!();
@@ -533,6 +546,37 @@ impl Parser {
             s.push(self.bump());
         }
         s
+    }
+
+    /// Read a balanced `( ... )` at the cursor, returning the trimmed inner text.
+    fn read_paren_inner(&mut self) -> String {
+        let mut depth = 0;
+        let mut s = String::new();
+        loop {
+            let c = self.peek();
+            if c == '\0' {
+                break;
+            }
+            if c == '(' {
+                depth += 1;
+                self.bump();
+                if depth == 1 {
+                    continue;
+                }
+            } else if c == ')' {
+                depth -= 1;
+                self.bump();
+                if depth == 0 {
+                    break;
+                }
+                s.push(')');
+                continue;
+            } else {
+                self.bump();
+            }
+            s.push(c);
+        }
+        s.trim().to_string()
     }
 
     /// Read an `@expr` (cursor at '@'). Supports `@(expr)` and member/call chains.
