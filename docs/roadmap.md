@@ -45,28 +45,42 @@ These ship in the current compiler and runtime:
 - **Forms, validation, security** — `secure` forms, `bind="@model.field"`, the `validate model { ... }` block, `<ValidationSummary />`, and per-field errors. See [Forms & Validation](forms.md) and [Security](security.md).
 - **Components** — capitalized app components in `src/Components/*.mview` plus built-ins (`Button`, `Card`, `Alert`, `Badge`, `InputText`, `InputEmail`, `InputNumber`, `TextArea`, `ValidationSummary`, `Table`, `PageHeader`, `Grid`). See [Components](components.md).
 - **The WASM client** — the browser "brain" (the `motoview/1` protocol, adaptive polling state machine, batch interpretation, event sequencing) is Rust compiled to WebAssembly, with a tiny hand-written JS glue for DOM, fetch, timers, and focus/scroll/input preservation. No npm, no bundler.
-- **Examples** — `todo`, `contact form`, and `products CRUD` are provided alongside the counter.
+- **Output** — escaped interpolation (`@count`, `@(expr)`) plus `@raw(expr)` for trusted, unescaped server-rendered HTML, and `@@` for a literal `@`.
+- **Tooling** — `motoview check` builds and type-checks the generated actor, mapping any `moc` error back to the originating `.mview` (not the generated `main.mo`). A parser/codegen regression suite runs with `make test`.
+- **Examples & apps** — `counter`, `contact` (secure form) and `crm` (drag-and-drop Kanban) under `examples/`; two full apps under `apps/` — **bzzz** (a Discord × X × forum × WhatsApp super-app) and **this site** (the docs + marketing site, itself a MotoView canister).
 
-### MVP transport note
+## Production features
 
-On the Internet Computer, `http_request` currently returns `upgrade = true`, so every request is served by `http_request_update`. This sidesteps query response-certification today. **Certified query rendering** for cacheable public pages is Roadmap (below).
+Built and verified end to end — locally and, where it matters, against the IC mainnet boundary (the playground):
+
+- **Upgrade-stable persistence** — a service exposing `mvStableSave()`/`mvStableLoad(Blob)` (a Candid round-trip) gets an auto-generated `stable var` plus `preupgrade`/`postupgrade` hooks, so its state survives `dfx deploy --mode upgrade`. See [Persistence](persistence.md).
+- **Internet Identity login** — hand-rolled, no npm and no agent-js: a browser IC agent makes one authenticated call, the runtime mints an httpOnly session cookie, and `ctx.caller` resolves from it. Served at `/mv-auth.js`; add `<button data-mv-signin>`. Includes per-principal session revocation.
+- **Certified query rendering** — static framework assets and pages marked `@cacheable` are served as fast **certified queries** (HTTP response-certification v2) instead of upgrading to an update call. Parameterized cacheable routes are covered by a single wildcard certificate (`/u/{handle}` → `/u/<*>`). Dynamic pages keep the consensus-validated update path.
+
+### Transport note
+
+By default `http_request` returns `upgrade = true`, so a request is served by `http_request_update` — consensus-validated, always fresh. Static assets and pages you mark `@cacheable` are the exception: they're served as certified queries (no consensus round-trip).
 
 ## Roadmap
 
 Not yet built. Do not design around these — they are labeled honestly as planned.
 
-**v2**
+**Next**
 
-- Keyed-region / granular DOM patches (today a changed batch swaps `#mv-root`).
-- Full Internet Identity login over HTTP and role stores backing `@authorize role="Admin"`.
-- Certified query rendering for cacheable public pages (removing the blanket `upgrade = true`).
+- **Keyed-region / granular DOM patches** — today a changed batch swaps the whole `#mv-root`; there is no diffing or keyed update. This is the biggest remaining gap for large pages.
+- **Role stores** backing `@authorize role="Admin"` — Internet Identity login ships, but role-based authorization stores do not yet.
+- **Certifying the root `/` and exact-vs-wildcard prefix collisions** — `@cacheable` works for most routes; the root path and an exact route that collides with a wildcard prefix (e.g. `/docs` alongside `/docs/{slug}`) are rejected by the boundary today and safely fall back to the update path.
+- **Model-type-directed `@expr` formatting** — `@expr` already renders correctly via a `debug_show` fallback; loop-var/cross-module field-type inference would refine the output.
 
-**v3**
+**Later**
 
 - vetKeys-encrypted state.
-- Desktop / mobile / tablet shells.
-- Visual designer.
-- Push adapter (server-initiated updates beyond adaptive polling).
+- Theme packages & design tokens (the `@theme` directive exists; shareable packages do not).
+- A richer animation engine (the `@effect` / `@animate` primitives exist).
+- A visual page designer.
+- More examples (blog/SEO, SVG network) and an offline-first cache layer.
+
+> **Realtime is not on this list.** The adaptive-polling render/event protocol *is* MotoView's communication layer; a canister cannot open a WebSocket without an external gateway. Polling is the design, not a placeholder.
 
 ## How to read a feature's status
 
@@ -74,8 +88,8 @@ When in doubt, the directive and CLI references describe only implemented behavi
 
 | Status | Meaning |
 | --- | --- |
-| Verified | Deployed and exercised in a real browser |
-| Implemented | In the compiler/runtime; documented with working snippets |
-| Roadmap (v2/v3) | Planned; not available |
+| Verified | Deployed and exercised in a real browser (or on the mainnet boundary) |
+| Implemented / Production | In the compiler/runtime; documented with working snippets |
+| Roadmap | Planned; not available |
 
 If something you need is on the Roadmap, that is a great place to contribute. The protocol is intentionally small and the brain/hands split keeps the surface area honest.
