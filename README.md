@@ -162,7 +162,6 @@ client/     Rust → WebAssembly browser client + tiny hand-written JS glue (no 
 examples/   counter, contact (secure form), crm (drag-and-drop Kanban)
 apps/       bzzz (reference super-app) and site (this docs + marketing site, itself a MotoView canister)
 docs/       documentation (markdown — the source the site renders)
-site/       legacy static-HTML generator (superseded by apps/site)
 skills/     AI agent skills for working with MotoView
 ```
 

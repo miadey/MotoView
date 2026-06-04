@@ -19,8 +19,8 @@ runtime/    the Motoko runtime library (mops)     -> serves HTTP from the canist
 client/     the browser client (Rust -> WASM)     -> the polling/protocol "brain"
             + glue/ (the minimal hand-written JS "hands")
 examples/   working example apps (counter, contact, ...)
-docs/       developer documentation (Markdown)
-site/       the marketing + docs website (static; built by site/build.py)
+apps/       bzzz (reference super-app) + site (the marketing/docs website, itself a MotoView canister)
+docs/       developer documentation (Markdown — the source apps/site renders)
 skills/     AI assistant skill files (Claude/Copilot/Cursor live in .github/.cursor)
 tools/      build + type-check helper scripts
 ```
@@ -32,7 +32,7 @@ make client      # build the Rust->WASM client and embed it into runtime/src/Cli
 make compiler    # build the `motoview` binary
 make check       # type-check the Motoko runtime with moc
 make example     # compile + deploy the counter to a local replica
-make site        # build the docs site into site/docs/
+make site        # regenerate + compile the docs/marketing site (apps/site)
 ```
 
 ## The architecture in one paragraph

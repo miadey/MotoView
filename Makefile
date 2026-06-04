@@ -3,7 +3,7 @@
 #   make client    build the Rust->WASM client and embed it in the runtime
 #   make compiler  build the `motoview` compiler (Rust)
 #   make example   compile + deploy the counter to the local replica (needs dfx)
-#   make site      build the documentation site into site/docs (needs python3)
+#   make site      regenerate + compile the docs/marketing site (apps/site)
 #   make check     type-check the Motoko runtime with moc
 #   make all       client + compiler
 
@@ -25,8 +25,9 @@ example: compiler
 	compiler/target/release/motoview build examples/counter --name counter
 	cd examples/counter && dfx deploy
 
-site:
-	cd site && python3 build.py
+site: compiler
+	python3 apps/site/tools/gen-docs.py
+	compiler/target/release/motoview build apps/site --name site
 
 check:
 	./tools/check.sh runtime/src/App.mo runtime/src/lib.mo
@@ -37,4 +38,3 @@ test:
 clean:
 	cargo clean --manifest-path compiler/Cargo.toml || true
 	cargo clean --manifest-path client/Cargo.toml || true
-	rm -rf site/docs/*.html site/docs/assets
