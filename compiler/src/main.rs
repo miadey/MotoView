@@ -159,8 +159,10 @@ fn cmd_compile(args: &[String]) -> i32 {
     match parser::parse(&source, &name, kind.clone()) {
         Ok(f) => {
             let models: HashMap<String, HashMap<String, String>> = HashMap::new();
-            let mut cg = codegen::Codegen::new(&models);
+            let components: HashMap<String, codegen::CompInfo> = HashMap::new();
+            let mut cg = codegen::Codegen::new(&models, &components);
             match kind {
+                ast::FileKind::Component => println!("{}", cg.gen_app_component(&f)),
                 ast::FileKind::Layout => println!("{}", cg.gen_layout(&f)),
                 _ => {
                     let pg = cg.gen_page(&f);

@@ -23,7 +23,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
 
     let page_files = list_mview(&pages_dir);
     let layout_files = list_mview(&layouts_dir);
-    let _component_files = list_mview(&components_dir);
+    let component_files = list_mview(&components_dir);
 
     // Service/Model modules (real Motoko) are imported into the generated actor
     // so page @code can call them (e.g. `Crm.all()`, `Crm.Deal`).
@@ -101,6 +101,29 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // Model type scanning is a roadmap feature; pass an empty registry for now.
     let models: HashMap<String, HashMap<String, String>> = HashMap::new();
 
+    // App components: parse src/Components/*.mview, register their params, and
+    // generate a render function per component. Pages then compile a `<Card .../>`
+    // tag to a call of `mvComponent_Card(...)`.
+    let mut components: HashMap<String, crate::codegen::CompInfo> = HashMap::new();
+    let mut parsed_components = Vec::new();
+    for cf in &component_files {
+        let name = file_stem(cf);
+        let source = fs::read_to_string(cf).map_err(|e| format!("{}: {}", cf.display(), e))?;
+        let file = parser::parse(&source, &name, FileKind::Component)?;
+        let slots = crate::codegen::collect_slot_names(&file.template);
+        components.insert(
+            name,
+            crate::codegen::CompInfo { params: file.code.params.clone(), slots },
+        );
+        parsed_components.push(file);
+    }
+    let mut component_funcs = String::new();
+    for file in &parsed_components {
+        let mut cg = Codegen::new(&models, &components);
+        component_funcs.push_str(&cg.gen_app_component(file));
+        component_funcs.push('\n');
+    }
+
     let mut page_objects = String::new();
     let mut page_records = String::new();
     let mut page_idents: Vec<String> = Vec::new();
@@ -110,7 +133,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let name = file_stem(pf);
         let source = fs::read_to_string(pf).map_err(|e| format!("{}: {}", pf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Page)?;
-        let mut cg = Codegen::new(&models);
+        let mut cg = Codegen::new(&models, &components);
         let pg = cg.gen_page(&file);
         page_objects.push_str(&pg.object_block);
         page_objects.push('\n');
@@ -125,7 +148,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let name = file_stem(lf);
         let source = fs::read_to_string(lf).map_err(|e| format!("{}: {}", lf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Layout)?;
-        let mut cg = Codegen::new(&models);
+        let mut cg = Codegen::new(&models, &components);
         layout_funcs.push_str(&cg.gen_layout(&file));
         layout_funcs.push('\n');
         layout_entries.push((name.clone(), format!("mvLayout_{}", name)));
@@ -146,6 +169,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         &extra_imports,
         &service_instances,
         &persistence,
+        &component_funcs,
     );
 
     if let Some(parent) = opts.out.parent() {
@@ -177,6 +201,7 @@ fn assemble(
     extra_imports: &str,
     service_instances: &str,
     persistence: &str,
+    component_funcs: &str,
 ) -> String {
     let pages_arr = page_idents.join(", ");
     let layouts_arr = layout_entries
@@ -250,6 +275,7 @@ actor {{
   // ---- shared service instances (stateful services) ----
 {service_instances}
 {persistence}
+{component_funcs}
 {page_objects}
 {page_records}
 {layout_funcs}
@@ -299,6 +325,7 @@ actor {{
         extra_imports = extra_imports,
         service_instances = service_instances,
         persistence = persistence,
+        component_funcs = component_funcs,
     )
 }
 

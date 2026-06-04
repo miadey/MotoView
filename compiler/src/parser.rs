@@ -105,6 +105,16 @@ impl Parser {
             if self.eof() {
                 break;
             }
+            // Bare top-level `param NAME : TYPE [= DEFAULT]` — component parameters
+            // (and any page-level params), declared outside @code.
+            if self.starts_with("param") && matches!(self.peek_at(5), ' ' | '\t') {
+                self.i += 5;
+                let line = self.read_line();
+                if let Some(pd) = parse_param_decl(line.trim()) {
+                    self.file.code.params.push(pd);
+                }
+                continue;
+            }
             if let Some(kw) = self.at_keyword() {
                 match kw.as_str() {
                     "page" | "layout" | "title" | "description" | "canonical" | "authorize"
