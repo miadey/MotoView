@@ -122,7 +122,7 @@ The runtime, the WASM client, and the `dfx` pipeline are **verified end to end**
 
 ```bash
 cd examples/crm && dfx start --background && dfx deploy
-# open the printed http://<canister-id>.localhost:4943/  — drag a card between columns
+# open the printed http://<canister-id>.localhost:4955/  — drag a card between columns
 ```
 
 ## Features

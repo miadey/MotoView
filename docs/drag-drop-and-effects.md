@@ -74,5 +74,5 @@ module {
 ```bash
 cd examples/crm
 dfx start --background && dfx deploy
-# open http://<canister-id>.localhost:4943/  and drag a card between columns
+# open http://<canister-id>.localhost:4955/  and drag a card between columns
 ```

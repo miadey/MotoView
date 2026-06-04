@@ -267,8 +267,10 @@ mod scaffold {
 "#;
 
     pub fn dfx_json(name: &str) -> String {
+        // Bind a dedicated local port (not dfx's default 4943) so `dfx start
+        // --clean` here never wipes other projects' replica state.
         format!(
-            "{{\n  \"version\": 1,\n  \"canisters\": {{\n    \"{}\": {{\n      \"type\": \"motoko\",\n      \"main\": \"src/main.mo\",\n      \"args\": \"--package motoview ../../runtime/src\"\n    }}\n  }}\n}}\n",
+            "{{\n  \"version\": 1,\n  \"canisters\": {{\n    \"{}\": {{\n      \"type\": \"motoko\",\n      \"main\": \"src/main.mo\",\n      \"args\": \"--package motoview ../../runtime/src\"\n    }}\n  }},\n  \"networks\": {{\n    \"local\": {{\n      \"bind\": \"127.0.0.1:4955\",\n      \"type\": \"ephemeral\"\n    }}\n  }}\n}}\n",
             name
         )
     }

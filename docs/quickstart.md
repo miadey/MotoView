@@ -51,7 +51,7 @@ motoview dev
 `motoview dev` compiles your `.mview` files to Motoko, deploys to a local `dfx` replica, and watches for changes. When it finishes, it prints the canister URL. Open it in your browser:
 
 ```
-http://<canister-id>.localhost:4943/
+http://<canister-id>.localhost:4955/
 ```
 
 The first load is plain server-rendered HTML — the page content lives in a `<div id="mv-root">`. That is what makes MotoView pages SEO-friendly: the markup arrives complete, then the WASM client takes over and keeps it in sync.

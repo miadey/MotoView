@@ -43,7 +43,7 @@ cd hello-counter</code></pre>
 <p>Start the dev loop:</p>
 <pre class="lang-bash"><code>motoview dev</code></pre>
 <p><code>motoview dev</code> compiles your <code>.mview</code> files to Motoko, deploys to a local <code>dfx</code> replica, and watches for changes. When it finishes, it prints the canister URL. Open it in your browser:</p>
-<pre class="lang-text"><code>http://&lt;canister-id&gt;.localhost:4943/</code></pre>
+<pre class="lang-text"><code>http://&lt;canister-id&gt;.localhost:4955/</code></pre>
 <p>The first load is plain server-rendered HTML — the page content lives in a <code>&lt;div id="mv-root"&gt;</code>. That is what makes MotoView pages SEO-friendly: the markup arrives complete, then the WASM client takes over and keeps it in sync.</p>
 <h2 id="the-counter-page">The Counter page</h2>
 <p>Open <code>src/Pages/Counter.mview</code>. It is the whole counter — template and logic in one file:</p>
