@@ -160,10 +160,10 @@ compiler/   Rust crate — the motoview binary (parses .mview, generates Motoko)
 runtime/    Motoko library (the "motoview" mops package) — serves HTTP from the canister
 client/     Rust → WebAssembly browser client + tiny hand-written JS glue (no bundler)
 examples/   counter, contact (secure form), crm (drag-and-drop Kanban)
-apps/        Bzzz — the reference super-app (Discord × X × forum × WhatsApp)
-docs/        documentation
-site/        project site
-skills/      AI agent skills for working with MotoView
+apps/       bzzz (reference super-app) and site (this docs + marketing site, itself a MotoView canister)
+docs/       documentation (markdown — the source the site renders)
+site/       legacy static-HTML generator (superseded by apps/site)
+skills/     AI agent skills for working with MotoView
 ```
 
 A typical generated project uses: `src/Pages/*.mview`, `src/Layouts/*.mview`, `src/Components/*.mview`, `src/Services/*.mo`, `src/Models/*.mo`, plus `motoview.json`, `dfx.json`, and `mops.toml`. The compiler emits a Motoko actor.
