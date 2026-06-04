@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Using AI (Claude, Copilot, Cursor) — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a class="active" href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="using-ai-claude-copilot-cursor">Using AI (Claude, Copilot, Cursor)</h1>
+<p>MotoView is a small framework, but it is an unusual one. You write <code>.mview</code> files, events run server-side, and there is no application JavaScript anywhere. General-purpose AI assistants do not know this. Left to their own training data, they will reach for React, sprinkle in <code>fetch</code>, invent directives, and reconstruct validation in the browser — exactly the patterns MotoView exists to remove.</p>
+<p>To fix that, MotoView ships <strong>assistant rule files</strong> in every scaffolded project. They teach Claude, GitHub Copilot, and Cursor the real shape of the framework so their suggestions match the facts instead of guessing.</p>
+<h2 id="where-the-rule-files-live">Where the rule files live</h2>
+<p><code>motoview new</code> writes three files, one per assistant, all sourced from the same canonical reference:</p>
+<pre class="lang-text"><code>skills/motoview/SKILL.md          # Claude / Claude Code skill
+.github/copilot-instructions.md   # GitHub Copilot
+.cursor/rules/motoview.mdc        # Cursor</code></pre>
+<p>They cover the same ground in each tool's expected format: the <code>.mview</code> file model, the directive list, the event flow, secure forms, the built-in components, and the protocol. Keeping them next to your code means they travel with the repository — clone it on another machine and the guidance comes along.</p>
+<h2 id="how-to-use-them">How to use them</h2>
+<p>In most cases you do nothing. Each assistant picks its file up automatically.</p>
+<ul><li><strong>Claude / Claude Code</strong> — discovers <code>skills/motoview/SKILL.md</code> and loads it as a skill when you work in a MotoView project.</li><li><strong>GitHub Copilot</strong> — reads <code>.github/copilot-instructions.md</code> and applies it to completions and Copilot Chat across the workspace.</li><li><strong>Cursor</strong> — applies <code>.cursor/rules/motoview.mdc</code> as a project rule for inline edits and chat.</li></ul>
+<p>If your assistant supports manual context, point it at the relevant file directly, for example "follow <code>skills/motoview/SKILL.md</code>". When you upgrade the compiler, re-run the scaffold (or copy the latest files from a fresh <code>motoview new</code>) so the rules track the current directive set.</p>
+<h2 id="what-the-rules-prevent">What the rules prevent</h2>
+<p>The single most useful thing these files do is keep an assistant from "helpfully" adding a frontend. With the rules loaded, you get suggestions like this:</p>
+<pre class="lang-razor"><code>@page "/counter"
+
+@code {
+  var count : Nat = 0;
+  func increment() { count += 1; };
+}
+
+&lt;p&gt;Count: @count&lt;/p&gt;
+&lt;Button kind="primary" @click="increment"&gt;Increment&lt;/Button&gt;</code></pre>
+<p>instead of a <code>useState</code> hook and an <code>onClick</code> that POSTs JSON. Handler arguments are evaluated server-side, so the assistant learns to write <code>@click="remove(item.id)"</code> rather than wiring up a client listener. For the full event flow see <a href="events.html">Events</a>; for signed forms and <code>validate</code>, see <a href="forms.html">Forms</a> and <a href="validation.html">Validation</a>.</p>
+<h2 id="directive-cheat-sheet">Directive cheat-sheet</h2>
+<p>This is the table the rule files lean on. Keep it nearby — it is also the fastest way to sanity-check an AI suggestion.</p>
+<pre class="lang-text"><code>Page &amp; metadata
+  @page "/path"            route ("/products/{id}", typed "/orders/{id:Nat}")
+  @layout NAME             choose a layout
+  @title / @description    head metadata
+  @canonical / @meta       canonical URL / extra meta tags
+  @head                    inject into &lt;head&gt;
+
+Structure
+  @code { ...Motoko... }   state and handlers
+  @style { ...css... }     scoped styles
+  @theme { tokens }        design tokens
+  @section "name" { }      named content for a layout
+  @yield                   render the page body in a layout
+  @slot "name"             component slot
+
+Control flow
+  @if EXPR { } else { }    conditional
+  @for X in EXPR { }       loop
+  @switch EXPR {           variant match
+    case #Variant { } }
+
+Output &amp; effects
+  @count  @user.name  @(expr)   inline output
+  @effect Focus("#x")           also ScrollTo, Toast
+  @animate                      transition hint
+
+Events
+  @click="save"            @click="save(arg)"
+  @submit="send"           @input="onType"   @change
+
+Access control
+  @authorize               @authorize role="Admin"</code></pre>
+<p>For secure forms, the rules also remind the assistant to add the <code>secure</code> attribute and <code>bind="@model.field"</code>:</p>
+<pre class="lang-razor"><code>&lt;form @submit="send" secure&gt;
+  &lt;InputText name="name" label="Name" bind="@model.name" required /&gt;
+  &lt;ValidationSummary /&gt;
+  &lt;Button kind="primary"&gt;Save&lt;/Button&gt;
+&lt;/form&gt;</code></pre>
+<pre class="lang-motoko"><code>func send() {
+  validate model {
+    name required "Name is required";
+  };
+  // persist...
+};</code></pre>
+<h2 id="a-note-on-honesty">A note on honesty</h2>
+<p>The rule files describe what is built and verified, and they mark planned work — keyed-region DOM patches, full Internet Identity login, certified query rendering — as Roadmap. If an assistant suggests one of those as if it exists today, that is a hallucination, not a feature. Trust the cheat-sheet and the rules over the model's instincts.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="cli.html">← CLI Reference</a><a class="next" href="directives-reference.html">Directive Reference →</a></div>
+  </main>
+</div>
+</body>
+</html>

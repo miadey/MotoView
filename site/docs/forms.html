@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forms — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a class="active" href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="forms">Forms</h1>
+<p>Forms in MotoView are plain HTML wired straight to typed Motoko handlers. You bind inputs to a model, submit to a server-side function, and validate without writing a single line of frontend JavaScript. The browser synchronizes the result through the same batch protocol that powers every other <a href="events.html">event</a>.</p>
+<h2 id="building-a-form">Building a form</h2>
+<p>A form declares the handler that runs on submit and binds each input to a field on a <code>@code</code> model. Use <code>bind="@model.field"</code> to connect an input to state — MotoView renders the current value into the input and routes changes back into your model.</p>
+<pre class="lang-razor"><code>@page "/contact"
+@title "Contact us"
+
+@code {
+  type Message = { name : Text; email : Text; body : Text };
+  var model : Message = { name = ""; email = ""; body = "" };
+  var sent : Bool = false;
+
+  func send() : async () {
+    validate model {
+      name required "Please tell us your name";
+      email required email "A valid email is required";
+      body required "Message can't be empty";
+    };
+    // persist, notify, etc.
+    sent := true;
+  };
+}
+
+@if sent {
+  &lt;Alert type="success"&gt;Thanks — we'll be in touch.&lt;/Alert&gt;
+} else {
+  &lt;form @submit="send" secure&gt;
+    &lt;ValidationSummary /&gt;
+    &lt;InputText  name="name"  label="Name"  bind="@model.name" required /&gt;
+    &lt;InputEmail name="email" label="Email" bind="@model.email" required /&gt;
+    &lt;TextArea   name="body"  label="Message" bind="@model.body" required minLength={10} /&gt;
+    &lt;Button kind="primary"&gt;Send message&lt;/Button&gt;
+  &lt;/form&gt;
+}</code></pre>
+<p>That is the whole contact form: markup, model, and handler in one <code>.mview</code> file. On submit the client POSTs the field values to <code>/_motoview/event</code>, the server hydrates <code>model</code>, runs <code>send</code>, and returns a fresh batch. If everything passes, the success branch renders; the DOM swaps without a full page reload.</p>
+<h2 id="bind-model-x">bind="@model.x"</h2>
+<p><code>bind</code> is two-way. On render, MotoView writes <code>model.x</code> into the input's value. On submit, the posted form fields are decoded back onto the model before your handler runs, so inside <code>send</code> you read <code>model.name</code>, <code>model.email</code>, and so on directly. The built-in input components (<code>InputText</code>, <code>InputEmail</code>, <code>InputNumber</code>, <code>TextArea</code>) accept <code>bind</code> alongside <code>name</code>, <code>label</code>, <code>required</code>, and <code>minLength</code>, so you avoid hand-writing <code>&lt;input&gt;</code> markup and class strings. Prefer them over raw elements.</p>
+<h2 id="validation">Validation</h2>
+<p>Call <code>validate</code> inside the handler with one rule line per field:</p>
+<pre class="lang-motoko"><code>validate model {
+  name  required "Name is required";
+  email required email;
+  price min 1 "Price must be at least 1";
+};</code></pre>
+<p>When a rule fails, the errors are returned in the batch and the page re-renders with them in place — no exception, no lost input. Surface them with <code>&lt;ValidationSummary /&gt;</code> for a grouped list, and per-field messages appear next to the bound inputs automatically. Because validation lives in your Motoko handler, there is no duplicated client/server logic to keep in sync.</p>
+<h2 id="the-secure-attribute">The <code>secure</code> attribute</h2>
+<p>Add <code>secure</code> to a form and MotoView mints a signed token when the form is rendered:</p>
+<pre class="lang-razor"><code>&lt;form @submit="send" secure&gt;</code></pre>
+<p>The token is an <strong>HMAC-SHA256</strong> MAC binding the request path, the handler, the caller principal, a nonce, an expiry, and a hash of the field schema. On submit the server re-derives the MAC from the incoming request and compares. This protects against:</p>
+<ul><li><strong>Tampering</strong> — changing the handler, path, or submitted field set breaks the schema/handler binding, so the MAC won't match.</li><li><strong>Cross-context replay</strong> — the token is bound to the caller principal and the specific form, so a token minted for one user or page can't be reused elsewhere.</li><li><strong>Replay &amp; stale submits</strong> — the nonce and expiry cause repeated or late submissions to be rejected.</li></ul>
+<p>Mismatched, expired, and replayed tokens are all refused before your handler runs. SHA-256 and HMAC are implemented in Motoko and verified against the standard test vectors, so the guarantee is real, not decorative.</p>
+<p>Use <code>secure</code> on any form that mutates state or accepts untrusted input. For forms that only read or filter, you can omit it.</p>
+<h2 id="next-steps">Next steps</h2>
+<ul><li>Learn how handler arguments are evaluated in <a href="events.html">Events</a>.</li><li>Compose richer inputs with the built-in <a href="components.html">Components</a>.</li></ul>
+    </article>
+    <div class="mv-pager"><a class="prev" href="events.html">← Events</a><a class="next" href="validation.html">Validation →</a></div>
+  </main>
+</div>
+</body>
+</html>

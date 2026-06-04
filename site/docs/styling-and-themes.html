@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Styling &amp; Themes — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a class="active" href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="styling-themes">Styling &amp; Themes</h1>
+<p>MotoView gives you three levels of styling, and the trick to a clean codebase is knowing which one to reach for. Start with semantic components for everyday UI, drop into <code>@style</code> when a page needs something specific, and use <code>@theme</code> tokens to set the colors, spacing, and fonts that everything else inherits.</p>
+<p>The goal is simple: write expressive markup, not utility-class soup.</p>
+<h2 id="level-1-semantic-components">Level 1: Semantic components</h2>
+<p>Most of your UI is buttons, cards, alerts, inputs, and tables. MotoView ships these as built-in components so you describe <em>what</em> a thing is, not <em>how</em> to draw it.</p>
+<pre class="lang-razor"><code>@page "/dashboard"
+
+&lt;PageHeader&gt;Dashboard&lt;/PageHeader&gt;
+
+&lt;Card title="Account"&gt;
+  &lt;Badge type="success"&gt;Active&lt;/Badge&gt;
+  &lt;p&gt;You have @invoices.size() open invoices.&lt;/p&gt;
+  &lt;Button kind="primary" size="lg" @click="renew"&gt;Renew plan&lt;/Button&gt;
+&lt;/Card&gt;
+
+&lt;Alert type="warning"&gt;Your trial ends in 3 days.&lt;/Alert&gt;</code></pre>
+<p>Compare that to a wall of class names. The component carries the styling, and the styling stays consistent everywhere it's used. Built-in components include <code>Button</code> (<code>kind</code>, <code>size</code>), <code>Card</code> (<code>title</code>), <code>Alert</code> and <code>Badge</code> (<code>type</code>), the inputs <code>InputText</code> / <code>InputEmail</code> / <code>InputNumber</code> / <code>TextArea</code>, plus <code>ValidationSummary</code>, <code>Table</code>, <code>PageHeader</code>, and <code>Grid</code> (<code>columns</code>).</p>
+<p>When you need your own reusable piece, build a component in <code>src/Components/</code> — see <a href="components.html">Components</a>.</p>
+<h2 id="level-2-style-local-css">Level 2: <code>@style</code> local CSS</h2>
+<p>When a page needs styling that doesn't belong in a shared component, use a <code>@style</code> block. The CSS is scoped to that page, so you can write plain selectors without worrying about collisions.</p>
+<pre class="lang-razor"><code>@page "/pricing"
+
+&lt;div class="plans"&gt;
+  @for plan in plans {
+    &lt;Card title="@plan.name"&gt;
+      &lt;span class="price"&gt;@plan.price&lt;/span&gt;
+    &lt;/Card&gt;
+  }
+&lt;/div&gt;
+
+@style {
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  .price {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--mv-color-primary);
+  }
+}</code></pre>
+<p>Notice the <code>var(--mv-color-primary)</code> reference — local CSS should still read from theme tokens so a single theme change updates the whole app.</p>
+<h2 id="level-3-theme-tokens">Level 3: <code>@theme</code> tokens</h2>
+<p><code>@theme</code> defines the CSS variables that power semantic components and your <code>@style</code> blocks. Set these once — usually in a <a href="layouts.html">layout</a> — and everything inherits.</p>
+<pre class="lang-razor"><code>@theme {
+  --mv-color-primary: #2563eb;
+  --mv-color-success: #16a34a;
+  --mv-color-warning: #d97706;
+  --mv-color-bg:      #ffffff;
+  --mv-color-text:    #1f2937;
+  --mv-radius:        0.5rem;
+  --mv-font:          system-ui, sans-serif;
+}</code></pre>
+<p>Because tokens are ordinary CSS custom properties, changing a brand color is a one-line edit, not a search-and-replace through your markup.</p>
+<h2 id="the-default-theme-and-dark-mode">The default theme and dark mode</h2>
+<p>A new project from <code>motoview new</code> comes with a default theme already wired up, so the counter and other starter examples render cleanly before you change a thing. The compiled assets — including the framework stylesheet — are served by the canister at <code>/motoview.css</code> alongside <code>/motoview.wasm</code> and <code>/motoview.js</code>.</p>
+<p>Dark mode is just a second set of token values under a media query in your <code>@theme</code> block:</p>
+<pre class="lang-razor"><code>@theme {
+  --mv-color-bg:   #ffffff;
+  --mv-color-text: #1f2937;
+
+  @media (prefers-color-scheme: dark) {
+    --mv-color-bg:   #0f172a;
+    --mv-color-text: #e2e8f0;
+  }
+}</code></pre>
+<p>Semantic components and any <code>@style</code> that reads tokens flip automatically — no JavaScript, no extra wiring.</p>
+<h2 id="avoiding-utility-class-soup">Avoiding utility-class soup</h2>
+<p>The pattern across all three levels is the same: push styling decisions <em>down</em> into tokens and components, and keep your markup describing intent.</p>
+<pre class="lang-razor"><code>@* Reach for this *@
+&lt;Button kind="primary" size="lg"&gt;Save&lt;/Button&gt;
+
+@* Not this *@
+&lt;button class="inline-flex items-center px-4 py-2 rounded-md
+  bg-blue-600 text-white font-medium hover:bg-blue-700"&gt;Save&lt;/button&gt;</code></pre>
+<p>A rule of thumb:</p>
+<ul><li><strong>Semantic component</strong> if it's a common UI element — let the component own the look.</li><li><strong><code>@style</code></strong> if it's genuinely page-specific layout or one-off styling.</li><li><strong><code>@theme</code></strong> for anything visual you'd want to change in one place: colors, spacing scale, radius, fonts.</li></ul>
+<p>Build and deploy as usual:</p>
+<pre class="lang-bash"><code>motoview build
+motoview dev</code></pre>
+<p>When you're ready to make pages interactive, head to <a href="events.html">Events</a> and <a href="forms-and-validation.html">Forms &amp; Validation</a>.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="state.html">← State</a><a class="next" href="svg.html">SVG Interfaces →</a></div>
+  </main>
+</div>
+</body>
+</html>

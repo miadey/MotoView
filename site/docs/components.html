@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Components — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a class="active" href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="components">Components</h1>
+<p>Components let you carve a page into small, reusable pieces of markup and logic. In MotoView, a component is just another <code>.mview</code> file — same template syntax, same <code>@code</code> block, same Motoko underneath. If you can write a page, you can write a component.</p>
+<p>In your templates, <strong>any capitalized tag is a component</strong>. A lowercase tag like <code>&lt;div&gt;</code> is plain HTML; a capitalized tag like <code>&lt;Card&gt;</code> resolves to a component.</p>
+<h2 id="authoring-a-component">Authoring a component</h2>
+<p>App components live in <code>src/Components/*.mview</code>. The file name is the tag name. A component called <code>Greeting</code> lives at <code>src/Components/Greeting.mview</code>:</p>
+<pre class="lang-razor"><code>@code {
+  param name : Text;
+}
+
+&lt;p&gt;Hello, @name!&lt;/p&gt;</code></pre>
+<p>That's the whole contract: declare what comes in with <code>param</code>, then render markup that uses it.</p>
+<h2 id="declaring-params">Declaring params</h2>
+<p>A component receives data through <code>param</code> declarations inside its <code>@code</code> block. Each <code>param</code> names a typed Motoko value the parent must — or may — provide:</p>
+<pre class="lang-razor"><code>@code {
+  param title : Text;
+  param count : Nat;
+}
+
+&lt;section&gt;
+  &lt;h2&gt;@title&lt;/h2&gt;
+  &lt;p&gt;@count items&lt;/p&gt;
+&lt;/section&gt;</code></pre>
+<h3 id="defaults">Defaults</h3>
+<p>Give a <code>param</code> a default with <code>=</code>. Params with a default are optional; the parent can omit them.</p>
+<pre class="lang-razor"><code>@code {
+  param label : Text = "Save";
+  param disabled : Bool = false;
+}
+
+&lt;button disabled=@disabled&gt;@label&lt;/button&gt;</code></pre>
+<p>Because params are typed Motoko values, the compiler checks them. Pass the wrong type and the build fails — you find out at <code>motoview build</code>, not in the browser.</p>
+<h2 id="passing-props">Passing props</h2>
+<p>Set props as attributes on the capitalized tag. The attribute name matches the <code>param</code> name:</p>
+<pre class="lang-razor"><code>&lt;Greeting name="Ada" /&gt;
+
+&lt;section title="Inbox" count=@unread /&gt;</code></pre>
+<p>String literals go in quotes; to pass a Motoko expression, use the <code>@</code> prefix or <code>@(...)</code>:</p>
+<pre class="lang-razor"><code>&lt;Greeting name=@user.firstName /&gt;
+&lt;section title="Orders" count=@(orders.size()) /&gt;</code></pre>
+<p>Handler arguments and event wiring follow the same rules everywhere — see <a href="events.html">Events</a> for how <code>@click</code> and friends behave inside components.</p>
+<h2 id="default-content-with-yield">Default content with @yield</h2>
+<p>A component can wrap content the parent puts between its tags. Render that content with <code>@yield</code>:</p>
+<pre class="lang-razor"><code>@code {
+  param title : Text;
+}
+
+&lt;article class="card"&gt;
+  &lt;h3&gt;@title&lt;/h3&gt;
+  &lt;div class="card-body"&gt;
+    @yield
+  &lt;/div&gt;
+&lt;/article&gt;</code></pre>
+<p>Now the parent nests freely:</p>
+<pre class="lang-razor"><code>&lt;Panel title="Profile"&gt;
+  &lt;p&gt;Signed in as @user.name&lt;/p&gt;
+  &lt;Button kind="primary"&gt;Edit&lt;/Button&gt;
+&lt;/Panel&gt;</code></pre>
+<p>Everything between <code>&lt;Panel&gt;</code> and <code>&lt;/Panel&gt;</code> lands where <code>@yield</code> sits.</p>
+<h2 id="named-slots-with-slot">Named slots with @slot</h2>
+<p>When a component has more than one region to fill — say a header and a footer — declare named slots. Inside the component, mark the regions with <code>@slot "name"</code>:</p>
+<pre class="lang-razor"><code>&lt;div class="dialog"&gt;
+  &lt;header&gt;@slot "header"&lt;/header&gt;
+  &lt;div class="dialog-body"&gt;@yield&lt;/div&gt;
+  &lt;footer&gt;@slot "footer"&lt;/footer&gt;
+&lt;/div&gt;</code></pre>
+<p>The parent targets each slot with <code>@section</code>:</p>
+<pre class="lang-razor"><code>&lt;Dialog&gt;
+  @section "header" {
+    &lt;h2&gt;Confirm delete&lt;/h2&gt;
+  }
+
+  &lt;p&gt;This action cannot be undone.&lt;/p&gt;
+
+  @section "footer" {
+    &lt;Button kind="danger"&gt;Delete&lt;/Button&gt;
+    &lt;Button&gt;Cancel&lt;/Button&gt;
+  }
+&lt;/Dialog&gt;</code></pre>
+<p>Content not wrapped in a <code>@section</code> flows into the default <code>@yield</code>. The same <code>@section</code> / <code>@yield</code> mechanism powers layouts — see <a href="layouts.html">Layouts</a>.</p>
+<h2 id="built-in-semantic-components">Built-in semantic components</h2>
+<p>MotoView ships a set of semantic components so you reach for meaning, not utility-class soup. Write <code>&lt;Button kind="primary"&gt;Save&lt;/Button&gt;</code>, not a wall of classes.</p>
+<ul><li><strong><code>Button</code></strong> — <code>kind</code>, <code>size</code></li><li><strong><code>Card</code></strong> — <code>title</code></li><li><strong><code>Alert</code></strong> — <code>type</code></li><li><strong><code>Badge</code></strong> — <code>type</code></li><li><strong><code>InputText</code></strong>, <strong><code>InputEmail</code></strong>, <strong><code>InputNumber</code></strong>, <strong><code>TextArea</code></strong> — <code>name</code>, <code>label</code>, <code>bind</code>, <code>required</code>, <code>minLength</code></li><li><strong><code>ValidationSummary</code></strong></li><li><strong><code>Table</code></strong></li><li><strong><code>PageHeader</code></strong></li><li><strong><code>Grid</code></strong> — <code>columns</code></li></ul>
+<p>A small example:</p>
+<pre class="lang-razor"><code>&lt;Card title="New product"&gt;
+  &lt;InputText name="name" label="Name" bind="@model.name" required /&gt;
+  &lt;InputNumber name="price" label="Price" bind="@model.price" /&gt;
+  &lt;ValidationSummary /&gt;
+  &lt;Button kind="primary" size="lg"&gt;Create&lt;/Button&gt;
+&lt;/Card&gt;</code></pre>
+<p>The form-oriented inputs pair with <code>bind=</code> and handler-side validation — see <a href="forms.html">Forms &amp; Validation</a> for the full flow.</p>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul><li><a href="events.html">Events</a> — wiring <code>@click</code>, <code>@submit</code>, and friends.</li><li><a href="layouts.html">Layouts</a> — <code>@section</code> / <code>@yield</code> at the page level.</li><li><a href="forms.html">Forms &amp; Validation</a> — secure forms and the built-in inputs.</li></ul>
+    </article>
+    <div class="mv-pager"><a class="prev" href="layouts.html">← Layouts</a><a class="next" href="control-flow.html">Control Flow →</a></div>
+  </main>
+</div>
+</body>
+</html>

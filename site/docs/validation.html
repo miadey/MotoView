@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validation — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a class="active" href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="validation">Validation</h1>
+<p>Validation in MotoView runs where your data lives: inside your Motoko handlers, on the canister. There is no client-side validation library to keep in sync, no duplicated rules, and no JavaScript. You declare your rules once, and when they fail the server re-renders the page with the errors attached to the very batch the browser is already polling for.</p>
+<p>If you have not read <a href="forms.html">Forms</a> and <a href="events.html">Events</a> yet, start there — validation is the natural next step once a <code>@submit</code> handler is receiving a bound model.</p>
+<h2 id="the-validate-block">The <code>validate</code> block</h2>
+<p>Inside a handler, call <code>validate</code> against your model. Each line is a field name, one or more rules, and an optional custom message.</p>
+<pre class="lang-motoko"><code>@code {
+  var model = { name = ""; email = ""; price = 0 };
+
+  public func send() : async () {
+    validate model {
+      name required "Name is required";
+      email required email;
+      price min 1 "Price must be at least 1";
+    };
+
+    // Reached only when every rule passes.
+    await Store.save(model);
+  };
+}</code></pre>
+<p>When any rule fails, MotoView stops the handler, collects the failures, and returns a batch with status <code>validation-error</code>. Your <code>await Store.save(...)</code> never runs. The browser receives the batch, swaps <code>#mv-root</code>, and the page is now showing your errors — same render path as any other update.</p>
+<h2 id="rule-syntax">Rule syntax</h2>
+<p>Rules are written after the field name, separated by spaces. A trailing string literal is the custom message for that field.</p>
+<pre class="lang-motoko"><code>validate model {
+  name     required "Name is required";
+  email    required email;
+  bio      minLength 10 "Tell us a little more";
+  price    min 1 "Price must be at least 1";
+}</code></pre>
+<p>Built-in rules:</p>
+<table class="mv-doc-table"><thead><tr><th>Rule</th><th>Checks</th></tr></thead><tbody><tr><td><code>required</code></td><td>The field is present and not empty.</td></tr><tr><td><code>email</code></td><td>The value is a syntactically valid email address.</td></tr><tr><td><code>min N</code></td><td>A numeric field is at least <code>N</code>.</td></tr><tr><td><code>minLength N</code></td><td>A text field has at least <code>N</code> characters.</td></tr></tbody></table>
+<p>When you omit the message, MotoView supplies a sensible default. When you provide one, it is used verbatim — so write it the way you want the user to read it.</p>
+<h2 id="showing-all-errors-with-validationsummary">Showing all errors with <code>ValidationSummary</code></h2>
+<p>Drop <code>&lt;ValidationSummary /&gt;</code> anywhere in your template to render every current error as a list. It produces nothing when there are no errors, so it is safe to leave in place permanently.</p>
+<pre class="lang-razor"><code>@page "/products/new"
+
+&lt;form @submit="send" secure&gt;
+  &lt;ValidationSummary /&gt;
+
+  &lt;InputText  name="name"  label="Name"  bind="@model.name" /&gt;
+  &lt;InputEmail name="email" label="Email" bind="@model.email" /&gt;
+  &lt;InputNumber name="price" label="Price" bind="@model.price" /&gt;
+
+  &lt;Button kind="primary"&gt;Save&lt;/Button&gt;
+&lt;/form&gt;</code></pre>
+<h2 id="per-field-errors">Per-field errors</h2>
+<p>Errors are also keyed by field, so you can place messages next to the input that produced them. The <code>InputText</code>, <code>InputEmail</code>, <code>InputNumber</code>, and <code>TextArea</code> components render their own field error automatically when one exists for their <code>name</code>, so the markup above already shows inline messages without extra wiring.</p>
+<p>The bound values survive the round trip: when the batch re-renders, each input is repopulated from the model, so the user never loses what they typed while fixing the one field that failed.</p>
+<h2 id="the-re-render-with-errors-flow">The re-render-with-errors flow</h2>
+<p>Validation rides the same protocol as every other interaction:</p>
+<ol><li>The user submits the form. The browser POSTs to <code>/_motoview/event</code>, handled by <code>http_request_update</code>.</li><li>Your handler runs <code>validate</code>. A rule fails.</li><li>MotoView halts the handler and builds a batch with status <code>validation-error</code>, carrying the error map and the freshly rendered HTML.</li><li>The response returns that batch immediately — no waiting for the next poll.</li><li>The WASM client swaps <code>#mv-root</code>. <code>&lt;ValidationSummary /&gt;</code> and per-field messages appear; inputs keep their values.</li></ol>
+<p>Because the errors travel inside an ordinary batch, focus, scroll position, and in-progress input are preserved exactly as they are for any other update. See the <a href="protocol.html">Protocol</a> page for the full batch shape and status values.</p>
+<h2 id="validation-and-secure">Validation and <code>secure</code></h2>
+<p>Use <code>validate</code> together with the <code>secure</code> form attribute. The signed token rejects tampered, expired, and replayed submissions before your handler runs; <code>validate</code> then enforces that the data itself is well-formed. The two are complementary — see <a href="forms.html">Forms</a> for how <code>secure</code> mints and verifies its token.</p>
+<pre class="lang-razor"><code>&lt;form @submit="send" secure&gt;
+  &lt;ValidationSummary /&gt;
+  &lt;InputText name="name" label="Name" bind="@model.name" /&gt;
+  &lt;Button kind="primary"&gt;Save&lt;/Button&gt;
+&lt;/form&gt;</code></pre>
+<p>With that, every rule lives in one place, runs on the canister, and the browser stays in sync through the same versioned batches it already speaks.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="forms.html">← Forms</a><a class="next" href="state.html">State →</a></div>
+  </main>
+</div>
+</body>
+</html>

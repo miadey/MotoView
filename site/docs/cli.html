@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLI Reference — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a class="active" href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="cli-reference">CLI Reference</h1>
+<p>The <code>motoview</code> binary is your single entry point for scaffolding, compiling, and deploying a MotoView app. It is a Rust crate you install with <code>cargo</code>, and it speaks to <code>dfx</code> under the hood for the deploy step. There is no Node, no npm, and no JavaScript build tooling anywhere in the pipeline — that is the point.</p>
+<pre class="lang-bash"><code>motoview &lt;command&gt; [options]</code></pre>
+<p>All commands run from your project root, where <code>motoview.json</code>, <code>dfx.json</code>, and <code>mops.toml</code> live.</p>
+<h2 id="motoview-new">motoview new</h2>
+<p>Scaffold a new project.</p>
+<pre class="lang-bash"><code>motoview new my-shop</code></pre>
+<p>This creates the standard <a href="getting-started.html">project layout</a>: <code>src/Pages/</code>, <code>src/Layouts/</code>, <code>src/Components/</code>, <code>src/Services/</code>, <code>src/Models/</code>, plus <code>motoview.json</code>, <code>dfx.json</code>, and <code>mops.toml</code>. It wires the runtime (the <code>motoview</code> mops package) so the generated actor can serve HTTP, and it drops in a working starter page so your first <code>motoview dev</code> shows something real in the browser.</p>
+<h2 id="motoview-build">motoview build</h2>
+<p>Compile every <code>.mview</code> file in <code>src/</code> to Motoko.</p>
+<pre class="lang-bash"><code>motoview build</code></pre>
+<p><code>build</code> is the heart of the toolchain. It parses your templates and <code>@code { ... }</code> blocks and emits a Motoko actor (under <code>src/Generated/</code>, with the entry actor as <code>src/main.mo</code>). It does <strong>not</strong> deploy — use it in CI or when you want to inspect generated Motoko before shipping.</p>
+<h3 id="the-build-pipeline">The build pipeline</h3>
+<p>Each <code>motoview build</code> runs these steps in order:</p>
+<ol><li><strong>Discover</strong> all <code>.mview</code> files in <code>src/Pages</code>, <code>src/Layouts</code>, and <code>src/Components</code>.</li><li><strong>Parse</strong> template markup and directives — <code>@page</code>, <code>@layout</code>, <code>@code</code>, <code>@if</code>, <code>@for</code>, <code>@switch</code>, components, and the inline <code>@expr</code> outputs.</li><li><strong>Resolve routes</strong> from <code>@page "/path"</code> directives, including parameterized routes like <code>@page "/orders/{id:Nat}"</code>.</li><li><strong>Type-bind handlers</strong>: each <code>@click="save"</code> / <code>@submit="send"</code> is matched to a typed Motoko function, and handler arguments are lowered into <code>data-mv-arg*</code> attributes so the WASM client can forward <code>handlerId + args</code>.</li><li><strong>Generate Motoko</strong>: render functions, the event dispatcher, and the <a href="protocol.html"><code>motoview/1</code> protocol</a> wiring (<code>http_request</code> / <code>http_request_update</code>, the <code>/_motoview/render</code> and <code>/_motoview/event</code> endpoints).</li><li><strong>Write output</strong> to <code>src/Generated/</code> and the <code>src/main.mo</code> actor.</li></ol>
+<p>If a template references a handler that does not exist, or a <code>bind="@model.field"</code> points at an unknown field, the build fails here with a clear error — before you ever reach the replica.</p>
+<h2 id="motoview-dev">motoview dev</h2>
+<p>Build, deploy locally, and watch.</p>
+<pre class="lang-bash"><code>motoview dev</code></pre>
+<p>This is your day-to-day loop. It runs <code>motoview build</code>, hands the generated Motoko to <code>dfx</code> for a local deploy, and then watches your <code>.mview</code> files. Edit a page, save, and the project recompiles and redeploys so you can refresh the browser. The adaptive polling client (hot ~350ms after an interaction, warm ~2.5s while visible) means external state changes show up without a manual reload — see <a href="protocol.html">Protocol</a> for the cadence details.</p>
+<h2 id="motoview-compile">motoview compile</h2>
+<p>Compile a single file. Useful for debugging the compiler or inspecting one template's output.</p>
+<pre class="lang-bash"><code>motoview compile src/Pages/Products.mview</code></pre>
+<p>Where <code>motoview build</code> walks the whole project, <code>compile</code> targets one <code>.mview</code> and emits its Motoko so you can read exactly what a given template produces. Reach for this when a page misbehaves and you want to see the generated render and dispatch code in isolation.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Before any of the above, install the toolchain:</p>
+<pre class="lang-bash"><code># DFINITY SDK
+sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+
+# Rust + the wasm target used by the browser client
+rustup target add wasm32-unknown-unknown
+
+# wasm-opt (binaryen)
+brew install binaryen
+
+# The MotoView compiler
+cargo install motoview</code></pre>
+<p>The runtime is added per-project as the <code>motoview</code> mops package, or as a local path dependency in <code>dfx.json</code> build args:</p>
+<pre class="lang-json"><code>"args": "--package motoview ../../runtime/src"</code></pre>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul><li>New to the framework? Start with <a href="getting-started.html">Getting Started</a>.</li><li>Wiring up handlers? See <a href="events.html">Events</a>.</li><li>Curious how the browser stays in sync? Read the <a href="protocol.html">Protocol</a> page.</li></ul>
+    </article>
+    <div class="mv-pager"><a class="prev" href="deployment.html">← Deployment</a><a class="next" href="ai-tools.html">Using AI (Claude, Copilot, Cursor) →</a></div>
+  </main>
+</div>
+</body>
+</html>

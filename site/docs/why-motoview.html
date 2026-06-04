@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why MotoView — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a class="active" href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="why-motoview">Why MotoView</h1>
+<p>Building an interactive app on the Internet Computer usually means building two apps.</p>
+<p>You write a Motoko canister for your data, your authorization, and your business rules. Then you write a <em>second</em> application — a React or Svelte frontend — that talks to the canister through agent-js. You wire up Candid bindings, manage a build pipeline of npm packages and bundlers, and hand-write <code>fetch</code>-style calls into the replica. And because the browser cannot be trusted, you write your validation rules twice: once in TypeScript to keep the form snappy, and once in Motoko because the TypeScript copy is only a suggestion.</p>
+<p>The result is a split architecture with a seam running right down the middle:</p>
+<ul><li><strong>Two languages, two mental models.</strong> Motoko on one side, JavaScript on the other.</li><li><strong>agent-js glue</strong> to translate every interaction across the wire.</li><li><strong>Duplicated validation</strong> that drifts the moment someone forgets to update both copies.</li><li><strong>A JavaScript build chain</strong> — npm, a bundler, a dozen transitive dependencies — that has nothing to do with your product.</li></ul>
+<p>Every feature you ship has to cross that seam. That is where the bugs live.</p>
+<h2 id="how-motoview-collapses-it">How MotoView collapses it</h2>
+<p>MotoView removes the seam. You write <code>.mview</code> files — template markup and Motoko in a single file — and the <code>motoview</code> compiler turns them into a Motoko actor that you deploy with <code>dfx</code>. There is no application JavaScript, no React, no agent-js, and no duplicated validation. Rendering is a query, events are updates, and the browser stays in sync through versioned UI batches.</p>
+<p>Here is a counter — the example we deployed to a local replica and clicked through in a real browser:</p>
+<pre class="lang-razor"><code>@page "/"
+@title "Counter"
+
+&lt;Card title="Counter"&gt;
+  &lt;p&gt;Count: @count&lt;/p&gt;
+  &lt;Button kind="primary" @click="increment"&gt;+1&lt;/Button&gt;
+&lt;/Card&gt;
+
+@code {
+  var count : Nat = 0;
+
+  func increment() {
+    count += 1;
+  };
+}</code></pre>
+<p>Clicking the button posts an event to the canister, which dispatches to your typed Motoko <code>increment</code> function, recomputes the page, and returns a new batch. The client swaps the DOM. No <code>useState</code>, no API route, no Candid binding written by hand. State lives in the canister and persists across calls. See <a href="events.html">Events</a> for how handlers and arguments work.</p>
+<p>Validation happens once, in Motoko, where it is enforced:</p>
+<pre class="lang-razor"><code>&lt;form @submit="send" secure&gt;
+  &lt;InputText name="name" label="Name" bind="@model.name" /&gt;
+  &lt;InputEmail name="email" label="Email" bind="@model.email" /&gt;
+  &lt;ValidationSummary /&gt;
+  &lt;Button kind="primary"&gt;Send&lt;/Button&gt;
+&lt;/form&gt;
+
+@code {
+  func send() {
+    validate model {
+      name required "Name is required";
+      email required email;
+    };
+    // ...persist the message
+  };
+}</code></pre>
+<p>The <code>secure</code> attribute mints a signed token (HMAC-SHA256) binding the path, handler, caller principal, nonce, expiry, and field-schema hash; the server re-derives the MAC on submit and rejects tampering, expired tokens, and replays. There is no second validation layer to keep in sync because there is no second language. See <a href="forms.html">Forms &amp; Validation</a> and <a href="security.html">Security</a>.</p>
+<h2 id="design-philosophy">Design philosophy</h2>
+<p><strong>Readable templates over class-name soup.</strong> A template should read like the page it produces. MotoView ships semantic components — <code>Button</code>, <code>Card</code>, <code>Alert</code>, <code>Table</code>, <code>InputText</code>, <code>ValidationSummary</code> — so your markup says what it <em>means</em>, not which forty utility classes happen to produce the look:</p>
+<pre class="lang-razor"><code>&lt;Button kind="primary" size="lg"&gt;Save&lt;/Button&gt;</code></pre>
+<p>not a wall of utility classes you have to decode every time you read it.</p>
+<p><strong>No <code>.map()</code> JSX.</strong> Control flow is markup, not a JavaScript expression smuggled into your view. You loop and branch with directives that read top to bottom:</p>
+<pre class="lang-razor"><code>@for product in products {
+  &lt;Card title="@product.name"&gt;
+    &lt;p&gt;@product.price&lt;/p&gt;
+  &lt;/Card&gt;
+}</code></pre>
+<p>If you have written Blade, Razor, or LiveView, this will feel familiar — the difference is that the language underneath is Motoko, running in your canister.</p>
+<p><strong>No JavaScript build chain.</strong> The only browser code is a small Rust-to-WebAssembly client (the polling state machine, the protocol, batch interpretation) plus a hand-written JS glue for the unavoidable DOM, fetch, and timer primitives. No npm, no bundler. Your toolchain is <code>dfx</code>, <code>rustup</code>, and the <code>motoview</code> compiler — and nothing else gets between you and your app.</p>
+<p>One language. One source of truth for validation. One build. Ready to write some Motoko? Start with <a href="getting-started.html">Getting Started</a>.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="introduction.html">← Introduction</a><a class="next" href="installation.html">Installation →</a></div>
+  </main>
+</div>
+</body>
+</html>

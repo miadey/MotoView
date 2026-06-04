@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The .mview File — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a class="active" href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="the-mview-file">The .mview File</h1>
+<p>A <code>.mview</code> file is the heart of MotoView. It holds your <strong>template markup</strong> and your <strong>Motoko code</strong> side by side in a single file — the way a Blade or Razor view does, but the code is real, type-checked Motoko that runs inside your Internet Computer canister.</p>
+<p>If you have written Blazor, Blade, or Phoenix LiveView, this will feel immediately familiar: the markup describes what to render, the code says how to compute it, and MotoView's compiler stitches the two together into a Motoko actor.</p>
+<h2 id="anatomy-of-a-mview-file">Anatomy of a .mview file</h2>
+<p>Here is a small but complete page. It declares a route, sets the page title, holds some state, renders markup, and handles a click — all in one file.</p>
+<pre class="lang-razor"><code>@page "/counter"
+@title "Counter"
+
+@code {
+    var count : Nat = 0;
+
+    public func increment() {
+        count += 1;
+    };
+}
+
+&lt;PageHeader title="Counter" /&gt;
+
+&lt;Card&gt;
+    &lt;p&gt;The count is @count.&lt;/p&gt;
+    &lt;Button kind="primary" @click="increment"&gt;Add one&lt;/Button&gt;
+&lt;/Card&gt;</code></pre>
+<p>Three things are happening:</p>
+<ul><li><strong>Directives</strong> (lines starting with <code>@</code>) configure the page — its route, metadata, layout, and embedded code.</li><li>The <strong><code>@code</code> block</strong> holds plain Motoko: state (<code>var count</code>) and handlers (<code>public func increment</code>).</li><li>The <strong>template</strong> below is HTML plus MotoView tags, components, and inline output like <code>@count</code>.</li></ul>
+<p>When the browser clicks the button, the WASM client forwards the event to the canister, <code>increment()</code> runs, the page re-renders, and the new state flows back as a versioned batch. See <a href="events.html">Events</a> for how <code>@click</code> is wired end to end.</p>
+<h2 id="the-directive-list">The directive list</h2>
+<p>Directives always begin with <code>@</code> and configure the page or its structure.</p>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>What it does</th></tr></thead><tbody><tr><td><code>@page "/path"</code></td><td>Declares the route. Supports params: <code>"/products/{id}"</code> and typed <code>"/orders/{id:Nat}"</code>.</td></tr><tr><td><code>@layout NAME</code></td><td>Renders this page inside the named layout.</td></tr><tr><td><code>@title EXPR</code></td><td>Sets the document title (used for SEO).</td></tr><tr><td><code>@description EXPR</code></td><td>Sets the meta description.</td></tr><tr><td><code>@canonical EXPR</code></td><td>Sets the canonical URL.</td></tr><tr><td><code>@meta</code></td><td>Emits additional meta tags.</td></tr><tr><td><code>@authorize</code></td><td>Requires an authenticated caller; <code>@authorize role="Admin"</code> requires a role.</td></tr><tr><td><code>@section "name" { ... }</code></td><td>Defines content a layout pulls in by name.</td></tr><tr><td><code>@yield</code></td><td>In a layout, the slot where page content is rendered.</td></tr><tr><td><code>@head</code></td><td>Injects markup into the document <code>&lt;head&gt;</code>.</td></tr><tr><td><code>@slot "name"</code></td><td>A named insertion point a component can fill.</td></tr><tr><td><code>@code { ... }</code></td><td>Embeds Motoko: state, handlers, and helpers.</td></tr><tr><td><code>@style { ... }</code></td><td>Scoped CSS for this view.</td></tr><tr><td><code>@theme { tokens }</code></td><td>Declares theme tokens.</td></tr><tr><td><code>@if EXPR { } else { }</code></td><td>Conditional rendering.</td></tr><tr><td><code>@for X in EXPR { }</code></td><td>Loops over a collection.</td></tr><tr><td><code>@switch EXPR { case #Variant { } }</code></td><td>Matches a Motoko variant.</td></tr><tr><td><code>@count</code> / <code>@user.name</code> / <code>@(expr)</code></td><td>Inline output of a value or expression.</td></tr><tr><td><code>@effect Focus("#x")</code> / <code>ScrollTo</code> / <code>Toast</code></td><td>Requests a client-side effect after render.</td></tr><tr><td><code>@animate</code></td><td>Marks an element for animation.</td></tr></tbody></table>
+<p>For the full event set (<code>@click</code>, <code>@submit</code>, <code>@input</code>, <code>@change</code>) and how handler arguments are baked in, see <a href="events.html">Events</a>.</p>
+<h2 id="how-template-and-code-combine">How template and @code combine</h2>
+<p>The <code>@code</code> block and the template are two views of the same actor. Anything you declare in <code>@code</code> is in scope in the template.</p>
+<pre class="lang-razor"><code>@code {
+    var products : [Product] = Store.all();
+
+    func total() : Nat {
+        Array.size(products);
+    };
+}
+
+&lt;PageHeader title="Products" /&gt;
+&lt;p&gt;We have @total() items.&lt;/p&gt;
+
+@for p in products {
+    &lt;Card title="@p.name"&gt;
+        &lt;p&gt;@(p.price) credits&lt;/p&gt;
+    &lt;/Card&gt;
+}</code></pre>
+<p><code>products</code> and <code>total()</code> are ordinary Motoko members, used directly as <code>@total()</code> and looped over with <code>@for</code>. The compiler generates a Motoko actor where the template becomes a render function and the <code>@code</code> members become actor state and methods — so rendering is a query over your state, and events are updates to it.</p>
+<p>Because everything is Motoko, your validation, types, and business logic live in one place. There is no JavaScript layer to keep in sync.</p>
+<h2 id="where-files-live">Where files live</h2>
+<p>Pages, layouts, and components each have a home:</p>
+<pre class="lang-bash"><code>src/Pages/Counter.mview      # @page routes
+src/Layouts/Main.mview       # @layout targets
+src/Components/Card.mview     # reusable components</code></pre>
+<p>Run the compiler to turn them into Motoko:</p>
+<pre class="lang-bash"><code>motoview build</code></pre>
+<p>Next, read about <a href="events.html">Events</a> to handle user input, or <a href="components.html">Components</a> to build reusable pieces.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="project-structure.html">← Project Structure</a><a class="next" href="pages-and-routing.html">Pages &amp; Routing →</a></div>
+  </main>
+</div>
+</body>
+</html>

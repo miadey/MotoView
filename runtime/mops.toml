@@ -1,0 +1,15 @@
+# MotoView runtime — Motoko package (mops).
+#
+# Consume it from a MotoView app with mops:
+#     mops add motoview
+# or, for local development, point dfx.json at this directory:
+#     "args": "--package motoview ../../runtime/src"
+[package]
+name = "motoview"
+version = "0.1.0"
+description = "Motoko-native, server-driven UI runtime for Internet Computer canisters."
+repository = "https://github.com/miadey/MotoView"
+keywords = ["ui", "framework", "ssr", "http", "web", "server-driven"]
+
+[dependencies]
+base = "0.13.4"

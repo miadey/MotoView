@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layouts — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a class="active" href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="layouts">Layouts</h1>
+<p>Most pages share the same chrome: a <code>&lt;head&gt;</code> full of meta tags, a navigation bar, a footer, maybe an analytics include. Instead of repeating that markup in every page, you define it once in a <strong>layout</strong> and let your pages slot their content into it.</p>
+<p>A layout is just a <code>.mview</code> file in <code>src/Layouts/</code>. Pages opt in with the <code>@layout</code> directive, and the layout decides where page content lands with <code>@yield</code>.</p>
+<h2 id="a-page-that-uses-a-layout">A page that uses a layout</h2>
+<pre class="lang-razor"><code>@page "/products"
+@layout MainLayout
+@title "Products"
+@description "Browse the catalog"
+
+&lt;PageHeader title="Products" /&gt;
+
+&lt;Grid columns="3"&gt;
+  @for p in products {
+    &lt;Card title=@p.name&gt;@p.summary&lt;/Card&gt;
+  }
+&lt;/Grid&gt;</code></pre>
+<p>The page never mentions <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code>, or <code>&lt;body&gt;</code>. It only describes its own content. The <code>@title</code> and <code>@description</code> values are passed up to the layout's head so the rendered HTML stays SEO-friendly. (For more on metadata directives, see <a href="pages.html">Pages &amp; Routing</a>.)</p>
+<h2 id="the-mainlayout-example">The MainLayout example</h2>
+<p>Here is a complete layout. Note the single <code>@yield</code>, which is where the page's content is rendered.</p>
+<pre class="lang-razor"><code>@code {
+  // Layouts can run Motoko too — anything in scope is available below.
+}
+
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8" /&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+  &lt;title&gt;@title&lt;/title&gt;
+  &lt;meta name="description" content=@description /&gt;
+  &lt;link rel="stylesheet" href="/motoview.css" /&gt;
+  @section "head"
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;header class="site-nav"&gt;
+    &lt;a href="/" class="brand"&gt;MotoView Store&lt;/a&gt;
+    &lt;nav&gt;
+      &lt;a href="/products"&gt;Products&lt;/a&gt;
+      &lt;a href="/cart"&gt;Cart&lt;/a&gt;
+    &lt;/nav&gt;
+  &lt;/header&gt;
+
+  &lt;main id="mv-root"&gt;
+    @yield
+  &lt;/main&gt;
+
+  &lt;footer class="site-footer"&gt;
+    &lt;p&gt;Built with MotoView.&lt;/p&gt;
+  &lt;/footer&gt;
+
+  &lt;script type="module" src="/motoview.js"&gt;&lt;/script&gt;
+  @section "scripts"
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+<p>A few things to call out:</p>
+<ul><li><code>@title</code> and <code>@description</code> resolve to whatever the page declared with <code>@title</code> / <code>@description</code>. They are plain expressions, so you can supply a fallback in the layout.</li><li><code>@yield</code> is the single insertion point for the page's body. The page content lives inside <code>&lt;div id="mv-root"&gt;</code> — this is the element the WASM client swaps when a new batch arrives, so keep it on the element that wraps <code>@yield</code>.</li><li><code>/motoview.css</code>, <code>/motoview.js</code>, and <code>/motoview.wasm</code> are served by the runtime. Including the stylesheet and module script is what wires up the browser client.</li></ul>
+<h2 id="sections-section-and-head">Sections: <code>@section</code> and <code>@head</code></h2>
+<p>A layout exposes named <strong>sections</strong> that pages can fill in. Two are conventional: <code>head</code> (for per-page <code>&lt;link&gt;</code>/<code>&lt;meta&gt;</code> tags) and <code>scripts</code> (for per-page script tags placed at the end of the body). You declare the insertion point in the layout with <code>@section "name"</code>:</p>
+<pre class="lang-razor"><code>  @section "head"
+  ...
+  @section "scripts"</code></pre>
+<p>A page contributes content to a section by defining it:</p>
+<pre class="lang-razor"><code>@page "/products/{id:Nat}"
+@layout MainLayout
+@title product.name
+
+@section "head" {
+  &lt;link rel="canonical" href=@canonical /&gt;
+  &lt;meta property="og:title" content=@product.name /&gt;
+}
+
+&lt;PageHeader title=@product.name /&gt;
+&lt;p&gt;@product.description&lt;/p&gt;
+
+@section "scripts" {
+  &lt;!-- per-page markup that belongs at the end of &lt;body&gt; --&gt;
+}</code></pre>
+<p>If a page does not define a given section, the layout simply renders nothing there.</p>
+<p>For the common case of adding to the document head from a page without naming a section, use <code>@head</code>:</p>
+<pre class="lang-razor"><code>@page "/about"
+@layout MainLayout
+@title "About"
+
+@head {
+  &lt;meta name="robots" content="index,follow" /&gt;
+}
+
+&lt;p&gt;About us.&lt;/p&gt;</code></pre>
+<p><code>@head</code> is shorthand that targets the layout's head region — useful when you just want one or two extra tags and do not need a dedicated named slot.</p>
+<h2 id="layout-inheritance">Layout inheritance</h2>
+<p>Layouts can nest. A layout may itself declare <code>@layout</code> to wrap inside a parent layout, with its own <code>@yield</code> providing the slot for the child. This lets you build, for example, a broad <code>MainLayout</code> (full HTML document) and a narrower <code>DashboardLayout</code> that adds a sidebar:</p>
+<pre class="lang-razor"><code>@layout MainLayout
+@title "Dashboard"
+
+&lt;div class="dashboard"&gt;
+  &lt;aside class="sidebar"&gt;
+    &lt;a href="/dashboard"&gt;Overview&lt;/a&gt;
+    &lt;a href="/dashboard/orders"&gt;Orders&lt;/a&gt;
+  &lt;/aside&gt;
+  &lt;section class="dashboard-body"&gt;
+    @yield
+  &lt;/section&gt;
+&lt;/div&gt;</code></pre>
+<p>A page then chooses <code>@layout DashboardLayout</code>, which renders inside <code>MainLayout</code>. Sections like <code>head</code> propagate up the chain, so a page can still contribute <code>&lt;head&gt;</code> tags even when wrapped two layouts deep.</p>
+<h2 id="building">Building</h2>
+<p>Layouts compile alongside pages. The compiler resolves <code>@layout</code> references and the named sections at build time:</p>
+<pre class="lang-bash"><code>motoview build</code></pre>
+<p>No layout is selected by default — a page without <code>@layout</code> renders its markup as the full response. From here, wire up interactivity with <a href="events.html">Events</a> and reusable markup with <a href="components.html">Components</a>.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="pages-and-routing.html">← Pages &amp; Routing</a><a class="next" href="components.html">Components →</a></div>
+  </main>
+</div>
+</body>
+</html>

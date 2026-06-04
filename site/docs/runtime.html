@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Motoko Runtime — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a class="active" href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="the-motoko-runtime">The Motoko Runtime</h1>
+<p>When you run <code>motoview build</code>, your <code>.mview</code> files are compiled to Motoko and wired into a canister actor. That actor never works alone — it leans on the <strong>MotoView runtime</strong>, a Motoko library shipped in <code>runtime/</code> (the mops package <code>motoview</code>). The runtime is what turns an HTTP request from the browser into rendered HTML, dispatched events, and versioned UI batches.</p>
+<p>This page walks through the modules in <code>runtime/src</code> and shows how a generated actor stitches pages, layouts, and assets together behind <code>http_request</code> / <code>http_request_update</code>.</p>
+<h2 id="what-lives-in-runtime-src">What lives in <code>runtime/src</code></h2>
+<p>The runtime is deliberately small and dependency-free. Each module owns one concern:</p>
+<ul><li><strong>App</strong> — the orchestrator class. Holds registered pages and layouts, routes incoming requests, renders the matching page into its layout, dispatches events to typed handlers, and produces the batch JSON described in the <a href="protocol.html">protocol</a>.</li><li><strong>Types</strong> — the shared types: requests, responses, batches, route entries, render context, handler signatures.</li><li><strong>Router</strong> — matches a request path against registered routes, including parameters like <code>/products/{id}</code> and typed <code>/orders/{id:Nat}</code>.</li><li><strong>Url</strong> — parses paths, query strings, and form-encoded bodies (used to read <code>path</code>, <code>lastBatchId</code>, and event payloads).</li><li><strong>Json</strong> — minimal JSON building/escaping for batch responses.</li><li><strong>Hash</strong> — hashing helpers, including the <code>batchId</code> hash that lets the client skip unchanged renders.</li><li><strong>Security / Sha256</strong> — SHA-256 and HMAC-SHA256 in pure Motoko, verified against standard test vectors. This is what mints and re-derives the signed <code>secure</code> form token (path + handler + caller principal + nonce + expiry + field-schema hash).</li><li><strong>Html.Builder</strong> — a small typed builder for emitting escaped HTML, used by generated page code.</li><li><strong>Base64</strong> — encode/decode for tokens and binary asset payloads.</li><li><strong>ClientAssets</strong> — serves the only browser code: <code>/motoview.wasm</code> (the WASM brain), <code>/motoview.js</code> (the JS glue hands), and <code>/motoview.css</code>.</li></ul>
+<h2 id="how-a-generated-actor-wires-everything">How a generated actor wires everything</h2>
+<p>The compiler emits a Motoko actor that constructs an <code>App</code>, registers each compiled page and layout, and forwards the IC HTTP entry points to it.</p>
+<pre class="lang-motoko"><code>import App "mo:motoview/App";
+import Types "mo:motoview/Types";
+
+import HomePage "Generated/HomePage";
+import MainLayout "Generated/MainLayout";
+
+actor {
+  let app = App.App();
+
+  // Pages and layouts compiled from your .mview files
+  app.layout("main", MainLayout.render);
+  app.page("/", HomePage.render, HomePage.handlers);
+
+  public query func http_request(req : Types.Request) : async Types.Response {
+    // MVP transport: upgrade so every request is served by update.
+    app.httpRequest(req);
+  };
+
+  public func http_request_update(req : Types.Request) : async Types.Response {
+    app.httpRequestUpdate(req);
+  };
+};</code></pre>
+<p>Two entry points, two jobs:</p>
+<ul><li><strong><code>http_request</code></strong> — the IC query entry point. In the MVP it returns <code>upgrade = true</code>, which tells the replica to re-issue the call as an update. This sidesteps query response-certification while the protocol matures. (Certified query rendering for cacheable public pages is <strong>Roadmap</strong>.)</li><li><strong><code>http_request_update</code></strong> — does the real work. The <code>App</code> routes the path through the <code>Router</code>, then:</li><li>For a first load (<code>GET /page</code>), it renders the page into its layout and returns server-rendered HTML with content inside <code>&lt;div id="mv-root"&gt;</code>.</li><li>For a sync poll (<code>GET /_motoview/render</code>), it compares the freshly computed <code>batchId</code> against <code>lastBatchId</code> and returns <code>"changed"</code> or <code>"unchanged"</code>.</li><li>For an event (<code>POST /_motoview/event</code>), it verifies the <code>secure</code> token via <code>Security</code>, dispatches <code>handlerId</code> + args to the typed Motoko handler, re-renders, and returns the new batch immediately.</li><li>For <code>/motoview.wasm</code>, <code>/motoview.js</code>, <code>/motoview.css</code>, it serves bytes from <code>ClientAssets</code>.</li></ul>
+<h2 id="the-request-lifecycle">The request lifecycle</h2>
+<pre class="lang-bash"><code># First load: full HTML document
+GET /                         -&gt; &lt;html&gt; ... &lt;div id="mv-root"&gt; ... &lt;/div&gt;
+
+# Background sync (adaptive polling)
+GET /_motoview/render?path=/&amp;lastBatchId=ab12  -&gt; { "status": "unchanged" }
+
+# An interaction
+POST /_motoview/event         -&gt; { "status": "changed", "batchId": "cd34", "html": "..." }</code></pre>
+<p>Because every response carries a <code>batchId</code> (a hash of rendered state from <code>Hash</code>), the WASM client only swaps the DOM when something actually changed.</p>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul><li>See <a href="events.html">Events</a> for how <code>@click</code> handlers are baked into <code>data-mv-arg*</code> attributes and dispatched server-side.</li><li>See <a href="security.html">Forms &amp; Security</a> for the full <code>secure</code> token derivation.</li><li>See <a href="protocol.html">The Protocol</a> for batch statuses and the adaptive polling cadence.</li></ul>
+    </article>
+    <div class="mv-pager"><a class="prev" href="client-bridge.html">← The Client Bridge</a><a class="next" href="deployment.html">Deployment →</a></div>
+  </main>
+</div>
+</body>
+</html>

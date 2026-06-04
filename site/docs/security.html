@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a class="active" href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="security">Security</h1>
+<p>MotoView pushes rendering, validation, and authorization into the canister. Because there is no application JavaScript and no separate API layer, there is also no second place for security rules to drift out of sync. The browser is a renderer; the canister is the source of truth.</p>
+<p>This page covers secure forms, the HMAC token MotoView mints for them, replay and principal binding, the threat model, and what is still on the roadmap.</p>
+<h2 id="secure-forms">Secure forms</h2>
+<p>Mark any form that mutates state with the <code>secure</code> attribute. Inputs bind to your model with <code>bind</code>, and the handler runs server-side.</p>
+<pre class="lang-razor"><code>&lt;form @submit="send" secure&gt;
+  &lt;InputText  name="name"  label="Name"  bind="@model.name"  required /&gt;
+  &lt;InputEmail name="email" label="Email" bind="@model.email" required /&gt;
+  &lt;ValidationSummary /&gt;
+  &lt;Button kind="primary"&gt;Send&lt;/Button&gt;
+&lt;/form&gt;</code></pre>
+<p>When the form is rendered, MotoView mints a signed token and embeds it in the form. The token is not a session cookie and it is not a CSRF nonce alone — it is a MAC over the exact request that is allowed to follow.</p>
+<h2 id="the-token">The token</h2>
+<p>The token is an <strong>HMAC-SHA256</strong> value computed by the canister over a tuple that binds the submission to a specific context:</p>
+<ul><li><strong>path</strong> — the page the form was rendered on</li><li><strong>handler</strong> — the event handler that is permitted to run (<code>send</code>)</li><li><strong>principal</strong> — the caller's IC principal at render time</li><li><strong>nonce</strong> — a single-use random value</li><li><strong>expiry</strong> — an absolute deadline after which the token is dead</li><li><strong>schema hash</strong> — a hash of the form's field schema (names and constraints)</li></ul>
+<p>SHA-256 and HMAC are implemented in Motoko and verified against standard test vectors, so the MAC is the same primitive a server would compute anywhere else — there is no JavaScript crypto in the trust path.</p>
+<p>On submit, the <a href="events.html">event</a> is delivered as a <code>POST</code> to <code>/_motoview/event</code>, served by <code>http_request_update</code>. The canister re-derives the MAC from the live request — the actual path, the resolved handler, the <em>current</em> caller principal, and the field schema it expects — and compares it to the token. Any mismatch is rejected before the handler runs.</p>
+<pre class="lang-motoko"><code>// Conceptual shape of what the canister checks before dispatch.
+let expected = HMAC.sha256(secretKey, encode(path, handler, caller, nonce, expiry, schemaHash));
+if (token != expected)          return reject("bad token");
+if (now() &gt; expiry)             return reject("expired");
+if (nonceStore.seen(nonce))     return reject("replay");</code></pre>
+<h3 id="replay-protection">Replay protection</h3>
+<p>Each token carries a single-use <strong>nonce</strong> and an <strong>expiry</strong>. A captured submission cannot be replayed: once a nonce is consumed it is rejected, and once the expiry passes the token is worthless even if the nonce were never seen. This closes the window on both double-submits and captured-then-resent requests.</p>
+<h3 id="principal-binding">Principal binding</h3>
+<p>The token is bound to the <strong>caller principal</strong> present when the form was rendered. The canister compares that to the principal making the submit call. A token minted for one caller cannot be lifted and submitted by another — the re-derived MAC will not match. This means authorization is not advisory: it is cryptographically tied to who is allowed to act.</p>
+<h3 id="schema-binding">Schema binding</h3>
+<p>The <strong>schema hash</strong> covers the form's declared fields and their constraints. If an attacker tampers with field names or adds fields the handler never declared, the re-derived hash diverges and the request is rejected. Validation still runs server-side regardless — see <a href="forms.html">Forms &amp; Validation</a> — but schema binding stops malformed submissions before that point.</p>
+<h2 id="threat-model">Threat model</h2>
+<p>What MotoView defends against today:</p>
+<ul><li><strong>CSRF / cross-origin submits</strong> — the token cannot be forged without the canister's secret key.</li><li><strong>Replay</strong> — single-use nonces plus expiry.</li><li><strong>Principal substitution</strong> — the MAC is bound to the caller principal.</li><li><strong>Field tampering</strong> — the schema hash binds the allowed field set.</li><li><strong>Client-side validation bypass</strong> — there is no client-side-only validation to bypass; rules live in the handler.</li></ul>
+<p>What it does <strong>not</strong> attempt to solve: it is not a transport layer (IC boundary nodes and <code>http_request_update</code> handle that), and it does not by itself encrypt stored state. Tokens authenticate <em>requests</em>; they do not authenticate <em>users</em> across sessions — that is the job of authentication, below.</p>
+<h2 id="authorization">Authorization</h2>
+<p>Pages and handlers can require authorization with <code>@authorize</code>, optionally scoped to a role:</p>
+<pre class="lang-razor"><code>@page "/admin"
+@authorize role="Admin"</code></pre>
+<p>Today <code>@authorize</code> gates on the caller principal. Full role stores are on the roadmap.</p>
+<h2 id="roadmap">Roadmap</h2>
+<p>These are planned and <strong>not yet implemented</strong>:</p>
+<ul><li><strong>Internet Identity login over HTTP</strong> — full II authentication flow so handlers can identify users, not just principals.</li><li><strong>Role stores</strong> — durable role assignment backing <code>@authorize role="..."</code>.</li><li><strong>vetKeys encrypted state</strong> — encrypting per-user state at rest using IC vetKeys.</li><li><strong>Certified query rendering</strong> — response certification for cacheable public pages (today every request upgrades to <code>http_request_update</code>).</li></ul>
+<p>Until those land, build on what is verified: secure forms, HMAC token binding, replay and principal protection, and server-side validation.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="protocol.html">← The Protocol</a><a class="next" href="client-bridge.html">The Client Bridge →</a></div>
+  </main>
+</div>
+</body>
+</html>

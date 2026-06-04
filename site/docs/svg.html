@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SVG Interfaces — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a class="active" href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="svg-interfaces">SVG Interfaces</h1>
+<p>SVG is just markup, and MotoView treats it that way. Because a <code>.mview</code> template is rendered server-side into HTML, you can write <code>&lt;svg&gt;</code> directly in your page, loop over Motoko data to draw nodes and edges, and wire <code>@click</code> onto individual shapes. The result is a fully server-driven diagram: no charting library, no client JavaScript, and the same event-update-batch cycle that powers the rest of the framework.</p>
+<p>This makes MotoView a natural fit for dashboards, flow diagrams, and network maps — anything where the picture <em>is</em> the data living in your canister.</p>
+<h2 id="svg-is-first-class-markup">SVG is first-class markup</h2>
+<p>There is nothing special to enable. Drop an <code>&lt;svg&gt;</code> element into a template and use the directives you already know — <a href="control-flow.html"><code>@for</code></a>, <code>@if</code>, inline output <code>@(expr)</code>, and <a href="events.html">event handlers</a> — on its children.</p>
+<pre class="lang-razor"><code>@page "/dashboard"
+@title "Live metrics"
+
+@code {
+  type Bar = { label : Text; value : Nat };
+  var bars : [Bar] = [
+    { label = "Reads"; value = 80 },
+    { label = "Writes"; value = 45 },
+    { label = "Errors"; value = 12 },
+  ];
+}
+
+&lt;svg viewBox="0 0 320 160" role="img" aria-label="Request volume"&gt;
+  @for bar in bars {
+    &lt;rect x="@(bar.value)" y="10" width="@(bar.value)" height="24" rx="3" /&gt;
+    &lt;text x="6" y="28"&gt;@bar.label — @bar.value&lt;/text&gt;
+  }
+&lt;/svg&gt;</code></pre>
+<p>Each value is evaluated on the server at render time and baked into the attribute. Because rendering is a query, the browser sees finished SVG — which means search engines and screen readers do too. Add <code>role</code> and <code>aria-label</code> so your diagram stays accessible.</p>
+<h2 id="looping-over-nodes-and-links">Looping over nodes and links</h2>
+<p>A diagram is usually two collections: the things, and the connections between them. Model both in your <a href="code-blocks.html"><code>@code</code></a> block and draw them with two loops — links first so they sit behind the nodes.</p>
+<pre class="lang-razor"><code>@code {
+  type Node = { id : Text; x : Nat; y : Nat; label : Text };
+  type Link = { x1 : Nat; y1 : Nat; x2 : Nat; y2 : Nat };
+
+  var nodes : [Node] = [
+    { id = "api"; x = 40;  y = 60; label = "API" },
+    { id = "db";  x = 200; y = 60; label = "DB" },
+  ];
+  var links : [Link] = [
+    { x1 = 40; y1 = 60; x2 = 200; y2 = 60 },
+  ];
+
+  var selected : ?Text = null;
+
+  public func select(id : Text) : async () {
+    selected := ?id;
+  };
+}
+
+&lt;svg viewBox="0 0 280 120" class="map"&gt;
+  @for link in links {
+    &lt;line x1="@link.x1" y1="@link.y1" x2="@link.x2" y2="@link.y2" class="edge" /&gt;
+  }
+
+  @for node in nodes {
+    &lt;g class="node" @click="select(node.id)"&gt;
+      &lt;circle cx="@node.x" cy="@node.y" r="18" /&gt;
+      &lt;text x="@node.x" y="@node.y" text-anchor="middle"&gt;@node.label&lt;/text&gt;
+    &lt;/g&gt;
+  }
+&lt;/svg&gt;</code></pre>
+<h2 id="clicking-shapes">Clicking shapes</h2>
+<p><code>@click</code> works on any SVG element — a <code>&lt;circle&gt;</code>, a <code>&lt;rect&gt;</code>, or a wrapping <code>&lt;g&gt;</code>. Handler arguments are evaluated server-side and baked into <code>data-mv-arg*</code> attributes, then forwarded to your typed Motoko function. So <code>@click="select(node.id)"</code> dispatches to <code>select</code> with the node's id; you never touch the wire format.</p>
+<p>Use the resulting server state to drive appearance with <code>@if</code> or <a href="control-flow.html"><code>@switch</code></a>:</p>
+<pre class="lang-razor"><code>@for node in nodes {
+  &lt;g @click="select(node.id)"
+     class="@(selected == ?node.id ? "node selected" else "node")"&gt;
+    &lt;circle cx="@node.x" cy="@node.y" r="18" /&gt;
+  &lt;/g&gt;
+}</code></pre>
+<p>After a click the server returns a new batch immediately, the WASM client swaps <code>#mv-root</code>, and the selected node redraws. No round-trip you have to manage by hand.</p>
+<h2 id="styling-the-diagram">Styling the diagram</h2>
+<p>Co-locate styles with the page using a <a href="styling.html"><code>@style</code></a> block, or pull from your <a href="theming.html">theme tokens</a>:</p>
+<pre class="lang-razor"><code>@style {
+  .map .edge   { stroke: var(--mv-border); stroke-width: 2; }
+  .map .node   { cursor: pointer; }
+  .map circle  { fill: var(--mv-surface); stroke: var(--mv-primary); }
+  .map .selected circle { fill: var(--mv-primary); }
+}</code></pre>
+<h2 id="live-network-maps">Live network maps</h2>
+<p>Combine SVG with <a href="protocol.html">adaptive polling</a>: when a node's status changes in your canister, the next sync produces a different <code>batchId</code>, the client fetches the new batch, and the map re-renders. Recolor by status with <code>@switch</code>:</p>
+<pre class="lang-razor"><code>@for node in nodes {
+  @switch node.status {
+    case (#healthy) { &lt;circle class="ok"   cx="@node.x" cy="@node.y" r="18" /&gt; }
+    case (#degraded){ &lt;circle class="warn" cx="@node.x" cy="@node.y" r="18" /&gt; }
+    case (#down)    { &lt;circle class="down" cx="@node.x" cy="@node.y" r="18" /&gt; }
+  }
+}</code></pre>
+<p>That is the whole model: state lives in Motoko, the shapes are a projection of that state, and clicks are <a href="events.html">updates</a> that change it.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a href="control-flow.html">Control Flow</a> — <code>@for</code>, <code>@if</code>, and <code>@switch</code></li><li><a href="events.html">Events</a> — how <code>@click</code> arguments reach your handlers</li><li><a href="styling.html">Styling</a> and <a href="theming.html">Theming</a> — <code>@style</code> blocks and tokens</li><li><a href="protocol.html">Protocol</a> — adaptive polling that keeps live maps current</li></ul>
+    </article>
+    <div class="mv-pager"><a class="prev" href="styling-and-themes.html">← Styling &amp; Themes</a><a class="next" href="protocol.html">The Protocol →</a></div>
+  </main>
+</div>
+</body>
+</html>

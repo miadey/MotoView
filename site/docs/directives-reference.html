@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Directive Reference — MotoView Docs</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="mv-docs">
+<header class="mv-topbar">
+  <a class="mv-topbar-brand" href="../index.html">▼ MotoView</a>
+  <nav class="mv-topbar-links">
+    <a href="introduction.html">Docs</a>
+    <a href="https://github.com/miadey/MotoView">GitHub</a>
+  </nav>
+</header>
+<div class="mv-layout">
+  <nav class="mv-sidebar"><a class="mv-brand" href="../index.html">▼ MotoView</a><div class="mv-nav-section">Prologue</div><ul><li><a href="introduction.html">Introduction</a></li><li><a href="why-motoview.html">Why MotoView</a></li></ul><div class="mv-nav-section">Getting Started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="project-structure.html">Project Structure</a></li></ul><div class="mv-nav-section">The .mview Format</div><ul><li><a href="mview-files.html">The .mview File</a></li><li><a href="pages-and-routing.html">Pages &amp; Routing</a></li><li><a href="layouts.html">Layouts</a></li><li><a href="components.html">Components</a></li><li><a href="control-flow.html">Control Flow</a></li></ul><div class="mv-nav-section">Interactivity</div><ul><li><a href="events.html">Events</a></li><li><a href="forms.html">Forms</a></li><li><a href="validation.html">Validation</a></li><li><a href="state.html">State</a></li></ul><div class="mv-nav-section">Styling</div><ul><li><a href="styling-and-themes.html">Styling &amp; Themes</a></li><li><a href="svg.html">SVG Interfaces</a></li></ul><div class="mv-nav-section">Architecture</div><ul><li><a href="protocol.html">The Protocol</a></li><li><a href="security.html">Security</a></li><li><a href="client-bridge.html">The Client Bridge</a></li><li><a href="runtime.html">The Motoko Runtime</a></li></ul><div class="mv-nav-section">Deployment</div><ul><li><a href="deployment.html">Deployment</a></li><li><a href="cli.html">CLI Reference</a></li></ul><div class="mv-nav-section">Tooling</div><ul><li><a href="ai-tools.html">Using AI (Claude, Copilot, Cursor)</a></li></ul><div class="mv-nav-section">Reference</div><ul><li><a class="active" href="directives-reference.html">Directive Reference</a></li><li><a href="roadmap.html">Roadmap &amp; Status</a></li></ul></nav>
+  <main class="mv-content">
+    <article class="mv-prose">
+      <h1 id="directive-reference">Directive Reference</h1>
+<p>Every MotoView feature is reachable through a small set of <code>@</code> directives and component attributes. This page is the quick lookup: each row gives the syntax and a tiny, copy-paste example. For deeper walkthroughs see <a href="events.html">Events</a>, <a href="forms.html">Forms &amp; Validation</a>, and <a href="components.html">Layouts &amp; Components</a>.</p>
+<h2 id="page-metadata-directives">Page &amp; metadata directives</h2>
+<p>These declare what a <code>.mview</code> file <em>is</em> and what the browser sees in <code>&lt;head&gt;</code>.</p>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@page</code></td><td><code>@page "/path"</code></td><td><code>@page "/about"</code></td></tr><tr><td><code>@page</code> (param)</td><td><code>@page "/products/{id}"</code></td><td><code>@page "/products/{id}"</code></td></tr><tr><td><code>@page</code> (typed)</td><td><code>@page "/orders/{id:Nat}"</code></td><td><code>@page "/orders/{id:Nat}"</code></td></tr><tr><td><code>@layout</code></td><td><code>@layout NAME</code></td><td><code>@layout Main</code></td></tr><tr><td><code>@title</code></td><td><code>@title EXPR</code></td><td><code>@title "Product " # product.name</code></td></tr><tr><td><code>@description</code></td><td><code>@description EXPR</code></td><td><code>@description product.summary</code></td></tr><tr><td><code>@canonical</code></td><td><code>@canonical EXPR</code></td><td><code>@canonical "https://shop.ic0.app/p/" # id</code></td></tr><tr><td><code>@meta</code></td><td><code>@meta name=... content=...</code></td><td><code>@meta name="robots" content="index"</code></td></tr><tr><td><code>@head</code></td><td><code>@head { ... }</code></td><td>extra tags injected into <code>&lt;head&gt;</code></td></tr></tbody></table>
+<pre class="lang-razor"><code>@page "/orders/{id:Nat}"
+@layout Main
+@title "Order #" # Nat.toText(id)
+@description "Details for order " # Nat.toText(id)</code></pre>
+<h2 id="code-style-theming">Code, style &amp; theming</h2>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@code</code></td><td><code>@code { ...Motoko... }</code></td><td>handlers, state, route params</td></tr><tr><td><code>@style</code></td><td><code>@style { ...css... }</code></td><td>page-scoped CSS</td></tr><tr><td><code>@theme</code></td><td><code>@theme { tokens }</code></td><td>design tokens for the page/layout</td></tr></tbody></table>
+<pre class="lang-razor"><code>@code {
+  stable var count : Nat = 0;
+  func increment() { count += 1 };
+}
+
+@style { .total { font-weight: 600 } }
+@theme { --mv-accent: #2563eb }</code></pre>
+<h2 id="layout-composition">Layout composition</h2>
+<p>Layouts define shared chrome; pages fill named regions.</p>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@yield</code></td><td><code>@yield</code></td><td>renders the page body (in a layout)</td></tr><tr><td><code>@section</code></td><td><code>@section "name" { ... }</code></td><td>page-side content for a named region</td></tr><tr><td><code>@slot</code></td><td><code>@slot "name"</code></td><td>layout-side placeholder for a section</td></tr></tbody></table>
+<pre class="lang-razor"><code>@section "sidebar" {
+  &lt;nav&gt;Account menu&lt;/nav&gt;
+}</code></pre>
+<pre class="lang-razor"><code>@slot "sidebar"
+@yield</code></pre>
+<h2 id="control-flow">Control flow</h2>
+<p>Standard branching and looping, evaluated server-side at render time.</p>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@if</code> / <code>else</code></td><td><code>@if EXPR { } else { }</code></td><td>conditional markup</td></tr><tr><td><code>@for</code></td><td><code>@for X in EXPR { }</code></td><td>iterate a collection</td></tr><tr><td><code>@switch</code></td><td><code>@switch EXPR { case #Variant { } }</code></td><td>match a Motoko variant</td></tr></tbody></table>
+<pre class="lang-razor"><code>@if cart.isEmpty() {
+  &lt;Alert type="info"&gt;Your cart is empty.&lt;/Alert&gt;
+} else {
+  @for item in cart.items {
+    &lt;Card title=item.name&gt;@item.price&lt;/Card&gt;
+  }
+}
+
+@switch order.status {
+  case #Pending { &lt;Badge type="warning"&gt;Pending&lt;/Badge&gt; }
+  case #Shipped { &lt;Badge type="success"&gt;Shipped&lt;/Badge&gt; }
+}</code></pre>
+<h2 id="output-expressions">Output expressions</h2>
+<p>Print a value into the rendered HTML.</p>
+<table class="mv-doc-table"><thead><tr><th>Form</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td>Field</td><td><code>@user.name</code></td><td><code>Hello, @user.name</code></td></tr><tr><td>Count</td><td><code>@count</code></td><td><code>Total: @count</code></td></tr><tr><td>Expression</td><td><code>@(expr)</code></td><td><code>@(price * qty)</code></td></tr></tbody></table>
+<h2 id="events">Events</h2>
+<p>Bind DOM events to typed Motoko handlers. Handler arguments are evaluated <strong>server-side</strong> at render time and baked into <code>data-mv-arg*</code> attributes; the WASM client forwards them on dispatch. See <a href="events.html">Events</a>.</p>
+<table class="mv-doc-table"><thead><tr><th>Attribute</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@click</code></td><td><code>@click="handler"</code></td><td><code>&lt;Button @click="save"&gt;Save&lt;/Button&gt;</code></td></tr><tr><td><code>@click</code> (arg)</td><td><code>@click="handler(arg)"</code></td><td><code>@click="remove(item.id)"</code></td></tr><tr><td><code>@submit</code></td><td><code>@submit="handler"</code></td><td><code>&lt;form @submit="send"&gt;</code></td></tr><tr><td><code>@input</code></td><td><code>@input="handler"</code></td><td>live field handling</td></tr><tr><td><code>@change</code></td><td><code>@change="handler"</code></td><td>select / checkbox changes</td></tr></tbody></table>
+<pre class="lang-razor"><code>&lt;Button @click="increment"&gt;+1&lt;/Button&gt;
+&lt;Button @click="remove(item.id)" kind="danger"&gt;Delete&lt;/Button&gt;</code></pre>
+<h2 id="forms-validation-security">Forms, validation &amp; security</h2>
+<p>The <code>secure</code> attribute mints a signed HMAC-SHA256 token binding path, handler, caller principal, nonce, expiry, and field-schema hash; the server re-derives the MAC and rejects mismatches, expired tokens, and replays. See <a href="forms.html">Forms &amp; Validation</a>.</p>
+<table class="mv-doc-table"><thead><tr><th>Feature</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td>Secure form</td><td><code>&lt;form @submit="h" secure&gt;</code></td><td>hardened submit</td></tr><tr><td>Two-way bind</td><td><code>bind="@model.field"</code></td><td><code>&lt;InputText bind="@model.name" /&gt;</code></td></tr><tr><td>Validation</td><td><code>validate model { rules }</code></td><td>in the handler</td></tr></tbody></table>
+<pre class="lang-razor"><code>&lt;form @submit="send" secure&gt;
+  &lt;InputText label="Name" bind="@model.name" required /&gt;
+  &lt;InputEmail label="Email" bind="@model.email" /&gt;
+  &lt;ValidationSummary /&gt;
+  &lt;Button kind="primary"&gt;Send&lt;/Button&gt;
+&lt;/form&gt;</code></pre>
+<pre class="lang-motoko"><code>func send() {
+  validate model {
+    name required "Name is required";
+    email required email;
+    price min 1 "Price must be at least 1";
+  };
+}</code></pre>
+<h2 id="effects-animation">Effects &amp; animation</h2>
+<p>Imperative client effects returned in a batch and applied by the WASM client.</p>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@effect Focus</code></td><td><code>@effect Focus("#x")</code></td><td>move focus after render</td></tr><tr><td><code>@effect ScrollTo</code></td><td><code>@effect ScrollTo("#id")</code></td><td>scroll to an element</td></tr><tr><td><code>@effect Toast</code></td><td><code>@effect Toast("msg")</code></td><td>show a transient toast</td></tr><tr><td><code>@animate</code></td><td><code>@animate</code></td><td>mark a region for transition</td></tr></tbody></table>
+<pre class="lang-razor"><code>@effect Focus("#name")
+@effect Toast("Saved!")</code></pre>
+<h2 id="authorization">Authorization</h2>
+<table class="mv-doc-table"><thead><tr><th>Directive</th><th>Syntax</th><th>Example</th></tr></thead><tbody><tr><td><code>@authorize</code></td><td><code>@authorize</code></td><td>require an authenticated caller</td></tr><tr><td><code>@authorize</code> (role)</td><td><code>@authorize role="Admin"</code></td><td>require a role <em>(role stores: Roadmap)</em></td></tr></tbody></table>
+<pre class="lang-razor"><code>@authorize role="Admin"
+@page "/admin/orders"</code></pre>
+<p>Built-in semantic components (<code>Button</code>, <code>Card</code>, <code>Alert</code>, <code>Badge</code>, <code>InputText</code>, <code>Table</code>, <code>Grid</code>, and more) are documented in <a href="components.html">Layouts &amp; Components</a>.</p>
+    </article>
+    <div class="mv-pager"><a class="prev" href="ai-tools.html">← Using AI (Claude, Copilot, Cursor)</a><a class="next" href="roadmap.html">Roadmap &amp; Status →</a></div>
+  </main>
+</div>
+</body>
+</html>
