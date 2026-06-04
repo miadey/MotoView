@@ -125,10 +125,12 @@ cd examples/crm && dfx start --background && dfx deploy
 # open the printed http://<canister-id>.localhost:4955/  — drag a card between columns
 ```
 
+Beyond the examples, [`apps/bzzz`](apps/bzzz) is a production-scale dogfood: **Bzzz**, a Discord × X × Discourse-style-forum × WhatsApp super-app — 9 stateful services and 15 pages, with Internet Identity login, upgrade-stable persistence, and `@cacheable` certified pages. It's how the **Production features** below were built and verified, including on the IC mainnet boundary via the playground.
+
 ## Features
 
 - `.mview` files: template markup plus Motoko in one file.
-- Directives: `@page` (including typed routes like `@page "/orders/{id:Nat}"`), `@layout`, `@title`, `@description`, `@canonical`, `@meta`, `@authorize`, `@section`/`@yield`, `@slot`, `@code`, `@style`, `@theme`, `@if`/`else`, `@for`, `@switch`, inline output (`@count`, `@user.name`, `@(expr)`), `@effect` (Focus / ScrollTo / Toast), and `@animate`.
+- Directives: `@page` (including typed routes like `@page "/orders/{id:Nat}"`), `@layout`, `@title`, `@description`, `@canonical`, `@meta`, `@authorize`, `@cacheable`, `@section`/`@yield`, `@slot`, `@code`, `@style`, `@theme`, `@if`/`else`, `@for`, `@switch`, inline output (`@count`, `@user.name`, `@(expr)`), `@effect` (Focus / ScrollTo / Toast), and `@animate`.
 - Events: `@click`, `@submit`, `@input`, `@change` — dispatched to typed Motoko functions, with handler args evaluated server-side.
 - Secure forms with `bind="@model.field"`, signed HMAC-SHA256 tokens, and replay/expiry rejection.
 - Handler-side validation (`validate model { ... }`) with `<ValidationSummary />` and per-field errors.
@@ -139,6 +141,18 @@ cd examples/crm && dfx start --background && dfx deploy
 - The `motoview/1` protocol: server-rendered first load, batch-based sync with `changed` / `unchanged` / `redirect` / `validation-error` statuses, and content-hashed `batchId`s so unchanged batches skip re-rendering.
 - Adaptive polling: hot (~350ms after an interaction), warm (~2.5s while visible), cold (~15s when idle), hidden (~45s), and exponential backoff when offline — with event responses returning the new batch immediately.
 
+## Production features
+
+These shipped while building the **Bzzz** reference app (see below) and are verified end-to-end — locally and, where it matters, against the **IC mainnet boundary** on the playground.
+
+- **Upgrade-stable persistence.** A service that exposes `mvStableSave() : Blob` / `mvStableLoad(Blob)` (a Candid round-trip) gets an auto-generated `stable var` plus `preupgrade`/`postupgrade` hooks, so its state survives `dfx deploy --mode upgrade`. Opt-in, per service, idempotent. See [`docs/persistence.md`](docs/persistence.md).
+- **Internet Identity login — no npm, no agent-js.** A hand-written browser IC agent (Ed25519 / CBOR / request-id / Candid, pure JS) makes one authenticated call; the runtime mints an httpOnly session cookie and resolves `ctx.caller` from it. Every canister serves it at `/mv-auth.js` (auto-injected) — drop in a `<button data-mv-signin>` and you have login. Includes per-principal session revocation and `ii-alternative-origins`.
+- **Certified query rendering.** Static framework assets and pages marked `@cacheable` are served as fast **certified queries** (HTTP response-certification v2) instead of upgrading to an update call. Parameterized cacheable routes are covered by a single wildcard certificate (`/u/{handle}` → `/u/<*>`). Implemented from scratch in Motoko (`runtime/src/CertV2.mo`) and verified accepted by the mainnet boundary.
+- **App components.** `src/Components/*.mview` compile to real typed render functions — `param`s with defaults, the default `@children` slot, and named `@slot` / `@section`.
+- **Hardened auth & forms.** raw_rand-derived HMAC secret (never derived from public input), login-CSRF nonce binding, a pending-login DoS cap, origin-pinned `postMessage`, and `httpOnly`+`Secure` cookies.
+- **`motoview check`.** Builds and type-checks the generated actor, mapping any `moc` errors back to the originating `.mview` (not the generated `main.mo`).
+- **Regression test suite.** `make test` runs the parser/codegen tests that pin the framework's behavior.
+
 ## Repository layout
 
 ```text
@@ -146,6 +160,7 @@ compiler/   Rust crate — the motoview binary (parses .mview, generates Motoko)
 runtime/    Motoko library (the "motoview" mops package) — serves HTTP from the canister
 client/     Rust → WebAssembly browser client + tiny hand-written JS glue (no bundler)
 examples/   counter, contact (secure form), crm (drag-and-drop Kanban)
+apps/        Bzzz — the reference super-app (Discord × X × forum × WhatsApp)
 docs/        documentation
 site/        project site
 skills/      AI agent skills for working with MotoView
@@ -163,15 +178,15 @@ Full documentation lives in [`docs/`](docs/) — start with [`docs/introduction.
 
 ## Roadmap
 
-The following are planned and **not yet implemented**:
+Internet Identity login, certified query rendering, and upgrade-stable persistence have shipped (see **Production features**). Still planned and **not yet implemented**:
 
 - Keyed-region / granular DOM patches (instead of root swaps).
-- Full Internet Identity login over HTTP and role stores.
+- Role stores for `@authorize role="…"`.
 - vetKeys-encrypted state.
-- Certified query rendering for cacheable public pages.
-- Desktop / mobile / tablet shells.
+- A schema-migration story for evolving persisted service types.
 - A visual designer.
-- A push adapter.
+
+> Realtime is the adaptive-polling render/event protocol — there's no separate push transport, and a canister can't open a WebSocket without an external gateway. The polling protocol *is* the communication layer.
 
 ## License
 
