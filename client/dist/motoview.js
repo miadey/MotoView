@@ -72,6 +72,9 @@
       host_apply_html: function (tPtr, tLen, hPtr, hLen) {
         applyHtml(readStr(tPtr, tLen), readStr(hPtr, hLen));
       },
+      host_replace_keyed: function (tPtr, tLen, kPtr, kLen, hPtr, hLen) {
+        replaceKeyed(readStr(tPtr, tLen), readStr(kPtr, kLen), readStr(hPtr, hLen));
+      },
       host_effect: function (kPtr, kLen, tPtr, tLen, vPtr, vLen) {
         runEffect(readStr(kPtr, kLen), readStr(tPtr, tLen), readStr(vPtr, vLen));
       },
@@ -129,6 +132,30 @@
       }
     }
     window.scrollTo(sx, sy);
+  }
+
+  // Replace a single keyed region — a primitive the brain commands. Unchanged
+  // regions are never touched here, so their live state is preserved.
+  function replaceKeyed(targetId, key, html) {
+    var root = document.getElementById(targetId) || document.querySelector("[data-mv-root]");
+    if (!root) return;
+    var el = root.querySelector("[data-mv-key=" + cssEscape(key) + "]");
+    if (!el) return;
+    var active = document.activeElement, snap = null;
+    if (active && el.contains(active) && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT")) {
+      snap = { key: active.getAttribute("data-mv-key") || active.getAttribute("name") || active.id, value: active.value, start: active.selectionStart, end: active.selectionEnd, type: active.type };
+    }
+    el.outerHTML = html;
+    if (snap && snap.key) {
+      var next = root.querySelector("[data-mv-key=" + cssEscape(snap.key) + "]") || document.getElementsByName(snap.key)[0];
+      if (next) {
+        if (next.value !== snap.value && (next.tagName === "INPUT" || next.tagName === "TEXTAREA")) next.value = snap.value;
+        try {
+          next.focus({ preventScroll: true });
+          if (snap.start != null && next.setSelectionRange && /text|search|url|tel|password|textarea/i.test(snap.type || next.tagName)) next.setSelectionRange(snap.start, snap.end);
+        } catch (e) {}
+      }
+    }
   }
 
   function runEffect(kind, target, value) {
@@ -310,9 +337,11 @@
     var path = window.location.pathname || "/";
     var root = document.getElementById("mv-root") || document.querySelector("[data-mv-root]");
     var batch = (root && root.getAttribute("data-mv-batch")) || "";
+    var seed = root ? root.innerHTML : "";
     var p = writeStr(path);
     var b = writeStr(batch);
-    wasm.mv_start(p[0], p[1], b[0], b[1]);
+    var s = writeStr(seed);
+    wasm.mv_start(p[0], p[1], b[0], b[1], s[0], s[1]);
 
     document.addEventListener("click", onClick, true);
     document.addEventListener("submit", onSubmit, true);
