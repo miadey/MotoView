@@ -111,7 +111,74 @@
 &lt;TextArea   label="Notes" bind="@@model.notes" /&gt;</pre>
     </div>
 
-    <p class="gallery-foot">More on theming these with <a href="/docs/styling-and-themes">design tokens &amp; theme packages</a>.</p>
+    <div class="gx">
+        <h2>Fluent UI 2 components</h2>
+        <p class="gallery-lead">MotoView's design system is Microsoft Fluent 2. These render server-side from the Fluent design tokens.</p>
+
+        <h3 class="fui-text-body1-strong">Button appearances</h3>
+        <div class="gx-live">
+            <Button appearance="primary" @click="demo">Primary</Button>
+            <Button appearance="secondary" @click="demo">Secondary</Button>
+            <Button appearance="outline" @click="demo">Outline</Button>
+            <Button appearance="subtle" @click="demo">Subtle</Button>
+            <Button appearance="transparent" @click="demo">Transparent</Button>
+            <Button appearance="danger" @click="demo">Danger</Button>
+        </div>
+        <pre class="gx-code">&lt;Button appearance="primary" @@click="save"&gt;Primary&lt;/Button&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">Avatar &amp; Persona</h3>
+        <div class="gx-live">
+            <Avatar text="AB" size="40" />
+            <Avatar text="🐝" size="40" />
+            <Persona name="Ada Lovelace" secondary="Administrator" avatar="A" presence="online" />
+        </div>
+        <pre class="gx-code">&lt;Persona name="Ada" secondary="Admin" avatar="A" presence="online" /&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">Switch, Spinner, Divider</h3>
+        <div class="gx-live">
+            <Switch name="g1" label="Notifications" checked="true" />
+            <Switch name="g2" label="Sounds" />
+            <Spinner />
+        </div>
+        <Divider />
+        <pre class="gx-code">&lt;Switch name="notify" label="Notifications" /&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">MessageBar</h3>
+        <div class="gx-live">
+            <MessageBar intent="success">Saved successfully.</MessageBar>
+            <MessageBar intent="warning">Check this value.</MessageBar>
+            <MessageBar intent="danger">Something went wrong.</MessageBar>
+        </div>
+        <pre class="gx-code">&lt;MessageBar intent="success"&gt;Saved.&lt;/MessageBar&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">TabList &amp; Menu</h3>
+        <div class="gx-live">
+            <TabList>
+                <Tab href="#" active="true">Latest</Tab>
+                <Tab href="#">Top</Tab>
+                <Tab href="#">New</Tab>
+            </TabList>
+            <Menu label="Actions ▾">
+                <MenuItem href="#">Edit</MenuItem>
+                <MenuItem href="#">Share</MenuItem>
+                <MenuItem href="#">Delete</MenuItem>
+            </Menu>
+        </div>
+        <pre class="gx-code">&lt;TabList&gt;&lt;Tab href="/" active&gt;Latest&lt;/Tab&gt;…&lt;/TabList&gt;
+&lt;Menu label="Actions"&gt;&lt;MenuItem href="/x"&gt;Edit&lt;/MenuItem&gt;…&lt;/Menu&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">Type ramp</h3>
+        <div class="gx-live" style="flex-direction:column;align-items:flex-start;gap:.35rem">
+            <Text variant="title2">Title 2</Text>
+            <Text variant="subtitle1">Subtitle 1</Text>
+            <Text variant="body1-strong">Body 1 strong</Text>
+            <Text variant="body1">Body 1</Text>
+            <Text variant="caption1">Caption 1</Text>
+        </div>
+        <pre class="gx-code">&lt;Text variant="title2"&gt;Heading&lt;/Text&gt;</pre>
+    </div>
+
+    <p class="gallery-foot">Brand the whole thing from one color with <a href="/docs/styling-and-themes">@@theme brand="#hex"</a>, and it flips light/dark automatically.</p>
 </section>
 
 @style {
