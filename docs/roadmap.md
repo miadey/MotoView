@@ -77,7 +77,7 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 **Later**
 
 - **In-browser vetKeys** — the canister vetKeys endpoints (`mvVetkdPublicKey` / `mvVetkdDeriveKey`) and the `ic-vetkeys` client crypto are built and verified end to end (see [Security](security.md) and `tools/vetkeys-roundtrip`); shipping that crypto inside the browser brain (opt-in, to keep the lean default brain) + an example app is the remaining work.
-- A visual page designer.
+- **A visual page designer & component marketplace.** A live [component gallery](https://github.com/miadey/MotoView) ships today (the `/components` page on this site renders every built-in component server-side with its `.mview` snippet); the interactive drag-and-drop designer and a shareable component marketplace are the remaining, larger pieces.
 
 > **Realtime is not on this list.** The adaptive-polling render/event protocol *is* MotoView's communication layer; a canister cannot open a WebSocket without an external gateway. Polling is the design, not a placeholder.
 

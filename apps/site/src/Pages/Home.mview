@@ -11,6 +11,7 @@
             <a href="#features">Features</a>
             <a href="#code">How it works</a>
             <a href="/docs">Docs</a>
+            <a href="/components">Components</a>
             <a href="https://github.com/miadey/MotoView">GitHub</a>
         </nav>
         <a class="btn btn-primary btn-sm" href="/docs">Get started</a>

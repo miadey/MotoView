@@ -1,0 +1,132 @@
+@page "/components"
+@layout HomeLayout
+@title "Components — MotoView"
+@description "A live gallery of MotoView's built-in components — buttons, cards, alerts, badges, inputs, tables and grids — each rendered server-side with its .mview snippet."
+
+<header>
+    <div class="wrap nav">
+        <a class="brand" href="/"><span class="logo">M</span><span>MotoView</span></a>
+        <nav class="nav-links">
+            <a href="/docs">Docs</a>
+            <a href="/components">Components</a>
+            <a href="https://github.com/miadey/MotoView">GitHub</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/docs">Get started</a>
+    </div>
+</header>
+
+<section class="wrap gallery">
+    <PageHeader title="Components">
+        <Badge type="success">live gallery</Badge>
+    </PageHeader>
+    <p class="gallery-lead">Every component below is rendered by this canister, server-side. Copy the snippet straight into a <code>.mview</code> page. This page is itself built on MotoView.</p>
+
+    <div class="gx">
+        <h2>Button</h2>
+        <div class="gx-live">
+            <Button kind="primary" @click="demo">Primary</Button>
+            <Button kind="secondary" @click="demo">Secondary</Button>
+            <Button kind="danger" @click="demo">Danger</Button>
+            <Button kind="ghost" @click="demo">Ghost</Button>
+            <Button kind="primary" size="small" @click="demo">Small</Button>
+            <Button kind="primary" size="large" @click="demo">Large</Button>
+        </div>
+        <pre class="gx-code">&lt;Button kind="primary" @@click="save"&gt;Primary&lt;/Button&gt;
+&lt;Button kind="secondary" size="small"&gt;Small&lt;/Button&gt;</pre>
+    </div>
+
+    <div class="gx">
+        <h2>Card</h2>
+        <div class="gx-live">
+            <Card title="A card">
+                <p>Cards group related content with a title, border and shadow.</p>
+            </Card>
+        </div>
+        <pre class="gx-code">&lt;Card title="A card"&gt;
+    &lt;p&gt;Cards group related content.&lt;/p&gt;
+&lt;/Card&gt;</pre>
+    </div>
+
+    <div class="gx">
+        <h2>Alert</h2>
+        <div class="gx-live">
+            <Alert type="info">An informational message.</Alert>
+            <Alert type="success">Saved successfully.</Alert>
+            <Alert type="warning">Double-check this value.</Alert>
+            <Alert type="danger">Something went wrong.</Alert>
+        </div>
+        <pre class="gx-code">&lt;Alert type="success"&gt;Saved successfully.&lt;/Alert&gt;</pre>
+    </div>
+
+    <div class="gx">
+        <h2>Badge</h2>
+        <div class="gx-live">
+            <Badge>default</Badge>
+            <Badge type="success">success</Badge>
+            <Badge type="warning">warning</Badge>
+            <Badge type="danger">danger</Badge>
+        </div>
+        <pre class="gx-code">&lt;Badge type="success"&gt;active&lt;/Badge&gt;</pre>
+    </div>
+
+    <div class="gx">
+        <h2>Grid</h2>
+        <div class="gx-live">
+            <Grid columns="3">
+                <Card title="One"><p>First cell.</p></Card>
+                <Card title="Two"><p>Second cell.</p></Card>
+                <Card title="Three"><p>Third cell.</p></Card>
+            </Grid>
+        </div>
+        <pre class="gx-code">&lt;Grid columns="3"&gt;
+    &lt;Card title="One"&gt;…&lt;/Card&gt;
+&lt;/Grid&gt;</pre>
+    </div>
+
+    <div class="gx">
+        <h2>Table</h2>
+        <div class="gx-live">
+            <Table>
+                <tr><th>Name</th><th>Role</th></tr>
+                <tr><td>Ada</td><td>Admin</td></tr>
+                <tr><td>Linus</td><td>Editor</td></tr>
+            </Table>
+        </div>
+        <pre class="gx-code">&lt;Table&gt;
+    &lt;tr&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Role&lt;/th&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td&gt;Ada&lt;/td&gt;&lt;td&gt;Admin&lt;/td&gt;&lt;/tr&gt;
+&lt;/Table&gt;</pre>
+    </div>
+
+    <div class="gx">
+        <h2>Inputs</h2>
+        <div class="gx-live">
+            <InputText label="Name" name="name" />
+            <InputEmail label="Email" name="email" required />
+            <InputNumber label="Quantity" name="qty" />
+            <TextArea label="Notes" name="notes" />
+        </div>
+        <pre class="gx-code">&lt;InputText  label="Name"  bind="@@model.name" /&gt;
+&lt;InputEmail label="Email" bind="@@model.email" required /&gt;
+&lt;TextArea   label="Notes" bind="@@model.notes" /&gt;</pre>
+    </div>
+
+    <p class="gallery-foot">More on theming these with <a href="/docs/styling-and-themes">design tokens &amp; theme packages</a>.</p>
+</section>
+
+@style {
+    .gallery { padding: 2.5rem 0 4rem; }
+    .gallery-lead { color: var(--mv-text-soft); max-width: 48rem; }
+    .gx { margin: 2rem 0; padding-top: 1.25rem; border-top: 1px solid var(--mv-border); }
+    .gx h2 { font-size: 1.1rem; margin: 0 0 0.9rem; }
+    .gx-live { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 0.9rem; }
+    .gx-live > .mv-grid, .gx-live > .mv-card, .gx-live > .mv-field, .gx-live > .mv-table, .gx-live > .mv-alert { flex: 1 1 100%; }
+    .gx-code { background: var(--mv-muted); border: 1px solid var(--mv-border); border-radius: var(--mv-radius-sm); padding: 0.8rem 1rem; font-size: 0.85rem; overflow-x: auto; margin: 0; }
+    .gallery-foot { margin-top: 2.5rem; color: var(--mv-text-soft); }
+}
+
+@code {
+    func demo(ctx : Context) : async () {
+        toast("That's a live, server-handled click.");
+    };
+}
