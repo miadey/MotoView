@@ -9,37 +9,65 @@
     <title>@View.title</title>
     @head
     <style>
-        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase); }
+        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1);
+            font-family: var(--fontFamilyBase); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility; }
 
-        /* App bar (Fluent) */
-        .mv-appbar { backdrop-filter: saturate(1.4) blur(2px); overflow: visible; }
+        /* App bar (Fluent) — translucent, blurred, hairline under */
+        .mv-appbar { overflow: visible;
+            background: color-mix(in srgb, var(--colorNeutralBackground1) 82%, transparent);
+            backdrop-filter: saturate(1.6) blur(10px); -webkit-backdrop-filter: saturate(1.6) blur(10px);
+            border-bottom: 1px solid var(--colorNeutralStroke2); }
         .bz-brand-logo { font-size: 1.15rem; }
         .mv-appbar .mv-menu-list { right: 0; left: auto; }
 
         /* Shell: app bar on top, Nav rail + content below */
         .bz-shell { display: flex; align-items: flex-start; }
-        .mv-nav { position: sticky; top: 48px; height: calc(100vh - 48px); width: 240px;
-            flex-shrink: 0; box-sizing: border-box; border-right: 1px solid var(--colorNeutralStroke2);
+        .mv-nav { position: sticky; top: 48px; height: calc(100vh - 48px); width: 248px;
+            flex-shrink: 0; box-sizing: border-box; padding: var(--spacingVerticalM) var(--spacingHorizontalS);
+            background: var(--colorNeutralBackground1); border-right: 1px solid var(--colorNeutralStroke2);
             overflow-y: auto; }
         .bz-content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
-        .bz-main { flex: 1; width: 100%; max-width: 920px; margin: 0 auto; box-sizing: border-box;
-            padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); }
-        .bz-foot { text-align: center; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
-            padding: var(--spacingVerticalXL) var(--spacingHorizontalL) var(--spacingVerticalXXL); }
+        /* LEFT-ALIGNED content with a comfortable left gutter — no centering. */
+        .bz-main { flex: 1; width: 100%; max-width: 1180px; margin: 0; box-sizing: border-box;
+            padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXXL) var(--spacingVerticalXXXL); }
+        .bz-foot { color: var(--colorNeutralForeground4); font-size: var(--fontSizeBase200);
+            padding: var(--spacingVerticalXL) var(--spacingHorizontalXXXL) var(--spacingVerticalXXL);
+            border-top: 1px solid var(--colorNeutralStroke3); margin-top: var(--spacingVerticalXXL); }
 
-        /* Re-skin the existing bz-* page classes to Fluent (so every page adopts it) */
-        .bz-card { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke1);
-            border-radius: var(--borderRadiusXLarge); box-shadow: var(--shadow2); }
-        .bz-hero { background: var(--colorBrandBackground); color: var(--colorNeutralForegroundOnBrand);
-            border-radius: var(--borderRadiusXLarge); padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); box-shadow: var(--shadow8); }
-        .bz-hero h1 { margin: 0 0 var(--spacingVerticalS); font-size: 32px; font-weight: var(--fontWeightBold); letter-spacing: -.02em; }
-        .bz-hero p { margin: 0; opacity: .92; max-width: 60ch; }
-        .bz-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--spacingHorizontalL); margin-top: var(--spacingVerticalL); }
+        /* Reusable page header (Fluent type ramp) — left-aligned title + subtitle */
+        .bz-page-head { margin: 0 0 var(--spacingVerticalXL); }
+        .bz-page-head h1, .bz-page-title { margin: 0; font-size: clamp(24px, 3.2vw, 32px);
+            font-weight: var(--fontWeightBold); letter-spacing: -.025em; line-height: 1.08; }
+        .bz-page-head p, .bz-page-sub { margin: var(--spacingVerticalXS) 0 0;
+            color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); max-width: 70ch; }
+
+        /* Re-skin the existing bz-* page classes to Fluent (every page adopts it) */
+        .bz-card { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+            border-radius: var(--borderRadiusXLarge); box-shadow: var(--shadow4);
+            transition: box-shadow var(--durationNormal, .15s) var(--curveEasyEase, ease); }
+        .bz-hero { position: relative; overflow: hidden; color: #fff;
+            background: linear-gradient(135deg, var(--colorBrandBackground) 0%, color-mix(in srgb, var(--colorBrandBackground) 60%, #5b2bd9) 100%);
+            border-radius: var(--borderRadiusXLarge); padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); box-shadow: var(--shadow16); }
+        .bz-hero h1 { margin: 0 0 var(--spacingVerticalS); font-size: clamp(26px, 4vw, 34px); font-weight: var(--fontWeightBold); letter-spacing: -.025em; line-height: 1.05; }
+        .bz-hero p { margin: 0; opacity: .94; max-width: 60ch; font-size: var(--fontSizeBase400); }
+        .bz-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--spacingHorizontalL); margin-top: var(--spacingVerticalL); }
         .bz-tile { display: block; text-decoration: none; color: inherit; padding: var(--spacingVerticalL) var(--spacingHorizontalL);
-            border-radius: var(--borderRadiusXLarge); background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke1);
-            box-shadow: var(--shadow2); transition: box-shadow var(--durationFaster) var(--curveEasyEase), transform var(--durationFaster) var(--curveEasyEase); }
-        .bz-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow8); border-color: var(--colorNeutralStroke1Hover); }
-        .bz-tile-ico { font-size: 1.6rem; }
+            border-radius: var(--borderRadiusXLarge); background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+            box-shadow: var(--shadow2); transition: box-shadow .18s var(--curveEasyEase, ease), transform .18s var(--curveEasyEase, ease), border-color .18s ease; }
+        .bz-tile:hover { transform: translateY(-3px); box-shadow: var(--shadow16); border-color: var(--colorBrandStroke1, var(--colorNeutralStroke1Hover)); }
+        /* Tinted icon chip — one accent hue per sub-app, theme-adaptive via color-mix */
+        .bz-tile-ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px;
+            border-radius: var(--borderRadiusLarge); font-size: 1.5rem; line-height: 1;
+            background: color-mix(in srgb, var(--colorBrandBackground) 14%, var(--colorNeutralBackground1));
+            transition: transform .18s var(--curveEasyEase, ease); }
+        .bz-tile:hover .bz-tile-ico { transform: scale(1.08) rotate(-3deg); }
+        .bz-tiles .bz-tile:nth-child(1) .bz-tile-ico { background: color-mix(in srgb, #7c3aed 16%, var(--colorNeutralBackground1)); } /* Servers — Discord */
+        .bz-tiles .bz-tile:nth-child(2) .bz-tile-ico { background: color-mix(in srgb, #0f6cbd 16%, var(--colorNeutralBackground1)); } /* Forum */
+        .bz-tiles .bz-tile:nth-child(3) .bz-tile-ico { background: color-mix(in srgb, #0ea5e9 16%, var(--colorNeutralBackground1)); } /* Feed — X */
+        .bz-tiles .bz-tile:nth-child(4) .bz-tile-ico { background: color-mix(in srgb, #16a34a 18%, var(--colorNeutralBackground1)); } /* Messages — WhatsApp */
+        .bz-tiles .bz-tile:nth-child(5) .bz-tile-ico { background: color-mix(in srgb, #f59e0b 18%, var(--colorNeutralBackground1)); } /* Status */
+        .bz-tiles .bz-tile:nth-child(6) .bz-tile-ico { background: color-mix(in srgb, #ec4899 16%, var(--colorNeutralBackground1)); } /* Profile */
         .bz-tile h3 { margin: var(--spacingVerticalS) 0 var(--spacingVerticalXS); font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold); }
         .bz-tile p { margin: 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 

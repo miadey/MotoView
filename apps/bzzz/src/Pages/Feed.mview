@@ -130,7 +130,7 @@
 </div>
 
 <style>
-    .fd-wrap { display: grid; grid-template-columns: minmax(0, 600px) 350px; gap: var(--spacingHorizontalXXL); justify-content: center; align-items: start; }
+    .fd-wrap { display: grid; grid-template-columns: minmax(0, 600px) 350px; gap: var(--spacingHorizontalXXL); justify-content: start; align-items: start; }
     .fd-main { min-width: 0; }
 
     /* Sticky X-style header with tabs */
