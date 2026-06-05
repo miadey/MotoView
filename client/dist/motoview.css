@@ -7178,3 +7178,30 @@ Bases EXISTED (.mv-card-header + -media/-text/-title/-desc, .mv-card-preview + -
 /* Base (.mv-drawer-root, -trigger, -overlay, -backdrop, -surface, -start, -end,
    -title, -body), the 320px width, scrim and slide-in already exist in the
    base block. */
+/* ==================================================================
+   Account menu — the signed-in identity as a dropdown (My profile /
+   Admin / Sign out), toggled by mv-auth.js via [data-mv-authed] +
+   [data-mv-principal] + [data-mv-signout]. CSS-only (details/summary).
+   ================================================================== */
+.mv-acct { position: relative; }
+.mv-acct > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .4rem;
+  padding: 3px 10px 3px 4px; border-radius: var(--borderRadiusCircular);
+  border: 1px solid var(--colorNeutralStroke2); background: var(--colorNeutralBackground1);
+  font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground2); }
+.mv-acct > summary::-webkit-details-marker, .mv-acct > summary::marker { display: none; content: ""; }
+.mv-acct > summary:hover { background: var(--colorNeutralBackground1Hover); border-color: var(--colorNeutralStroke1); }
+.mv-acct-ava { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--colorBrandBackground); color: #fff; font-size: .82rem; flex: none; }
+.mv-acct-id { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-acct-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 210px; z-index: 60;
+  background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusLarge); box-shadow: var(--shadow28, var(--shadow16)); padding: 4px;
+  animation: mvAcctIn .12s var(--curveDecelerateMid, ease); }
+@keyframes mvAcctIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.mv-acct-item { display: flex; align-items: center; gap: .55rem; width: 100%; box-sizing: border-box;
+  padding: 8px 10px; border-radius: var(--borderRadiusMedium); text-decoration: none; cursor: pointer;
+  color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); font-family: inherit;
+  background: none; border: none; text-align: left; }
+.mv-acct-item:hover { background: var(--colorNeutralBackground1Hover); }
+.mv-acct-out { color: var(--colorPaletteRedForeground1, #c4314b); }
+.mv-acct-sep { height: 1px; background: var(--colorNeutralStroke2); margin: 4px 6px; }

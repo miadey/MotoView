@@ -153,7 +153,8 @@
     var win = window.open(ipOrigin + "/#authorize", "ii-window", "width=420,height=640");
     if (!win) throw new Error("popup blocked — allow popups and retry");
     var result = await new Promise(function (resolve, reject) {
-      var timer = setTimeout(function () { reject(new Error("II login timed out")); }, 5 * 60 * 1000);
+      function closeWin() { try { if (win && !win.closed) win.close(); } catch (e) {} }
+      var timer = setTimeout(function () { window.removeEventListener("message", onMsg); closeWin(); reject(new Error("II login timed out")); }, 5 * 60 * 1000);
       function onMsg(ev) {
         // Gate on the exact II origin AND the popup window — never trust a
         // message just because it occupies the popup, and never broadcast the
@@ -164,8 +165,8 @@
           var req = { kind: "authorize-client", sessionPublicKey: sessDer, maxTimeToLive: BigInt(8) * 60n * 60n * 1000000000n };
           if (derivationOrigin) req.derivationOrigin = derivationOrigin;
           win.postMessage(req, ipOrigin);
-        } else if (d.kind === "authorize-client-success") { window.removeEventListener("message", onMsg); clearTimeout(timer); resolve(d); }
-        else if (d.kind === "authorize-client-failure") { window.removeEventListener("message", onMsg); clearTimeout(timer); reject(new Error(d.text || "II login failed")); }
+        } else if (d.kind === "authorize-client-success") { window.removeEventListener("message", onMsg); clearTimeout(timer); closeWin(); resolve(d); }
+        else if (d.kind === "authorize-client-failure") { window.removeEventListener("message", onMsg); clearTimeout(timer); closeWin(); reject(new Error(d.text || "II login failed")); }
       }
       window.addEventListener("message", onMsg);
     });
@@ -189,14 +190,28 @@
 
   // ---- default UI: wire any [data-mv-signin] element (zero app code) ----
   function shortP(p) { return p && p.length > 12 ? p.slice(0, 5) + "…" + p.slice(-3) : p; }
+  // If the page has a [data-mv-authed] account menu, the [data-mv-signin] button
+  // is only for signing IN (it hides once signed in and the menu shows instead);
+  // [data-mv-principal] gets the short principal, and [data-mv-signout] logs out.
+  // Without a menu, [data-mv-signin] keeps its simple sign-in/out toggle.
   async function paintButtons() {
-    var els = document.querySelectorAll("[data-mv-signin]"); if (!els.length) return;
+    var signin = document.querySelectorAll("[data-mv-signin]");
+    var authed = document.querySelectorAll("[data-mv-authed]");
+    if (!signin.length && !authed.length) return;
     var who = await whoami(); var anon = !who || who === "2vxsx-fae";
-    els.forEach(function (b) {
+    var hasMenu = authed.length > 0;
+    signin.forEach(function (b) {
       b.dataset.state = anon ? "out" : "in";
-      if (anon) { b.textContent = iiUrl() ? "Sign in" : "Sign in (dev)"; b.title = iiUrl() ? "Sign in with Internet Identity" : "Local dev login (real signed call)"; }
-      else { b.textContent = "⏋ " + shortP(who); b.title = "Signed in as " + who + " — click to sign out"; }
+      if (hasMenu) {
+        b.style.display = anon ? "" : "none";
+        b.textContent = iiUrl() ? "Sign in" : "Sign in (dev)";
+        b.title = iiUrl() ? "Sign in with Internet Identity" : "Local dev login";
+      } else if (anon) {
+        b.textContent = iiUrl() ? "Sign in" : "Sign in (dev)"; b.title = iiUrl() ? "Sign in with Internet Identity" : "Local dev login (real signed call)";
+      } else { b.textContent = "⏋ " + shortP(who); b.title = "Signed in as " + who + " — click to sign out"; }
     });
+    authed.forEach(function (m) { m.style.display = anon ? "none" : ""; if (anon && m.tagName === "DETAILS") m.open = false; });
+    document.querySelectorAll("[data-mv-principal]").forEach(function (p) { p.textContent = anon ? "" : shortP(who); p.title = who || ""; });
   }
   async function onSigninClick(ev) {
     var b = ev.currentTarget;
@@ -205,10 +220,11 @@
     try { var u = iiUrl(); if (u) await mvAuth.iiLogin(u); else await mvAuth.devLogin(); location.reload(); }
     catch (e) { alert("Sign in failed: " + e.message); b.textContent = prev; paintButtons(); }
   }
+  async function onSignoutClick(ev) { ev.preventDefault(); await mvAuth.logout(); location.reload(); }
   function initUI() {
-    var els = document.querySelectorAll("[data-mv-signin]");
-    els.forEach(function (b) { if (!b._mvWired) { b._mvWired = true; b.addEventListener("click", onSigninClick); } });
-    if (els.length) paintButtons();
+    document.querySelectorAll("[data-mv-signin]").forEach(function (b) { if (!b._mvWired) { b._mvWired = true; b.addEventListener("click", onSigninClick); } });
+    document.querySelectorAll("[data-mv-signout]").forEach(function (b) { if (!b._mvWired) { b._mvWired = true; b.addEventListener("click", onSignoutClick); } });
+    if (document.querySelector("[data-mv-signin],[data-mv-authed]")) paintButtons();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initUI); else initUI();
 })();

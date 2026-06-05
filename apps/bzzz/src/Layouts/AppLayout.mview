@@ -118,15 +118,20 @@
     <AppBar>
         <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
         <span class="mv-appbar-spacer"></span>
-        <Menu label="⋯">
-            <div class="mv-nav-cat" style="padding:.3rem .75rem">Account</div>
-            <MenuItem href="/me">👤 My profile</MenuItem>
-            <MenuItem href="/status">🟢 My status</MenuItem>
-            <MenuItem href="/messages">✉️ Messages</MenuItem>
-            <MenuItem href="/about">ℹ️ About Bzzz</MenuItem>
-        </Menu>
         <ThemePicker />
         <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
+        <details class="mv-acct" data-mv-authed style="display:none">
+            <summary title="Account"><span class="mv-acct-ava">👤</span><span class="mv-acct-id" data-mv-principal>account</span></summary>
+            <div class="mv-acct-menu">
+                <a class="mv-acct-item" href="/me">👤 My profile</a>
+                <a class="mv-acct-item" href="/status">🟢 My status</a>
+                <a class="mv-acct-item" href="/messages">✉️ Messages</a>
+                <a class="mv-acct-item" href="/admin">🛡️ Admin console</a>
+                <a class="mv-acct-item" href="/about">ℹ️ About Bzzz</a>
+                <div class="mv-acct-sep"></div>
+                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>⎋ Sign out</button>
+            </div>
+        </details>
     </AppBar>
     <div class="bz-shell">
         <Nav>
