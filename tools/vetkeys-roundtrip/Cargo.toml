@@ -1,0 +1,10 @@
+[package]
+name = "vkh"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+ic-vetkeys = "0.7"
+hex = "0.4"
+candid = "0.10"
+[profile.release]
+opt-level = 2

@@ -76,7 +76,7 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 
 **Later**
 
-- vetKeys-encrypted state.
+- **In-browser vetKeys** — the canister vetKeys endpoints (`mvVetkdPublicKey` / `mvVetkdDeriveKey`) and the `ic-vetkeys` client crypto are built and verified end to end (see [Security](security.md) and `tools/vetkeys-roundtrip`); shipping that crypto inside the browser brain (opt-in, to keep the lean default brain) + an example app is the remaining work.
 - A visual page designer.
 
 > **Realtime is not on this list.** The adaptive-polling render/event protocol *is* MotoView's communication layer; a canister cannot open a WebSocket without an external gateway. Polling is the design, not a placeholder.

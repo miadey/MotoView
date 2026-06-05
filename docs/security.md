@@ -113,11 +113,43 @@ Reads are safe anywhere; mutations should run in event handlers (updates). The
 store is backed by a `stable var` in the generated actor, so role assignments
 survive `dfx deploy --mode upgrade`.
 
+## vetKeys (threshold encryption)
+
+Every MotoView actor exposes two vetKeys endpoints for identity-based encryption
+(IBE), so an app can give each user encrypted state only they can read:
+
+- `mvVetkdPublicKey()` → the 96-byte BLS12-381 master public key for the app's
+  context. Free; reveals no secret.
+- `mvVetkdDeriveKey(transportKey)` → a 192-byte vetKey for the **caller's
+  principal**, encrypted to a client-generated transport key. The canister
+  attaches the cycles and calls the management canister; it never sees the
+  plaintext key.
+
+The threshold key is derived across the subnet (no single node holds it). The
+BLS unwrap and the IBE encrypt/decrypt run in the **client** (the Rust brain via
+[`ic-vetkeys`](https://crates.io/crates/ic-vetkeys)), never in the canister.
+Because the derivation `input` is the caller's principal, each user gets their
+own key — encrypt a secret to a principal, store the ciphertext, and only that
+principal can recover it.
+
+This canister foundation is verified end to end against a real local replica with
+the real client crypto — see [`tools/vetkeys-roundtrip`](../tools/vetkeys-roundtrip)
+(`ROUND_TRIP_OK`: derive → unwrap → IBE encrypt/decrypt recovers the plaintext).
+Local dfx uses the `dfx_test_key`; switch the key name to `key_1` for mainnet
+(`runtime/src/VetKeys.mo`).
+
+> **Next:** shipping the same `ic-vetkeys` crypto *inside the browser brain* (so a
+> page encrypts/decrypts with no external tool) is the in-progress step. It is
+> opt-in: the crypto adds ~300 KB to the wasm, so apps that don't use vetKeys
+> keep the lean ~76 KB brain.
+
 ## Roadmap
 
 These are planned and **not yet implemented**:
 
-- **vetKeys encrypted state** — encrypting per-user state at rest using IC vetKeys.
+- **In-browser vetKeys brain** — the client-side IBE (above) wired into the
+  shipped brain + an example app; the canister endpoints and crypto are proven,
+  the browser integration is the remaining work.
 - **Role hierarchies / wildcard scopes** — today roles are flat string grants.
 
 Until those land, build on what is verified: secure forms, HMAC token binding, replay and principal protection, and server-side validation.

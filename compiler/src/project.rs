@@ -254,6 +254,7 @@ fn assemble(
 import App "mo:motoview/App";
 import Html "mo:motoview/Html";
 import MV "mo:motoview/Types";
+import VetKeys "mo:motoview/VetKeys";
 import Lib "mo:motoview";
 import Nat "mo:base/Nat";
 import Nat32 "mo:base/Nat32";
@@ -353,6 +354,19 @@ actor {{
   public shared (msg) func mvEstablish(nonce : Text) : async () {{
     if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
     mvApp.establish(nonce, msg.caller);
+  }};
+
+  // vetKeys: threshold-derived encryption keys. The derived key is bound to the
+  // authenticated caller's principal (per-user). The client unwraps it + runs the
+  // IBE encrypt/decrypt (BLS12-381 in the Rust brain). `dfx_test_key` is the local
+  // key; switch to `key_1` for mainnet. See VetKeys.mo + docs/security.md.
+  public shared query (msg) func mvVetkdContext() : async Text {{ ignore msg; "motoview" }};
+  public shared (msg) func mvVetkdPublicKey() : async Blob {{
+    ignore msg;
+    await VetKeys.publicKey("dfx_test_key", Text.encodeUtf8("motoview"));
+  }};
+  public shared (msg) func mvVetkdDeriveKey(transportKey : Blob) : async Blob {{
+    await VetKeys.deriveKey("dfx_test_key", Text.encodeUtf8("motoview"), Principal.toBlob(msg.caller), transportKey);
   }};
 }};
 "#,
