@@ -621,15 +621,18 @@ module {
 
     func injectAssets(doc : Text) : Text {
       var d = doc;
-      if (not Text.contains(d, #text "motoview.css")) {
+      // Guard on the actual tag (href=/src=), NOT the bare filename — otherwise a
+      // page whose CONTENT mentions "motoview.js" (e.g. these docs) would be
+      // mistaken for already having the script, and the client would never load.
+      if (not Text.contains(d, #text "href=\"/motoview.css\"")) {
         d := Text.replace(d, #text "</head>", "<link rel=\"stylesheet\" href=\"/motoview.css\"></head>");
       };
-      if (not Text.contains(d, #text "motoview.js")) {
+      if (not Text.contains(d, #text "src=\"/motoview.js\"")) {
         d := Text.replace(d, #text "</body>", "<script src=\"/motoview.js\" defer></script></body>");
       };
       // Internet Identity login, available to every app at /mv-auth.js. It is a
       // no-op unless the page has a [data-mv-signin] element to wire.
-      if (not Text.contains(d, #text "mv-auth.js")) {
+      if (not Text.contains(d, #text "src=\"/mv-auth.js\"")) {
         d := Text.replace(d, #text "</body>", "<script src=\"/mv-auth.js\" defer></script></body>");
       };
       d;
@@ -780,15 +783,25 @@ module {
       # ",\"icons\":[{\"src\":\"/favicon.svg\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"any maskable\"}]}";
     };
 
-    /// A minimal service worker: cache-first for the static framework assets
-    /// (offline shell + fast loads); everything else falls through to network.
+    /// An offline-first service worker. On install it precaches the app shell
+    /// (the WASM client + CSS + auth glue + icon), so the app loads with no
+    /// network. At runtime: immutable framework assets are cache-first; page
+    /// navigations are network-first with a cache fallback (so a page you've
+    /// visited still opens offline, showing its last-seen content); the live
+    /// protocol/session endpoints (`/_motoview/*`, `/mv-session`, …) are never
+    /// cached. A bumped cache name + activate cleanup retires old versions.
     func serviceWorker() : Text {
-      "self.addEventListener('install',function(e){self.skipWaiting();});\n"
-      # "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});\n"
-      # "self.addEventListener('fetch',function(e){var p=new URL(e.request.url).pathname;"
-      # "if(p==='/motoview.js'||p==='/motoview.wasm'||p==='/motoview.css'||p==='/favicon.svg'||p==='/manifest.webmanifest'){"
-      # "e.respondWith(caches.open('motoview-v1').then(function(c){return c.match(e.request).then(function(r){"
-      # "return r||fetch(e.request).then(function(resp){c.put(e.request,resp.clone());return resp;});});}));}});\n";
+      "var C='motoview-v2';\n"
+      # "var SHELL=['/motoview.js','/motoview.wasm','/motoview.css','/mv-auth.js','/favicon.svg','/manifest.webmanifest'];\n"
+      # "function dyn(p){return p.indexOf('/_motoview/')===0||p==='/mv-session'||p==='/mv-login-begin'||p==='/mv-whoami'||p==='/mv-logout';}\n"
+      # "self.addEventListener('install',function(e){self.skipWaiting();e.waitUntil(caches.open(C).then(function(c){return c.addAll(SHELL).catch(function(){});}));});\n"
+      # "self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){if(k!==C){return caches.delete(k);}}));}).then(function(){return self.clients.claim();}));});\n"
+      # "function cacheFirst(req){return caches.open(C).then(function(c){return c.match(req).then(function(h){return h||fetch(req).then(function(r){if(r&&r.ok){c.put(req,r.clone());}return r;});});});}\n"
+      # "function netFirst(req){return caches.open(C).then(function(c){return fetch(req).then(function(r){if(r&&r.ok){c.put(req,r.clone());}return r;}).catch(function(){return c.match(req).then(function(h){return h||c.match('/');});});});}\n"
+      # "self.addEventListener('fetch',function(e){var req=e.request;if(req.method!=='GET'){return;}var u=new URL(req.url);if(u.origin!==self.location.origin){return;}var p=u.pathname;if(dyn(p)){return;}"
+      # "if(SHELL.indexOf(p)!==-1){e.respondWith(cacheFirst(req));return;}"
+      # "if(req.mode==='navigate'||(req.headers.get('accept')||'').indexOf('text/html')!==-1){e.respondWith(netFirst(req));return;}"
+      # "e.respondWith(cacheFirst(req));});\n";
     };
 
     func robots() : Text {

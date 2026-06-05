@@ -410,6 +410,13 @@
     document.addEventListener("visibilitychange", function () {
       if (wasm) wasm.mv_on_visibility(document.hidden ? 1 : 0);
     });
+
+    // Register the offline-first service worker the canister serves at /sw.js,
+    // so every MotoView app is an installable PWA that works offline. Best
+    // effort — a failure (e.g. unsupported browser) never blocks the app.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
+    }
   }
 
   function boot() {
