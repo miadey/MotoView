@@ -178,6 +178,51 @@
         <pre class="gx-code">&lt;Text variant="title2"&gt;Heading&lt;/Text&gt;</pre>
     </div>
 
+    <div class="gx">
+        <h2>Forms, data &amp; overlays</h2>
+        <p class="gallery-lead">The rest of the Fluent set — all server-rendered, all CSS-only (no JavaScript), including the overlays.</p>
+
+        <h3 class="fui-text-body1-strong">Selection &amp; fields</h3>
+        <div class="gx-live">
+            <Checkbox name="t" label="Accept terms" checked="true" />
+            <Radio name="opt" value="a" label="Option A" checked="true" />
+            <Radio name="opt" value="b" label="Option B" />
+        </div>
+        <div class="gx-live">
+            <Select name="kind" label="Kind" options="Discussion,Forum,Feed" />
+            <Combobox name="city" label="City (type-ahead)" options="London,Lagos,Lima,Lisbon" placeholder="Type…" />
+            <Searchbox name="q" placeholder="Search" />
+        </div>
+        <pre class="gx-code">&lt;Combobox name="city" options="London,Lagos,Lima" /&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">Tag, Rating, ProgressBar, Breadcrumb</h3>
+        <div class="gx-live">
+            <Tag dismissible="true">design</Tag>
+            <Tag>fluent</Tag>
+            <Rating value="4" max="5" />
+            <ProgressBar value="65" max="100" />
+        </div>
+        <Breadcrumb><BreadcrumbItem href="/">Home</BreadcrumbItem><BreadcrumbItem href="/components">Components</BreadcrumbItem><BreadcrumbItem current="true">Overlays</BreadcrumbItem></Breadcrumb>
+        <pre class="gx-code">&lt;Rating value="4" max="5" /&gt;   &lt;ProgressBar value="65" /&gt;</pre>
+
+        <h3 class="fui-text-body1-strong">Accordion (native disclosure)</h3>
+        <div class="gx-live" style="flex-direction:column;align-items:stretch">
+            <Accordion>
+                <AccordionItem header="What is MotoView?" open="true">A Motoko-native, server-driven UI framework for the Internet Computer.</AccordionItem>
+                <AccordionItem header="Does it use JavaScript?">No application JavaScript — a tiny WASM client just syncs the DOM.</AccordionItem>
+            </Accordion>
+        </div>
+
+        <h3 class="fui-text-body1-strong">Overlays — Tooltip, Popover, Dialog, Drawer (all CSS-only)</h3>
+        <div class="gx-live">
+            <Tooltip text="A helpful hint, on hover."><Button appearance="subtle">Hover for a tooltip</Button></Tooltip>
+            <Popover label="Open popover"><strong>Popover</strong><p style="margin:.4rem 0 0">Arbitrary content in a pure-CSS popover.</p></Popover>
+            <Dialog id="g-dlg" trigger="Open dialog" title="Confirm action">This modal opens with zero JavaScript — a checkbox toggled by its label.<div class="mv-dialog-actions"><label for="g-dlg" class="mv-btn mv-btn-small">Cancel</label></div></Dialog>
+            <Drawer id="g-dr" trigger="Open drawer" title="Settings" side="end">A side drawer, also CSS-only.</Drawer>
+        </div>
+        <pre class="gx-code">&lt;Dialog id="confirm" trigger="Delete" title="Are you sure?"&gt;…&lt;/Dialog&gt;</pre>
+    </div>
+
     <p class="gallery-foot">Brand the whole thing from one color with <a href="/docs/styling-and-themes">@@theme brand="#hex"</a>, and it flips light/dark automatically.</p>
 </section>
 

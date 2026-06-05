@@ -944,6 +944,193 @@ impl<'a> Codegen<'a> {
                 out.push_str(&format!("{}b.raw(\"</a>\");\n", indent));
                 Some(())
             }
+            // ---- Fluent: form controls ----
+            "Checkbox" | "Radio" => {
+                let (cls, kind, dot) = if c.name == "Radio" {
+                    ("mv-radio", "radio", "mv-radio-dot")
+                } else {
+                    ("mv-checkbox", "checkbox", "mv-checkbox-box")
+                };
+                let name = lit("name").unwrap_or_default();
+                out.push_str(&format!("{}b.raw(\"<label class=\\\"{}\\\"><input type=\\\"{}\\\" name=\\\"{}\\\"\");\n", indent, cls, kind, name));
+                if let Some(v) = lit("value") { out.push_str(&format!("{}b.raw(\" value=\\\"{}\\\"\");\n", indent, esc_lit(&v))); }
+                if prop("checked").is_some() { out.push_str(&format!("{}b.raw(\" checked\");\n", indent)); }
+                out.push_str(&format!("{}b.raw(\"><span class=\\\"{}\\\"></span>\");\n", indent, dot));
+                if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+                Some(())
+            }
+            "Select" => {
+                let name = lit("name").unwrap_or_default();
+                let has_label = prop("label").is_some();
+                if has_label {
+                    out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-field\\\"><label>\");\n", indent));
+                    self.gen_attr_text(prop("label").unwrap(), out, indent);
+                    out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"<select class=\\\"mv-select\\\" name=\\\"{}\\\">\");\n", indent, name));
+                if let Some(opts) = lit("options") {
+                    for o in opts.split(',') {
+                        out.push_str(&format!("{}b.raw(\"<option>{}</option>\");\n", indent, esc_lit(o.trim())));
+                    }
+                }
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</select>\");\n", indent));
+                if has_label { out.push_str(&format!("{}b.raw(\"</div>\");\n", indent)); }
+                Some(())
+            }
+            "Searchbox" => {
+                let name = lit("name").unwrap_or_default();
+                let ph = esc_lit(&lit("placeholder").unwrap_or_else(|| "Search".into()));
+                out.push_str(&format!("{}b.raw(\"<input type=\\\"search\\\" class=\\\"mv-input mv-search\\\" name=\\\"{}\\\" placeholder=\\\"{}\\\">\");\n", indent, name, ph));
+                Some(())
+            }
+            "Combobox" => {
+                let name = lit("name").unwrap_or_default();
+                let listid = format!("{}-list", name);
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-field\\\">\");\n", indent));
+                if let Some(l) = prop("label") {
+                    out.push_str(&format!("{}b.raw(\"<label>\");\n", indent));
+                    self.gen_attr_text(l, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+                }
+                let ph = esc_lit(&lit("placeholder").unwrap_or_default());
+                out.push_str(&format!("{}b.raw(\"<input class=\\\"mv-input mv-combobox\\\" name=\\\"{}\\\" list=\\\"{}\\\" placeholder=\\\"{}\\\"><datalist id=\\\"{}\\\">\");\n", indent, name, listid, ph, listid));
+                if let Some(opts) = lit("options") {
+                    for o in opts.split(',') {
+                        out.push_str(&format!("{}b.raw(\"<option value=\\\"{}\\\"></option>\");\n", indent, esc_lit(o.trim())));
+                    }
+                }
+                out.push_str(&format!("{}b.raw(\"</datalist></div>\");\n", indent));
+                Some(())
+            }
+            // ---- Fluent: data display ----
+            "Tag" => {
+                let mut cls = "mv-tag".to_string();
+                if prop("interactive").is_some() { cls.push_str(" mv-tag-interactive"); }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\">\");\n", indent, cls));
+                self.gen_nodes(&c.children, out, indent);
+                if prop("dismissible").is_some() {
+                    out.push_str(&format!("{}b.raw(\"<button type=\\\"button\\\" class=\\\"mv-tag-dismiss\\\"></button>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                Some(())
+            }
+            "AvatarGroup" => {
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-avatar-group\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "ProgressBar" => {
+                let v: f64 = lit("value").and_then(|s| s.parse().ok()).unwrap_or(0.0);
+                let m: f64 = lit("max").and_then(|s| s.parse().ok()).unwrap_or(100.0);
+                let pct = if m > 0.0 { (v / m * 100.0).clamp(0.0, 100.0) } else { 0.0 };
+                let cls = if lit("value").is_none() { "mv-progress mv-progress-indeterminate" } else { "mv-progress" };
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\"><div class=\\\"mv-progress-bar\\\" style=\\\"width:{:.1}%\\\"></div></div>\");\n", indent, cls, pct));
+                Some(())
+            }
+            "Skeleton" => {
+                let shape = lit("shape").map(|s| format!(" mv-skeleton-{}", s)).unwrap_or_default();
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-skeleton{}\\\"></span>\");\n", indent, shape));
+                Some(())
+            }
+            "Rating" => {
+                let v: usize = lit("value").and_then(|s| s.parse().ok()).unwrap_or(0);
+                let m: usize = lit("max").and_then(|s| s.parse().ok()).unwrap_or(5);
+                let size = lit("size").map(|s| format!(" mv-rating-{}", s)).unwrap_or_default();
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-rating{}\\\" role=\\\"img\\\">\");\n", indent, size));
+                for i in 0..m {
+                    let on = if i < v { "mv-star-on" } else { "mv-star-off" };
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-star {}\\\">&#9733;</span>\");\n", indent, on));
+                }
+                out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                Some(())
+            }
+            "Image" => {
+                let mut cls = "mv-image".to_string();
+                if let Some(s) = lit("shape") { cls.push_str(&format!(" mv-image-{}", s)); }
+                if let Some(f) = lit("fit") { cls.push_str(&format!(" mv-image-{}", f)); }
+                if prop("bordered").is_some() { cls.push_str(" mv-image-bordered"); }
+                if prop("shadow").is_some() { cls.push_str(" mv-image-shadow"); }
+                if prop("fluid").is_some() { cls.push_str(" mv-image-fluid"); }
+                out.push_str(&format!("{}b.raw(\"<img class=\\\"{}\\\" src=\\\"\");\n", indent, cls));
+                if let Some(s) = prop("src") { self.gen_attr_text(s, out, indent); }
+                out.push_str(&format!("{}b.raw(\"\\\" alt=\\\"\");\n", indent));
+                if let Some(a) = prop("alt") { self.gen_attr_text(a, out, indent); }
+                out.push_str(&format!("{}b.raw(\"\\\">\");\n", indent));
+                Some(())
+            }
+            "Breadcrumb" => {
+                out.push_str(&format!("{}b.raw(\"<nav class=\\\"mv-breadcrumb\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</nav>\");\n", indent));
+                Some(())
+            }
+            "BreadcrumbItem" => {
+                let cur = if prop("current").is_some() { " is-current" } else { "" };
+                out.push_str(&format!("{}b.raw(\"<a class=\\\"mv-breadcrumb-item{}\\\" href=\\\"\");\n", indent, cur));
+                if let Some(h) = prop("href") { self.gen_attr_text(h, out, indent); } else { out.push_str(&format!("{}b.raw(\"#\");\n", indent)); }
+                out.push_str(&format!("{}b.raw(\"\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</a>\");\n", indent));
+                Some(())
+            }
+            // ---- Fluent: disclosure + overlays (CSS-only) ----
+            "Accordion" => {
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-accordion\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "AccordionItem" => {
+                let open = if prop("open").is_some() { " open" } else { "" };
+                out.push_str(&format!("{}b.raw(\"<details class=\\\"mv-accordion-item\\\"{}><summary class=\\\"mv-accordion-header\\\">\");\n", indent, open));
+                if let Some(h) = prop("header") { self.gen_attr_text(h, out, indent); }
+                out.push_str(&format!("{}b.raw(\"</summary><div class=\\\"mv-accordion-panel\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div></details>\");\n", indent));
+                Some(())
+            }
+            "Popover" => {
+                out.push_str(&format!("{}b.raw(\"<details class=\\\"mv-popover\\\"><summary class=\\\"mv-popover-trigger\\\">\");\n", indent));
+                if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
+                out.push_str(&format!("{}b.raw(\"</summary><div class=\\\"mv-popover-surface\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div></details>\");\n", indent));
+                Some(())
+            }
+            "Tooltip" => {
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-tooltip\\\" tabindex=\\\"0\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-tooltip-text\\\" role=\\\"tooltip\\\">\");\n", indent));
+                if let Some(t) = prop("text") { self.gen_attr_text(t, out, indent); }
+                out.push_str(&format!("{}b.raw(\"</span></span>\");\n", indent));
+                Some(())
+            }
+            "Dialog" | "Drawer" => {
+                let is_drawer = c.name == "Drawer";
+                let id = esc_lit(&lit("id").unwrap_or_else(|| if is_drawer { "mvdrawer".into() } else { "mvdlg".into() }));
+                let trigger = esc_lit(&lit("trigger").unwrap_or_else(|| "Open".into()));
+                if is_drawer {
+                    let side = if lit("side").as_deref() == Some("end") { "mv-drawer-end" } else { "mv-drawer-start" };
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-drawer-root\\\"><input type=\\\"checkbox\\\" id=\\\"{}\\\" class=\\\"mv-drawer-toggle\\\" hidden><label for=\\\"{}\\\" class=\\\"mv-drawer-trigger\\\">{}</label><div class=\\\"mv-drawer-overlay\\\"><label for=\\\"{}\\\" class=\\\"mv-drawer-backdrop\\\"></label><aside class=\\\"mv-drawer-surface {}\\\">\");\n", indent, id, id, trigger, id, side));
+                } else {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-dialog-root\\\"><input type=\\\"checkbox\\\" id=\\\"{}\\\" class=\\\"mv-dialog-toggle\\\" hidden><label for=\\\"{}\\\" class=\\\"mv-dialog-trigger mv-btn mv-btn-primary mv-btn-small\\\">{}</label><div class=\\\"mv-dialog-overlay\\\"><label for=\\\"{}\\\" class=\\\"mv-dialog-backdrop\\\"></label><div class=\\\"mv-dialog-surface\\\" role=\\\"dialog\\\">\");\n", indent, id, id, trigger, id));
+                }
+                let pfx = if is_drawer { "mv-drawer" } else { "mv-dialog" };
+                if let Some(t) = prop("title") {
+                    out.push_str(&format!("{}b.raw(\"<div class=\\\"{}-title\\\">\");\n", indent, pfx));
+                    self.gen_attr_text(t, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}-body\\\">\");\n", indent, pfx));
+                self.gen_nodes(&c.children, out, indent);
+                let close = if is_drawer { "</div></aside></div></span>" } else { "</div></div></div></span>" };
+                out.push_str(&format!("{}b.raw(\"{}\");\n", indent, close));
+                Some(())
+            }
             _ => None,
         }
     }
@@ -1115,6 +1302,12 @@ impl<'a> Codegen<'a> {
 }
 
 // ---- free helpers ---------------------------------------------------------
+
+/// HTML-escape a compile-time literal (`&<>"`) so it is safe both as HTML and
+/// inside a generated `b.raw("…")` Motoko string (no raw `"` to break the literal).
+fn esc_lit(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+}
 
 /// Escape text into a Motoko string literal (including the surrounding quotes).
 pub fn mo_str(s: &str) -> String {
