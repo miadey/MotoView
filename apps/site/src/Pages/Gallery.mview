@@ -223,6 +223,136 @@
         <pre class="gx-code">&lt;Dialog id="confirm" trigger="Delete" title="Are you sure?"&gt;…&lt;/Dialog&gt;</pre>
     </div>
 
+    <div class="gx">
+        <h2>Expanded Fluent UI 2 set</h2>
+        <p class="gallery-lead">New built-ins added to broaden Fluent 2 coverage — all server-rendered, CSS-only (no JavaScript).</p>
+        <h3 class="fui-text-body1-strong">Buttons — compound, toggle, split &amp; menu</h3>
+        <div class="gx-live">
+            <CompoundButton appearance="primary" icon="📦" secondary="Send your changes to the cloud">Publish</CompoundButton>
+            <CompoundButton secondary="Save without publishing">Save draft</CompoundButton>
+            <ToggleButton appearance="secondary" name="bold" icon="B" checked>Bold</ToggleButton>
+            <ToggleButton appearance="primary" name="italic">Italic</ToggleButton>
+            <SplitButton appearance="primary" label="Send" icon="✉" on:click={send()}>
+              <MenuItem href="/later">Send later</MenuItem>
+              <MenuItem href="/schedule">Schedule send</MenuItem>
+            </SplitButton>
+            <MenuButton appearance="secondary" label="Options" icon="⚙">
+              <MenuItem href="/edit">Edit</MenuItem>
+              <MenuItem href="/dup">Duplicate</MenuItem>
+              <MenuItem href="/del">Delete</MenuItem>
+            </MenuButton>
+        </div>
+        <h3 class="fui-text-body1-strong">Fields &amp; inputs</h3>
+        <div class="gx-live">
+            <Field label="Email address" required hint="We never share it.">
+              <Input name="email" type="email" placeholder="you@example.com" />
+            </Field>
+            <Field label="Username" validationMessage="That name is taken." validationState="error">
+              <Input name="user" appearance="underline" />
+            </Field>
+            <Label htmlFor="firstName" weight="semibold" required>First name</Label>
+            <Input name="firstName" />
+            <Label htmlFor="note" size="small" text="Optional note" />
+            <InfoLabel label="API rate limit" weight="semibold" info="Requests are capped at 100/min per principal. The window resets continuously." />
+            <Input name="q" placeholder="Search projects" />
+            <Input name="slug" appearance="underline" value="my-canister" />
+            <Input name="city" appearance="filled-lighter" size="large" placeholder="City" />
+            <SpinButton label="Quantity" name="qty" value="3" min="0" max="99" step="1" />
+            <Slider name="volume" value="40" min="0" max="100" step="5" />
+            <Slider name="zoom" value="2" min="1" max="5" vertical />
+        </div>
+        <h3 class="fui-text-body1-strong">Badges &amp; presence</h3>
+        <div class="gx-live">
+            <CounterBadge count="5" color="danger" />
+            <CounterBadge count="99" appearance="outline" color="brand" size="large" />
+            <CounterBadge count="5" color="important" />
+            <CounterBadge dot color="success" />
+            <PresenceBadge status="available" />
+            <PresenceBadge status="busy" size="large" />
+            <PresenceBadge status="away" />
+            <PresenceBadge status="dnd" />
+            <PresenceBadge status="offline" />
+            <PresenceBadge status="out-of-office" />
+        </div>
+        <h3 class="fui-text-body1-strong">Typography — the Fluent type ramp</h3>
+        <div class="gx-live">
+            <Title1>Welcome to MotoView</Title1>
+            <Title2>Section heading</Title2>
+            <Subtitle1>Card subtitle</Subtitle1>
+            <Body1>The default running text size.</Body1>
+            <Body1 strong>Emphasized body text.</Body1>
+            <Caption1>Helper / metadata text.</Caption1>
+            <Display>MotoView</Display>
+        </div>
+        <h3 class="fui-text-body1-strong">Card — header, preview &amp; footer</h3>
+        <div class="gx-live">
+            <Card>
+              <CardHeader header="Elvia Atkins" description="5h ago - About">
+                <Avatar size="40" text="EA" />
+              </CardHeader>
+              <Body1>App content goes here.</Body1>
+            </Card>
+            <Card>
+              <CardPreview src="/img/cover.png" alt="Project cover" />
+              <CardHeader header="Q3 Roadmap" description="Updated today" />
+            </Card>
+            <Card>
+              <CardHeader header="Invite teammates" description="3 seats left" />
+              <CardFooter>
+                <Button appearance="primary">Invite</Button>
+                <Button>Dismiss</Button>
+              </CardFooter>
+            </Card>
+        </div>
+        <h3 class="fui-text-body1-strong">Disclosure, nav &amp; data</h3>
+        <div class="gx-live">
+            <Tree>
+              <TreeItem label="src" open>
+                <TreeItem label="components">
+                  <TreeItem label="Button.mview" />
+                  <TreeItem label="Card.mview" />
+                </TreeItem>
+                <TreeItem label="app.mview" />
+              </TreeItem>
+              <TreeItem label="package.json" />
+            </Tree>
+            <Toolbar size="medium">
+              <ToolbarGroup>
+                <Button appearance="subtle">Bold</Button>
+                <Button appearance="subtle">Italic</Button>
+              </ToolbarGroup>
+              <ToolbarDivider />
+              <ToolbarGroup>
+                <Button appearance="subtle">Undo</Button>
+                <Button appearance="subtle">Redo</Button>
+              </ToolbarGroup>
+            </Toolbar>
+            <Carousel>
+              <Image src="/img/1.jpg" alt="Slide 1" fluid />
+              <Image src="/img/2.jpg" alt="Slide 2" fluid />
+              <Card title="Featured">Swipe or scroll horizontally.</Card>
+            </Carousel>
+            <TagGroup size="small">
+              <Tag>Design</Tag>
+              <Tag>Engineering</Tag>
+              <InteractionTag value="qa" dismissible>QA</InteractionTag>
+            </TagGroup>
+            <TagGroup>
+              <InteractionTag value="alice" @click="openProfile">Alice Park</InteractionTag>
+              <InteractionTag value="bob" dismissible @click="openProfile">Bob Lee</InteractionTag>
+            </TagGroup>
+            <Menu label="View">
+              <MenuItemCheckbox name="grid" value="on" checked>Show grid</MenuItemCheckbox>
+              <MenuItemCheckbox name="ruler" value="on">Show ruler</MenuItemCheckbox>
+            </Menu>
+            <Menu label="Sort by">
+              <MenuItemRadio name="sort" value="name" checked>Name</MenuItemRadio>
+              <MenuItemRadio name="sort" value="date">Date modified</MenuItemRadio>
+              <MenuItemRadio name="sort" value="size">Size</MenuItemRadio>
+            </Menu>
+        </div>
+    </div>
+
     <p class="gallery-foot">Brand the whole thing from one color with <a href="/docs/styling-and-themes">@@theme brand="#hex"</a>, and it flips light/dark automatically.</p>
 </section>
 

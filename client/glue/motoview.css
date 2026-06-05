@@ -896,6 +896,245 @@ h2 { font-size: 1.35rem; }
   height: 40px;
 }
 
+/* --- Inline icon span (before/after the label) --- */
+.mv-btn-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+/* --- Shapes --- */
+.mv-btn-circular {
+  border-radius: var(--borderRadiusCircular);
+}
+.mv-btn-square {
+  border-radius: var(--borderRadiusNone, 0);
+}
+
+/* --- Disabled (class form, mirrors :disabled) --- */
+.mv-btn-disabled {
+  background: var(--colorNeutralBackgroundDisabled, var(--colorNeutralBackground1));
+  border-color: var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke1));
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-btn-disabled.mv-btn-primary,
+.mv-btn-disabled.mv-btn-danger {
+  background: var(--colorNeutralBackgroundDisabled, var(--colorNeutralBackground1));
+  border-color: var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke1));
+  color: var(--colorNeutralForegroundDisabled);
+}
+
+/* ============================================================
+   COMPOUND BUTTON
+   A button with a bold primary line + a smaller description line.
+   <button class="mv-btn mv-compound-btn mv-btn-*">
+     <span class="mv-compound-content">
+       <span class="mv-compound-primary">Save</span>
+       <span class="mv-compound-secondary">Save your changes</span>
+     </span>
+   </button>
+   ============================================================ */
+.mv-compound-btn {
+  height: auto;
+  min-height: 52px;
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  align-items: center;
+  text-align: left;
+}
+.mv-compound-btn.mv-btn-small {
+  min-height: 44px;
+  padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS);
+}
+.mv-compound-btn.mv-btn-large {
+  min-height: 64px;
+  padding: var(--spacingVerticalM) var(--spacingHorizontalL);
+}
+.mv-compound-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.mv-compound-primary {
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+  font-weight: var(--fontWeightSemibold);
+}
+.mv-compound-secondary {
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  font-weight: var(--fontWeightRegular);
+  color: var(--colorNeutralForeground2);
+}
+/* On filled appearances the secondary line stays legible on the brand fill */
+.mv-compound-btn.mv-btn-primary .mv-compound-secondary,
+.mv-compound-btn.mv-btn-danger .mv-compound-secondary {
+  color: var(--colorNeutralForegroundOnBrand);
+  opacity: 0.85;
+}
+.mv-compound-btn .mv-btn-ico {
+  font-size: 1.25em;
+  margin-right: var(--spacingHorizontalXS);
+}
+
+/* ============================================================
+   TOGGLE BUTTON  (checkbox-hack, pure CSS pressed state)
+   <label class="mv-btn mv-toggle-btn mv-btn-*">
+     <input type="checkbox" class="mv-toggle-input"> Bold
+   </label>
+   ============================================================ */
+.mv-toggle-btn {
+  position: relative;
+  user-select: none;
+}
+.mv-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Pressed state: invert toward the brand-tinted "selected" look Fluent uses.
+   Default (secondary) toggle goes to the selected neutral tint + accent text. */
+.mv-toggle-btn:has(> .mv-toggle-input:checked) {
+  background: var(--colorBrandBackground2, var(--colorNeutralBackground1Selected, var(--colorSubtleBackgroundSelected)));
+  border-color: var(--colorCompoundBrandStroke, var(--colorBrandStroke1));
+  color: var(--colorBrandForeground1);
+}
+/* Filled appearances simply deepen to the pressed brand fill when checked. */
+.mv-toggle-btn.mv-btn-primary:has(> .mv-toggle-input:checked) {
+  background: var(--colorBrandBackgroundPressed);
+  border-color: transparent;
+  color: var(--colorNeutralForegroundOnBrand);
+}
+.mv-toggle-btn.mv-btn-danger:has(> .mv-toggle-input:checked) {
+  background: var(--colorStatusDangerBackground3Pressed, var(--colorPaletteRedForeground1));
+  border-color: transparent;
+  color: var(--colorNeutralForegroundOnBrand);
+  filter: brightness(0.9);
+}
+.mv-toggle-btn.mv-btn-subtle:has(> .mv-toggle-input:checked),
+.mv-toggle-btn.mv-btn-transparent:has(> .mv-toggle-input:checked) {
+  background: var(--colorSubtleBackgroundSelected, var(--colorSubtleBackgroundHover));
+  color: var(--colorNeutralForeground1Selected, var(--colorNeutralForeground1));
+}
+/* Focus ring follows the hidden input */
+.mv-toggle-btn:has(> .mv-toggle-input:focus-visible) {
+  outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralForeground1));
+  outline-offset: 2px;
+}
+.mv-toggle-btn:has(> .mv-toggle-input:disabled) {
+  background: var(--colorNeutralBackgroundDisabled, var(--colorNeutralBackground1));
+  border-color: var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke1));
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================================
+   MENU BUTTON  (details/summary popover with a chevron)
+   <details class="mv-menu mv-menubtn">
+     <summary class="mv-menu-trigger mv-btn mv-menubtn-trigger mv-btn-*">
+       Options <span class="mv-menubtn-chev">▾</span>
+     </summary>
+     <div class="mv-menu-list">…MenuItem…</div>
+   </details>
+   Reuses .mv-menu / .mv-menu-list / .mv-menu-item from the Menu component.
+   ============================================================ */
+.mv-menubtn-trigger {
+  /* the summary is also a .mv-btn, so reset summary marker + keep button look */
+  list-style: none;
+  cursor: pointer;
+}
+.mv-menubtn-trigger::-webkit-details-marker {
+  display: none;
+}
+.mv-menubtn-chev {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fontSizeBase200);
+  line-height: 1;
+  transition: transform var(--durationFaster) var(--curveEasyEase);
+}
+.mv-menubtn[open] > .mv-menubtn-trigger .mv-menubtn-chev {
+  transform: rotate(180deg);
+}
+
+/* ============================================================
+   SPLIT BUTTON
+   A primary action button joined to a chevron menu trigger.
+   <span class="mv-split mv-split-*">
+     <button class="mv-btn mv-split-action mv-btn-*">Send</button>
+     <details class="mv-menu mv-split-menu">
+       <summary class="mv-menu-trigger mv-btn mv-split-trigger mv-btn-*">
+         <span class="mv-menubtn-chev">▾</span>
+       </summary>
+       <div class="mv-menu-list">…MenuItem…</div>
+     </details>
+   </span>
+   ============================================================ */
+.mv-split {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+}
+/* The action half: square off the joined (right) edge, drop its right border. */
+.mv-split-action {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0;
+  min-width: 64px;
+}
+/* The trigger half: narrow, square off the joined (left) edge. */
+.mv-split .mv-split-menu {
+  display: inline-flex;
+}
+.mv-split-trigger {
+  list-style: none;
+  cursor: pointer;
+  min-width: 0;
+  width: 32px;
+  padding: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.mv-split-trigger::-webkit-details-marker {
+  display: none;
+}
+.mv-split-trigger .mv-menubtn-chev {
+  font-size: var(--fontSizeBase200);
+  transition: transform var(--durationFaster) var(--curveEasyEase);
+}
+.mv-split-menu[open] > .mv-split-trigger .mv-menubtn-chev {
+  transform: rotate(180deg);
+}
+/* Thin divider between the two halves on filled appearances */
+.mv-split-primary .mv-split-trigger,
+.mv-split-danger .mv-split-trigger {
+  box-shadow: inset 1px 0 0 0 rgba(255, 255, 255, 0.28);
+}
+/* The popover hangs off the trigger, right-aligned to the split group. */
+.mv-split .mv-split-menu .mv-menu-list {
+  right: 0;
+  left: auto;
+}
+.mv-split-trigger.mv-btn-small {
+  width: 24px;
+}
+.mv-split-trigger.mv-btn-large {
+  width: 40px;
+}
+
 /* ============================================================
    LINKS
    ============================================================ */
@@ -1278,6 +1517,110 @@ h2 { font-size: 1.35rem; }
   border-radius: var(--borderRadiusCircular);
 }
 
+/* Badge shape (default circular look kept on .mv-badge above; explicit
+   shape modifiers let callers pick rounded/square). */
+.mv-badge-rounded  { border-radius: var(--borderRadiusMedium); }
+.mv-badge-circular { border-radius: var(--borderRadiusCircular); }
+.mv-badge-square   { border-radius: var(--borderRadiusNone); }
+
+/* Badge sizes (Fluent: tiny..extra-large). Height/min-width/font scale. */
+.mv-badge-tiny {
+  height: 6px;
+  min-width: 6px;
+  padding: 0;
+  font-size: 0;
+}
+.mv-badge-extra-small {
+  height: 10px;
+  min-width: 10px;
+  padding: 0 2px;
+  font-size: var(--fontSizeBase100);
+  line-height: var(--lineHeightBase100);
+}
+.mv-badge-small {
+  height: 16px;
+  min-width: 16px;
+  padding: 0 var(--spacingHorizontalXXS);
+  font-size: var(--fontSizeBase100);
+  line-height: var(--lineHeightBase100);
+}
+.mv-badge-medium {
+  height: 20px;
+  min-width: 20px;
+}
+.mv-badge-large {
+  height: 24px;
+  min-width: 24px;
+  padding: 0 var(--spacingHorizontalSNudge);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+}
+.mv-badge-extra-large {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 var(--spacingHorizontalS);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+}
+
+/* Colorful filled palette (same set as the avatar palette, used by
+   CounterBadge-style colored badges). Filled bg + readable foreground. */
+.mv-badge-neutral { background: var(--colorNeutralBackground5); color: var(--colorNeutralForeground3); }
+.mv-badge-red        { background: #d13438; color: #ffffff; }
+.mv-badge-darkred    { background: #750b1c; color: #ffffff; }
+.mv-badge-cranberry  { background: #c50f1f; color: #ffffff; }
+.mv-badge-pumpkin    { background: #ca5010; color: #ffffff; }
+.mv-badge-peach      { background: #ff8c00; color: #000000; }
+.mv-badge-marigold   { background: #eaa300; color: #000000; }
+.mv-badge-gold       { background: #c19c00; color: #000000; }
+.mv-badge-brass      { background: #986f0b; color: #ffffff; }
+.mv-badge-brown      { background: #8e562e; color: #ffffff; }
+.mv-badge-forest     { background: #498205; color: #ffffff; }
+.mv-badge-green      { background: #107c10; color: #ffffff; }
+.mv-badge-seafoam    { background: #00cc6a; color: #000000; }
+.mv-badge-darkgreen  { background: #0b6a0b; color: #ffffff; }
+.mv-badge-teal       { background: #038387; color: #ffffff; }
+.mv-badge-lightteal  { background: #00b7c3; color: #000000; }
+.mv-badge-steel      { background: #005b70; color: #ffffff; }
+.mv-badge-blue       { background: #0078d4; color: #ffffff; }
+.mv-badge-royalblue  { background: #004e8c; color: #ffffff; }
+.mv-badge-cornflower { background: #4f6bed; color: #ffffff; }
+.mv-badge-navy       { background: #003966; color: #ffffff; }
+.mv-badge-lavender   { background: #7160e8; color: #ffffff; }
+.mv-badge-purple     { background: #5c2e91; color: #ffffff; }
+.mv-badge-grape      { background: #881798; color: #ffffff; }
+.mv-badge-lilac      { background: #b146c2; color: #ffffff; }
+.mv-badge-pink       { background: #e3008c; color: #ffffff; }
+.mv-badge-magenta    { background: #bf0077; color: #ffffff; }
+.mv-badge-plum       { background: #77004d; color: #ffffff; }
+.mv-badge-beige      { background: #7a7574; color: #ffffff; }
+.mv-badge-mink       { background: #5d5a58; color: #ffffff; }
+.mv-badge-platinum   { background: #69797e; color: #ffffff; }
+.mv-badge-anchor     { background: #394146; color: #ffffff; }
+
+/* Colorful palette under the non-filled appearances: keep the appearance's
+   transparent/tinted bg, just recolor the text/border to the hue. */
+.mv-badge-ghost.mv-badge-red,
+.mv-badge-outline.mv-badge-red,
+.mv-badge-tint.mv-badge-red        { background: transparent; color: #d13438; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-green,
+.mv-badge-outline.mv-badge-green,
+.mv-badge-tint.mv-badge-green      { background: transparent; color: #107c10; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-blue,
+.mv-badge-outline.mv-badge-blue,
+.mv-badge-tint.mv-badge-blue       { background: transparent; color: #0078d4; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-purple,
+.mv-badge-outline.mv-badge-purple,
+.mv-badge-tint.mv-badge-purple     { background: transparent; color: #5c2e91; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-teal,
+.mv-badge-outline.mv-badge-teal,
+.mv-badge-tint.mv-badge-teal       { background: transparent; color: #038387; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-magenta,
+.mv-badge-outline.mv-badge-magenta,
+.mv-badge-tint.mv-badge-magenta    { background: transparent; color: #bf0077; border-color: currentColor; }
+/* ghost has no border */
+.mv-badge-ghost { border-color: transparent; }
+
 /* ---------- Tag ---------- */
 .mv-tag {
   display: inline-flex;
@@ -1359,6 +1702,39 @@ h2 { font-size: 1.35rem; }
 .mv-tag-interactive:active {
   background: var(--colorNeutralBackground3Pressed, var(--colorSubtleBackgroundPressed));
 }
+
+/* Tag appearance (Fluent: outline default, filled, brand) */
+.mv-tag-outline {
+  background: transparent;
+  border-color: var(--colorNeutralStroke1);
+}
+.mv-tag-filled {
+  background: var(--colorNeutralBackground3);
+  border-color: transparent;
+}
+.mv-tag-brand {
+  background: var(--colorBrandBackground2);
+  border-color: var(--colorBrandStroke2);
+  color: var(--colorBrandForeground2);
+}
+
+/* Tag sizes (small exists above; medium default; extra-large) */
+.mv-tag-medium {
+  height: 32px;
+  padding: 0 var(--spacingHorizontalS);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+}
+.mv-tag-extra-large {
+  height: 40px;
+  padding: 0 var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+
+/* Tag shape (rounded default; circular pill) */
+.mv-tag-rounded  { border-radius: var(--borderRadiusMedium); }
+.mv-tag-circular { border-radius: var(--borderRadiusCircular); }
 
 /* ===== inputs ===== */
 /* ============================================================
@@ -2252,6 +2628,85 @@ label.mv-field-label {
   background-color: var(--colorStatusWarningForeground3);
 }
 
+/* Active / inactive ring (Fluent: active avatars get a brand ring + scale,
+   inactive ones dim). CSS-only, no JS. */
+.mv-avatar-active {
+  box-shadow:
+    0 0 0 2px var(--colorNeutralBackground1),
+    0 0 0 4px var(--colorBrandStroke1);
+}
+.mv-avatar-inactive {
+  opacity: 0.6;
+  filter: grayscale(25%);
+}
+
+/* Presence dot driven by [badge="online|busy|away|..."] — reuses the same
+   look as the presence ring's ::after, available independent of size class. */
+.mv-avatar-badge::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28%;
+  height: 28%;
+  min-width: 6px;
+  min-height: 6px;
+  max-width: 14px;
+  max-height: 14px;
+  border-radius: var(--borderRadiusCircular);
+  border: 2px solid var(--colorNeutralBackground1);
+  box-sizing: border-box;
+  background-color: var(--colorNeutralForeground3);
+}
+.mv-avatar-badge-online::after  { background-color: var(--colorStatusSuccessForeground3); }
+.mv-avatar-badge-busy::after,
+.mv-avatar-badge-dnd::after     { background-color: var(--colorStatusDangerForeground3); }
+.mv-avatar-badge-away::after    { background-color: var(--colorStatusWarningForeground3); }
+.mv-avatar-badge-offline::after { background-color: var(--colorNeutralForeground4); }
+
+/* Colorful avatar palette (Fluent named colors). Tinted bg + matching
+   foreground for the initials, plus a same-hue ring. Self-contained hexes
+   because only a subset of these are tokenized in the theme. */
+.mv-avatar-neutral {
+  background-color: var(--colorNeutralBackground5);
+  color: var(--colorNeutralForeground3);
+}
+.mv-avatar-brand {
+  background-color: var(--colorBrandBackground2);
+  color: var(--colorBrandForeground2);
+}
+.mv-avatar-red        { background-color: #f1bbbc; color: #751d1f; }
+.mv-avatar-darkred    { background-color: #d69ca5; color: #420610; }
+.mv-avatar-cranberry  { background-color: #eeacb2; color: #6e0811; }
+.mv-avatar-pumpkin    { background-color: #efc4ad; color: #4f2110; }
+.mv-avatar-peach      { background-color: #ffddb3; color: #6f5301; }
+.mv-avatar-marigold   { background-color: #f9e2ae; color: #463100; }
+.mv-avatar-gold       { background-color: #ecdfa5; color: #463b00; }
+.mv-avatar-brass      { background-color: #e0cea2; color: #3d3417; }
+.mv-avatar-brown      { background-color: #ddc3b0; color: #50301a; }
+.mv-avatar-forest     { background-color: #bdd99b; color: #294903; }
+.mv-avatar-green      { background-color: #9fd89f; color: #094509; }
+.mv-avatar-seafoam    { background-color: #a8f0cd; color: #00543d; }
+.mv-avatar-darkgreen  { background-color: #9ad29a; color: #063b06; }
+.mv-avatar-teal       { background-color: #9bdfe1; color: #00333b; }
+.mv-avatar-lightteal  { background-color: #bfebef; color: #094c4c; }
+.mv-avatar-steel      { background-color: #94c8d4; color: #00333f; }
+.mv-avatar-blue       { background-color: #a9d3f2; color: #003078; }
+.mv-avatar-royalblue  { background-color: #9abfdc; color: #002c4e; }
+.mv-avatar-cornflower { background-color: #c8d1fa; color: #2c3c85; }
+.mv-avatar-navy       { background-color: #a3b2e8; color: #001665; }
+.mv-avatar-lavender   { background-color: #d2ccf8; color: #3f3682; }
+.mv-avatar-purple     { background-color: #c6b1de; color: #341a51; }
+.mv-avatar-grape      { background-color: #d9a7e0; color: #4c1d4c; }
+.mv-avatar-lilac      { background-color: #e6bfed; color: #63276d; }
+.mv-avatar-pink       { background-color: #f7c8da; color: #80215d; }
+.mv-avatar-magenta    { background-color: #eeb4e4; color: #6b0043; }
+.mv-avatar-plum       { background-color: #d696c0; color: #43002b; }
+.mv-avatar-beige      { background-color: #ddd6d0; color: #444341; }
+.mv-avatar-mink       { background-color: #cecac6; color: #343231; }
+.mv-avatar-platinum   { background-color: #cdd6d8; color: #3b4447; }
+.mv-avatar-anchor     { background-color: #aeb3c2; color: #202634; }
+
 /* ---------- Persona ---------- */
 .mv-persona {
   display: flex;
@@ -2343,6 +2798,26 @@ label.mv-field-label {
   border-width: 4px;
 }
 
+/* Spinner with a label. The wrapper lays the spinner + caption out inline
+   (after) or stacked (below); the bare .mv-spinner above is unaffected. */
+.mv-spinner-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacingHorizontalM);
+  vertical-align: middle;
+}
+.mv-spinner-wrap.mv-spinner-below {
+  flex-direction: column;
+  gap: var(--spacingVerticalSNudge);
+}
+.mv-spinner-label {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+  font-weight: var(--fontWeightRegular);
+  color: var(--colorNeutralForeground1);
+}
+
 /* ---------- ProgressBar ---------- */
 .mv-progress {
   position: relative;
@@ -2372,6 +2847,21 @@ label.mv-field-label {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(400%); }
 }
+
+/* Fill color by validationState (Fluent: success/warning/error recolor the bar) */
+.mv-progress-brand   .mv-progress-bar { background-color: var(--colorCompoundBrandBackground); }
+.mv-progress-success .mv-progress-bar { background-color: var(--colorStatusSuccessForeground1); }
+.mv-progress-warning .mv-progress-bar { background-color: var(--colorStatusWarningForeground1); }
+.mv-progress-error   .mv-progress-bar { background-color: var(--colorStatusDangerForeground1); }
+
+/* Thickness (Fluent: medium = 2px default, large = 4px) */
+.mv-progress-large { height: 4px; }
+
+/* Shape (rounded pill ends vs square) */
+.mv-progress-rounded,
+.mv-progress-rounded .mv-progress-bar { border-radius: var(--borderRadiusCircular); }
+.mv-progress-square,
+.mv-progress-square .mv-progress-bar { border-radius: 0; }
 
 /* ---------- Skeleton ---------- */
 @keyframes mv-skeleton-shimmer {
@@ -3390,3 +3880,746 @@ label.mv-field-label {
 [data-theme="hc"] .bz-hero { background: #000000; border: 2px solid #ffff00; box-shadow: none; }
 [data-theme="hc"] .bz-card-accent::before, [data-theme="hc"] .bz-sec-title::before { background: #ffff00 !important; }
 [data-theme="hc"] .bz-accent-chip { background: #000000 !important; color: #ffff00 !important; box-shadow: inset 0 0 0 1px #ffff00; }
+
+
+/* ============ Fluent coverage gap-fill (new components) ============ */
+
+/* ===== Label ===== */
+/* ---------- Label (standalone) ---------- */
+.mv-label {
+  display: inline-block;
+  font-family: var(--fontFamilyBase);
+  color: var(--colorNeutralForeground1);
+  font-weight: var(--fontWeightRegular);
+}
+.mv-label-small  { font-size: var(--fontSizeBase200); line-height: var(--lineHeightBase200); }
+.mv-label-medium { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); }
+.mv-label-large  { font-size: var(--fontSizeBase400); line-height: var(--lineHeightBase400); }
+.mv-label-regular  { font-weight: var(--fontWeightRegular); }
+.mv-label-semibold { font-weight: var(--fontWeightSemibold); }
+.mv-label:has(> input:disabled),
+.mv-label[data-disabled="true"] {
+  color: var(--colorNeutralForegroundDisabled);
+}
+
+/* ===== InfoLabel ===== */
+/* ---------- InfoLabel (label + hover/focus info tip) ---------- */
+.mv-info-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacingHorizontalXS);
+}
+.mv-info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+  outline: none;
+}
+.mv-info-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--borderRadiusCircular);
+  border: var(--strokeWidthThin) solid var(--colorNeutralStrokeAccessible);
+  color: var(--colorNeutralForeground3);
+  font-family: var(--fontFamilyBase);
+  font-size: 11px;
+  font-style: italic;
+  font-weight: var(--fontWeightSemibold);
+  line-height: 1;
+  user-select: none;
+}
+.mv-info-tip:hover .mv-info-ico,
+.mv-info-tip:focus-visible .mv-info-ico {
+  border-color: var(--colorCompoundBrandStroke);
+  color: var(--colorCompoundBrandForeground1);
+}
+.mv-info-pop {
+  position: absolute;
+  bottom: calc(100% + var(--spacingVerticalXS));
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 100;
+  width: max-content;
+  max-width: 260px;
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  border: var(--strokeWidthThin) solid var(--colorTransparentStroke);
+  border-radius: var(--borderRadiusMedium);
+  box-shadow: var(--shadow16);
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  font-weight: var(--fontWeightRegular);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--durationFast) var(--curveEasyEase),
+    transform var(--durationFast) var(--curveDecelerateMid),
+    visibility var(--durationFast);
+}
+.mv-info-tip:hover .mv-info-pop,
+.mv-info-tip:focus-within .mv-info-pop {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== SpinButton ===== */
+/* ---------- SpinButton (number input with steppers) ---------- */
+/* Inherits .mv-input for the shell (border, height, focus underline). */
+.mv-spinbutton {
+  width: auto;
+  min-width: 120px;
+  padding-right: var(--spacingHorizontalS);
+  text-align: left;
+  -moz-appearance: textfield; /* base, overridden below to show Firefox spinners */
+}
+/* Keep the native steppers visible and give them Fluent-ish room (Chrome/Safari) */
+.mv-spinbutton::-webkit-outer-spin-button,
+.mv-spinbutton::-webkit-inner-spin-button {
+  -webkit-appearance: inner-spin-button;
+  appearance: auto;
+  height: 28px;
+  opacity: 1;
+  cursor: pointer;
+}
+/* Firefox: re-enable the native spinner arrows */
+@supports (-moz-appearance: number-input) {
+  .mv-spinbutton { -moz-appearance: number-input; }
+}
+.mv-spinbutton:disabled {
+  cursor: not-allowed;
+}
+
+/* ===== Slider ===== */
+/* ---------- Slider (range) ---------- */
+.mv-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  background: transparent; /* track drawn by ::*-runnable-track */
+  cursor: pointer;
+  outline: none;
+}
+/* WebKit / Blink track */
+.mv-slider::-webkit-slider-runnable-track {
+  height: var(--strokeWidthThicker);
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorNeutralStroke1);
+}
+/* Firefox track */
+.mv-slider::-moz-range-track {
+  height: var(--strokeWidthThicker);
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorNeutralStroke1);
+}
+/* Firefox: brand-colored fill up to the thumb */
+.mv-slider::-moz-range-progress {
+  height: var(--strokeWidthThicker);
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorCompoundBrandBackground);
+}
+/* WebKit / Blink thumb */
+.mv-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -7px; /* center on the 3px track */
+  width: 16px;
+  height: 16px;
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorCompoundBrandBackground);
+  border: calc(var(--strokeWidthThick) + 1px) solid var(--colorNeutralBackground1);
+  box-shadow: 0 0 0 1px var(--colorCompoundBrandStroke);
+  transition: transform var(--durationFaster) var(--curveEasyEase);
+}
+/* Firefox thumb */
+.mv-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorCompoundBrandBackground);
+  border: calc(var(--strokeWidthThick) + 1px) solid var(--colorNeutralBackground1);
+  box-shadow: 0 0 0 1px var(--colorCompoundBrandStroke);
+}
+.mv-slider:hover::-webkit-slider-thumb { background: var(--colorCompoundBrandBackgroundHover); }
+.mv-slider:hover::-moz-range-thumb     { background: var(--colorCompoundBrandBackgroundHover); }
+.mv-slider:active::-webkit-slider-thumb { transform: scale(1.1); }
+.mv-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--colorStrokeFocus2, var(--colorCompoundBrandStroke));
+}
+.mv-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 2px var(--colorStrokeFocus2, var(--colorCompoundBrandStroke));
+}
+.mv-slider:disabled {
+  cursor: not-allowed;
+}
+.mv-slider:disabled::-webkit-slider-thumb { background: var(--colorNeutralForegroundDisabled); box-shadow: none; }
+.mv-slider:disabled::-moz-range-thumb     { background: var(--colorNeutralForegroundDisabled); box-shadow: none; }
+.mv-slider:disabled::-webkit-slider-runnable-track,
+.mv-slider:disabled::-moz-range-track     { background: var(--colorNeutralStrokeDisabled); }
+/* Vertical orientation */
+.mv-slider-vertical {
+  writing-mode: vertical-lr;
+  direction: rtl; /* low at bottom */
+  width: 24px;
+  height: 160px;
+}
+
+/* ===== CounterBadge ===== */
+/* ---------- CounterBadge ---------- */
+.mv-cbadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--spacingHorizontalXS);
+  border: var(--strokeWidthThin) solid transparent;
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorBrandBackground);
+  color: var(--colorNeutralForegroundOnBrand);
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase200);
+  line-height: 1;
+  font-weight: var(--fontWeightSemibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* Dot mode: collapse to a small filled circle, no text */
+.mv-cbadge-dot {
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+}
+
+/* ----- Filled (default) intents ----- */
+.mv-cbadge-filled.mv-cbadge-brand       { background: var(--colorBrandBackground); color: var(--colorNeutralForegroundOnBrand); }
+.mv-cbadge-filled.mv-cbadge-danger      { background: var(--colorStatusDangerBackground3); color: var(--colorNeutralForegroundOnBrand); }
+.mv-cbadge-filled.mv-cbadge-important   { background: var(--colorNeutralForeground1); color: var(--colorNeutralBackground1); }
+.mv-cbadge-filled.mv-cbadge-informative { background: var(--colorNeutralBackground5); color: var(--colorNeutralForeground3); }
+.mv-cbadge-filled.mv-cbadge-severe      { background: var(--colorStatusDangerForeground1); color: var(--colorNeutralForegroundOnBrand); }
+.mv-cbadge-filled.mv-cbadge-subtle      { background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1); border-color: var(--colorNeutralStroke1); }
+.mv-cbadge-filled.mv-cbadge-success     { background: var(--colorStatusSuccessBackground3); color: var(--colorNeutralForegroundOnBrand); }
+.mv-cbadge-filled.mv-cbadge-warning     { background: var(--colorStatusWarningBackground3); color: var(--colorNeutralForeground1); }
+
+/* ----- Ghost (transparent bg, colored text) ----- */
+.mv-cbadge-ghost { background: transparent; border-color: transparent; }
+.mv-cbadge-ghost.mv-cbadge-brand       { color: var(--colorBrandForeground1); }
+.mv-cbadge-ghost.mv-cbadge-danger      { color: var(--colorStatusDangerForeground1); }
+.mv-cbadge-ghost.mv-cbadge-important   { color: var(--colorNeutralForeground1); }
+.mv-cbadge-ghost.mv-cbadge-informative { color: var(--colorNeutralForeground3); }
+.mv-cbadge-ghost.mv-cbadge-severe      { color: var(--colorStatusDangerForeground1); }
+.mv-cbadge-ghost.mv-cbadge-subtle      { color: var(--colorNeutralForeground3); }
+.mv-cbadge-ghost.mv-cbadge-success     { color: var(--colorStatusSuccessForeground1); }
+.mv-cbadge-ghost.mv-cbadge-warning     { color: var(--colorStatusWarningForeground1); }
+/* Ghost dot keeps a filled circle in the intent color */
+.mv-cbadge-ghost.mv-cbadge-dot         { background: currentColor; }
+
+/* ----- Outline (1px ring, transparent bg, colored text) ----- */
+.mv-cbadge-outline { background: transparent; }
+.mv-cbadge-outline.mv-cbadge-brand       { color: var(--colorBrandForeground1); border-color: var(--colorBrandStroke1); }
+.mv-cbadge-outline.mv-cbadge-danger      { color: var(--colorStatusDangerForeground1); border-color: var(--colorStatusDangerBorder1); }
+.mv-cbadge-outline.mv-cbadge-important   { color: var(--colorNeutralForeground1); border-color: var(--colorNeutralStroke1); }
+.mv-cbadge-outline.mv-cbadge-informative { color: var(--colorNeutralForeground3); border-color: var(--colorNeutralStroke1); }
+.mv-cbadge-outline.mv-cbadge-severe      { color: var(--colorStatusDangerForeground1); border-color: var(--colorStatusDangerBorder2); }
+.mv-cbadge-outline.mv-cbadge-subtle      { color: var(--colorNeutralForeground3); border-color: var(--colorNeutralStroke2); }
+.mv-cbadge-outline.mv-cbadge-success     { color: var(--colorStatusSuccessForeground1); border-color: var(--colorStatusSuccessBorder1); }
+.mv-cbadge-outline.mv-cbadge-warning     { color: var(--colorStatusWarningForeground1); border-color: var(--colorStatusWarningBorder1); }
+.mv-cbadge-outline.mv-cbadge-dot         { background: currentColor; }
+
+/* ----- Sizes (Fluent: tiny/extra-small/small/medium/large/extra-large) ----- */
+.mv-cbadge-tiny        { min-width: 6px;  height: 6px;  padding: 0; font-size: 0; }
+.mv-cbadge-tiny.mv-cbadge-dot        { width: 6px; height: 6px; }
+.mv-cbadge-extra-small { min-width: 10px; height: 10px; padding: 0 2px; font-size: var(--fontSizeBase100); }
+.mv-cbadge-small       { min-width: 16px; height: 16px; font-size: var(--fontSizeBase100); }
+.mv-cbadge-medium      { min-width: 20px; height: 20px; font-size: var(--fontSizeBase200); }
+.mv-cbadge-large       { min-width: 24px; height: 24px; font-size: var(--fontSizeBase300); }
+.mv-cbadge-extra-large { min-width: 32px; height: 32px; font-size: var(--fontSizeBase400); }
+.mv-cbadge-small.mv-cbadge-dot       { width: 6px;  height: 6px; }
+.mv-cbadge-large.mv-cbadge-dot       { width: 10px; height: 10px; }
+.mv-cbadge-extra-large.mv-cbadge-dot { width: 12px; height: 12px; }
+
+/* ===== PresenceBadge ===== */
+/* ---------- PresenceBadge ---------- */
+.mv-presence {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorNeutralBackground1);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+/* The colored core glyph */
+.mv-presence::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--borderRadiusCircular);
+}
+
+/* ----- available: solid green with a check tick ----- */
+.mv-presence-available::before { background: var(--colorStatusSuccessForeground3); }
+.mv-presence-available::after {
+  content: "";
+  position: absolute;
+  left: 32%;
+  top: 16%;
+  width: 22%;
+  height: 46%;
+  border: solid var(--colorNeutralForegroundOnBrand);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+/* ----- busy / do-not-disturb: solid red (dnd adds a bar) ----- */
+.mv-presence-busy::before { background: var(--colorStatusDangerForeground3); }
+.mv-presence-dnd::before  { background: var(--colorStatusDangerForeground3); }
+.mv-presence-dnd::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  top: 44%;
+  width: 56%;
+  height: 14%;
+  border-radius: 1px;
+  background: var(--colorNeutralForegroundOnBrand);
+}
+
+/* ----- away: amber clock ring ----- */
+.mv-presence-away::before { background: var(--colorStatusWarningForeground3); }
+.mv-presence-away::after {
+  content: "";
+  position: absolute;
+  left: 47%;
+  top: 26%;
+  width: 1.4px;
+  height: 26%;
+  background: var(--colorNeutralForegroundOnBrand);
+  box-shadow: 1.5px 3px 0 -0.4px var(--colorNeutralForegroundOnBrand);
+}
+
+/* ----- offline: hollow grey ring ----- */
+.mv-presence-offline::before {
+  background: var(--colorNeutralBackground1);
+  border: 1.5px solid var(--colorNeutralForeground4);
+}
+
+/* ----- out-of-office: hollow brand ring with an X ----- */
+.mv-presence-out-of-office::before,
+.mv-presence-oof::before {
+  background: var(--colorNeutralBackground1);
+  border: 1.5px solid var(--colorBrandForeground1);
+}
+.mv-presence-out-of-office::after,
+.mv-presence-oof::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 1.4px;
+  background: var(--colorBrandForeground1);
+  transform: translate(-50%, -50%) rotate(45deg);
+  box-shadow: 0 0 0 0 transparent;
+}
+
+/* out-of-office ring modifier (status stays but gains the OOF brand ring) */
+.mv-presence-oof-ring::before { border: 1.5px solid var(--colorBrandForeground1) !important; }
+
+/* ----- Sizes ----- */
+.mv-presence-tiny       { width: 6px;  height: 6px; }
+.mv-presence-extra-small{ width: 10px; height: 10px; }
+.mv-presence-small      { width: 12px; height: 12px; }
+.mv-presence-medium     { width: 16px; height: 16px; }
+.mv-presence-large      { width: 20px; height: 20px; }
+
+/* ===== Title1 ===== */
+/* ---------- Fluent type ramp (typography components) ---------- */
+.mv-type-display, .mv-type-title1, .mv-type-title2, .mv-type-title3,
+.mv-type-subtitle1, .mv-type-subtitle2,
+.mv-type-body1, .mv-type-body2,
+.mv-type-caption1, .mv-type-caption2 {
+  margin: 0;
+  font-family: var(--fontFamilyBase);
+  color: var(--colorNeutralForeground1);
+}
+.mv-type-title1 {
+  font-size: var(--fontSizeHero800);   /* 32px */
+  line-height: var(--lineHeightHero800);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ===== Title2 ===== */
+.mv-type-title2 {
+  font-size: var(--fontSizeHero700);   /* 28px */
+  line-height: var(--lineHeightHero700);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ===== Title3 ===== */
+.mv-type-title3 {
+  font-size: var(--fontSizeBase600);   /* 24px */
+  line-height: var(--lineHeightBase600);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ===== Subtitle1 ===== */
+.mv-type-subtitle1 {
+  font-size: var(--fontSizeBase500);   /* 20px */
+  line-height: var(--lineHeightBase500);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ===== Subtitle2 ===== */
+.mv-type-subtitle2 {
+  font-size: var(--fontSizeBase400);   /* 16px */
+  line-height: var(--lineHeightBase400);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ===== Body1 ===== */
+.mv-type-body1 {
+  font-size: var(--fontSizeBase300);   /* 14px */
+  line-height: var(--lineHeightBase300);
+  font-weight: var(--fontWeightRegular);
+}
+.mv-type-strong { font-weight: var(--fontWeightSemibold); }
+
+/* ===== Body2 ===== */
+.mv-type-body2 {
+  font-size: var(--fontSizeBase400);   /* 16px */
+  line-height: var(--lineHeightBase400);
+  font-weight: var(--fontWeightRegular);
+}
+
+/* ===== Caption1 ===== */
+.mv-type-caption1 {
+  font-size: var(--fontSizeBase200);   /* 12px */
+  line-height: var(--lineHeightBase200);
+  font-weight: var(--fontWeightRegular);
+}
+
+/* ===== Caption2 ===== */
+.mv-type-caption2 {
+  font-size: var(--fontSizeBase100);   /* 10px */
+  line-height: var(--lineHeightBase100);
+  font-weight: var(--fontWeightRegular);
+}
+
+/* ===== Display ===== */
+.mv-type-display {
+  font-size: var(--fontSizeHero1000); /* 68px */
+  line-height: var(--lineHeightHero1000);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ===== CardHeader ===== */
+/* ---------- Card composition: header / preview / footer ---------- */
+.mv-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacingHorizontalM);
+  font-family: var(--fontFamilyBase);
+}
+.mv-card-header-media {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mv-card-header-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--spacingVerticalXXS);
+}
+.mv-card-header-title {
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+  font-weight: var(--fontWeightSemibold);
+  color: var(--colorNeutralForeground1);
+}
+.mv-card-header-desc {
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  font-weight: var(--fontWeightRegular);
+  color: var(--colorNeutralForeground3);
+}
+
+/* ===== CardPreview ===== */
+.mv-card-preview {
+  display: block;
+  /* break out of the card's horizontal/vertical padding for a full-bleed media band */
+  margin: calc(-1 * var(--spacingVerticalL)) calc(-1 * var(--spacingHorizontalL));
+  overflow: hidden;
+  background: var(--colorNeutralBackground3);
+}
+/* When a preview is the first child it should also clip to the card's top radius */
+.mv-card > .mv-card-preview:first-child {
+  border-top-left-radius: var(--borderRadiusXLarge);
+  border-top-right-radius: var(--borderRadiusXLarge);
+}
+.mv-card > .mv-card-preview:last-child {
+  border-bottom-left-radius: var(--borderRadiusXLarge);
+  border-bottom-right-radius: var(--borderRadiusXLarge);
+}
+.mv-card-preview-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* ===== CardFooter ===== */
+.mv-card-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacingHorizontalS);
+  /* push to the bottom of a flex-column card and sit flush at the padding edge */
+  margin-top: auto;
+  font-family: var(--fontFamilyBase);
+}
+
+/* ===== Tree ===== */
+/* ---------- Tree (hierarchical disclosure) ---------- */
+.mv-tree {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+  color: var(--colorNeutralForeground1);
+}
+
+/* A tree item is a <details>; nesting another mv-treeitem inside a parent's
+   panel produces sub-levels. Each level is indented from its parent. */
+.mv-treeitem {
+  border: none;
+}
+
+.mv-treeitem > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacingHorizontalXS);
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: var(--spacingVerticalXS) var(--spacingHorizontalSNudge);
+  border-radius: var(--borderRadiusMedium);
+  color: var(--colorNeutralForeground1);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  outline: none;
+  transition: background-color var(--durationFaster) var(--curveEasyEase);
+}
+.mv-treeitem > summary::-webkit-details-marker { display: none; }
+.mv-treeitem > summary:hover {
+  background-color: var(--colorSubtleBackgroundHover);
+}
+.mv-treeitem > summary:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible));
+  outline-offset: -2px;
+}
+
+/* Expand/collapse chevron — rotates when [open]. */
+.mv-treeitem > summary::before {
+  content: "";
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  color: var(--colorNeutralForeground3);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M5.7 3.3a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4-1.4L9 8 5.7 4.7a1 1 0 0 1 0-1.4Z' fill='black'/></svg>") center / 16px no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M5.7 3.3a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4-1.4L9 8 5.7 4.7a1 1 0 0 1 0-1.4Z' fill='black'/></svg>") center / 16px no-repeat;
+  transition: transform var(--durationFaster) var(--curveEasyEase);
+}
+.mv-treeitem[open] > summary::before { transform: rotate(90deg); }
+
+/* The children panel of a tree item: everything after <summary>. Indented so
+   nested mv-treeitems read as a deeper level. */
+.mv-treeitem-group {
+  margin-inline-start: var(--spacingHorizontalL);
+  padding-inline-start: var(--spacingHorizontalXS);
+  border-inline-start: 1px solid var(--colorNeutralStroke2);
+}
+
+/* A leaf treeitem (no children) hides its chevron and aligns the label. */
+.mv-treeitem-leaf > summary::before { visibility: hidden; }
+
+/* ===== TreeItem ===== */
+/* TreeItem CSS lives in the Tree block above (.mv-treeitem, .mv-treeitem-group,
+   .mv-treeitem-leaf) since they are one disclosure system. */
+
+/* ===== Toolbar ===== */
+/* ---------- Toolbar ---------- */
+.mv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacingHorizontalXS);
+  flex-wrap: wrap;
+  box-sizing: border-box;
+  padding: var(--spacingVerticalXS) var(--spacingHorizontalS);
+  background: var(--colorNeutralBackground1);
+  border-radius: var(--borderRadiusMedium);
+  font-family: var(--fontFamilyBase);
+}
+
+/* Size variants tune control density (Fluent: small / medium / large). */
+.mv-toolbar-small { gap: var(--spacingHorizontalXXS); padding: var(--spacingVerticalXXS) var(--spacingHorizontalSNudge); }
+.mv-toolbar-large { gap: var(--spacingHorizontalS); padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
+
+/* A logical group of related buttons sits flush together. */
+.mv-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacingHorizontalXS);
+}
+
+/* Vertical divider between toolbar sections. */
+.mv-toolbar-divider {
+  display: inline-block;
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 1px;
+  min-height: 20px;
+  margin: var(--spacingVerticalXXS) var(--spacingHorizontalXS);
+  background: var(--colorNeutralStroke2);
+}
+
+/* ===== Carousel ===== */
+/* ---------- Carousel (scroll-snap strip) ---------- */
+.mv-carousel {
+  display: flex;
+  gap: var(--spacingHorizontalM);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--spacingVerticalXS) var(--spacingHorizontalXXS);
+  scrollbar-width: thin;
+  font-family: var(--fontFamilyBase);
+}
+.mv-carousel::-webkit-scrollbar { height: 8px; }
+.mv-carousel::-webkit-scrollbar-thumb {
+  background: var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusCircular, 9999px);
+}
+.mv-carousel::-webkit-scrollbar-track { background: transparent; }
+
+.mv-carousel-slide {
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  min-width: min(100%, 320px);
+  box-sizing: border-box;
+  border-radius: var(--borderRadiusLarge, var(--borderRadiusMedium));
+  overflow: hidden;
+}
+.mv-carousel-slide > img,
+.mv-carousel-slide > .mv-image { display: block; width: 100%; }
+
+/* ===== TagGroup ===== */
+/* ---------- TagGroup (wrapping Tag container) ---------- */
+.mv-taggroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacingHorizontalS);
+  font-family: var(--fontFamilyBase);
+}
+/* Tighter gap to match small tags. */
+.mv-taggroup-small { gap: var(--spacingHorizontalSNudge); }
+
+/* ===== InteractionTag ===== */
+/* ---------- InteractionTag (clickable primary + optional dismiss) ---------- */
+.mv-interactiontag {
+  padding: 0;
+  overflow: hidden;
+}
+/* The clickable label area. Inherits the tag shell; full-height button. */
+.mv-interactiontag-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacingHorizontalXS);
+  height: 100%;
+  margin: 0;
+  padding: 0 var(--spacingHorizontalS);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  transition: background var(--durationFaster) var(--curveEasyEase);
+}
+.mv-interactiontag-primary:hover {
+  background: var(--colorSubtleBackgroundHover);
+}
+.mv-interactiontag-primary:active {
+  background: var(--colorSubtleBackgroundPressed);
+}
+.mv-interactiontag-primary:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible));
+  outline-offset: -2px;
+}
+/* Dismiss sits flush at the trailing edge with a divider before it. */
+.mv-interactiontag-dismiss {
+  margin-inline-start: 0;
+  border-inline-start: 1px solid var(--colorNeutralStroke1);
+  border-radius: 0;
+  height: 100%;
+  width: 28px;
+}
+
+/* ===== MenuItemCheckbox ===== */
+/* ---------- Checkable menu items (Checkbox / Radio) ---------- */
+/* Reuses .mv-menu-item shell. A leading indicator slot shows a ✓ (checkbox)
+   or ● (radio) only when the hidden input is :checked. */
+.mv-menu-checkitem,
+.mv-menu-radioitem {
+  position: relative;
+}
+.mv-menu-checkinput,
+.mv-menu-radioinput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.mv-menu-check,
+.mv-menu-radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--colorCompoundBrandForeground1);
+  font-size: var(--fontSizeBase300);
+  line-height: 1;
+}
+.mv-menu-check::before { content: ""; }
+.mv-menu-checkinput:checked ~ .mv-menu-check::before { content: "\2713"; }
+.mv-menu-radio::before { content: ""; }
+.mv-menu-radioinput:checked ~ .mv-menu-radio::before { content: "\25CF"; font-size: 10px; }
+.mv-menu-itemlabel { flex: 1; }
+/* Keyboard focus on the (invisible) input lights the row. */
+.mv-menu-checkinput:focus-visible ~ .mv-menu-itemlabel,
+.mv-menu-radioinput:focus-visible ~ .mv-menu-itemlabel { text-decoration: underline; }
+
+/* ===== MenuItemRadio ===== */
+/* MenuItemRadio CSS lives in the checkable-menu-items block above
+   (.mv-menu-radioitem, .mv-menu-radioinput, .mv-menu-radio). */

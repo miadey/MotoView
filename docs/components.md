@@ -133,28 +133,49 @@ The parent targets each slot with `@section`:
 
 Content not wrapped in a `@section` flows into the default `@yield`. The same `@section` / `@yield` mechanism powers layouts — see [Layouts](layouts.md).
 
-## Built-in semantic components
+## Nesting and any param name
 
-MotoView ships a set of semantic components so you reach for meaning, not utility-class soup. Write `<Button kind="primary">Save</Button>`, not a wall of classes.
+Components nest arbitrarily — a component can use another, which uses another — and both **props and `@children` thread through every level**, because each component compiles to its own render function (nesting is just function calls). You can also name a `param` anything: if the name collides with a Motoko keyword (`label`, `type`, `class`, …) the compiler **auto-mangles** it, so it just works.
 
-- **`Button`** — `kind`, `size`
-- **`Card`** — `title`
-- **`Alert`** — `type`
-- **`Badge`** — `type`
-- **`InputText`**, **`InputEmail`**, **`InputNumber`**, **`TextArea`** — `name`, `label`, `bind`, `required`, `minLength`
-- **`ValidationSummary`**
-- **`Table`**
-- **`PageHeader`**
-- **`Grid`** — `columns`
+```razor
+@* Inner.mview *@   param label : Text
+                    <span>@label</span>
+@* Card.mview *@    <div><Inner label="@title" /> @children</div>
+@* page *@          <Card><Inner label="hi" /></Card>   @* nests fine *@
+```
+
+## Built-in components
+
+MotoView ships ~50 server-rendered, **CSS-only** built-ins (no JavaScript) — an authentic port of the Microsoft **Fluent UI 2** design system. Reach for meaning, not utility-class soup: `<Button appearance="primary">Save</Button>`. See them all live, with copy-paste snippets, in the **[/components gallery](https://github.com/miadey/MotoView)** (it's itself a MotoView page). Theme them with [`@theme` / `<ThemePicker/>`](styling-and-themes.md).
+
+> Coverage note: these match each Fluent component's **look + main variants**, not the full Fluent React prop API. The exact props for any one are its `gen_builtin` arm in `compiler/src/codegen.rs`.
+
+**Buttons & actions** — `Button` (`appearance` primary/secondary/outline/subtle/transparent/danger, `size`, `shape` rounded/circular/square, `icon`, `iconPosition`, `disabled`, `type`), `CompoundButton` (`appearance`, `icon`, `secondary`), `ToggleButton` (`appearance`, `name`, `checked`), `SplitButton`, `MenuButton`, `Menu` + `MenuItem` / `MenuItemCheckbox` / `MenuItemRadio`.
+
+**Inputs & fields** — `Input` (`type`, `appearance`, `placeholder`, `size`), `InputText` / `InputEmail` / `InputNumber` / `TextArea` (`name`, `label`, `bind`, `required`, `minLength`), `Field` (`label`, `required`, `hint`, `validationState`), `Label`, `InfoLabel` (`label`, `info`), `SpinButton` (`min`/`max`/`step`), `Slider`, `Select`, `Combobox`, `Searchbox`, `Switch`, `Checkbox`, `Radio`, `ValidationSummary`.
+
+**Data display** — `Badge` (`appearance` filled/ghost/outline/tint, `shape`, `size`, `color`), `CounterBadge` (`count`, `color`, `dot`), `PresenceBadge` (`status`), `Tag` (`appearance`, `size`, `shape`, `dismissible`), `TagGroup`, `InteractionTag`, `Avatar` (`name`, `size`, `shape`, `presence`, `color`, `active`, `badge`), `AvatarGroup`, `Persona`, `Rating`, `Image`, `ProgressBar` (`value`, `color`, `thickness`), `Spinner` (`size`, `label`), `Skeleton`, `Table`.
+
+**Typography** — `Title1` / `Title2` / `Title3`, `Subtitle1` / `Subtitle2`, `Body1` / `Body2`, `Caption1` / `Caption2`, `Display`, and `Text` (`variant`) — the Fluent type ramp as components.
+
+**Layout & cards** — `Card` (`title`) + `CardHeader` / `CardPreview` / `CardFooter`, `Grid` (`columns`), `Divider` (`vertical`, `appearance`), `PageHeader`, `Toolbar`, `Carousel`.
+
+**Navigation & disclosure** — `Nav` + `NavItem` (`match`), `AppBar`, `Breadcrumb` + `BreadcrumbItem`, `TabList` + `Tab` (`match`), `Accordion` + `AccordionItem`, `Tree` + `TreeItem`.
+
+**Feedback & overlays** (all CSS-only) — `MessageBar` / `Alert` (`intent`/`type`), `Tooltip`, `Popover`, `Dialog`, `Drawer`.
+
+**Theme** — `<ThemeToggle/>` (light/dark) and `<ThemePicker/>` (Web Light/Dark, Teams Light/Dark, High Contrast). See [Styling & Themes](styling-and-themes.md).
 
 A small example:
 
 ```razor
 <Card title="New product">
-  <InputText name="name" label="Name" bind="@model.name" required />
-  <InputNumber name="price" label="Price" bind="@model.price" />
+  <Field label="Name" required>
+    <InputText name="name" bind="@model.name" required />
+  </Field>
+  <Slider name="qty" min="1" max="10" value="3" />
   <ValidationSummary />
-  <Button kind="primary" size="lg">Create</Button>
+  <Button appearance="primary" icon="💾">Create</Button>
 </Card>
 ```
 

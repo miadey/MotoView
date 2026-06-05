@@ -770,8 +770,17 @@ impl<'a> Codegen<'a> {
                 if let Some(sz) = size {
                     cls.push_str(&format!(" mv-btn-{}", sz));
                 }
+                // shape: rounded (default) | circular | square
+                match lit("shape").as_deref() {
+                    Some("circular") => cls.push_str(" mv-btn-circular"),
+                    Some("square") => cls.push_str(" mv-btn-square"),
+                    _ => {}
+                }
+                let disabled = prop("disabled").is_some();
+                if disabled { cls.push_str(" mv-btn-disabled"); }
                 let ty = lit("type").unwrap_or_else(|| "button".into());
                 out.push_str(&format!("{}b.raw(\"<button type=\\\"{}\\\" class=\\\"{}\\\"\");\n", indent, ty, cls));
+                if disabled { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
                 for ev in &c.events {
                     out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"{}\\\"\");\n", indent, ev.handler, ev.event));
                     for (i, arg) in ev.args.iter().enumerate() {
@@ -783,8 +792,125 @@ impl<'a> Codegen<'a> {
                     }
                 }
                 out.push_str(&format!("{}b.raw(\">\");\n", indent));
+                // icon: a literal emoji/text rendered before (default) or after the label.
+                let icon = lit("icon");
+                let icon_after = lit("iconPosition").as_deref() == Some("after");
+                if let (Some(ic), false) = (&icon, icon_after) {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-btn-ico\\\">{}</span>\");\n", indent, esc_lit(ic)));
+                }
                 self.gen_nodes(&c.children, out, indent);
+                if let (Some(ic), true) = (&icon, icon_after) {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-btn-ico\\\">{}</span>\");\n", indent, esc_lit(ic)));
+                }
                 out.push_str(&format!("{}b.raw(\"</button>\");\n", indent));
+                Some(())
+            }
+            // CompoundButton: a button with a bold primary line + a smaller
+            // secondary description line. Children = primary label; `secondary`
+            // prop (or a nested secondary) = description.
+            "CompoundButton" => {
+                let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "secondary".into());
+                let mut cls = format!("mv-btn mv-compound-btn mv-btn-{}", kind);
+                if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-btn-{}", sz)); }
+                let disabled = prop("disabled").is_some();
+                if disabled { cls.push_str(" mv-btn-disabled"); }
+                let ty = lit("type").unwrap_or_else(|| "button".into());
+                out.push_str(&format!("{}b.raw(\"<button type=\\\"{}\\\" class=\\\"{}\\\"\");\n", indent, ty, cls));
+                if disabled { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
+                for ev in &c.events {
+                    out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"{}\\\"\");\n", indent, ev.handler, ev.event));
+                    for (i, arg) in ev.args.iter().enumerate() {
+                        if is_simple_literal(arg) {
+                            out.push_str(&format!("{}b.raw(\" data-mv-arg{}=\\\"{}\\\"\");\n", indent, i, arg.trim_matches('"')));
+                        } else {
+                            out.push_str(&format!("{}b.attr(\"data-mv-arg{}\", {});\n", indent, i, self.as_text(arg)));
+                        }
+                    }
+                }
+                out.push_str(&format!("{}b.raw(\">\");\n", indent));
+                if let Some(ic) = lit("icon") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-btn-ico\\\">{}</span>\");\n", indent, esc_lit(&ic)));
+                }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-compound-content\\\"><span class=\\\"mv-compound-primary\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                if let Some(s) = prop("secondary") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-compound-secondary\\\">\");\n", indent));
+                    self.gen_attr_text(s, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"</span></button>\");\n", indent));
+                Some(())
+            }
+            // ToggleButton: a pressable button with a pressed/checked state.
+            // CSS-only via checkbox-hack: hidden checkbox + <label> styled as the
+            // button; :checked paints the pressed state.
+            "ToggleButton" => {
+                let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "secondary".into());
+                let mut cls = format!("mv-btn mv-toggle-btn mv-btn-{}", kind);
+                if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-btn-{}", sz)); }
+                match lit("shape").as_deref() {
+                    Some("circular") => cls.push_str(" mv-btn-circular"),
+                    Some("square") => cls.push_str(" mv-btn-square"),
+                    _ => {}
+                }
+                let disabled = prop("disabled").is_some();
+                if disabled { cls.push_str(" mv-btn-disabled"); }
+                let name = esc_lit(&lit("name").unwrap_or_default());
+                out.push_str(&format!("{}b.raw(\"<label class=\\\"{}\\\"><input type=\\\"checkbox\\\" class=\\\"mv-toggle-input\\\" name=\\\"{}\\\"\");\n", indent, cls, name));
+                if prop("checked").is_some() { out.push_str(&format!("{}b.raw(\" checked\");\n", indent)); }
+                if disabled { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
+                out.push_str(&format!("{}b.raw(\">\");\n", indent));
+                if let Some(ic) = lit("icon") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-btn-ico\\\">{}</span>\");\n", indent, esc_lit(&ic)));
+                }
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+                Some(())
+            }
+            // MenuButton: a button showing a chevron that opens a menu.
+            // Pure-CSS details/summary popover; children are MenuItem nodes.
+            "MenuButton" => {
+                let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "secondary".into());
+                let mut scls = format!("mv-menu-trigger mv-btn mv-menubtn-trigger mv-btn-{}", kind);
+                if let Some(sz) = lit("size") { scls.push_str(&format!(" mv-btn-{}", sz)); }
+                out.push_str(&format!("{}b.raw(\"<details class=\\\"mv-menu mv-menubtn\\\"><summary class=\\\"{}\\\">\");\n", indent, scls));
+                if let Some(ic) = lit("icon") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-btn-ico\\\">{}</span>\");\n", indent, esc_lit(&ic)));
+                }
+                if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-menubtn-chev\\\">\\u{{25be}}</span></summary><div class=\\\"mv-menu-list\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div></details>\");\n", indent));
+                Some(())
+            }
+            // SplitButton: a primary action button joined to a small chevron menu
+            // trigger. The chevron half is a CSS-only details/summary popover; the
+            // primary half is a real <button> carrying any click handler.
+            "SplitButton" => {
+                let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "primary".into());
+                let cls = format!("mv-split mv-split-{}", kind);
+                let btncls = format!("mv-btn mv-split-action mv-btn-{}", kind);
+                let trigcls = format!("mv-menu-trigger mv-btn mv-split-trigger mv-btn-{}", kind);
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\"><button type=\\\"button\\\" class=\\\"{}\\\"\");\n", indent, cls, btncls));
+                for ev in &c.events {
+                    out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"{}\\\"\");\n", indent, ev.handler, ev.event));
+                    for (i, arg) in ev.args.iter().enumerate() {
+                        if is_simple_literal(arg) {
+                            out.push_str(&format!("{}b.raw(\" data-mv-arg{}=\\\"{}\\\"\");\n", indent, i, arg.trim_matches('"')));
+                        } else {
+                            out.push_str(&format!("{}b.attr(\"data-mv-arg{}\", {});\n", indent, i, self.as_text(arg)));
+                        }
+                    }
+                }
+                out.push_str(&format!("{}b.raw(\">\");\n", indent));
+                if let Some(ic) = lit("icon") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-btn-ico\\\">{}</span>\");\n", indent, esc_lit(&ic)));
+                }
+                if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
+                out.push_str(&format!("{}b.raw(\"</button><details class=\\\"mv-menu mv-split-menu\\\"><summary class=\\\"{}\\\"><span class=\\\"mv-menubtn-chev\\\">\\u{{25be}}</span></summary><div class=\\\"mv-menu-list\\\">\");\n", indent, trigcls));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div></details></span>\");\n", indent));
                 Some(())
             }
             "Card" => {
@@ -806,9 +932,29 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Badge" => {
-                let ty = lit("type").unwrap_or_else(|| "".into());
-                let cls = if ty.is_empty() { "mv-badge".to_string() } else { format!("mv-badge mv-badge-{}", ty) };
+                let mut cls = "mv-badge".to_string();
+                // appearance: filled (default) | ghost | outline | tint
+                if let Some(ap) = lit("appearance") {
+                    if ap != "filled" { cls.push_str(&format!(" mv-badge-{}", ap)); }
+                }
+                // type = filled intent (brand/success/warning/danger/severe/informative/subtle)
+                if let Some(ty) = lit("type") {
+                    if !ty.is_empty() { cls.push_str(&format!(" mv-badge-{}", ty)); }
+                }
+                // color = colorful palette (neutral/brand/red/green/blue/...). Same set as CounterBadge.
+                if let Some(color) = lit("color") {
+                    cls.push_str(&format!(" mv-badge-{}", color));
+                }
+                // shape: rounded (default) | circular | square
+                if let Some(shape) = lit("shape") {
+                    cls.push_str(&format!(" mv-badge-{}", shape));
+                }
+                // size: tiny | extra-small | small | medium (default) | large | extra-large
+                if let Some(size) = lit("size") {
+                    cls.push_str(&format!(" mv-badge-{}", size));
+                }
                 out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\">\");\n", indent, cls));
+                if let Some(t) = prop("title") { self.gen_attr_text(t, out, indent); }
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
                 Some(())
@@ -884,7 +1030,22 @@ impl<'a> Codegen<'a> {
                 let size = lit("size").unwrap_or_else(|| "32".into());
                 let mut cls = format!("mv-avatar mv-avatar-{}", size);
                 if lit("shape").as_deref() == Some("square") { cls.push_str(" mv-avatar-square"); }
+                // presence: online/busy/away — ring + dot (existing).
                 if let Some(p) = lit("presence") { cls.push_str(&format!(" mv-avatar-{}", p)); }
+                // color: named/colorful palette (neutral/brand/red/green/blue/...) → tinted bg + ring.
+                if let Some(color) = lit("color") { cls.push_str(&format!(" mv-avatar-{}", color)); }
+                // active: active (brand ring + emphasis) | inactive (dimmed/grayscale).
+                if let Some(act) = lit("active") {
+                    let act = if act.is_empty() { "active".to_string() } else { act };
+                    cls.push_str(&format!(" mv-avatar-{}", act));
+                } else if prop("active").is_some() {
+                    cls.push_str(" mv-avatar-active");
+                }
+                // badge: a standalone presence dot (online/busy/dnd/away/offline) without the ring.
+                if let Some(b) = lit("badge") {
+                    cls.push_str(" mv-avatar-badge");
+                    if !b.is_empty() { cls.push_str(&format!(" mv-avatar-badge-{}", b)); }
+                }
                 out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\">\");\n", indent, cls));
                 if let Some(t) = prop("text") { self.gen_attr_text(t, out, indent); }
                 self.gen_nodes(&c.children, out, indent);
@@ -998,7 +1159,16 @@ impl<'a> Codegen<'a> {
             }
             "Spinner" => {
                 let size = lit("size").map(|s| format!(" mv-spinner-{}", s)).unwrap_or_default();
-                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-spinner{}\\\"></span>\");\n", indent, size));
+                // label: optional caption. labelPosition: after (default, inline) | below (stacked).
+                if let Some(label) = prop("label") {
+                    let pos = lit("labelPosition").unwrap_or_else(|| "after".into());
+                    let pos_cls = if pos == "below" { " mv-spinner-below" } else { "" };
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-spinner-wrap{}\\\"><span class=\\\"mv-spinner{}\\\"></span><span class=\\\"mv-spinner-label\\\">\");\n", indent, pos_cls, size));
+                    self.gen_attr_text(label, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</span></span>\");\n", indent));
+                } else {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-spinner{}\\\"></span>\");\n", indent, size));
+                }
                 Some(())
             }
             // Light/dark theme switch. The button carries [data-mv-theme-toggle];
@@ -1105,7 +1275,15 @@ impl<'a> Codegen<'a> {
             "Tag" => {
                 let mut cls = "mv-tag".to_string();
                 if prop("interactive").is_some() { cls.push_str(" mv-tag-interactive"); }
+                // appearance: outline (default) | filled | brand
+                if let Some(ap) = lit("appearance") { cls.push_str(&format!(" mv-tag-{}", ap)); }
+                // size: small | medium (default) | extra-large
+                if let Some(size) = lit("size") { cls.push_str(&format!(" mv-tag-{}", size)); }
+                // shape: rounded (default) | circular
+                if let Some(shape) = lit("shape") { cls.push_str(&format!(" mv-tag-{}", shape)); }
                 out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\">\");\n", indent, cls));
+                // `value` prop is an optional text label; children also render as content.
+                if let Some(val) = prop("value") { self.gen_attr_text(val, out, indent); }
                 self.gen_nodes(&c.children, out, indent);
                 if prop("dismissible").is_some() {
                     out.push_str(&format!("{}b.raw(\"<button type=\\\"button\\\" class=\\\"mv-tag-dismiss\\\"></button>\");\n", indent));
@@ -1123,7 +1301,18 @@ impl<'a> Codegen<'a> {
                 let v: f64 = lit("value").and_then(|s| s.parse().ok()).unwrap_or(0.0);
                 let m: f64 = lit("max").and_then(|s| s.parse().ok()).unwrap_or(100.0);
                 let pct = if m > 0.0 { (v / m * 100.0).clamp(0.0, 100.0) } else { 0.0 };
-                let cls = if lit("value").is_none() { "mv-progress mv-progress-indeterminate" } else { "mv-progress" };
+                let mut cls = "mv-progress".to_string();
+                if lit("value").is_none() { cls.push_str(" mv-progress-indeterminate"); }
+                // color / validationState: brand (default) | success | warning | error
+                if let Some(color) = lit("color").or_else(|| lit("validationState")) {
+                    cls.push_str(&format!(" mv-progress-{}", color));
+                }
+                // thickness: medium (default) | large
+                if let Some(thick) = lit("thickness") {
+                    if thick != "medium" { cls.push_str(&format!(" mv-progress-{}", thick)); }
+                }
+                // shape: rounded | square
+                if let Some(shape) = lit("shape") { cls.push_str(&format!(" mv-progress-{}", shape)); }
                 out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\"><div class=\\\"mv-progress-bar\\\" style=\\\"width:{:.1}%\\\"></div></div>\");\n", indent, cls, pct));
                 Some(())
             }
@@ -1225,6 +1414,390 @@ impl<'a> Codegen<'a> {
                 self.gen_nodes(&c.children, out, indent);
                 let close = if is_drawer { "</div></aside></div></span>" } else { "</div></div></div></span>" };
                 out.push_str(&format!("{}b.raw(\"{}\");\n", indent, close));
+                Some(())
+            }
+"Field" => {
+    // Fluent Field wrapper: optional label (+ red * when required), the control
+    // as children, and an optional hint or validation message below.
+    out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-field\\\">\");\n", indent));
+    if let Some(l) = prop("label") {
+        out.push_str(&format!("{}b.raw(\"<label class=\\\"mv-field-label\\\">\");\n", indent));
+        self.gen_attr_text(l, out, indent);
+        if prop("required").is_some() {
+            out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-required\\\" aria-hidden=\\\"true\\\"> *</span>\");\n", indent));
+        }
+        out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+    }
+    // the control(s)
+    self.gen_nodes(&c.children, out, indent);
+    // message: validationMessage (colored by validationState) takes precedence over hint.
+    if let Some(msg) = prop("validationMessage").or_else(|| prop("hint")) {
+        let state = lit("validationState").unwrap_or_default();
+        if prop("validationMessage").is_some() && !state.is_empty() {
+            out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-field-validation mv-field-validation-{}\\\">\");\n", indent, esc_lit(&state)));
+        } else {
+            out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-field-hint\\\">\");\n", indent));
+        }
+        self.gen_attr_text(msg, out, indent);
+        out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+    }
+    out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+    Some(())
+}
+"Label" => {
+    // Standalone Fluent Label. size = small|medium(default)|large; weight = regular(default)|semibold.
+    let size = lit("size").unwrap_or_else(|| "medium".into());
+    let weight = lit("weight").unwrap_or_else(|| "regular".into());
+    let cls = format!("mv-label mv-label-{} mv-label-{}", esc_lit(&size), esc_lit(&weight));
+    out.push_str(&format!("{}b.raw(\"<label class=\\\"{}\\\"\");\n", indent, cls));
+    if let Some(f) = lit("htmlFor").or_else(|| lit("for")) {
+        out.push_str(&format!("{}b.raw(\" for=\\\"{}\\\"\");\n", indent, esc_lit(&f)));
+    }
+    out.push_str(&format!("{}b.raw(\">\");\n", indent));
+    if let Some(t) = prop("text") { self.gen_attr_text(t, out, indent); }
+    self.gen_nodes(&c.children, out, indent);
+    if prop("required").is_some() {
+        out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-required\\\" aria-hidden=\\\"true\\\"> *</span>\");\n", indent));
+    }
+    out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+    Some(())
+}
+"InfoLabel" => {
+    // A Label plus a small (i) badge that reveals an info popover on hover/focus (CSS-only).
+    let weight = lit("weight").unwrap_or_else(|| "regular".into());
+    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-info-label mv-label mv-label-medium mv-label-{}\\\">\");\n", indent, esc_lit(&weight)));
+    if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
+    self.gen_nodes(&c.children, out, indent);
+    if let Some(info) = prop("info") {
+        out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-info-tip\\\" tabindex=\\\"0\\\" role=\\\"note\\\"><span class=\\\"mv-info-ico\\\" aria-hidden=\\\"true\\\">i</span><span class=\\\"mv-info-pop\\\">\");\n", indent));
+        self.gen_attr_text(info, out, indent);
+        out.push_str(&format!("{}b.raw(\"</span></span>\");\n", indent));
+    }
+    out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+    Some(())
+}
+"SpinButton" => {
+    // Number input with native up/down steppers, styled to Fluent. Optional label wraps it in a field.
+    let name = lit("name").unwrap_or_default();
+    let has_label = prop("label").is_some();
+    if has_label {
+        out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-field\\\"><label class=\\\"mv-field-label\\\" for=\\\"{}\\\">\");\n", indent, esc_lit(&name)));
+        self.gen_attr_text(prop("label").unwrap(), out, indent);
+        out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
+    }
+    out.push_str(&format!("{}b.raw(\"<input type=\\\"number\\\" class=\\\"mv-input mv-spinbutton\\\" name=\\\"{}\\\" id=\\\"{}\\\"\");\n", indent, esc_lit(&name), esc_lit(&name)));
+    if let Some(v) = prop("value") {
+        out.push_str(&format!("{}b.raw(\" value=\\\"\");\n", indent));
+        self.gen_attr_text(v, out, indent);
+        out.push_str(&format!("{}b.raw(\"\\\"\");\n", indent));
+    }
+    if let Some(m) = lit("min")  { out.push_str(&format!("{}b.raw(\" min=\\\"{}\\\"\");\n", indent, esc_lit(&m))); }
+    if let Some(m) = lit("max")  { out.push_str(&format!("{}b.raw(\" max=\\\"{}\\\"\");\n", indent, esc_lit(&m))); }
+    if let Some(s) = lit("step") { out.push_str(&format!("{}b.raw(\" step=\\\"{}\\\"\");\n", indent, esc_lit(&s))); }
+    if prop("disabled").is_some() { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
+    out.push_str(&format!("{}b.raw(\">\");\n", indent));
+    if has_label { out.push_str(&format!("{}b.raw(\"</div>\");\n", indent)); }
+    Some(())
+}
+"Slider" => {
+    // Native range input styled to the Fluent track + thumb + brand fill.
+    let name = lit("name").unwrap_or_default();
+    let min = lit("min").unwrap_or_else(|| "0".into());
+    let max = lit("max").unwrap_or_else(|| "100".into());
+    let step = lit("step").unwrap_or_else(|| "1".into());
+    let mut cls = "mv-slider".to_string();
+    if prop("vertical").is_some() { cls.push_str(" mv-slider-vertical"); }
+    out.push_str(&format!("{}b.raw(\"<input type=\\\"range\\\" class=\\\"{}\\\" name=\\\"{}\\\" min=\\\"{}\\\" max=\\\"{}\\\" step=\\\"{}\\\"\");\n", indent, cls, esc_lit(&name), esc_lit(&min), esc_lit(&max), esc_lit(&step)));
+    if let Some(v) = prop("value") {
+        out.push_str(&format!("{}b.raw(\" value=\\\"\");\n", indent));
+        self.gen_attr_text(v, out, indent);
+        out.push_str(&format!("{}b.raw(\"\\\"\");\n", indent));
+    }
+    if prop("vertical").is_some() { out.push_str(&format!("{}b.raw(\" orient=\\\"vertical\\\"\");\n", indent)); }
+    if prop("disabled").is_some() { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
+    out.push_str(&format!("{}b.raw(\">\");\n", indent));
+    Some(())
+}
+"Input" => {
+    // Standalone single-line text input — the building block. appearance: outline(default)|underline|filled-lighter|filled-darker.
+    let name = lit("name").unwrap_or_default();
+    let ty = lit("type").unwrap_or_else(|| "text".into());
+    let appearance = lit("appearance").unwrap_or_else(|| "outline".into());
+    let mut cls = format!("mv-input mv-input-{}", esc_lit(&appearance));
+    if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-input-{}", esc_lit(&sz))); }
+    out.push_str(&format!("{}b.raw(\"<input type=\\\"{}\\\" class=\\\"{}\\\" name=\\\"{}\\\"\");\n", indent, esc_lit(&ty), cls, esc_lit(&name)));
+    if let Some(ph) = lit("placeholder") { out.push_str(&format!("{}b.raw(\" placeholder=\\\"{}\\\"\");\n", indent, esc_lit(&ph))); }
+    if let Some(v) = prop("value") {
+        out.push_str(&format!("{}b.raw(\" value=\\\"\");\n", indent));
+        self.gen_attr_text(v, out, indent);
+        out.push_str(&format!("{}b.raw(\"\\\"\");\n", indent));
+    }
+    if prop("disabled").is_some() { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
+    if prop("required").is_some() { out.push_str(&format!("{}b.raw(\" required\");\n", indent)); }
+    out.push_str(&format!("{}b.raw(\">\");\n", indent));
+    Some(())
+}
+            "CounterBadge" => {
+                // Fluent CounterBadge: a small rounded numeric pill. appearance:
+                // filled (default) / ghost / outline; color -> mv-cbadge-<color>;
+                // size -> mv-cbadge-<size>; `dot` collapses to a bare dot; `showZero`
+                // forces a literal 0 to render (otherwise a literal 0 is suppressed).
+                let appearance = lit("appearance").unwrap_or_else(|| "filled".into());
+                let color = lit("color").unwrap_or_else(|| "brand".into());
+                let mut cls = format!("mv-cbadge mv-cbadge-{} mv-cbadge-{}", appearance, color);
+                if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-cbadge-{}", sz)); }
+                let is_dot = prop("dot").is_some();
+                if is_dot { cls.push_str(" mv-cbadge-dot"); }
+                // A literal count of 0 is hidden unless showZero is present (Fluent default).
+                let show_zero = prop("showZero").is_some();
+                if !is_dot {
+                    if let Some(v) = lit("count") {
+                        if v.trim() == "0" && !show_zero {
+                            // suppressed: render nothing
+                            return Some(());
+                        }
+                    }
+                }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\" role=\\\"status\\\">\");\n", indent, cls));
+                if !is_dot {
+                    if let Some(c0) = prop("count") {
+                        self.gen_attr_text(c0, out, indent);
+                    }
+                    self.gen_nodes(&c.children, out, indent);
+                }
+                out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                Some(())
+            }
+            "PresenceBadge" => {
+                // Fluent PresenceBadge: a small status dot. status -> mv-presence-<status>
+                // drives color + glyph (busy/dnd filled, away ring, available check,
+                // offline/oof hollow). size -> mv-presence-<size>. `outOfOffice` ring.
+                let status = lit("status").unwrap_or_else(|| "available".into());
+                let mut cls = format!("mv-presence mv-presence-{}", status);
+                if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-presence-{}", sz)); }
+                if prop("outOfOffice").is_some() { cls.push_str(" mv-presence-oof-ring"); }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\" role=\\\"img\\\" aria-label=\\\"{}\\\"></span>\");\n", indent, cls, esc_lit(&status)));
+                Some(())
+            }
+            "Title1" => {
+                out.push_str(&format!("{}b.raw(\"<h1 class=\\\"mv-type-title1\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h1>\");\n", indent));
+                Some(())
+            }
+            "Title2" => {
+                out.push_str(&format!("{}b.raw(\"<h2 class=\\\"mv-type-title2\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h2>\");\n", indent));
+                Some(())
+            }
+            "Title3" => {
+                out.push_str(&format!("{}b.raw(\"<h3 class=\\\"mv-type-title3\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h3>\");\n", indent));
+                Some(())
+            }
+            "Subtitle1" => {
+                out.push_str(&format!("{}b.raw(\"<h4 class=\\\"mv-type-subtitle1\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h4>\");\n", indent));
+                Some(())
+            }
+            "Subtitle2" => {
+                out.push_str(&format!("{}b.raw(\"<h5 class=\\\"mv-type-subtitle2\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h5>\");\n", indent));
+                Some(())
+            }
+            "Body1" => {
+                let tag = if prop("strong").is_some() { "strong" } else { "span" };
+                let cls = if prop("strong").is_some() { "mv-type-body1 mv-type-strong" } else { "mv-type-body1" };
+                out.push_str(&format!("{}b.raw(\"<{} class=\\\"{}\\\">\");\n", indent, tag, cls));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</{}>\");\n", indent, tag));
+                Some(())
+            }
+            "Body2" => {
+                let tag = if prop("strong").is_some() { "strong" } else { "span" };
+                let cls = if prop("strong").is_some() { "mv-type-body2 mv-type-strong" } else { "mv-type-body2" };
+                out.push_str(&format!("{}b.raw(\"<{} class=\\\"{}\\\">\");\n", indent, tag, cls));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</{}>\");\n", indent, tag));
+                Some(())
+            }
+            "Caption1" => {
+                let tag = if prop("strong").is_some() { "strong" } else { "span" };
+                let cls = if prop("strong").is_some() { "mv-type-caption1 mv-type-strong" } else { "mv-type-caption1" };
+                out.push_str(&format!("{}b.raw(\"<{} class=\\\"{}\\\">\");\n", indent, tag, cls));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</{}>\");\n", indent, tag));
+                Some(())
+            }
+            "Caption2" => {
+                let tag = if prop("strong").is_some() { "strong" } else { "span" };
+                let cls = if prop("strong").is_some() { "mv-type-caption2 mv-type-strong" } else { "mv-type-caption2" };
+                out.push_str(&format!("{}b.raw(\"<{} class=\\\"{}\\\">\");\n", indent, tag, cls));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</{}>\");\n", indent, tag));
+                Some(())
+            }
+            "Display" => {
+                out.push_str(&format!("{}b.raw(\"<h1 class=\\\"mv-type-display\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h1>\");\n", indent));
+                Some(())
+            }
+            "CardHeader" => {
+                // Card header row: optional leading image/avatar (passed as children),
+                // a header line + an optional description line. Composes inside Card.
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-card-header\\\">\");\n", indent));
+                // Leading media slot: any children render before the text block.
+                if !c.children.is_empty() {
+                    out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-card-header-media\\\">\");\n", indent));
+                    self.gen_nodes(&c.children, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-card-header-text\\\">\");\n", indent));
+                if let Some(h) = prop("header") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-card-header-title\\\">\");\n", indent));
+                    self.gen_attr_text(h, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                }
+                if let Some(d) = prop("description") {
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-card-header-desc\\\">\");\n", indent));
+                    self.gen_attr_text(d, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"</div></div>\");\n", indent));
+                Some(())
+            }
+            "CardPreview" => {
+                // Full-bleed media area inside a card. If `src` is given, emit an <img>;
+                // otherwise wrap arbitrary children (e.g. a chart / custom media).
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-card-preview\\\">\");\n", indent));
+                if let Some(s) = prop("src") {
+                    out.push_str(&format!("{}b.raw(\"<img class=\\\"mv-card-preview-img\\\" src=\\\"\");\n", indent));
+                    self.gen_attr_text(s, out, indent);
+                    out.push_str(&format!("{}b.raw(\"\\\" alt=\\\"\");\n", indent));
+                    if let Some(a) = prop("alt") { self.gen_attr_text(a, out, indent); }
+                    out.push_str(&format!("{}b.raw(\"\\\">\");\n", indent));
+                }
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "CardFooter" => {
+                // Actions row pinned to the bottom of a card. Children are the actions
+                // (typically <Button/>s). Composes inside Card.
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-card-footer\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "Tree" => {
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-tree\\\" role=\\\"tree\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "TreeItem" => {
+                let open = if prop("open").is_some() { " open" } else { "" };
+                // A leaf (no children) gets a modifier so its chevron is hidden.
+                let leaf = if c.children.is_empty() { " mv-treeitem-leaf" } else { "" };
+                out.push_str(&format!("{}b.raw(\"<details class=\\\"mv-treeitem{}\\\" role=\\\"treeitem\\\"{}><summary>\");\n", indent, leaf, open));
+                if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
+                out.push_str(&format!("{}b.raw(\"</summary>\");\n", indent));
+                if !c.children.is_empty() {
+                    out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-treeitem-group\\\" role=\\\"group\\\">\");\n", indent));
+                    self.gen_nodes(&c.children, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"</details>\");\n", indent));
+                Some(())
+            }
+            "Toolbar" => {
+                let size = lit("size").unwrap_or_else(|| "medium".into());
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-toolbar mv-toolbar-{}\\\" role=\\\"toolbar\\\">\");\n", indent, esc_lit(&size)));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "ToolbarGroup" => {
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-toolbar-group\\\" role=\\\"group\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "ToolbarDivider" => {
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-toolbar-divider\\\" role=\\\"separator\\\" aria-orientation=\\\"vertical\\\"></span>\");\n", indent));
+                Some(())
+            }
+            "Carousel" => {
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-carousel\\\">\");\n", indent));
+                for child in &c.children {
+                    out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-carousel-slide\\\">\");\n", indent));
+                    self.gen_node(child, out, indent);
+                    out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "TagGroup" => {
+                let size = lit("size");
+                let mut cls = String::from("mv-taggroup");
+                if let Some(sz) = &size { cls.push_str(&format!(" mv-taggroup-{}", esc_lit(sz))); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\" role=\\\"list\\\">\");\n", indent, cls));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
+                Some(())
+            }
+            "InteractionTag" => {
+                let mut cls = String::from("mv-tag mv-interactiontag");
+                if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-tag-{}", esc_lit(&sz))); }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\" role=\\\"listitem\\\">\");\n", indent, cls));
+                // Primary clickable area (a button so it is keyboard-focusable).
+                out.push_str(&format!("{}b.raw(\"<button type=\\\"button\\\" class=\\\"mv-interactiontag-primary\\\"\");\n", indent));
+                if let Some(v) = lit("value") { out.push_str(&format!("{}b.raw(\" value=\\\"{}\\\"\");\n", indent, esc_lit(&v))); }
+                // pass through @click on the primary area
+                for ev in &c.events {
+                    out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"{}\\\"\");\n", indent, ev.handler, ev.event));
+                    for (i, arg) in ev.args.iter().enumerate() {
+                        if is_simple_literal(arg) {
+                            out.push_str(&format!("{}b.raw(\" data-mv-arg{}=\\\"{}\\\"\");\n", indent, i, arg.trim_matches('"')));
+                        } else {
+                            out.push_str(&format!("{}b.attr(\"data-mv-arg{}\", {});\n", indent, i, self.as_text(arg)));
+                        }
+                    }
+                }
+                out.push_str(&format!("{}b.raw(\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</button>\");\n", indent));
+                if prop("dismissible").is_some() {
+                    out.push_str(&format!("{}b.raw(\"<button type=\\\"button\\\" class=\\\"mv-tag-dismiss mv-interactiontag-dismiss\\\" aria-label=\\\"Dismiss\\\"\");\n", indent));
+                    if let Some(v) = lit("value") { out.push_str(&format!("{}b.raw(\" value=\\\"{}\\\"\");\n", indent, esc_lit(&v))); }
+                    out.push_str(&format!("{}b.raw(\"></button>\");\n", indent));
+                }
+                out.push_str(&format!("{}b.raw(\"</span>\");\n", indent));
+                Some(())
+            }
+            "MenuItemCheckbox" => {
+                let name = esc_lit(&lit("name").unwrap_or_default());
+                let value = esc_lit(&lit("value").unwrap_or_default());
+                out.push_str(&format!("{}b.raw(\"<label class=\\\"mv-menu-item mv-menu-checkitem\\\"><input type=\\\"checkbox\\\" class=\\\"mv-menu-checkinput\\\" name=\\\"{}\\\" value=\\\"{}\\\"\");\n", indent, name, value));
+                if prop("checked").is_some() { out.push_str(&format!("{}b.raw(\" checked\");\n", indent)); }
+                out.push_str(&format!("{}b.raw(\"><span class=\\\"mv-menu-check\\\"></span><span class=\\\"mv-menu-itemlabel\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</span></label>\");\n", indent));
+                Some(())
+            }
+            "MenuItemRadio" => {
+                let name = esc_lit(&lit("name").unwrap_or_default());
+                let value = esc_lit(&lit("value").unwrap_or_default());
+                out.push_str(&format!("{}b.raw(\"<label class=\\\"mv-menu-item mv-menu-radioitem\\\"><input type=\\\"radio\\\" class=\\\"mv-menu-radioinput\\\" name=\\\"{}\\\" value=\\\"{}\\\"\");\n", indent, name, value));
+                if prop("checked").is_some() { out.push_str(&format!("{}b.raw(\" checked\");\n", indent)); }
+                out.push_str(&format!("{}b.raw(\"><span class=\\\"mv-menu-radio\\\"></span><span class=\\\"mv-menu-itemlabel\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</span></label>\");\n", indent));
                 Some(())
             }
             _ => None,
