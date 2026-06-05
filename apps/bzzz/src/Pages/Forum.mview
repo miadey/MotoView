@@ -5,65 +5,67 @@
 
 <div class="fl-col">
 
-    <!-- pill dropdowns row: Categories › / Tags › / All › -->
-    <div class="fl-pills">
-        <details class="fl-pill">
-            <summary class="fl-pill-trigger">Categories <span class="fl-pill-caret">›</span></summary>
-            <div class="fl-pop">
-                <a class="fl-pop-item" href="/forum">Toutes les Categories</a>
-                @for c in categories {
-                    <a class="fl-pop-item" href="/forum/c/@(c.id)">
-                        <span class="fl-sq" style="background:@c.color"></span>
-                        <span class="fl-pop-name">@c.name</span>
-                    </a>
-                }
-            </div>
-        </details>
-        <details class="fl-pill">
-            <summary class="fl-pill-trigger">Tags <span class="fl-pill-caret">›</span></summary>
-            <div class="fl-pop">
-                @if hasTags {
-                    @for tag in allTags {
-                        <a class="fl-pop-item" href="/forum">
-                            <span class="fl-pop-tag">🏷 @tag</span>
+    <!-- controls: category/tag/all pills + the latest/new/unread tabs share one row (Discourse) -->
+    <div class="fl-controls">
+        <div class="fl-pills">
+            <details class="fl-pill">
+                <summary class="fl-pill-trigger">Categories <span class="fl-pill-caret">›</span></summary>
+                <div class="fl-pop">
+                    <a class="fl-pop-item" href="/forum">All categories</a>
+                    @for c in categories {
+                        <a class="fl-pop-item" href="/forum/c/@(c.id)">
+                            <span class="fl-sq" style="background:@c.color"></span>
+                            <span class="fl-pop-name">@c.name</span>
                         </a>
                     }
-                } else {
-                    <span class="fl-pop-empty">Aucune étiquette</span>
-                }
-            </div>
-        </details>
-        <details class="fl-pill">
-            <summary class="fl-pill-trigger"‍>All <span class="fl-pill-caret">›</span></summary>
-            <div class="fl-pop">
-                <a class="fl-pop-item" href="/forum">Tous les sujets</a>
-                <a class="fl-pop-item" href="/forum?sort=new">New</a>
-                <a class="fl-pop-item" href="/forum?sort=unread">Unread</a>
-                <a class="fl-pop-item" href="/forum?sort=top">Top</a>
-            </div>
-        </details>
-    </div>
-
-    <!-- tabs + new topic split-button -->
-    <nav class="fl-tabsbar">
-        <div class="fl-tabs">
+                </div>
+            </details>
+            <details class="fl-pill">
+                <summary class="fl-pill-trigger">Tags <span class="fl-pill-caret">›</span></summary>
+                <div class="fl-pop">
+                    @if hasTags {
+                        @for tag in allTags {
+                            <a class="fl-pop-item" href="/forum">
+                                <span class="fl-pop-tag">🏷 @tag</span>
+                            </a>
+                        }
+                    } else {
+                        <span class="fl-pop-empty">No tags yet</span>
+                    }
+                </div>
+            </details>
+            <details class="fl-pill">
+                <summary class="fl-pill-trigger">All <span class="fl-pill-caret">›</span></summary>
+                <div class="fl-pop">
+                    <a class="fl-pop-item" href="/forum">All topics</a>
+                    <a class="fl-pop-item" href="/forum?sort=new">New</a>
+                    <a class="fl-pop-item" href="/forum?sort=unread">Unread</a>
+                    <a class="fl-pop-item" href="/forum?sort=top">Top</a>
+                </div>
+            </details>
+        </div>
+        <nav class="fl-tabs">
             <a class="fl-tab @tabRecents" href="/forum">Latest</a>
             <a class="fl-tab @tabCategories" href="/forum?sort=categories">Categories</a>
             <a class="fl-tab @tabNew" href="/forum?sort=new">New <span class="fl-tab-n">(@newCount)</span></a>
             <a class="fl-tab @tabUnread" href="/forum?sort=unread">Unread <span class="fl-tab-n">(@unreadCount)</span></a>
             <a class="fl-tab @tabPopular" href="/forum?sort=popular">Popular</a>
             <a class="fl-tab @tabTop" href="/forum?sort=top">Top</a>
-        </div>
+        </nav>
+    </div>
+
+    <!-- create-topic button on its own row, left-aligned (Discourse "Créer un sujet") -->
+    <div class="fl-createbar">
         <div class="fl-split">
-            <a class="fl-newbtn" href="/forum/new">✏ New Topic</a>
+            <a class="fl-newbtn" href="/forum/new">✏ Create Topic</a>
             <details class="fl-pill fl-split-more">
                 <summary class="fl-newbtn fl-newbtn-caret">▾</summary>
                 <div class="fl-pop fl-pop-right">
-                    <a class="fl-pop-item" href="/forum/new">＋ Nouveau sujet</a>
+                    <a class="fl-pop-item" href="/forum/new">＋ New topic</a>
                 </div>
             </details>
         </div>
-    </nav>
+    </div>
 
     @if (sort == "categories") {
         <!-- Categories view: one row per category -->
@@ -228,19 +230,24 @@
 }
 
 <style>
-    /* The page renders only the MAIN COLUMN; ForumLayout owns the top bar + sidebar. */
-    .fl-col { max-width: 800px; color: var(--colorNeutralForeground1);
-        font-size: var(--fontSizeBase300); }
+/* The page renders only the MAIN COLUMN; ForumLayout owns the top bar + sidebar.
+       Discourse "Latest" is LEFT-ALIGNED and FULL-WIDTH: no max-width cap, no centering. */
+    .fl-col { width: 100%; color: var(--colorNeutralForeground1);
+        font-size: 15px; }
 
-    /* ---- pill dropdown row ---- */
-    .fl-pills { display: flex; align-items: center; gap: var(--spacingHorizontalS);
-        margin-bottom: var(--spacingVerticalM); flex-wrap: wrap; }
+    /* ---- pill dropdown row: light-gray rounded pills, 13px / weight 500 ---- */
+    .fl-controls { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap;
+        margin-bottom: var(--spacingVerticalS); }
+    .fl-pills { display: flex; align-items: center; gap: var(--spacingHorizontalS); flex-wrap: wrap; }
+    .fl-createbar { display: flex; margin: var(--spacingVerticalXS) 0 var(--spacingVerticalL); }
     .fl-pill { position: relative; }
     .fl-pill-trigger { list-style: none; cursor: pointer; display: inline-flex; align-items: center;
         gap: var(--spacingHorizontalXXS); background: var(--colorNeutralBackground3);
-        color: var(--colorNeutralForeground2); border-radius: var(--borderRadiusCircular, 999px);
-        padding: var(--spacingVerticalXS) var(--spacingHorizontalM); font-size: var(--fontSizeBase200);
-        font-weight: var(--fontWeightSemibold); white-space: nowrap; user-select: none; }
+        color: var(--colorNeutralForeground2);
+        border: 1px solid var(--colorNeutralStroke2);
+        border-radius: var(--borderRadiusCircular, 999px);
+        padding: 5px 14px; font-size: 13px;
+        font-weight: var(--fontWeightMedium, 500); white-space: nowrap; user-select: none; }
     .fl-pill-trigger::-webkit-details-marker { display: none; }
     .fl-pill-trigger:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); }
     .fl-pill-caret { color: var(--colorNeutralForeground4); transition: transform var(--durationFaster, .1s) ease; }
@@ -255,35 +262,33 @@
         text-decoration: none; color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase200);
         padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS); border-radius: var(--borderRadiusSmall); }
     .fl-pop-item:hover { background: var(--colorNeutralBackground2); }
-    .fl-pop-name { font-weight: var(--fontWeightSemibold); }
+    .fl-pop-name { font-weight: var(--fontWeightMedium, 500); }
     .fl-pop-tag { color: var(--colorNeutralForeground2); }
     .fl-pop-empty { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
         padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS); }
 
-    /* ---- tabs + split-button ---- */
-    .fl-tabsbar { display: flex; align-items: flex-end; gap: var(--spacingHorizontalM);
-        border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
-    .fl-tabs { display: flex; align-items: center; gap: var(--spacingHorizontalL);
-        flex: 1; min-width: 0; overflow-x: auto; }
+    /* ---- tabs nav: active = brand-blue text + 2px underline ---- */
+    .fl-tabs { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; min-width: 0; }
     .fl-tab { position: relative; text-decoration: none; color: var(--colorNeutralForeground2);
-        font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold);
-        padding: var(--spacingVerticalS) 0 var(--spacingVerticalSNudge); white-space: nowrap; }
+        font-size: 14px; font-weight: var(--fontWeightMedium, 500);
+        padding: 10px 0 9px; white-space: nowrap; }
     .fl-tab:hover { color: var(--colorNeutralForeground1); }
     .fl-tab.is-active { color: var(--colorBrandForeground1); }
     .fl-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
         height: 2px; background: var(--colorBrandForeground1); border-radius: 2px; }
     .fl-tab-n { color: var(--colorNeutralForeground4); font-weight: var(--fontWeightRegular, 400); }
 
+    /* ---- New Topic split-button (solid brand-blue, white text) ---- */
     .fl-split { display: flex; align-items: stretch; flex: none; padding-bottom: var(--spacingVerticalXS); }
-    .fl-newbtn { text-decoration: none; background: var(--colorNeutralBackground3);
-        color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold);
-        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM);
+    .fl-newbtn { text-decoration: none; background: var(--colorBrandBackground);
+        color: #fff; font-weight: var(--fontWeightSemibold);
+        font-size: 13px; padding: 7px 14px;
         border-radius: var(--borderRadiusMedium) 0 0 var(--borderRadiusMedium); white-space: nowrap;
-        display: inline-flex; align-items: center; }
-    .fl-newbtn:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); color: var(--colorNeutralForeground1); }
+        display: inline-flex; align-items: center; gap: 4px; }
+    .fl-newbtn:hover { background: var(--colorBrandBackgroundHover, #115ea3); color: #fff; }
     .fl-split-more { display: flex; }
     .fl-newbtn-caret { list-style: none; cursor: pointer; border-radius: 0 var(--borderRadiusMedium) var(--borderRadiusMedium) 0;
-        border-left: 1px solid var(--colorNeutralStroke2); padding: var(--spacingVerticalSNudge) var(--spacingHorizontalSNudge); }
+        border-left: 1px solid rgba(255,255,255,.25); padding: 7px 8px; }
     .fl-newbtn-caret::-webkit-details-marker { display: none; }
 
     /* ---- shared square chip ---- */
@@ -293,69 +298,72 @@
 
     /* ---- topic table ---- */
     .fl-table { display: flex; flex-direction: column; }
-    .fl-thead { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalS) var(--spacingHorizontalXS);
+    .fl-thead { display: flex; align-items: center; gap: 16px;
+        padding: 10px 8px;
         border-bottom: 1px solid var(--colorNeutralStroke2); }
-    .fl-th { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
-        font-weight: var(--fontWeightSemibold); }
-    .fl-th-topic { flex: 1; min-width: 0; }
-    .fl-th-num { width: 64px; text-align: right; flex: none; }
-    .fl-th-act { width: 84px; text-align: right; flex: none; }
+    .fl-th { color: var(--colorNeutralForeground3); font-size: 13px;
+        font-weight: var(--fontWeightRegular, 400); }
+    .fl-th-topic { flex: 1; min-width: 0; text-align: left; }
+    .fl-th-num { width: 70px; text-align: right; flex: none; }
+    .fl-th-act { width: 90px; text-align: right; flex: none; }
 
-    .fl-row { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalM) var(--spacingHorizontalXS);
+    .fl-row { display: flex; align-items: center; gap: 16px;
+        min-height: 64px;
+        padding: 12px 8px;
         border-bottom: 1px solid var(--colorNeutralStroke2);
         text-decoration: none; color: inherit; }
     .fl-row:hover { background: var(--colorNeutralBackground2); }
 
     .fl-cell-topic { flex: 1; min-width: 0; display: flex; flex-direction: column;
-        gap: var(--spacingVerticalXS); }
-    .fl-title-line { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
-    .fl-glyph { font-size: var(--fontSizeBase300); }
+        gap: 6px; }
+    .fl-title-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .fl-glyph { font-size: 13px; }
     .fl-glyph-ok { color: var(--colorStatusSuccessForeground1, #0f7b0f); font-weight: var(--fontWeightBold); }
-    .fl-title { font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold);
-        color: var(--colorNeutralForeground3); line-height: 1.3; }
+    .fl-title { font-size: 16px; font-weight: var(--fontWeightMedium, 500);
+        color: var(--colorNeutralForeground3); line-height: 1.35; }
     .fl-title.is-unread { color: var(--colorNeutralForeground1); }
     .fl-row:hover .fl-title { color: var(--colorBrandForeground1); }
     .fl-bubble { display: inline-flex; align-items: center; justify-content: center;
         min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--borderRadiusCircular, 999px);
-        background: var(--colorBrandBackground); color: #fff; font-size: var(--fontSizeBase100);
+        background: var(--colorBrandBackground); color: #fff; font-size: 11px;
         font-weight: var(--fontWeightSemibold); font-variant-numeric: tabular-nums; }
 
-    .fl-meta { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
-    .fl-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS);
-        font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2);
-        font-weight: var(--fontWeightSemibold); }
+    .fl-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .fl-badge { display: inline-flex; align-items: center; gap: 5px;
+        font-size: 13px; color: var(--colorNeutralForeground2);
+        font-weight: var(--fontWeightRegular, 400); }
     .fl-tag { display: inline-flex; align-items: center; background: var(--colorNeutralBackground3);
         color: var(--colorNeutralForeground3); border-radius: var(--borderRadiusSmall);
-        padding: 1px var(--spacingHorizontalSNudge); font-size: var(--fontSizeBase100);
+        padding: 2px 7px; font-size: 12px;
         font-weight: var(--fontWeightRegular, 400); }
 
-    .fl-cell-posters { width: 120px; flex: none; }
+    /* ---- participants cluster (author avatar only — no fabricated participants) ---- */
+    .fl-cell-posters { width: 110px; flex: none; }
     .fl-cluster { display: inline-flex; align-items: center; }
     .fl-cluster .fl-ava + .fl-ava { margin-left: -8px; }
     .fl-ava { width: 25px; height: 25px; border-radius: 50%; display: inline-grid; place-items: center;
-        font-size: .9rem; background: linear-gradient(135deg, #ede7fb, #e2d9fa);
+        font-size: 13px; background: linear-gradient(135deg, #ede7fb, #e2d9fa);
         box-shadow: inset 0 0 0 1px rgba(15,108,189,.14), 0 0 0 2px var(--colorNeutralBackground1); }
 
-    .fl-cell-num { width: 64px; flex: none; text-align: right; color: var(--colorNeutralForeground2);
-        font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase300);
+    /* ---- right-aligned numeric columns: regular weight, not bold ---- */
+    .fl-cell-num { width: 70px; flex: none; text-align: right; color: var(--colorNeutralForeground2);
+        font-weight: var(--fontWeightRegular, 400); font-size: 14px;
         font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .fl-cell-num.is-hot { color: #d13438; }
-    .fl-cell-act { width: 84px; flex: none; text-align: right; color: var(--colorNeutralForeground3);
-        font-size: var(--fontSizeBase200); white-space: nowrap; }
+    .fl-cell-num.is-hot { color: #d13438; font-weight: var(--fontWeightSemibold); }
+    .fl-cell-act { width: 90px; flex: none; text-align: right; color: var(--colorNeutralForeground3);
+        font-size: 13px; white-space: nowrap; }
 
     /* ---- categories tab ---- */
     .fl-catlist { display: flex; flex-direction: column; }
-    .fl-catrow { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalM) var(--spacingHorizontalXS);
+    .fl-catrow { display: flex; align-items: center; gap: 16px;
+        padding: 12px 8px;
         border-bottom: 1px solid var(--colorNeutralStroke2); text-decoration: none; color: inherit; }
     .fl-catrow:hover { background: var(--colorNeutralBackground2); }
     .fl-catrow-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .fl-catrow-name { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1);
-        font-size: var(--fontSizeBase400); }
+    .fl-catrow-name { font-weight: var(--fontWeightMedium, 500); color: var(--colorNeutralForeground1);
+        font-size: 16px; }
     .fl-catrow:hover .fl-catrow-name { color: var(--colorBrandForeground1); }
-    .fl-catrow-desc { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
+    .fl-catrow-desc { font-size: 13px; color: var(--colorNeutralForeground3); }
     .fl-catrow-counts { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
     .fl-catrow-num { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1);
         font-variant-numeric: tabular-nums; }

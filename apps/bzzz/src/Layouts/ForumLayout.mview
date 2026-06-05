@@ -16,6 +16,10 @@
            thin sticky top bar + persistent left sidebar + content + right rail.
            Forum-specific chrome is namespaced `fl-*` so it never collides with
            the bzzz app-rail (`mv-nav*`) used by AppLayout.
+
+           Content is LEFT-ALIGNED and full-width: it begins just off the
+           250px sidebar's right border and runs to a small right gutter —
+           NO centered max-width box, NO empty left margin (matches Discourse).
            =================================================================== */
 
         /* ---- Top bar ---- */
@@ -94,9 +98,15 @@
 
         /* ---- Content + right rail ---- */
         .fl-content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
-        .fl-body { flex: 1; display: flex; align-items: flex-start; gap: 0; width: 100%; }
-        .fl-main { flex: 1; min-width: 0; box-sizing: border-box; max-width: 920px;
-            padding: var(--spacingVerticalXL) var(--spacingHorizontalXXL); margin: 0 auto; width: 100%; }
+        .fl-body { flex: 1; display: flex; align-items: flex-start; gap: 0; width: 100%; min-width: 0; }
+
+        /* THE FIX: left-aligned, full-width content.
+           No max-width, no margin:auto — fill from the sidebar's right edge to
+           a small right gutter. Tight left padding sits the content just off
+           the sidebar border; the right gutter is a touch wider (Discourse). */
+        .fl-main { flex: 1; min-width: 0; box-sizing: border-box; width: 100%;
+            padding: var(--spacingVerticalXL) 40px var(--spacingVerticalXL) var(--spacingHorizontalXXL); }
+
         .fl-rail { flex: 0 0 160px; box-sizing: border-box; position: sticky; top: 52px;
             height: calc(100vh - 52px); padding: var(--spacingVerticalL) var(--spacingHorizontalM); }
         .fl-rail:empty { display: none; }
@@ -114,12 +124,14 @@
                 transition: transform var(--durationNormal, .2s) var(--curveEasyEase, ease);
                 box-shadow: var(--shadow16); }
             .fl-burger:checked ~ .fl-shell .fl-sidebar { transform: translateX(0); }
+            /* still left-aligned + full-width, just symmetric 16px gutters */
             .fl-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
             .fl-rail { display: none; }
             .fl-search { max-width: none; }
         }
         @media (max-width: 560px) {
             .fl-brand-text { display: none; }
+            .fl-main { padding: 16px; }
         }
     </style>
 </head>
