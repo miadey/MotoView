@@ -31,6 +31,9 @@ pub struct MviewFile {
     pub sections: Vec<(String, Vec<Node>)>,
     pub code: CodeBlock,
     pub style: Option<String>,
+    /// `@theme "name"` — a built-in theme preset to apply (before any overrides).
+    pub theme_preset: Option<String>,
+    /// `@theme { --mv-x: y; }` — token overrides (applied on top of the preset).
     pub theme: Vec<(String, String)>,
 }
 
@@ -51,6 +54,7 @@ impl MviewFile {
             sections: Vec::new(),
             code: CodeBlock::default(),
             style: None,
+            theme_preset: None,
             theme: Vec::new(),
         }
     }

@@ -139,8 +139,17 @@ impl Parser {
                     }
                     "theme" => {
                         self.consume_keyword();
-                        let body = self.read_brace_block()?;
-                        self.file.theme = parse_theme(&body);
+                        self.skip_spaces();
+                        // optional preset name: @theme "ocean"
+                        if self.peek() == '"' {
+                            self.file.theme_preset = Some(self.read_quoted()?);
+                            self.skip_spaces();
+                        }
+                        // optional token overrides: @theme { --mv-x: y; }
+                        if self.peek() == '{' {
+                            let body = self.read_brace_block()?;
+                            self.file.theme = parse_theme(&body);
+                        }
                         continue;
                     }
                     "section" => {
@@ -1098,10 +1107,14 @@ fn parse_theme(body: &str) -> Vec<(String, String)> {
         if line.is_empty() {
             continue;
         }
-        if let Some(eq) = line.find('=') {
-            let k = line[..eq].trim().to_string();
-            let v = unquote(line[eq + 1..].trim());
-            out.push((k, v));
+        // accept CSS `--mv-x: value` (preferred) or `--mv-x = value`. The first
+        // `:`/`=` is the separator (token names never contain either).
+        if let Some(sep) = line.find(':').or_else(|| line.find('=')) {
+            let k = line[..sep].trim().to_string();
+            let v = unquote(line[sep + 1..].trim());
+            if !k.is_empty() && !v.is_empty() {
+                out.push((k, v));
+            }
         }
     }
     out

@@ -111,6 +111,41 @@ fn double_at_escapes_to_literal() {
 }
 
 #[test]
+fn theme_preset_emits_tokens_in_layout() {
+    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    let src = "@theme \"ocean\"\n<!DOCTYPE html><html><head>@head</head><body>@yield</body></html>";
+    let file = parser::parse(src, "L", FileKind::Layout).unwrap();
+    let mut cg = Codegen::new(&models, &comps);
+    let g = cg.gen_layout(&file);
+    assert!(g.contains("<style>:root{"), "theme style block emitted:\n{g}");
+    assert!(g.contains("--mv-primary:#0e76a0"), "ocean primary emitted:\n{g}");
+}
+
+#[test]
+fn theme_override_wins_over_preset() {
+    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    let src = "@theme \"ocean\" { --mv-primary: #ff0000 }\n<html><head>@head</head><body>@yield</body></html>";
+    let file = parser::parse(src, "L", FileKind::Layout).unwrap();
+    let mut cg = Codegen::new(&models, &comps);
+    let g = cg.gen_layout(&file);
+    assert!(g.contains("--mv-primary:#ff0000"), "override wins:\n{g}");
+    assert!(!g.contains("--mv-primary:#0e76a0"), "preset primary replaced:\n{g}");
+}
+
+#[test]
+fn no_theme_emits_no_style() {
+    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    let src = "<html><head>@head</head><body>@yield</body></html>";
+    let file = parser::parse(src, "L", FileKind::Layout).unwrap();
+    let mut cg = Codegen::new(&models, &comps);
+    let g = cg.gen_layout(&file);
+    assert!(!g.contains("<style>:root"), "no @theme -> no injected style:\n{g}");
+}
+
+#[test]
 fn typed_loop_field_access_avoids_debug_show() {
     // #19: a Model record type lets @p.field type precisely.
     let mut models: HashMap<String, HashMap<String, String>> = HashMap::new();

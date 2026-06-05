@@ -57,6 +57,7 @@ Built and verified end to end — locally and, where it matters, against the IC 
 - **Internet Identity login** — hand-rolled, no npm and no agent-js: a browser IC agent makes one authenticated call, the runtime mints an httpOnly session cookie, and `ctx.caller` resolves from it. Served at `/mv-auth.js`; add `<button data-mv-signin>`. Includes per-principal session revocation.
 - **Role stores** — `@authorize role="Admin"` is enforced against a persisted, per-principal role store. Manage roles from any handler via `ctx.hasRole / grantRole / revokeRole / claimRole / callerRoles`; `claimRole` is a first-come bootstrap for the first admin. Survives `--mode upgrade`. See [Security](security.md).
 - **Certified query rendering** — static framework assets and pages marked `@cacheable` are served as fast **certified queries** (HTTP response-certification v2) instead of upgrading to an update call. Parameterized cacheable routes are covered by a single wildcard certificate (`/u/{handle}` → `/u/<*>`). Dynamic pages keep the consensus-validated update path.
+- **Design tokens & theme packages** — `@theme` sets the design tokens (CSS custom properties: colors, radii, font, shadow) that power every component and your `@style` blocks. Apply a built-in, WCAG-AA-checked theme package by name (`@theme "midnight"` / `ocean` / `forest` / `sunset` / `slate`) and/or override individual tokens; dark mode is just the `midnight` package. See [Styling & Themes](styling-and-themes.md).
 - **PWA & offline-first** — every app is an installable PWA: the runtime serves a web manifest and an offline-first service worker (auto-registered by the client), which precaches the app shell (WASM client, CSS, auth glue, icon), serves immutable assets cache-first, and serves page navigations network-first with a cache fallback, so a visited page still opens with no network. The live protocol/session endpoints are never cached.
 - **Keyed-region DOM patches** — give list items a `key="..."` and the WASM brain diffs the keyed regions, patching precisely: content changes replace just those items; added/removed/reordered items are inserted/removed/moved (reorder moves the minimum number of nodes). Untouched and merely-moved nodes keep their live state (focus, selection, scroll, media). All the diffing runs in WASM — no application JavaScript. See [Keyed regions](directives-reference.md).
 
@@ -75,7 +76,6 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 **Later**
 
 - vetKeys-encrypted state.
-- Theme packages & design tokens (the `@theme` directive exists; shareable packages do not).
 - A richer animation engine (the `@effect` / `@animate` primitives exist).
 - A visual page designer.
 

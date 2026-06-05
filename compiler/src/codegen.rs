@@ -60,6 +60,8 @@ pub struct Codegen<'a> {
     types: std::cell::RefCell<HashMap<String, String>>,
     is_layout: bool,
     is_component: bool,
+    // The current layout's @theme `<style>…</style>`, emitted at its `@head`.
+    layout_theme: Option<String>,
     // Scanned record types: type name -> (field -> field type). Lets `@item.name`
     // infer its type instead of falling back to debug_show.
     models: &'a HashMap<String, HashMap<String, String>>,
@@ -77,6 +79,7 @@ impl<'a> Codegen<'a> {
             types: std::cell::RefCell::new(HashMap::new()),
             is_layout: false,
             is_component: false,
+            layout_theme: None,
             models,
             components,
         }
@@ -362,6 +365,8 @@ impl<'a> Codegen<'a> {
     pub fn gen_layout(&mut self, file: &MviewFile) -> String {
         self.is_layout = true;
         self.build_type_env(&file.code);
+        // A layout-level @theme is emitted at the layout's `@head`.
+        self.layout_theme = self.theme_style_css(file);
         let mut s = String::new();
         s.push_str(&format!("  // ===== Layout: {} =====\n", file.name));
         s.push_str(&format!(
@@ -426,6 +431,11 @@ impl<'a> Codegen<'a> {
                     "{}if (mvHead.canonical != \"\") {{ b.raw(\"<link rel=\\\"canonical\\\" href=\\\"\"); b.text(mvHead.canonical); b.raw(\"\\\">\") }};\n",
                     indent
                 ));
+                // A layout-level @theme injects its tokens here, after the base
+                // CSS link, so they override the defaults.
+                if let Some(style) = &self.layout_theme {
+                    out.push_str(&format!("{}b.raw({});\n", indent, mo_str(style)));
+                }
             }
             Node::SectionRef(_) => {
                 // sections other than the default body are not wired in the MVP layout
@@ -803,7 +813,7 @@ impl<'a> Codegen<'a> {
 
     fn gen_head_extra(&self, file: &MviewFile) -> String {
         // Render @section "head" nodes (if any) into a Text literal expression.
-        if let Some((_n, nodes)) = file.sections.iter().find(|(n, _)| n == "head") {
+        let base = if let Some((_n, nodes)) = file.sections.iter().find(|(n, _)| n == "head") {
             let mut body = String::new();
             body.push_str("(do { let b = Html.Builder(); ");
             let mut tmp = String::new();
@@ -817,7 +827,38 @@ impl<'a> Codegen<'a> {
             body
         } else {
             "\"\"".to_string()
+        };
+        // A page-level @theme rides into <head> as a <style> via head.extra.
+        match self.theme_style_css(file) {
+            Some(style) => format!("({} # {})", mo_str(&style), base),
+            None => base,
         }
+    }
+
+    /// Build the `<style>:root{…}</style>` for a file's `@theme` (a preset and/or
+    /// token overrides), or None when the file declares no theme. Overrides win.
+    fn theme_style_css(&self, file: &MviewFile) -> Option<String> {
+        if file.theme_preset.is_none() && file.theme.is_empty() {
+            return None;
+        }
+        let mut tokens: Vec<(String, String)> = Vec::new();
+        if let Some(p) = &file.theme_preset {
+            for (k, v) in theme_preset(p) {
+                tokens.push((k.to_string(), v.to_string()));
+            }
+        }
+        for (k, v) in &file.theme {
+            if let Some(slot) = tokens.iter_mut().find(|(tk, _)| tk == k) {
+                slot.1 = v.clone();
+            } else {
+                tokens.push((k.clone(), v.clone()));
+            }
+        }
+        if tokens.is_empty() {
+            return None;
+        }
+        let body: String = tokens.iter().map(|(k, v)| format!("{}:{};", k, v)).collect();
+        Some(format!("<style>:root{{{}}}</style>", body))
     }
 
     // ---- expression -> Text -----------------------------------------------
@@ -1281,4 +1322,48 @@ fn gen_validate_block(target: &str, block: &str) -> String {
     }
     s.push_str("if (mvErrors.size() > 0) { return }; ");
     s
+}
+
+/// Built-in theme presets — the shareable "theme packages" applied with
+/// `@theme "name"`. Each returns token overrides on top of the base CSS tokens.
+/// Palettes are WCAG-AA contrast-checked. Unknown name -> no tokens.
+pub fn theme_preset(name: &str) -> Vec<(&'static str, &'static str)> {
+    match name {
+        "midnight" => vec![
+            ("--mv-primary", "#8b7cf6"), ("--mv-primary-600", "#6d5ce0"), ("--mv-primary-fg", "#0b0a1a"),
+            ("--mv-bg", "#0b0b12"), ("--mv-surface", "#13131d"), ("--mv-muted", "#1c1c2b"),
+            ("--mv-border", "#2a2a3d"), ("--mv-text", "#e9e9f2"), ("--mv-text-soft", "#9a9ab0"),
+            ("--mv-success", "#34d399"), ("--mv-danger", "#f87171"), ("--mv-warning", "#fbbf24"),
+            ("--mv-shadow", "0 1px 2px rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.55)"),
+        ],
+        "ocean" => vec![
+            ("--mv-primary", "#0e76a0"), ("--mv-primary-600", "#0a5876"), ("--mv-primary-fg", "#ffffff"),
+            ("--mv-bg", "#f4f7fa"), ("--mv-surface", "#ffffff"), ("--mv-muted", "#eef3f8"),
+            ("--mv-border", "#d4e0eb"), ("--mv-text", "#0f2433"), ("--mv-text-soft", "#48637a"),
+            ("--mv-success", "#0a7d44"), ("--mv-danger", "#cf2f2f"), ("--mv-warning", "#9a5d00"),
+            ("--mv-shadow", "0 1px 2px rgba(13,42,66,.06), 0 8px 24px rgba(13,42,66,.08)"),
+        ],
+        "forest" => vec![
+            ("--mv-primary", "#2f7d4f"), ("--mv-primary-600", "#236340"), ("--mv-primary-fg", "#ffffff"),
+            ("--mv-bg", "#f7f5ef"), ("--mv-surface", "#fffefb"), ("--mv-muted", "#eeeae0"),
+            ("--mv-border", "#ddd6c6"), ("--mv-text", "#23271f"), ("--mv-text-soft", "#5c6253"),
+            ("--mv-success", "#2f7d4f"), ("--mv-danger", "#b3261e"), ("--mv-warning", "#9c5708"),
+            ("--mv-shadow", "0 1px 2px rgba(43,40,25,.06), 0 8px 24px rgba(43,40,25,.07)"),
+        ],
+        "sunset" => vec![
+            ("--mv-primary", "#c93f15"), ("--mv-primary-600", "#a82f0c"), ("--mv-primary-fg", "#ffffff"),
+            ("--mv-bg", "#fffaf5"), ("--mv-surface", "#ffffff"), ("--mv-muted", "#fdeede"),
+            ("--mv-border", "#f3ddc7"), ("--mv-text", "#2b1810"), ("--mv-text-soft", "#80614f"),
+            ("--mv-success", "#15803d"), ("--mv-danger", "#c2300f"), ("--mv-warning", "#b45309"),
+            ("--mv-shadow", "0 1px 2px rgba(120,53,15,.06), 0 8px 24px rgba(120,53,15,.10)"),
+        ],
+        "slate" => vec![
+            ("--mv-primary", "#4f6080"), ("--mv-primary-600", "#3a4861"), ("--mv-primary-fg", "#ffffff"),
+            ("--mv-bg", "#fbfbfc"), ("--mv-surface", "#ffffff"), ("--mv-muted", "#f1f3f6"),
+            ("--mv-border", "#e2e5ec"), ("--mv-text", "#1a1d24"), ("--mv-text-soft", "#5b6373"),
+            ("--mv-success", "#2f7a4f"), ("--mv-danger", "#c23b3b"), ("--mv-warning", "#9c5d12"),
+            ("--mv-shadow", "0 1px 2px rgba(20,24,38,.05), 0 8px 24px rgba(20,24,38,.05)"),
+        ],
+        _ => vec![],
+    }
 }

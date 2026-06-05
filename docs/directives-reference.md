@@ -42,17 +42,21 @@ These declare what a `.mview` file *is* and what the browser sees in `<head>`.
 |---|---|---|
 | `@code` | `@code { ...Motoko... }` | handlers, state, route params |
 | `@style` | `@style { ...css... }` | page-scoped CSS |
-| `@theme` | `@theme { tokens }` | design tokens for the page/layout |
+| `@theme` | `@theme "name"` / `@theme { tokens }` | apply a theme package and/or set design tokens |
 
 ```razor
 @code {
-  stable var count : Nat = 0;
-  func increment() { count += 1 };
+  var count : Nat = 0;
+  func increment() : async () { count += 1 };
 }
 
 @style { .total { font-weight: 600 } }
-@theme { --mv-accent: #2563eb }
+@theme "ocean" { --mv-primary: #0d9488 }
 ```
+
+Theme packages: `midnight` (dark), `ocean`, `forest`, `sunset`, `slate`. Tokens
+include `--mv-primary`, `--mv-bg`, `--mv-surface`, `--mv-text`, `--mv-border`,
+`--mv-radius`, `--mv-font`, … (see [Styling & Themes](styling-and-themes.md)).
 
 ## Layout composition
 

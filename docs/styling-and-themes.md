@@ -63,43 +63,70 @@ When a page needs styling that doesn't belong in a shared component, use a `@sty
 
 Notice the `var(--mv-color-primary)` reference — local CSS should still read from theme tokens so a single theme change updates the whole app.
 
-## Level 3: `@theme` tokens
+## Level 3: `@theme` — design tokens & theme packages
 
-`@theme` defines the CSS variables that power semantic components and your `@style` blocks. Set these once — usually in a [layout](layouts.md) — and everything inherits.
+`@theme` sets the CSS variables (design tokens) that power semantic components,
+the base stylesheet, and your own `@style` blocks. Put it in a [layout](layouts.md)
+once and every page using that layout inherits it. It compiles to a single
+`<style>:root{ … }</style>` injected after the base stylesheet, so your values
+win.
+
+### Apply a built-in theme package
+
+The framework ships five ready-made, accessibility-checked themes (WCAG-AA
+contrast). Apply one by name:
 
 ```razor
-@theme {
-  --mv-color-primary: #2563eb;
-  --mv-color-success: #16a34a;
-  --mv-color-warning: #d97706;
-  --mv-color-bg:      #ffffff;
-  --mv-color-text:    #1f2937;
-  --mv-radius:        0.5rem;
-  --mv-font:          system-ui, sans-serif;
+@theme "midnight"
+```
+
+| Name | Look |
+|---|---|
+| `midnight` | dark — deep indigo-black, violet primary |
+| `ocean` | light — cool blue/teal |
+| `forest` | light — natural green, warm neutrals |
+| `sunset` | light — warm coral on cream |
+| `slate` | light — minimal near-grayscale, slate primary |
+
+### Override individual tokens
+
+Set any tokens directly, with or without a preset. Overrides win over the preset:
+
+```razor
+@theme "ocean" {
+  --mv-primary: #0d9488;
+  --mv-radius: 4px;
 }
 ```
 
-Because tokens are ordinary CSS custom properties, changing a brand color is a one-line edit, not a search-and-replace through your markup.
+### The tokens
 
-## The default theme and dark mode
+| Token | Purpose |
+|---|---|
+| `--mv-primary`, `--mv-primary-600`, `--mv-primary-fg` | brand color, its hover shade, and text on a primary button |
+| `--mv-bg`, `--mv-surface`, `--mv-muted` | page / card / subtle-fill backgrounds |
+| `--mv-border` | hairline borders |
+| `--mv-text`, `--mv-text-soft` | primary and secondary text |
+| `--mv-success`, `--mv-danger`, `--mv-warning` | status colors |
+| `--mv-radius`, `--mv-radius-sm` | corner radii |
+| `--mv-font` | base font stack |
+| `--mv-shadow` | elevation shadow |
 
-A new project from `motoview new` comes with a default theme already wired up, so the counter and other starter examples render cleanly before you change a thing. The compiled assets — including the framework stylesheet — are served by the canister at `/motoview.css` alongside `/motoview.wasm` and `/motoview.js`.
+Because tokens are ordinary CSS custom properties, your own `@style` and
+components read them with `var(--mv-primary)` — so changing a brand color is a
+one-line edit, not a search-and-replace through your markup.
 
-Dark mode is just a second set of token values under a media query in your `@theme` block:
+### Dark mode
+
+Dark mode is just the `midnight` package (or your own dark token values):
 
 ```razor
-@theme {
-  --mv-color-bg:   #ffffff;
-  --mv-color-text: #1f2937;
-
-  @media (prefers-color-scheme: dark) {
-    --mv-color-bg:   #0f172a;
-    --mv-color-text: #e2e8f0;
-  }
-}
+@theme "midnight"
 ```
 
-Semantic components and any `@style` that reads tokens flip automatically — no JavaScript, no extra wiring.
+Every semantic component and any `@style` that reads tokens flips automatically —
+no JavaScript, no extra wiring. The compiled base stylesheet is served by the
+canister at `/motoview.css` alongside `/motoview.wasm` and `/motoview.js`.
 
 ## Avoiding utility-class soup
 

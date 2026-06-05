@@ -624,8 +624,10 @@ module {
       // Guard on the actual tag (href=/src=), NOT the bare filename — otherwise a
       // page whose CONTENT mentions "motoview.js" (e.g. these docs) would be
       // mistaken for already having the script, and the client would never load.
+      // Inject the base stylesheet at the START of <head>, so a layout's own
+      // <style> and an @theme block (both later in <head>) override it.
       if (not Text.contains(d, #text "href=\"/motoview.css\"")) {
-        d := Text.replace(d, #text "</head>", "<link rel=\"stylesheet\" href=\"/motoview.css\"></head>");
+        d := Text.replace(d, #text "<head>", "<head><link rel=\"stylesheet\" href=\"/motoview.css\">");
       };
       if (not Text.contains(d, #text "src=\"/motoview.js\"")) {
         d := Text.replace(d, #text "</body>", "<script src=\"/motoview.js\" defer></script></body>");
