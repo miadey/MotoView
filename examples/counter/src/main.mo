@@ -7,13 +7,25 @@ import MV "mo:motoview/Types";
 import Lib "mo:motoview";
 import Nat "mo:base/Nat";
 import Nat32 "mo:base/Nat32";
+import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Float "mo:base/Float";
 import Char "mo:base/Char";
 import Text "mo:base/Text";
 import Buffer "mo:base/Buffer";
+import Principal "mo:base/Principal";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
+import Option "mo:base/Option";
+import Time "mo:base/Time";
+import Bool "mo:base/Bool";
+import Random "mo:base/Random";
 
 actor {
+  // `Context` is the friendly alias for the request context passed to
+  // `onLoad(ctx : Context)` and to any handler whose first parameter is `ctx`.
+  type Context = MV.Ctx;
+
   // ---- conversion helpers used by generated event dispatch ----
   func mvNat(t : Text) : Nat {
     var n : Nat = 0;
@@ -41,7 +53,17 @@ actor {
     for ((kk, vv) in ctx.form.vals()) { if (kk == k) { return ?vv } };
     null;
   };
+  // Read a route param (e.g. {id:Nat}) as Text; "" if absent.
+  func mvParamGet(ctx : MV.Ctx, k : Text) : Text {
+    for ((kk, vv) in ctx.params.vals()) { if (kk == k) { return vv } };
+    "";
+  };
 
+  // ---- shared service instances (stateful services) ----
+
+
+
+  // mv:src src/Pages/Counter.mview
   // ===== Page: Counter (/) =====
   let CounterPage = object {
     var count : Nat = 0;
@@ -125,7 +147,7 @@ actor {
     };
     public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; "Counter" };
     public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; { title = "Counter"; description = "A live counter built with MotoView — rendering is a query, the +/- clicks are updates."; canonical = ""; extra = "" } };
-    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx };
+    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx;  };
     public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
       ignore ctx; ignore mvArgs;
       mvErrors.clear(); // each interaction starts with a clean slate
@@ -148,6 +170,7 @@ actor {
     layout = "MainLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = CounterPage.mvOnLoad;
     render = CounterPage.mvRender;
     title = CounterPage.mvTitle;
@@ -158,6 +181,7 @@ actor {
     takeRedirect = CounterPage.mvTakeRedirect;
   };
 
+  // mv:src src/Layouts/MainLayout.mview
   // ===== Layout: MainLayout =====
   func mvLayout_MainLayout(ctx : MV.Ctx, mvHead : MV.Head, mvBody : Text) : Text {
     ignore ctx;
@@ -241,14 +265,35 @@ actor {
 
   let mvPages : [MV.Page] = [CounterDef];
   let mvLayouts : [MV.Layout] = [{ name = "MainLayout"; render = mvLayout_MainLayout }];
-  let mvConfig : MV.Config = { appName = "counter"; secret = "\5b\d7\d4\25\ef\20\ae\6f\b5\4a\76\8c\41\e7\24\66\08\d2\f7\94\97\c2\05\91\12\4c\bc\31\e3\ca\b5\3a" : Blob; seo = true };
+  let mvConfig : MV.Config = { appName = "counter"; secret = "" : Blob; seo = true; altOrigins = [] };
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
+
+  // Session / secure-form HMAC secret: cryptographically random per canister
+  // (from the IC's raw_rand), kept in a stable var so it survives upgrades, and
+  // NEVER present in source. Installed lazily on the first update call below;
+  // restored into the app instance here after an upgrade.
+  stable var mvSecret : Blob = "" : Blob;
+  // Per-principal session epochs (logout-everywhere revocation), kept stable.
+  stable var mvEpochs : [(Text, Nat)] = [];
+  if (mvSecret.size() == 32) { mvApp.setSecret(mvSecret) };
+  mvApp.setEpochs(mvEpochs);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {
     mvApp.httpRequest(req, msg.caller);
   };
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {
-    mvApp.httpRequestUpdate(req, msg.caller);
+    if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
+    let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
+    mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
+    mvResp;
+  };
+
+  // Internet Identity login bridge: an authenticated update call whose caller
+  // the IC has verified. Records the principal under the client's nonce so a
+  // following GET /mv-session can mint a session token bound to it.
+  public shared (msg) func mvEstablish(nonce : Text) : async () {
+    if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
+    mvApp.establish(nonce, msg.caller);
   };
 };
