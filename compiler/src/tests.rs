@@ -227,3 +227,23 @@ fn component_params_and_children_in_render() {
     assert!(g.contains("func mvComponent_Card(title : Text, featured : Bool, mvChildren : Text)"), "component signature wrong:\n{g}");
     assert!(g.contains("b.raw(mvChildren)"), "@children not rendered:\n{g}");
 }
+
+#[test]
+fn component_reserved_word_params_are_mangled() {
+    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    // `label` and `type` are Motoko keywords — a naive signature would be invalid
+    // Motoko. They must be mangled in the signature AND in references, but the
+    // literal word "label" in the HTML text must be left untouched.
+    let src = "param label : Text\nparam type : Text\n<span>txt=<b>@label</b> kind=@type (literal label word)</span>";
+    let file = parser::parse(src, "Tag", FileKind::Component).unwrap();
+    let mut cg = Codegen::new(&models, &comps);
+    let g = cg.gen_app_component(&file);
+    assert!(g.contains("func mvComponent_Tag(mvP_label : Text, mvP_type : Text, mvChildren : Text)"), "reserved params not mangled in signature:\n{g}");
+    assert!(g.contains("b.text(mvP_label)"), "label reference not mangled:\n{g}");
+    assert!(g.contains("b.text(mvP_type)"), "type reference not mangled:\n{g}");
+    // the keyword must NOT survive as a bare Motoko identifier
+    assert!(!g.contains("b.text(label)") && !g.contains("(label :") && !g.contains("(type :"), "a reserved keyword leaked as an identifier:\n{g}");
+    // but the literal HTML word inside b.raw("…") must be preserved verbatim
+    assert!(g.contains("(literal label word)"), "literal HTML word was wrongly mangled:\n{g}");
+}

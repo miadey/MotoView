@@ -53,6 +53,74 @@ pub fn collect_slot_names(nodes: &[Node]) -> Vec<String> {
     out
 }
 
+/// Motoko reserved keywords — a component param named one of these would generate
+/// invalid Motoko (`func f(label : Text)`), so we auto-mangle it (see
+/// [`mangle_param`]). Kept in sync with the moc lexer's keyword set.
+const MOTOKO_KEYWORDS: &[&str] = &[
+    "actor", "and", "async", "assert", "await", "break", "case", "catch", "class", "continue",
+    "debug", "debug_show", "do", "else", "false", "finally", "flexible", "for", "func", "if",
+    "ignore", "import", "in", "module", "not", "null", "object", "or", "label", "let", "loop",
+    "private", "public", "query", "return", "shared", "stable", "switch", "system", "throw",
+    "to_candid", "from_candid", "true", "try", "type", "var", "while", "with", "composite", "prim",
+];
+
+pub fn is_motoko_keyword(name: &str) -> bool {
+    MOTOKO_KEYWORDS.contains(&name)
+}
+
+/// The safe Motoko identifier to use for a component param: the name itself, or
+/// `mvP_<name>` if it collides with a Motoko keyword. The `mvP_` prefix is
+/// guaranteed non-reserved and is namespaced to avoid clashing with author code.
+pub fn mangle_param(name: &str) -> String {
+    if is_motoko_keyword(name) { format!("mvP_{}", name) } else { name.to_string() }
+}
+
+/// Replace whole-identifier occurrences of `from` with `to` in generated Motoko,
+/// but ONLY in real code positions: skips string literals, char literals, and
+/// line/block comments (so HTML text inside `b.raw("…")` is never touched), and
+/// skips field accesses (`obj.from` — the `.from` is a field name, not the param).
+/// Used to rewrite reserved-word param references after they've been emitted.
+pub fn replace_ident_in_code(src: &str, from: &str, to: &str) -> String {
+    let chars: Vec<char> = src.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(src.len() + 8);
+    let mut i = 0usize;
+    let mut block_depth = 0usize; // Motoko block comments nest
+    while i < n {
+        let c = chars[i];
+        if block_depth > 0 {
+            if c == '*' && i + 1 < n && chars[i + 1] == '/' { block_depth -= 1; out.push('*'); out.push('/'); i += 2; continue; }
+            if c == '/' && i + 1 < n && chars[i + 1] == '*' { block_depth += 1; out.push('/'); out.push('*'); i += 2; continue; }
+            out.push(c); i += 1; continue;
+        }
+        if c == '/' && i + 1 < n && chars[i + 1] == '*' { block_depth += 1; out.push('/'); out.push('*'); i += 2; continue; }
+        if c == '/' && i + 1 < n && chars[i + 1] == '/' {
+            while i < n && chars[i] != '\n' { out.push(chars[i]); i += 1; }
+            continue;
+        }
+        if c == '"' || c == '\'' {
+            let quote = c;
+            out.push(c); i += 1;
+            while i < n {
+                let d = chars[i]; out.push(d); i += 1;
+                if d == '\\' && i < n { out.push(chars[i]); i += 1; continue; }
+                if d == quote { break; }
+            }
+            continue;
+        }
+        if c.is_alphabetic() || c == '_' {
+            let start = i;
+            while i < n && (chars[i].is_alphanumeric() || chars[i] == '_') { i += 1; }
+            let word: String = chars[start..i].iter().collect();
+            let prev = if start == 0 { ' ' } else { chars[start - 1] };
+            if word == from && prev != '.' { out.push_str(to); } else { out.push_str(&word); }
+            continue;
+        }
+        out.push(c); i += 1;
+    }
+    out
+}
+
 pub struct Codegen<'a> {
     // name -> Motoko type (vars, params, func returns, and scoped @for loop
     // vars). RefCell so loop-var types can be pushed/popped during the otherwise
@@ -97,12 +165,22 @@ impl<'a> Codegen<'a> {
             .code
             .params
             .iter()
-            .map(|p| format!("{} : {}", p.name, p.ty))
+            .map(|p| format!("{} : {}", mangle_param(&p.name), p.ty))
             .collect();
         sig.push("mvChildren : Text".to_string());
         for sl in &slots {
             sig.push(format!("mvSlot_{} : Text", sl));
         }
+        // Params whose name is a Motoko keyword were mangled in the signature;
+        // rewrite their references in the body to match (Motoko-aware, so HTML
+        // text and field accesses are left untouched).
+        let mangled: Vec<(String, String)> = file
+            .code
+            .params
+            .iter()
+            .filter(|p| is_motoko_keyword(&p.name))
+            .map(|p| (p.name.clone(), mangle_param(&p.name)))
+            .collect();
         let mut s = String::new();
         s.push_str(&format!("  // ===== Component: {} =====\n", file.name));
         s.push_str(&format!("  func mvComponent_{}({}) : Text {{\n", file.name, sig.join(", ")));
@@ -113,6 +191,9 @@ impl<'a> Codegen<'a> {
         }
         let mut body = String::new();
         self.gen_nodes(&file.template, &mut body, "    ");
+        for (from, to) in &mangled {
+            body = replace_ident_in_code(&body, from, to);
+        }
         s.push_str(&body);
         s.push_str("    b.build();\n  };\n");
         self.is_component = false;
