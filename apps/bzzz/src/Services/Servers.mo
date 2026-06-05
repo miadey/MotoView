@@ -248,6 +248,37 @@ module {
       };
     };
 
+    /// Privileged role set — NO caller authorization. The PAGE must gate this
+    /// (cross-scope: a global Admin/SuperAdmin managing a server they're not in).
+    /// The owner role is fixed and cannot be overwritten here.
+    public func forceSetRole(serverId : Nat, target : Principal, role : Role) : Bool {
+      switch (servers_.get(serverId)) {
+        case null { false };
+        case (?srv) {
+          if (target == srv.owner) { return false };
+          setRole(serverId, target, role);
+          if (role != #None) { ensureMember(serverId, target) };
+          true;
+        };
+      };
+    };
+
+    /// Privileged delete — NO caller authorization (the page gates on a global
+    /// Admin/SuperAdmin). Mirrors deleteServer without the owner check.
+    public func forceDelete(serverId : Nat) : Bool {
+      switch (servers_.get(serverId)) {
+        case null { false };
+        case (?_srv) {
+          servers_.delete(serverId);
+          roles.delete(serverId);
+          memberships.delete(serverId);
+          pins.delete(serverId);
+          mutes.delete(serverId);
+          true;
+        };
+      };
+    };
+
     /// True if `principal`'s role is >= #Moderator.
     public func canModerate(serverId : Nat, principal : Principal) : Bool {
       roleRank(roleOf(serverId, principal)) >= roleRank(#Moderator)

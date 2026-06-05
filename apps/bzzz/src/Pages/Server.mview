@@ -274,8 +274,9 @@
 
         isMember := Servers.isMember(id, ctx.caller);
         isOwner := Servers.isOwner(id, ctx.caller);
-        canMod := Servers.canModerate(id, ctx.caller);
-        canAdmin := Servers.canAdmin(id, ctx.caller);
+        // Cross-scope: a global Moderator/Admin can act in any server.
+        canMod := Servers.canModerate(id, ctx.caller) or Admin.isMod(ctx.caller);
+        canAdmin := Servers.canAdmin(id, ctx.caller) or Admin.isAdmin(ctx.caller);
         myRole := Servers.roleLabel(id, ctx.caller);
     };
 
@@ -357,19 +358,22 @@
 
     func makeMod(ctx : Context, targetText : Text) : async () {
         let sid = paramNat(ctx, "id");
-        ignore Servers.grant(ctx.caller, sid, Principal.fromText(targetText), #Moderator);
+        let target = Principal.fromText(targetText);
+        if (Servers.canAdmin(sid, ctx.caller)) { ignore Servers.grant(ctx.caller, sid, target, #Moderator) } else if (Admin.isAdmin(ctx.caller)) { ignore Servers.forceSetRole(sid, target, #Moderator) };
         toast("Granted moderator.");
     };
 
     func makeAdmin(ctx : Context, targetText : Text) : async () {
         let sid = paramNat(ctx, "id");
-        ignore Servers.grant(ctx.caller, sid, Principal.fromText(targetText), #Admin);
+        let target = Principal.fromText(targetText);
+        if (Servers.canAdmin(sid, ctx.caller)) { ignore Servers.grant(ctx.caller, sid, target, #Admin) } else if (Admin.isAdmin(ctx.caller)) { ignore Servers.forceSetRole(sid, target, #Admin) };
         toast("Granted admin.");
     };
 
     func revoke(ctx : Context, targetText : Text) : async () {
         let sid = paramNat(ctx, "id");
-        ignore Servers.revoke(ctx.caller, sid, Principal.fromText(targetText));
+        let target = Principal.fromText(targetText);
+        if (Servers.canAdmin(sid, ctx.caller)) { ignore Servers.revoke(ctx.caller, sid, target) } else if (Admin.isAdmin(ctx.caller)) { ignore Servers.forceSetRole(sid, target, #None) };
         toast("Role revoked.");
     };
 }

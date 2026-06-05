@@ -450,6 +450,22 @@ module {
       };
     };
 
+    /// Privileged pin/close — NO author check. The PAGE gates these on a global
+    /// Moderator+ (cross-scope forum moderation).
+    public func forceSetPinned(topicId : Nat, pinned : Bool) : Bool {
+      switch (topics_.get(topicId)) {
+        case null { false };
+        case (?t) { t.pinned := pinned; true };
+      };
+    };
+
+    public func forceSetClosed(topicId : Nat, closed : Bool) : Bool {
+      switch (topics_.get(topicId)) {
+        case null { false };
+        case (?t) { t.closed := closed; true };
+      };
+    };
+
     public func acceptedPostId(topicId : Nat) : Nat {
       switch (topics_.get(topicId)) { case (?t) t.acceptedPostId; case null 0 };
     };

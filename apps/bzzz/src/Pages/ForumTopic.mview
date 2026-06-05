@@ -29,9 +29,9 @@
                 </div>
             </header>
 
-            @if isAuthor {
+            @if canModerate {
                 <div class="ft-mod">
-                    <span class="ft-mod-label">Topic controls</span>
+                    <span class="ft-mod-label">@modLabel</span>
                     @if pinned {
                         <button class="ft-mod-btn" @click="togglePin">Unpin</button>
                     } else {
@@ -42,7 +42,7 @@
                     } else {
                         <button class="ft-mod-btn" @click="toggleClose">Close</button>
                     }
-                    @if solved {
+                    @if (solved and isAuthor) {
                         <button class="ft-mod-btn" @click="clearSolution">Clear solution</button>
                     }
                 </div>
@@ -303,6 +303,8 @@
     var views : Nat = 0;
     var replyCount : Nat = 0;
     var isAuthor : Bool = false;
+    var canModerate : Bool = false; // topic author OR a global Moderator+ (cross-scope)
+    var modLabel : Text = "Topic controls";
     var signedIn : Bool = false;
     var posts : [Forum.Post] = [];
     var me : Principal = Principal.fromText("2vxsx-fae");
@@ -349,6 +351,8 @@
                 views := t.views;
                 opAuthor := t.author;
                 isAuthor := t.author == ctx.caller;
+                canModerate := isAuthor or Admin.isMod(ctx.caller);
+                modLabel := if (isAuthor) "Topic controls" else "Moderator controls";
                 replyCount := Forum.replyCount(id);
                 posts := Forum.posts(id);
                 computeSummary();
@@ -437,12 +441,12 @@
     };
 
     func togglePin(ctx : Context) : async () {
-        ignore Forum.setPinned(ctx.caller, id, not pinned);
+        if (isAuthor) { ignore Forum.setPinned(ctx.caller, id, not pinned) } else if (Admin.isMod(ctx.caller)) { ignore Forum.forceSetPinned(id, not pinned) };
         load(ctx);
     };
 
     func toggleClose(ctx : Context) : async () {
-        ignore Forum.setClosed(ctx.caller, id, not closed);
+        if (isAuthor) { ignore Forum.setClosed(ctx.caller, id, not closed) } else if (Admin.isMod(ctx.caller)) { ignore Forum.forceSetClosed(id, not closed) };
         load(ctx);
     };
 

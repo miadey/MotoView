@@ -552,7 +552,7 @@
         typingText := joinHandles(typing);
 
         locked := Servers.isLocked(rid);
-        canMod := Servers.canModerate(serverId, ctx.caller);
+        canMod := Servers.canModerate(serverId, ctx.caller) or Admin.isMod(ctx.caller);
         muted := Servers.isMuted(serverId, ctx.caller);
 
         // member rail: recently-active room members split by role.

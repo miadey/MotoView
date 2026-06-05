@@ -1,202 +1,486 @@
 @page "/admin"
 @layout AppLayout
-@title "Admin — manage the Bzzz allowlist"
-@description "Super-admin console for Bzzz: see who you are, view the admin allowlist, and add or remove admins. Gated to the on-chain allowlist."
+@title "Admin Console — Bzzz"
+@description "The super-admin console for Bzzz: manage global staff roles, review app-wide stats, and administer every server. Gated to the on-chain global role allowlist."
 
-<section class="bz-admin-head">
-    <h1>Admin console</h1>
-    <p class="bz-admin-sub">@(roleLine())</p>
-</section>
-
-@if isAdmin {
-    <div class="bz-card bz-whoami">
-        <div class="bz-whoami-row">
-            <span class="bz-whoami-label">You are</span>
-            <span class="bz-badge bz-badge-admin">Admin</span>
-        </div>
-        <div class="bz-whoami-row">
-            <span class="bz-whoami-label">Principal</span>
-            <code class="bz-principal">@whoamiPrincipal</code>
-        </div>
-        <div class="bz-whoami-row">
-            <span class="bz-whoami-label">Total admins</span>
-            <span>@adminCount</span>
-        </div>
-    </div>
-
-    <h2 class="bz-section-title">Admins</h2>
-    <div class="bz-card bz-admin-list">
-        @for a in admins {
-            <div class="bz-admin-row">
-                <div class="bz-admin-id">
-                    <span class="bz-admin-handle">@(handleLabel(a.handle))</span>
-                    <code class="bz-principal bz-principal-sm">@a.principalText</code>
-                </div>
-                <span class="bz-admin-granted">@(Admin.relativeTime(a.grantedAt, now))</span>
-                @if (canRemove and a.principalText != whoamiPrincipal) {
-                    <Button kind="danger" @click="remove(a.principalText)">Remove</Button>
-                } else if (a.principalText == whoamiPrincipal) {
-                    <span class="bz-admin-you">you</span>
-                } else {
-                    <span class="bz-admin-locked" title="The last admin cannot be removed">🔒</span>
-                }
+@if needsBootstrap {
+    <section class="ac-center">
+        <div class="bz-card ac-bootstrap">
+            <div class="ac-bootstrap-ico">🛡️</div>
+            <h1>Set up administration</h1>
+            <p>No one administers Bzzz yet. The first person to claim the seat becomes the
+               <strong>founding Super Admin</strong> — they can then grant roles to everyone else.
+               After that, this page is closed to non-staff.</p>
+            <div class="ac-principal-row">
+                <span class="ac-muted">You are</span>
+                <code class="ac-code">@myPrincipal</code>
             </div>
-        }
+            <form @submit="claim" secure>
+                <Button kind="primary" type="submit">Claim Super Admin</Button>
+            </form>
+        </div>
+    </section>
+} else if (not isStaff) {
+    <section class="ac-center">
+        <div class="bz-card ac-noaccess">
+            <div class="ac-bootstrap-ico">🔒</div>
+            <h1>You don't have admin access</h1>
+            <p>This console is limited to the Bzzz global staff allowlist. Ask an existing
+               admin to grant you a role.</p>
+            <div class="ac-principal-row">
+                <span class="ac-muted">You are</span>
+                <code class="ac-code">@myPrincipal</code>
+            </div>
+            <div class="ac-principal-row">
+                <span class="ac-muted">Your role</span>
+                <span>@myRoleLabel</span>
+            </div>
+        </div>
+    </section>
+} else {
+    <section class="ac-head">
+        <div class="ac-head-main">
+            <h1>Admin Console</h1>
+            @switch myRole {
+                case (#SuperAdmin) { <Badge type="danger">Super Admin</Badge> }
+                case (#Admin) { <Badge type="brand">Admin</Badge> }
+                case (#Moderator) { <Badge type="warning">Moderator</Badge> }
+                case (#None) { <Badge type="subtle">Member</Badge> }
+            }
+        </div>
+        <p class="ac-legend">Global roles apply app-wide; per-server roles are managed on each server.</p>
+    </section>
+
+    <div class="ac-stats">
+        <div class="bz-card ac-stat">
+            <span class="ac-stat-num">@userCount</span>
+            <span class="ac-stat-label">Users</span>
+        </div>
+        <div class="bz-card ac-stat">
+            <span class="ac-stat-num">@serverCount</span>
+            <span class="ac-stat-label">Servers</span>
+        </div>
+        <div class="bz-card ac-stat">
+            <span class="ac-stat-num">@topicCount</span>
+            <span class="ac-stat-label">Forum topics</span>
+        </div>
+        <div class="bz-card ac-stat">
+            <span class="ac-stat-num">@feedCount</span>
+            <span class="ac-stat-label">Feed posts</span>
+        </div>
+        <div class="bz-card ac-stat">
+            <span class="ac-stat-num">@staffCount</span>
+            <span class="ac-stat-label">Staff</span>
+        </div>
     </div>
 
-    <h2 class="bz-section-title">Add an admin</h2>
-    <div class="bz-card bz-add-admin">
-        <p class="bz-add-hint">Enter the handle of an existing Bzzz member to grant them admin rights.</p>
-        <form @submit="add" secure>
+    <h2 class="ac-section-title">Global staff</h2>
+    <div class="bz-card ac-table-card">
+        <table class="ac-table">
+            <thead>
+                <tr>
+                    <th>Member</th>
+                    <th>Principal</th>
+                    <th>Role</th>
+                    <th>Granted</th>
+                    <th class="ac-th-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for e in staff {
+                    <tr>
+                        <td>
+                            <div class="ac-member">
+                                <span class="ac-avatar">@(avatarFor(e.principalText))</span>
+                                <span class="ac-handle">@(handleLabel(e.handle, e.principalText))</span>
+                            </div>
+                        </td>
+                        <td><code class="ac-code ac-code-sm">@e.principalText</code></td>
+                        <td>
+                            @switch e.role {
+                                case (#SuperAdmin) { <Badge type="danger">Super Admin</Badge> }
+                                case (#Admin) { <Badge type="brand">Admin</Badge> }
+                                case (#Moderator) { <Badge type="warning">Moderator</Badge> }
+                                case (#None) { <Badge type="subtle">Member</Badge> }
+                            }
+                        </td>
+                        <td class="ac-granted">@(Admin.relativeTime(e.grantedAt, now))</td>
+                        <td class="ac-row-actions">
+                            @if (e.principalText == myPrincipal) {
+                                <span class="ac-you">you</span>
+                            }
+                            @if canMakeMod(e) {
+                                <button class="ac-btn ac-btn-ghost" @click="makeMod(e.principalText)">Make Moderator</button>
+                            }
+                            @if canMakeAdmin(e) {
+                                <button class="ac-btn ac-btn-ghost" @click="makeAdmin(e.principalText)">Make Admin</button>
+                            }
+                            @if canMakeSuper(e) {
+                                <button class="ac-btn ac-btn-ghost" @click="makeSuper(e.principalText)">Make Super Admin</button>
+                            }
+                            @if canRevoke(e) {
+                                <button class="ac-btn ac-btn-danger" @click="revokeStaff(e.principalText)">Revoke</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="ac-section-title">Grant a role</h2>
+    <div class="bz-card ac-grant">
+        <p class="ac-grant-hint">Enter an existing member's @@handle and pick the role to grant.</p>
+        <form @submit="grant" secure>
             <ValidationSummary />
-            <InputText name="addHandle" label="Handle" bind="@addHandle" required />
-            <div class="bz-add-actions">
-                <Button kind="primary" type="submit">Grant admin</Button>
+            <div class="ac-grant-grid">
+                <InputText name="handle" label="Handle" bind="@grantHandle" required />
+                <div class="ac-field">
+                    <span class="ac-field-label">Role</span>
+                    <select name="role" class="ac-select">
+                        <option value="Moderator">Moderator</option>
+                        @if isSuperAdmin {
+                            <option value="Admin">Admin</option>
+                            <option value="SuperAdmin">Super Admin</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="ac-grant-actions">
+                <Button kind="primary" type="submit">Grant role</Button>
             </div>
         </form>
     </div>
-} else {
-    <Alert kind="info">
-        This page is gated to the Bzzz admin allowlist. Your principal
-        (<code class="bz-principal">@whoamiPrincipal</code>) is not an admin.
-    </Alert>
 
-    @if (adminCount == 0) {
-        <div class="bz-card bz-bootstrap">
-            <div class="bz-bootstrap-ico">🛡️</div>
-            <h3>No admins yet</h3>
-            <p>The allowlist is empty. Claim the founding admin seat for this canister — the first caller becomes the bootstrap admin.</p>
-            <form @submit="claim" secure>
-                <Button kind="primary" type="submit">Claim bootstrap admin</Button>
-            </form>
-        </div>
-    } else {
-        <p class="bz-admin-sub">There @(adminVerb) currently @adminCount @(adminNoun) on Bzzz. Ask one of them to add you.</p>
-    }
+    <h2 class="ac-section-title">All servers</h2>
+    <div class="bz-card ac-table-card">
+        @if (serverList.size() == 0) {
+            <p class="ac-empty">No servers exist yet.</p>
+        } else {
+            <table class="ac-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Kind</th>
+                        <th>Owner</th>
+                        <th>Members</th>
+                        <th class="ac-th-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for s in serverList {
+                        <tr>
+                            <td class="ac-srv-name">@s.name</td>
+                            <td>
+                                @switch s.kind {
+                                    case (#Discussion) { <Badge type="informative">Discussion</Badge> }
+                                    case (#Forum) { <Badge type="informative">Forum</Badge> }
+                                    case (#Feed) { <Badge type="informative">Feed</Badge> }
+                                }
+                            </td>
+                            <td>@(ownerHandle(s.owner))</td>
+                            <td class="ac-num">@(memberCountOf(s.id))</td>
+                            <td class="ac-row-actions">
+                                <a class="ac-btn ac-btn-ghost" href="/servers/@(s.id)">Manage</a>
+                                @if isSuperAdmin {
+                                    <button class="ac-btn ac-btn-danger" @click="deleteServer(s.id)">Delete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
 }
 
 <style>
-    .bz-admin-head { margin-bottom: 1.25rem; }
-    .bz-admin-head h1 { margin: 0 0 .25rem; font-size: 1.6rem; letter-spacing: -.02em; }
-    .bz-admin-sub { margin: 0; color: var(--mv-text-soft); font-size: .9rem; }
+    .ac-center { display: flex; justify-content: center; padding: var(--spacingVerticalXXL) 0; }
+    .ac-bootstrap, .ac-noaccess { max-width: 30rem; text-align: center; padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); }
+    .ac-bootstrap-ico { font-size: 2.6rem; }
+    .ac-bootstrap h1, .ac-noaccess h1 { margin: var(--spacingVerticalM) 0 var(--spacingVerticalS); font-size: 1.4rem; letter-spacing: -.02em; }
+    .ac-bootstrap p, .ac-noaccess p { margin: 0 auto var(--spacingVerticalL); max-width: 42ch; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
+    .ac-principal-row { display: flex; align-items: center; justify-content: center; gap: var(--spacingHorizontalS); flex-wrap: wrap; margin-bottom: var(--spacingVerticalM); }
 
-    .bz-whoami { padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .55rem; margin-bottom: 1.5rem; }
-    .bz-whoami-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
-    .bz-whoami-label { width: 110px; color: var(--mv-text-soft); font-size: .85rem; flex: 0 0 auto; }
+    .ac-head { margin-bottom: var(--spacingVerticalXL); }
+    .ac-head-main { display: flex; align-items: center; gap: var(--spacingHorizontalM); flex-wrap: wrap; }
+    .ac-head h1 { margin: 0; font-size: 1.7rem; letter-spacing: -.02em; }
+    .ac-legend { margin: var(--spacingVerticalXS) 0 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
 
-    .bz-badge { display: inline-flex; align-items: center; font-size: .72rem; font-weight: 700;
-        padding: .18rem .55rem; border-radius: 999px; text-transform: uppercase; letter-spacing: .05em; }
-    .bz-badge-admin { background: #ede9fe; color: #6d28d9; }
+    .ac-muted { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .ac-code { font-family: var(--fontFamilyMonospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+        font-size: var(--fontSizeBase200); background: var(--colorNeutralBackground3); padding: .12rem .4rem;
+        border-radius: var(--borderRadiusSmall, 4px); word-break: break-all; }
+    .ac-code-sm { font-size: var(--fontSizeBase100, .7rem); opacity: .85; }
 
-    .bz-principal { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem;
-        background: var(--mv-muted); padding: .12rem .4rem; border-radius: 6px; word-break: break-all; }
-    .bz-principal-sm { font-size: .72rem; opacity: .8; }
+    .ac-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: var(--spacingHorizontalM); margin-bottom: var(--spacingVerticalXXL); }
+    .ac-stat { padding: var(--spacingVerticalL) var(--spacingHorizontalL); display: flex; flex-direction: column; gap: var(--spacingVerticalXXS); }
+    .ac-stat-num { font-size: 1.9rem; font-weight: var(--fontWeightBold); line-height: 1; letter-spacing: -.02em; }
+    .ac-stat-label { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 
-    .bz-section-title { font-size: 1.15rem; margin: 0 0 1rem; }
+    .ac-section-title { font-size: 1.2rem; margin: 0 0 var(--spacingVerticalM); }
 
-    .bz-admin-list { padding: .35rem 0; margin-bottom: 1.5rem; }
-    .bz-admin-row { display: flex; align-items: center; gap: .8rem; padding: .7rem 1.2rem;
-        border-bottom: 1px solid var(--mv-border); }
-    .bz-admin-row:last-child { border-bottom: 0; }
-    .bz-admin-id { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1; }
-    .bz-admin-handle { font-weight: 700; font-size: .95rem; }
-    .bz-admin-granted { font-size: .78rem; color: var(--mv-text-soft); white-space: nowrap; flex: 0 0 auto; }
-    .bz-admin-you { font-size: .76rem; color: var(--mv-text-soft); font-style: italic; flex: 0 0 auto; }
-    .bz-admin-locked { font-size: 1rem; flex: 0 0 auto; }
+    .ac-table-card { padding: 0; overflow-x: auto; margin-bottom: var(--spacingVerticalXXL); }
+    .ac-table { width: 100%; border-collapse: collapse; font-size: var(--fontSizeBase300); }
+    .ac-table th { text-align: left; font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground3);
+        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalM) var(--spacingHorizontalL);
+        border-bottom: 1px solid var(--colorNeutralStroke2); white-space: nowrap; }
+    .ac-table td { padding: var(--spacingVerticalM) var(--spacingHorizontalL); border-bottom: 1px solid var(--colorNeutralStroke2); vertical-align: middle; }
+    .ac-table tr:last-child td { border-bottom: 0; }
+    .ac-th-actions { text-align: right; }
 
-    .bz-add-admin { padding: 1.1rem 1.2rem; }
-    .bz-add-hint { margin: 0 0 .8rem; color: var(--mv-text-soft); font-size: .88rem; }
-    .bz-add-actions { margin-top: .8rem; }
+    .ac-member { display: flex; align-items: center; gap: var(--spacingHorizontalS); }
+    .ac-avatar { font-size: 1.3rem; line-height: 1; }
+    .ac-handle { font-weight: var(--fontWeightSemibold); white-space: nowrap; }
+    .ac-granted { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); white-space: nowrap; }
+    .ac-num { font-variant-numeric: tabular-nums; }
+    .ac-srv-name { font-weight: var(--fontWeightSemibold); }
 
-    .bz-bootstrap { text-align: center; padding: 2rem 1.5rem; margin-top: 1rem; }
-    .bz-bootstrap-ico { font-size: 2.4rem; }
-    .bz-bootstrap h3 { margin: .6rem 0 .3rem; font-size: 1.2rem; }
-    .bz-bootstrap p { margin: 0 auto 1.1rem; max-width: 48ch; color: var(--mv-text-soft); font-size: .9rem; }
+    .ac-row-actions { display: flex; align-items: center; gap: var(--spacingHorizontalXS); justify-content: flex-end; flex-wrap: wrap; }
+    .ac-you { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); font-style: italic; margin-right: var(--spacingHorizontalXS); }
 
-    @media (max-width: 560px) {
-        .bz-admin-row { flex-wrap: wrap; }
-        .bz-whoami-label { width: auto; }
+    .ac-btn { font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold);
+        padding: .32rem .6rem; border-radius: var(--borderRadiusMedium); cursor: pointer;
+        border: 1px solid var(--colorNeutralStroke1); text-decoration: none; white-space: nowrap;
+        background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1); }
+    .ac-btn-ghost:hover { background: var(--colorNeutralBackground1Hover); border-color: var(--colorNeutralStroke1Hover); }
+    .ac-btn-danger { color: var(--colorPaletteRedForeground1, #b10e1c); border-color: var(--colorPaletteRedBorder2, #f3aeb4); }
+    .ac-btn-danger:hover { background: var(--colorPaletteRedBackground1, #fdf3f4); }
+
+    .ac-grant { padding: var(--spacingVerticalL) var(--spacingHorizontalL); margin-bottom: var(--spacingVerticalXXL); }
+    .ac-grant-hint { margin: 0 0 var(--spacingVerticalM); color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
+    .ac-grant-grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacingHorizontalL); align-items: end; }
+    .ac-field { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); }
+    .ac-field-label { font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground3); }
+    .ac-select { padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM); border: 1px solid var(--colorNeutralStroke1);
+        border-radius: var(--borderRadiusMedium); background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1);
+        font-size: var(--fontSizeBase300); font-family: inherit; }
+    .ac-grant-actions { margin-top: var(--spacingVerticalL); }
+    .ac-empty { padding: var(--spacingVerticalL) var(--spacingHorizontalL); margin: 0; color: var(--colorNeutralForeground3); }
+
+    @media (max-width: 600px) {
+        .ac-grant-grid { grid-template-columns: 1fr; }
     }
 </style>
 
 @code {
+    // Stateful-service public types (Admin.Role, Admin.Entry, ...) can't be named
+    // from a page (the page sees the instance, not the module). Motoko variants
+    // are structural, so a local alias with the same shape unifies with the
+    // service's Role — letting helpers annotate their signatures WITHOUT inline
+    // braces (the @code scanner reads a function's return type up to the first
+    // '{', so a braced type there would corrupt parsing).
+    type Role = { #None; #Moderator; #Admin; #SuperAdmin };
+    // A width-subtype view of Admin.Entry carrying just the fields the gating
+    // helpers read (Admin.entries() rows subtype this structurally).
+    type EntryView = { role : Role; principalText : Text };
+
+    var myPrincipal : Text = "";
+    var myRole = Admin.roleOf(Principal.fromText("2vxsx-fae")); // inferred Role; reset in onLoad
+    var myRoleLabel : Text = "Member";
+    var isStaff : Bool = false;
     var isAdmin : Bool = false;
-    var whoamiPrincipal : Text = "";
-    var adminCount : Nat = 0;
-    var admins : [Admin.AdminEntry] = [];
-    var canRemove : Bool = false;
+    var isSuperAdmin : Bool = false;
+    var needsBootstrap : Bool = false;
+
+    var staffCount : Nat = 0;
+    var userCount : Nat = 0;
+    var serverCount : Nat = 0;
+    var topicCount : Nat = 0;
+    var feedCount : Nat = 0;
+
+    var staff = Admin.entries();
+    var serverList = Servers.servers();
     var now : Int = 0;
 
-    // Helper words for the empty/non-admin states.
-    var adminVerb : Text = "are";
-    var adminNoun : Text = "admins";
-
-    // Bound form field for the add-admin form.
-    var addHandle : Text = "";
+    // grant-role form field (auto-bound from the secure form)
+    var grantHandle : Text = "";
 
     func onLoad(ctx : Context) {
         let who = Admin.whoami(ctx.caller);
+        myPrincipal := who.principalText;
+        myRole := who.role;
+        myRoleLabel := who.roleLabel;
+        isStaff := who.isStaff;
         isAdmin := who.isAdmin;
-        whoamiPrincipal := who.principalText;
-        adminCount := who.adminCount;
-        admins := Admin.adminEntries();
-        // The last remaining admin can never be removed.
-        canRemove := adminCount > 1;
+        isSuperAdmin := who.isSuperAdmin;
+        staffCount := who.staffCount;
+        needsBootstrap := who.staffCount == 0;
+        reload(ctx);
+    };
+
+    // Re-read all state after each mutation (and on load).
+    func reload(ctx : Context) {
+        let who = Admin.whoami(ctx.caller);
+        myRole := who.role;
+        myRoleLabel := who.roleLabel;
+        isStaff := who.isStaff;
+        isAdmin := who.isAdmin;
+        isSuperAdmin := who.isSuperAdmin;
+        staffCount := who.staffCount;
+        needsBootstrap := who.staffCount == 0;
+
+        staff := Admin.entries();
+        serverList := Servers.servers();
+        userCount := Identity.count();
+        serverCount := Servers.serverCount();
+        topicCount := Forum.topicCount();
+        feedCount := Feed.postCount();
         now := Time.now();
-        adminVerb := if (adminCount == 1) "is" else "are";
-        adminNoun := if (adminCount == 1) "admin" else "admins";
     };
 
-    // A friendly line shown under the title in every state.
-    func roleLine() : Text {
-        if (isAdmin) {
-            "You have super-admin rights on this canister."
-        } else if (adminCount == 0) {
-            "No admins exist yet — the allowlist is open for bootstrap."
-        } else {
-            "You are signed in as a member."
-        };
+    // ---- display helpers ----
+
+    func handleLabel(handle : Text, principalText : Text) : Text {
+        if (Text.trim(handle, #char ' ') == "") { shortId(principalText) } else { "@" # handle };
     };
 
-    // Show the handle if we have one, otherwise a placeholder.
-    func handleLabel(handle : Text) : Text {
-        if (Text.trim(handle, #char ' ') == "") "(no handle)" else "@" # handle;
+    func ownerHandle(owner : Principal) : Text {
+        let h = Identity.handleOf(owner);
+        if (Text.trim(h, #char ' ') == "") { shortId(Principal.toText(owner)) } else { "@" # h };
     };
+
+    func memberCountOf(id : Nat) : Nat { Servers.memberCount(id) };
+
+    func shortId(t : Text) : Text {
+        let chars = Text.toArray(t);
+        if (chars.size() <= 8) { t } else { Text.fromIter(Array.subArray(chars, 0, 8).vals()) # "…" };
+    };
+
+    // A stable emoji avatar derived from the principal text (no fabricated data).
+    func avatarFor(seed : Text) : Text {
+        let palette = ["🐝", "🦊", "🐙", "🦉", "🐬", "🦋", "🐢", "🦄", "🐧", "🦁"];
+        var h : Nat32 = 2166136261;
+        for (c in seed.chars()) { h := (h ^ Char.toNat32(c)) *% 16777619 };
+        palette[Nat32.toNat(h % 10)];
+    };
+
+    // ---- per-row permission gating (mirror Admin.setRole's rules) ----
+    // rank: None 0, Moderator 1, Admin 2, SuperAdmin 3.
+    func entryRank(role : Role) : Nat {
+        switch role { case (#None) 0; case (#Moderator) 1; case (#Admin) 2; case (#SuperAdmin) 3 };
+    };
+
+    func myRank() : Nat { entryRank(myRole) };
+
+    // Can the caller set `e` to the target role? Encodes setRole's checks so we
+    // never render a control the service would reject.
+    func canSet(e : EntryView, target : Role) : Bool {
+        if (not isAdmin) { return false };
+        let cr = myRank();
+        let tr = entryRank(e.role);
+        let nr = entryRank(target);
+        if (tr == nr) { return false };            // no-op
+        let touchesHigh = nr >= 2 or tr >= 2;
+        if (touchesHigh and not isSuperAdmin) { return false };
+        if (nr > cr) { return false };             // can't grant above own rank
+        if (tr > cr) { return false };             // can't change someone who outranks you
+        // last Super Admin can't be demoted
+        if (e.role == #SuperAdmin and target != #SuperAdmin and superAdminCount() <= 1) { return false };
+        true;
+    };
+
+    func canMakeMod(e : EntryView) : Bool { canSet(e, #Moderator) };
+    func canMakeAdmin(e : EntryView) : Bool { canSet(e, #Admin) };
+    func canMakeSuper(e : EntryView) : Bool { canSet(e, #SuperAdmin) };
+    func canRevoke(e : EntryView) : Bool { canSet(e, #None) };
+
+    func superAdminCount() : Nat {
+        var n = 0;
+        for (e in staff.vals()) { if (e.role == #SuperAdmin) { n += 1 } };
+        n;
+    };
+
+    // ---- role-name (Text) -> Role variant ----
+    func roleFromName(name : Text) : Role {
+        if (name == "Moderator") { #Moderator }
+        else if (name == "Admin") { #Admin }
+        else if (name == "SuperAdmin") { #SuperAdmin }
+        else { #None };
+    };
+
+    // Read a named field from the submitted secure form.
+    func formField(ctx : Context, key : Text) : Text {
+        for ((k, v) in ctx.form.vals()) { if (k == key) { return v } };
+        "";
+    };
+
+    // ---- handlers ----
 
     func claim(ctx : Context) : async () {
         let handle = Identity.handleOf(ctx.caller);
-        if (Admin.claimBootstrapWithHandle(ctx.caller, handle)) {
-            toast("You are now the founding admin of Bzzz.");
+        if (Admin.claimBootstrap(ctx.caller, handle)) {
+            toast("You are now the founding Super Admin of Bzzz.");
         } else {
-            toast("Bootstrap is no longer available — an admin already exists.");
+            toast("Bootstrap is no longer available — staff already exist.");
         };
+        reload(ctx);
     };
 
-    func add(ctx : Context) : async () {
+    func grant(ctx : Context) : async () {
         validate {
-            addHandle required "Enter a handle to grant admin.";
+            grantHandle required "Enter a handle to grant a role.";
         };
-        switch (Identity.byHandleLookup(addHandle)) {
+        let roleName = formField(ctx, "role");
+        let role = roleFromName(roleName);
+        switch (Identity.byHandleLookup(grantHandle)) {
             case (?prof) {
-                if (Admin.addAdminWithHandle(ctx.caller, prof.principal, prof.handle)) {
-                    addHandle := "";
-                    toast("Granted admin to @" # prof.handle # ".");
+                if (Admin.setRole(ctx.caller, prof.principal, prof.handle, role)) {
+                    toast("Granted " # roleName # " to @" # prof.handle # ".");
+                    grantHandle := "";
                 } else {
-                    toast("You don't have permission to add admins.");
+                    toast("That grant isn't allowed for your role.");
                 };
             };
             case null {
                 toast("No member found with that handle.");
             };
         };
+        reload(ctx);
     };
 
-    func remove(ctx : Context, targetText : Text) : async () {
-        let target = Principal.fromText(targetText);
-        if (Admin.removeAdmin(ctx.caller, target)) {
-            toast("Admin removed.");
+    func changeRole(ctx : Context, pidText : Text, roleName : Text) : async () {
+        let target = Principal.fromText(pidText);
+        let role = roleFromName(roleName);
+        let handle = Identity.handleOf(target);
+        if (Admin.setRole(ctx.caller, target, handle, role)) {
+            toast("Role updated to " # roleName # ".");
         } else {
-            toast("Couldn't remove that admin.");
+            toast("You can't make that change.");
         };
+        reload(ctx);
+    };
+
+    // Thin per-role wrappers (the @click args stay literal-free; each delegates
+    // to the generic changeRole above).
+    func makeMod(ctx : Context, pidText : Text) : async () { await changeRole(ctx, pidText, "Moderator") };
+    func makeAdmin(ctx : Context, pidText : Text) : async () { await changeRole(ctx, pidText, "Admin") };
+    func makeSuper(ctx : Context, pidText : Text) : async () { await changeRole(ctx, pidText, "SuperAdmin") };
+
+    func revokeStaff(ctx : Context, pidText : Text) : async () {
+        let target = Principal.fromText(pidText);
+        if (Admin.removeRole(ctx.caller, target)) {
+            toast("Role revoked.");
+        } else {
+            toast("You can't revoke that role.");
+        };
+        reload(ctx);
+    };
+
+    func deleteServer(ctx : Context, id : Nat) : async () {
+        // Re-check privilege on the server side of the round-trip before the
+        // privileged forceDelete (which itself does NO authorization).
+        if (not Admin.isSuperAdmin(ctx.caller)) {
+            toast("Only a Super Admin can delete servers.");
+            reload(ctx);
+            return;
+        };
+        if (Servers.forceDelete(id)) {
+            toast("Server deleted.");
+        } else {
+            toast("Couldn't delete that server.");
+        };
+        reload(ctx);
     };
 }
