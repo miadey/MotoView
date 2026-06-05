@@ -1126,8 +1126,11 @@ actor {
   stable var mvSecret : Blob = "" : Blob;
   // Per-principal session epochs (logout-everywhere revocation), kept stable.
   stable var mvEpochs : [(Text, Nat)] = [];
+  // Role store (principal -> roles), backing `@authorize role="..."`.
+  stable var mvRoles : [(Principal, [Text])] = [];
   if (mvSecret.size() == 32) { mvApp.setSecret(mvSecret) };
   mvApp.setEpochs(mvEpochs);
+  mvApp.setRoles(mvRoles);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {
     mvApp.httpRequest(req, msg.caller);
@@ -1137,6 +1140,7 @@ actor {
     if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
     let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
     mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
+    mvRoles := mvApp.dumpRoles(); // persist any role grant/revoke
     mvResp;
   };
 
