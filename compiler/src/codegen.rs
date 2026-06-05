@@ -568,9 +568,15 @@ impl<'a> Codegen<'a> {
     }
 
     fn gen_attr(&self, a: &Attr, out: &mut String, indent: &str) {
-        // `key="..."` marks a keyed reconciliation region — emit it as the
-        // client-recognized `data-mv-key` so the DOM morph can match/preserve it.
-        let name = if a.name == "key" { "data-mv-key" } else { a.name.as_str() };
+        // Framework attributes compile to their `data-mv-*` markers: `key` for
+        // keyed reconciliation, `enter`/`exit` for the animation the client plays
+        // when the element is inserted/removed in a keyed list.
+        let name = match a.name.as_str() {
+            "key" => "data-mv-key",
+            "enter" => "data-mv-enter",
+            "exit" => "data-mv-exit",
+            other => other,
+        };
         match &a.value {
             AttrValue::Bool => {
                 out.push_str(&format!("{}b.raw(\" {}\");\n", indent, name));

@@ -179,6 +179,13 @@ fn untyped_field_still_falls_back_to_debug_show() {
 }
 
 #[test]
+fn enter_exit_attrs_become_data_attrs() {
+    let g = page("@page \"/\"\n@for x in xs { <li key=\"@x\" enter=\"fade-up\" exit=\"fade-out\">@x</li> }\n@code { var xs : [Text] = []; }");
+    assert!(g.contains("data-mv-enter"), "enter -> data-mv-enter:\n{g}");
+    assert!(g.contains("data-mv-exit"), "exit -> data-mv-exit:\n{g}");
+}
+
+#[test]
 fn raw_directive_emits_unescaped_html() {
     let g = page("@page \"/\"\n<div>@raw(body)</div>\n@code { var body : Text = \"<b>hi</b>\"; }");
     assert!(g.contains("b.raw(body)"), "@raw must emit b.raw (unescaped):\n{g}");

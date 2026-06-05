@@ -168,6 +168,32 @@
   }
 
   // The other keyed primitives the brain commands — all dumb DOM ops.
+  // ---- animation primitives: CSS @keyframes do the animating; these dumb
+  // helpers only toggle the `mv-anim-<name>` class and clean it up on
+  // animationend. The brain decides when (insert/remove ops, @animate effects).
+  function playAnim(el, name) {
+    if (!el || !name) return;
+    var cls = "mv-anim-" + name;
+    el.classList.add(cls);
+    var done = function () {
+      el.classList.remove(cls);
+      el.removeEventListener("animationend", done);
+    };
+    el.addEventListener("animationend", done);
+  }
+  function playExit(el, name, after) {
+    var fin = false;
+    var done = function () {
+      if (fin) return;
+      fin = true;
+      el.removeEventListener("animationend", done);
+      after();
+    };
+    el.addEventListener("animationend", done);
+    el.classList.add("mv-anim-" + name);
+    setTimeout(done, 900); // safety net if animationend never fires
+  }
+
   function rootFor(targetId) {
     return document.getElementById(targetId) || document.querySelector("[data-mv-root]");
   }
@@ -183,7 +209,13 @@
     var root = rootFor(targetId);
     if (!root) return;
     var n = findKeyed(root, key);
-    if (n && n.parentNode) n.parentNode.removeChild(n);
+    if (!n || !n.parentNode) return;
+    var ex = n.getAttribute("data-mv-exit");
+    if (ex) {
+      playExit(n, ex, function () { if (n.parentNode) n.parentNode.removeChild(n); });
+    } else {
+      n.parentNode.removeChild(n);
+    }
   }
   function insertKeyed(targetId, html, afterKey) {
     var root = rootFor(targetId);
@@ -198,6 +230,8 @@
       if (first) first.parentNode.insertBefore(node, first);
       else root.appendChild(node);
     }
+    var en = node.getAttribute && node.getAttribute("data-mv-enter");
+    if (en) playAnim(node, en);
   }
   function moveKeyed(targetId, key, afterKey) {
     var root = rootFor(targetId);
@@ -230,10 +264,7 @@
         break;
       case "animate": {
         var a = document.querySelector(target);
-        if (a) {
-          a.classList.add("mv-anim-" + (value || "pulse"));
-          setTimeout(function () { a.classList.remove("mv-anim-" + (value || "pulse")); }, 700);
-        }
+        if (a) playAnim(a, value || "pulse");
         break;
       }
     }

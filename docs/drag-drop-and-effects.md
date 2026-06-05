@@ -39,11 +39,37 @@ The glue handles `dragstart`/`dragover`/`drop`, highlights the active drop zone 
 Inside any `@code` function you can queue declarative effects that run on the client after the batch is applied:
 
 - `toast("Deal added")` — a transient notification.
-- `animate("#panel", "pulse")` — add an animation class (`pulse`, `fadein`) briefly.
+- `animate("#panel", "shake")` — play one of the built-in animations on a selector (see below).
 - `focusOn("#email")` — move focus to a selector.
 - `scrollTo("#errors")` — smooth-scroll an element into view.
 
 Effects ride back in the render batch's `effects` array, so they fire exactly once per event — never on a poll.
+
+## Animations
+
+MotoView ships a CSS animation library (transform/opacity only, GPU-friendly,
+with a `prefers-reduced-motion` guard). Play any of them from a handler with
+`animate("#sel", "name")`, or declaratively on **keyed list items** as they're
+inserted and removed:
+
+```mview
+<ul>
+@for item in items {
+    <li key="@item.id" enter="fade-up" exit="slide-out-right">@item.title</li>
+}
+</ul>
+```
+
+When the [keyed diff](directives-reference.md) inserts an item it plays its
+`enter` animation; when it removes one it plays `exit` and removes the node only
+after the animation ends. All of this is the WASM client toggling CSS classes —
+no application JavaScript.
+
+The library:
+
+- **Entrances** — `fade-in`, `fade-up`, `fade-down`, `fade-left`, `fade-right`, `scale-in`, `zoom-in`, `pop`, `slide-in-left`, `slide-in-right`.
+- **Exits** — `fade-out`, `fade-up-out`, `fade-down-out`, `scale-out`, `zoom-out`, `slide-out-left`, `slide-out-right`, `collapse`.
+- **Attention** — `pulse`, `shake`, `bounce`, `wobble`, `flash`, `tada`, `spin` (loops), `pop`.
 
 ## Services & models
 

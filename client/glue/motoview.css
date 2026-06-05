@@ -115,11 +115,267 @@ h2 { font-size: 1.35rem; }
 [draggable="true"] { cursor: grab; }
 [draggable="true"]:active { cursor: grabbing; }
 
-/* ---- Animations ---- */
-@keyframes mv-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-.mv-anim-pulse { animation: mv-pulse 0.4s ease; }
-@keyframes mv-fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.mv-anim-fadein { animation: mv-fadein 0.4s ease; }
+/* ---- Animations: the @keyframes + .mv-anim-* library (entrances, exits,
+   attention-seekers). Used by @animate and by keyed-list enter/exit. ---- */
+/* ==========================================================================
+   MotoView animation library — MERGED
+   Pure CSS. Animates ONLY transform + opacity (GPU-friendly: no layout/paint).
+   Naming contract:  class .mv-anim-<name>  +  @keyframes mv-<name>
+   Entrances start hidden (opacity:0) and end visible (opacity:1, transform:none).
+   Exits end at opacity:0. Attention-seekers loop/run at opacity:1.
+   animation-fill-mode: both holds both ends.
+   ========================================================================== */
+
+/* ============================================================
+   ENTRANCES — elements appearing / keyed-list item inserts.
+   ============================================================ */
+
+.mv-anim-fade-in {
+  animation: mv-fade-in 0.3s ease-out both;
+}
+@keyframes mv-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.mv-anim-fade-up {
+  animation: mv-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-fade-down {
+  animation: mv-fade-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-fade-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-fade-left {
+  animation: mv-fade-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-fade-left {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-fade-right {
+  animation: mv-fade-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-fade-right {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-scale-in {
+  animation: mv-scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-zoom-in {
+  animation: mv-zoom-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-zoom-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-pop {
+  animation: mv-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes mv-pop {
+  0%   { opacity: 0; transform: scale(0.9); }
+  60%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: none; }
+}
+
+.mv-anim-slide-in-left {
+  animation: mv-slide-in-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mv-anim-slide-in-right {
+  animation: mv-slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mv-slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   EXITS — all end at opacity:0 so the node can be removed.
+   ============================================================ */
+
+.mv-anim-fade-out {
+  animation: mv-fade-out 0.25s ease-out both;
+}
+@keyframes mv-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.mv-anim-fade-up-out {
+  animation: mv-fade-up-out 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-fade-up-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-16px); }
+}
+
+.mv-anim-fade-down-out {
+  animation: mv-fade-down-out 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-fade-down-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(16px); }
+}
+
+.mv-anim-scale-out {
+  animation: mv-scale-out 0.25s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.92); }
+}
+
+.mv-anim-zoom-out {
+  animation: mv-zoom-out 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-zoom-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.9); }
+}
+
+.mv-anim-slide-out-left {
+  animation: mv-slide-out-left 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-slide-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-24px); }
+}
+
+.mv-anim-slide-out-right {
+  animation: mv-slide-out-right 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-slide-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(24px); }
+}
+
+.mv-anim-collapse {
+  transform-origin: top center;
+  animation: mv-collapse 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes mv-collapse {
+  from { opacity: 1; transform: scaleY(1); }
+  to   { opacity: 0; transform: scaleY(0); }
+}
+
+/* ============================================================
+   ATTENTION-SEEKERS — run/loop at opacity:1.
+   ============================================================ */
+
+.mv-anim-pulse {
+  animation: mv-pulse 500ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes mv-pulse {
+  0%   { transform: scale(1);    opacity: 1; }
+  50%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.mv-anim-shake {
+  animation: mv-shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes mv-shake {
+  0%, 100%                { transform: translateX(0);    opacity: 1; }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); opacity: 1; }
+  20%, 40%, 60%, 80%      { transform: translateX(8px);  opacity: 1; }
+}
+
+.mv-anim-bounce {
+  animation: mv-bounce 600ms cubic-bezier(0.28, 0.84, 0.42, 1) both;
+}
+@keyframes mv-bounce {
+  0%, 20%, 53%, 80%, 100% { transform: translateY(0);     opacity: 1; }
+  40%, 43%                { transform: translateY(-18px); opacity: 1; }
+  70%                     { transform: translateY(-9px);  opacity: 1; }
+  90%                     { transform: translateY(-3px);  opacity: 1; }
+}
+
+.mv-anim-wobble {
+  animation: mv-wobble 600ms ease-out both;
+}
+@keyframes mv-wobble {
+  0%   { transform: translateX(0) rotate(0deg);      opacity: 1; }
+  15%  { transform: translateX(-18px) rotate(-5deg); opacity: 1; }
+  30%  { transform: translateX(14px) rotate(3deg);   opacity: 1; }
+  45%  { transform: translateX(-10px) rotate(-3deg); opacity: 1; }
+  60%  { transform: translateX(6px) rotate(2deg);    opacity: 1; }
+  75%  { transform: translateX(-3px) rotate(-1deg);  opacity: 1; }
+  100% { transform: translateX(0) rotate(0deg);      opacity: 1; }
+}
+
+.mv-anim-flash {
+  animation: mv-flash 500ms ease-out both;
+}
+@keyframes mv-flash {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75%      { opacity: 0; }
+}
+
+.mv-anim-tada {
+  animation: mv-tada 600ms ease-out both;
+}
+@keyframes mv-tada {
+  0%                 { transform: scale(1) rotate(0deg);     opacity: 1; }
+  10%, 20%           { transform: scale(0.92) rotate(-3deg); opacity: 1; }
+  30%, 50%, 70%, 90% { transform: scale(1.05) rotate(3deg);  opacity: 1; }
+  40%, 60%, 80%      { transform: scale(1.05) rotate(-3deg); opacity: 1; }
+  100%               { transform: scale(1) rotate(0deg);     opacity: 1; }
+}
+
+.mv-anim-spin {
+  animation: mv-spin 600ms linear infinite both;
+}
+@keyframes mv-spin {
+  0%   { transform: rotate(0deg);   opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 1; }
+}
+
+/* renamed from duplicate mv-pop (attention tap) to avoid colliding
+   with the mv-pop entrance above */
+.mv-anim-pop-tap {
+  animation: mv-pop-tap 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes mv-pop-tap {
+  0%   { transform: scale(1);    opacity: 1; }
+  40%  { transform: scale(0.92); opacity: 1; }
+  70%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ============================================================
+   GLOBAL ACCESSIBILITY GUARD
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  [class*="mv-anim-"] {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* back-compat alias for the original fade-in name used by existing apps */
+.mv-anim-fadein { animation: mv-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* ---- Dark theme opt-in via [data-theme="dark"] ---- */
 [data-theme="dark"] {
