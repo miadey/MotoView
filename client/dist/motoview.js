@@ -326,6 +326,31 @@
     return parts.join("&");
   }
 
+  // Apply + persist a theme key (data-theme + the mv_theme cookie the server's
+  // inline head script reads on later loads).
+  function mvSetTheme(key) {
+    document.documentElement.setAttribute("data-theme", key);
+    document.cookie = "mv_theme=" + key + "; path=/; max-age=31536000; samesite=lax";
+  }
+  // Mark the active option + summary label in every theme picker on the page.
+  function mvPaintThemePicker() {
+    var pickers = document.querySelectorAll(".mv-theme-picker");
+    if (!pickers.length) return;
+    var cur = document.documentElement.getAttribute("data-theme");
+    if (!cur) cur = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "web-dark" : "web-light";
+    if (cur === "light") cur = "web-light"; else if (cur === "dark") cur = "web-dark";
+    for (var i = 0; i < pickers.length; i++) {
+      var opts = pickers[i].querySelectorAll("[data-mv-theme-set]"), label = "";
+      for (var j = 0; j < opts.length; j++) {
+        var active = opts[j].getAttribute("data-mv-theme-set") === cur;
+        opts[j].setAttribute("aria-current", active ? "true" : "false");
+        if (active) { var l = opts[j].querySelector(".mv-theme-opt-label"); label = (l || opts[j]).textContent.trim(); }
+      }
+      var lab = pickers[i].querySelector(".mv-theme-picker-label");
+      if (lab && label) lab.textContent = label;
+    }
+  }
+
   function onClick(ev) {
     // Theme switch: flip <html data-theme> instantly and persist the choice in the
     // mv_theme cookie (the server's inline head script applies it on later loads,
@@ -336,8 +361,17 @@
       var cur = document.documentElement.getAttribute("data-theme");
       if (!cur) cur = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
       var next = cur === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", next);
-      document.cookie = "mv_theme=" + next + "; path=/; max-age=31536000; samesite=lax";
+      mvSetTheme(next);
+      return;
+    }
+    // Theme PICKER: a [data-mv-theme-set="<key>"] element selects a named Fluent
+    // theme (web-light/web-dark/teams-light/teams-dark/hc).
+    var ps = ev.target.closest ? ev.target.closest("[data-mv-theme-set]") : null;
+    if (ps) {
+      ev.preventDefault();
+      mvSetTheme(ps.getAttribute("data-mv-theme-set"));
+      var dt = ps.closest("details"); if (dt) dt.open = false;
+      mvPaintThemePicker();
       return;
     }
     var el = handlerEl(ev.target, "click");
@@ -488,6 +522,7 @@
     });
 
     mvDecryptRendered(); // decrypt any server-rendered ciphertext on first paint
+    mvPaintThemePicker(); // mark the active option in any theme picker
 
     // Register the offline-first service worker the canister serves at /sw.js,
     // so every MotoView app is an installable PWA that works offline. Best

@@ -162,6 +162,14 @@ works on certified cacheable pages too, whose certificate can't vary by cookie).
 With no saved choice it follows `prefers-color-scheme`. The sun/moon icon is pure
 CSS driven by `[data-theme]`.
 
+For the full Fluent theme set, drop in `<ThemePicker />` — a dropdown of the
+official themes (**Web Light**, **Web Dark**, **Teams Light**, **Teams Dark**,
+**High Contrast**), exactly like the Fluent UI docs. It uses the same `mv_theme`
+cookie + no-flash mechanism; the glue marks the active option and updates the
+label on load. The named themes are layered on the light/dark neutral bases:
+`teams-*` swap the brand to Teams purple, `hc` is a black/white/yellow
+high-contrast token set (a user's picked theme overrides the app's `@theme brand`).
+
 ## Avoiding utility-class soup
 
 The pattern across all three levels is the same: push styling decisions *down* into tokens and components, and keep your markup describing intent.

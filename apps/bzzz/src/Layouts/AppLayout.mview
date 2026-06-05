@@ -71,9 +71,46 @@
         .bz-tile h3 { margin: var(--spacingVerticalS) 0 var(--spacingVerticalXS); font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold); }
         .bz-tile p { margin: 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 
+        /* ===================================================================
+           Vibrant design system — per-surface accent + gradient banners.
+           A page sets --bz-accent / --bz-accent-2 (its sub-app hue) and uses
+           .bz-banner / .bz-accent-chip / .bz-card-accent / .bz-sec-title.
+           =================================================================== */
+        .bz-content { --bz-accent: var(--colorBrandBackground); --bz-accent-2: #7c3aed; }
+
+        .bz-banner { position: relative; overflow: hidden; color: #fff; border-radius: var(--borderRadiusXLarge);
+            padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); margin-bottom: var(--spacingVerticalXL);
+            background: linear-gradient(120deg, var(--bz-accent) 0%, var(--bz-accent-2) 100%);
+            box-shadow: 0 14px 34px -12px color-mix(in srgb, var(--bz-accent) 60%, transparent); }
+        .bz-banner::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(130% 130% at 100% 0%, rgba(255,255,255,.20), transparent 52%); }
+        .bz-banner > * { position: relative; }
+        .bz-banner-row { display: flex; align-items: center; gap: var(--spacingHorizontalL); }
+        .bz-banner-ico { font-size: 2.6rem; line-height: 1; filter: drop-shadow(0 3px 8px rgba(0,0,0,.22)); }
+        .bz-banner h1 { margin: 0; font-size: clamp(26px, 3.8vw, 38px); font-weight: 800; letter-spacing: -.03em; line-height: 1.04; }
+        .bz-banner p { margin: .4rem 0 0; opacity: .94; font-size: var(--fontSizeBase400); max-width: 64ch; }
+        .bz-banner-actions { margin-top: var(--spacingVerticalM); display: flex; gap: var(--spacingHorizontalS); flex-wrap: wrap; }
+
+        .bz-sec-title { display: flex; align-items: center; gap: var(--spacingHorizontalS);
+            font-size: var(--fontSizeBase500); font-weight: var(--fontWeightBold); letter-spacing: -.01em;
+            margin: var(--spacingVerticalXL) 0 var(--spacingVerticalM); }
+        .bz-sec-title::before { content: ""; width: 4px; height: 1.05em; border-radius: 999px;
+            background: linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
+
+        .bz-accent-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .22rem .62rem;
+            border-radius: 999px; font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold);
+            color: var(--bz-accent); background: color-mix(in srgb, var(--bz-accent) 16%, var(--colorNeutralBackground1)); }
+
+        /* vivid card: a gradient accent edge on top */
+        .bz-card-accent { position: relative; }
+        .bz-card-accent::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+            border-radius: var(--borderRadiusXLarge) var(--borderRadiusXLarge) 0 0;
+            background: linear-gradient(90deg, var(--bz-accent), var(--bz-accent-2)); }
+
         @media (max-width: 860px) {
             .mv-nav { display: none; }
             .bz-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
+            .bz-banner { padding: var(--spacingVerticalXL) var(--spacingHorizontalL); }
         }
     </style>
 </head>
@@ -88,7 +125,7 @@
             <MenuItem href="/messages">✉️ Messages</MenuItem>
             <MenuItem href="/about">ℹ️ About Bzzz</MenuItem>
         </Menu>
-        <ThemeToggle />
+        <ThemePicker />
         <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
     </AppBar>
     <div class="bz-shell">

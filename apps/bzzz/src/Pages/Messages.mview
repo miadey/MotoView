@@ -3,11 +3,14 @@
 @title "Messages — end-to-end encrypted chats on Bzzz"
 @description "Your private WhatsApp-style conversations on Bzzz: encrypted 1:1 direct messages and group chats, running entirely on-chain on the Internet Computer."
 
-<div class="wa">
+<div class="wa wa-accent">
     @if bound {
         <aside class="wa-list">
             <header class="wa-list-head">
-                <Persona name="@meName" secondary="🔒 End-to-end encrypted" avatar="@meAvatar" />
+                <div class="wa-list-id">
+                    <Persona name="@meName" secondary="🔒 End-to-end encrypted" avatar="@meAvatar" />
+                    <span class="bz-accent-chip wa-e2ee-chip">🔒 Encrypted</span>
+                </div>
                 <div class="wa-list-tools">
                     <Dialog id="wa-new-direct" trigger="💬 New chat" title="New chat">
                         <p class="wa-dialog-hint">Start a direct message by their Bzzz handle.</p>
@@ -70,10 +73,11 @@
 
         <section class="wa-pane wa-pane-empty">
             <div class="wa-welcome">
-                <div class="wa-welcome-ico">💬</div>
+                <div class="wa-welcome-ico wa-welcome-ico-accent">💬</div>
                 <h1>Bzzz Messages</h1>
                 <p>Select a conversation on the left to start messaging, or create a new chat.</p>
-                <p class="wa-welcome-e2ee">🔒 Your personal messages are end-to-end encrypted</p>
+                <p class="wa-welcome-cta">👈 Pick a chat, or hit <strong>New chat</strong> to start one</p>
+                <p class="wa-welcome-e2ee"><span class="bz-accent-chip">🔒 End-to-end encrypted</span></p>
             </div>
         </section>
     } else {
@@ -240,6 +244,8 @@
 
 <style>
     /* ---- two-pane WhatsApp shell ---------------------------------------- */
+    /* WhatsApp surface accent: signature green -> teal (see AppLayout). */
+    .wa-accent { --bz-accent: #25d366; --bz-accent-2: #0ea5e9; }
     .wa { display: grid; grid-template-columns: 360px 1fr; gap: 0;
         height: calc(100vh - 140px); min-height: 520px;
         border: 1px solid var(--mv-border); border-radius: 14px; overflow: hidden;
@@ -248,9 +254,25 @@
     /* ---- LEFT pane: chat list ------------------------------------------- */
     .wa-list { display: flex; flex-direction: column; min-width: 0;
         border-right: 1px solid var(--mv-border); background: var(--mv-surface); }
-    .wa-list-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-        padding: .7rem .85rem; background: var(--mv-muted); border-bottom: 1px solid var(--mv-border); }
+    .wa-list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem;
+        padding: .8rem .85rem; border-bottom: 1px solid var(--mv-border);
+        background:
+            linear-gradient(120deg, color-mix(in srgb, var(--bz-accent) 12%, transparent), color-mix(in srgb, var(--bz-accent-2) 12%, transparent)),
+            var(--mv-muted); }
+    .wa-list-id { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+    /* Green chip reads cleaner with a deeper-green text + brighter tint. */
+    .wa-accent .bz-accent-chip { color: #0a7d3e;
+        background: color-mix(in srgb, var(--bz-accent) 20%, var(--colorNeutralBackground1)); }
+    .wa-e2ee-chip { align-self: flex-start; }
     .wa-list-tools { display: flex; gap: .35rem; flex: none; }
+
+    /* Accent-gradient the "New chat" / "New group" Dialog trigger buttons. */
+    .wa-list-tools .mv-dialog-trigger {
+        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
+        color: #fff; border: none; font-weight: 600;
+        box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--bz-accent) 70%, transparent); }
+    .wa-list-tools .mv-dialog-trigger:hover { filter: brightness(1.06); }
+    .wa-list-tools .mv-dialog-trigger:active { filter: brightness(.96); }
 
     .wa-dialog-hint { margin: 0 0 .75rem; color: var(--mv-text-soft); font-size: .85rem; }
     .wa-dialog-actions { margin-top: .75rem; }
@@ -269,15 +291,23 @@
         background: var(--mv-muted); display: grid; place-items: center; font-size: 1.45rem; }
     .wa-chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
     .wa-chat-top { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
-    .wa-chat-name { font-weight: 600; font-size: .96rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-chat-name { font-weight: 700; font-size: 1rem; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .wa-chat-time { flex: none; color: var(--mv-text-soft); font-size: .72rem; }
-    .wa-chat-time.is-unread { color: #1fa855; font-weight: 700; }
+    .wa-chat-time.is-unread { color: var(--bz-accent); font-weight: 800; }
+
+    /* Accent the unread-count badge with the WhatsApp green. */
+    .wa-chat-bottom .mv-badge {
+        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
+        color: #fff; border: none; font-weight: 700; }
     .wa-chat-bottom { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
     .wa-chat-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden;
         text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
     .wa-list-empty { text-align: center; color: var(--mv-text-soft); padding: 2rem 1.25rem; }
-    .wa-list-empty-ico { font-size: 2rem; }
+    .wa-list-empty-ico { display: inline-grid; place-items: center; width: 60px; height: 60px;
+        border-radius: 18px; font-size: 1.7rem; color: #fff;
+        background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
+        box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--bz-accent) 60%, transparent); }
     .wa-list-empty p { max-width: 30ch; margin: .5rem auto 0; font-size: .88rem; }
 
     /* ---- RIGHT pane: empty / welcome ------------------------------------ */
@@ -286,9 +316,16 @@
     .wa-pane-full { grid-column: 1 / -1; }
     .wa-welcome { max-width: 42ch; }
     .wa-welcome-ico { font-size: 3rem; }
-    .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.5rem; letter-spacing: -.02em; }
+    /* Accent icon chip for the empty-state welcome panel. */
+    .wa-welcome-ico-accent { display: inline-grid; place-items: center; width: 84px; height: 84px;
+        border-radius: 24px; font-size: 2.6rem; line-height: 1; margin-bottom: .4rem;
+        color: #fff; background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
+        box-shadow: 0 14px 30px -10px color-mix(in srgb, var(--bz-accent) 65%, transparent); }
+    .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.7rem; font-weight: 800; letter-spacing: -.025em; }
     .wa-welcome p { margin: 0 auto; color: var(--mv-text-soft); }
-    .wa-welcome-e2ee { margin-top: 1.25rem !important; font-size: .8rem; color: #047857; }
+    .wa-welcome-cta { margin-top: .7rem !important; font-size: .9rem; }
+    .wa-welcome-cta strong { color: var(--bz-accent); font-weight: 700; }
+    .wa-welcome-e2ee { margin-top: 1.25rem !important; }
 
     @media (max-width: 720px) {
         .wa { grid-template-columns: 1fr; height: auto; min-height: 0; }

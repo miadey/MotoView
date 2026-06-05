@@ -10,41 +10,46 @@
         <p>This server does not exist (or was deleted). <a href="/servers">Back to all servers</a>.</p>
     </div>
 } else {
-    <div class="sv-head bz-card">
-        <div class="sv-head-main">
-            <Breadcrumb>
-                <BreadcrumbItem href="/">Home</BreadcrumbItem>
-                <BreadcrumbItem href="/servers">Servers</BreadcrumbItem>
-                <BreadcrumbItem current="true">@serverName</BreadcrumbItem>
-            </Breadcrumb>
-            <div class="sv-title-row">
+    <div class="sv-page" style="--bz-accent:#5865f2; --bz-accent-2:#7c3aed;">
+    <Breadcrumb>
+        <BreadcrumbItem href="/">Home</BreadcrumbItem>
+        <BreadcrumbItem href="/servers">Servers</BreadcrumbItem>
+        <BreadcrumbItem current="true">@serverName</BreadcrumbItem>
+    </Breadcrumb>
+
+    <div class="bz-banner sv-banner">
+        <div class="bz-banner-row">
+            <span class="bz-banner-ico">💬</span>
+            <div class="sv-banner-id">
                 <h1>@serverName</h1>
-                <span class="sv-badge sv-badge-@kindClass">@kindLabel</span>
-                @if private_ {
-                    <span class="sv-lockchip">🔒 Private</span>
-                }
+                <p class="sv-banner-sub">@(memberCount) @plural(memberCount, "member", "members") · @(channels.size()) @plural(channels.size(), "channel", "channels") · created @createdRel</p>
+                <div class="sv-banner-tags">
+                    <span class="bz-accent-chip sv-chip-onbanner">@kindLabel</span>
+                    @if private_ {
+                        <span class="bz-accent-chip sv-chip-onbanner">🔒 Private</span>
+                    }
+                    <span class="bz-accent-chip sv-chip-onbanner">Your role: @myRole</span>
+                </div>
             </div>
-            <p class="sv-meta">@(memberCount) @plural(memberCount, "member", "members") · @(channels.size()) @plural(channels.size(), "channel", "channels") · created @createdRel</p>
-            <p class="sv-role">Your role: <strong>@myRole</strong></p>
         </div>
-        <div class="sv-head-actions">
+        <div class="bz-banner-actions">
             @if isMember {
                 @if isOwner {
-                    <span class="sv-owner-note">You own this server</span>
+                    <span class="sv-owner-note">⭐ You own this server</span>
                 } else {
-                    <button class="sv-btn sv-btn-ghost" @click="leave">Leave server</button>
+                    <button class="sv-btn sv-btn-onbanner" @click="leave">Leave server</button>
                 }
             } else {
-                <button class="sv-btn sv-btn-primary" @click="join">Join server</button>
+                <button class="sv-btn sv-btn-onbanner sv-btn-onbanner-primary" @click="join">Join server</button>
             }
         </div>
     </div>
 
     <div class="sv-layout">
         <section class="sv-col-main">
-            <div class="bz-card sv-panel">
+            <div class="bz-card bz-card-accent sv-panel">
                 <div class="sv-panel-head">
-                    <h2>Channels</h2>
+                    <h2 class="bz-sec-title">Channels</h2>
                     <span class="sv-count">@(channels.size())</span>
                 </div>
 
@@ -80,7 +85,7 @@
                         <ValidationSummary />
                         <div class="sv-channel-form-row">
                             <InputText name="channelName" label="New channel name" bind="@channelName" required />
-                            <Button kind="primary" type="submit">Add channel</Button>
+                            <button class="sv-btn sv-btn-add" type="submit">＋ Add channel</button>
                         </div>
                         <p class="sv-hint">Lowercase letters, numbers, - and _ only (max 20 chars).</p>
                     </form>
@@ -88,10 +93,10 @@
             </div>
 
             @if canMod {
-                <div class="bz-card sv-panel sv-modpanel">
+                <div class="bz-card bz-card-accent sv-panel sv-modpanel">
                     <div class="sv-panel-head">
-                        <h2>Moderation</h2>
-                        <span class="sv-modtag">@myRole tools</span>
+                        <h2 class="bz-sec-title">Moderation</h2>
+                        <span class="bz-accent-chip">@myRole tools</span>
                     </div>
                     <p class="sv-modnote">You can moderate this server. Lock channels above to stop non-mods from posting, and manage member roles in the rail.</p>
                 </div>
@@ -99,9 +104,9 @@
         </section>
 
         <aside class="sv-col-rail">
-            <div class="bz-card sv-panel">
+            <div class="bz-card bz-card-accent sv-panel">
                 <div class="sv-panel-head">
-                    <h2>Members</h2>
+                    <h2 class="bz-sec-title">Members</h2>
                     <span class="sv-count">@memberCount</span>
                 </div>
                 @if memberRows.size() == 0 {
@@ -138,19 +143,24 @@
             </div>
         </aside>
     </div>
+    </div>
 }
 
 <style>
+    .sv-page { --bz-accent:#5865f2; --bz-accent-2:#7c3aed; }
     .sv-missing { text-align:center; padding:2.5rem 1.2rem; }
     .sv-missing-ico { font-size:2.4rem; }
     .sv-missing a { color:var(--bz-accent); font-weight:600; }
 
-    .sv-head { padding:1.2rem 1.3rem; display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; }
-    .sv-title-row { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
-    .sv-title-row h1 { margin:0; font-size:1.6rem; letter-spacing:-.02em; }
-    .sv-meta { margin:.45rem 0 .15rem; color:var(--mv-text-soft); font-size:.9rem; }
-    .sv-role { margin:0; color:var(--mv-text-soft); font-size:.85rem; }
-    .sv-role strong { color:var(--mv-text); }
+    /* vibrant gradient banner header */
+    .sv-banner { margin-top:.9rem; display:flex; align-items:flex-end; justify-content:space-between; gap:1.2rem; flex-wrap:wrap; }
+    .sv-banner .bz-banner-row { align-items:flex-start; }
+    .sv-banner-id { min-width:0; }
+    .sv-banner-sub { margin:.35rem 0 0; opacity:.92; font-size:.95rem; font-weight:500; }
+    .sv-banner-tags { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; margin-top:.7rem; }
+    .sv-chip-onbanner { color:#fff; background:rgba(255,255,255,.18); backdrop-filter:blur(2px);
+        font-weight:700; }
+    .sv-banner .bz-banner-actions { margin-top:0; }
 
     .sv-badge { font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:999px;
         text-transform:uppercase; letter-spacing:.03em; }
@@ -165,15 +175,25 @@
     .sv-btn-primary:hover { filter:brightness(1.08); }
     .sv-btn-ghost { background:transparent; border-color:var(--mv-border); color:var(--mv-text); }
     .sv-btn-ghost:hover { background:var(--mv-muted); }
-    .sv-owner-note { font-size:.82rem; color:var(--mv-text-soft); }
+    /* on-gradient buttons sit on the banner */
+    .sv-btn-onbanner { background:rgba(255,255,255,.16); color:#fff; border-color:rgba(255,255,255,.35); }
+    .sv-btn-onbanner:hover { background:rgba(255,255,255,.26); }
+    .sv-btn-onbanner-primary { background:#fff; color:var(--bz-accent); border-color:transparent; }
+    .sv-btn-onbanner-primary:hover { filter:brightness(.96); }
+    /* accent "Add channel" primary button */
+    .sv-btn-add { background:linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2)); color:#fff;
+        box-shadow:0 6px 16px -8px var(--bz-accent); }
+    .sv-btn-add:hover { filter:brightness(1.07); }
+    .sv-owner-note { font-size:.85rem; font-weight:700; color:#fff; }
 
     .sv-layout { display:grid; grid-template-columns:1fr 300px; gap:1.25rem; align-items:start; }
     .sv-col-main { display:flex; flex-direction:column; gap:1.25rem; min-width:0; }
     .sv-panel { padding:1.1rem 1.2rem; }
     .sv-panel-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:.8rem; }
     .sv-panel-head h2 { margin:0; font-size:1.1rem; }
+    /* the accent-bar section titles sit flush in the panel head */
+    .sv-panel-head .bz-sec-title { margin:0; font-size:1.15rem; font-weight:800; letter-spacing:-.02em; }
     .sv-count { font-size:.78rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted); padding:.16rem .5rem; border-radius:999px; }
-    .sv-modtag { font-size:.72rem; font-weight:700; color:#6d28d9; background:#ede9fe; padding:.16rem .5rem; border-radius:999px; }
     .sv-empty { color:var(--mv-text-soft); font-size:.9rem; margin:0; }
 
     .sv-channels { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.2rem; }

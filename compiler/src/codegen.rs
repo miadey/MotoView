@@ -927,6 +927,14 @@ impl<'a> Codegen<'a> {
                 out.push_str(&format!("{}b.raw(\"<button type=\\\"button\\\" class=\\\"mv-theme-toggle\\\" data-mv-theme-toggle aria-label=\\\"Toggle light or dark theme\\\" title=\\\"Toggle theme\\\"><span class=\\\"mv-theme-ico\\\"></span></button>\");\n", indent));
                 Some(())
             }
+            // Fluent theme picker — a CSS-only dropdown of the named themes. The
+            // glue ([data-mv-theme-set]) applies + persists the choice; the active
+            // option + label are painted on load. No app JS.
+            "ThemePicker" => {
+                let html = r##"<details class="mv-theme-picker"><summary>🎨 <span class="mv-theme-picker-label">Theme</span> <span class="mv-theme-picker-chev">▾</span></summary><div class="mv-theme-picker-menu"><button type="button" class="mv-theme-opt" data-mv-theme-set="web-light"><span class="mv-theme-opt-check"></span><span class="mv-theme-opt-sw" style="background:#0f6cbd"></span><span class="mv-theme-opt-label">Web Light</span></button><button type="button" class="mv-theme-opt" data-mv-theme-set="web-dark"><span class="mv-theme-opt-check"></span><span class="mv-theme-opt-sw" style="background:#242424"></span><span class="mv-theme-opt-label">Web Dark</span></button><button type="button" class="mv-theme-opt" data-mv-theme-set="teams-light"><span class="mv-theme-opt-check"></span><span class="mv-theme-opt-sw" style="background:#5b5fc7"></span><span class="mv-theme-opt-label">Teams Light</span></button><button type="button" class="mv-theme-opt" data-mv-theme-set="teams-dark"><span class="mv-theme-opt-check"></span><span class="mv-theme-opt-sw" style="background:#444791"></span><span class="mv-theme-opt-label">Teams Dark</span></button><button type="button" class="mv-theme-opt" data-mv-theme-set="hc"><span class="mv-theme-opt-check"></span><span class="mv-theme-opt-sw" style="background:#ffff00"></span><span class="mv-theme-opt-label">High Contrast</span></button></div></details>"##;
+                out.push_str(&format!("{}b.raw({});\n", indent, mo_str(html)));
+                Some(())
+            }
             "MessageBar" => {
                 let ty = lit("intent").or_else(|| lit("type")).unwrap_or_else(|| "info".into());
                 out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-alert mv-alert-{}\\\">\");\n", indent, ty));

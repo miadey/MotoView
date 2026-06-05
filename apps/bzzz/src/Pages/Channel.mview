@@ -10,7 +10,7 @@
         <p>This channel does not exist. <a href="/servers">Browse servers</a>.</p>
     </div>
 } else {
-    <div class="dc bz-card">
+    <div class="dc bz-card" style="--bz-accent:#5865f2; --bz-accent-2:#7c3aed;">
         <!-- ====================== LEFT: channel sidebar ====================== -->
         <aside class="dc-rail">
             <a class="dc-rail-head" href="/servers/@(serverId)">
@@ -49,7 +49,7 @@
         <!-- ====================== CENTER: the channel ====================== -->
         <section class="dc-main">
             <header class="dc-topbar">
-                <span class="dc-topbar-hash">#</span>
+                <span class="dc-topbar-hash dc-accent-hash">#</span>
                 <span class="dc-topbar-name">@roomName</span>
                 <span class="dc-topbar-div"></span>
                 <span class="dc-topbar-topic">@(liveCount) @plural(liveCount, "message", "messages") · @(memberTotal) @plural(memberTotal, "member", "members")</span>
@@ -212,7 +212,7 @@
                     <div class="dc-composer-row">
                         <span class="dc-composer-plus">+</span>
                         <InputText name="draft" label="Message #@roomName" bind="@draft" required />
-                        <Button kind="primary" type="submit">Send</Button>
+                        <button class="dc-send-btn" type="submit">Send ➤</button>
                     </div>
                 </form>
             }
@@ -221,7 +221,7 @@
         <!-- ====================== RIGHT: member list ====================== -->
         <aside class="dc-members">
             @if staffMembers.size() > 0 {
-                <div class="dc-mem-cat">Staff — @(staffMembers.size())</div>
+                <div class="dc-mem-cat dc-mem-cat-staff">Staff — @(staffMembers.size())</div>
                 <ul class="dc-mem-list">
                     @for h in staffMembers {
                         <li class="dc-mem">
@@ -271,7 +271,9 @@
         --dc-active:    #404249;
         --dc-stroke:    #1f2023;
         --dc-link:      #00a8fc;
-        --dc-blurple:   #5865f2;
+        --bz-accent:    #5865f2;  /* Discord blurple — vibrant accent */
+        --bz-accent-2:  #7c3aed;  /* -> violet */
+        --dc-blurple:   var(--bz-accent);
         --dc-online:    #23a55a;
 
         display:grid; grid-template-columns:240px minmax(0,1fr) 240px;
@@ -285,8 +287,9 @@
     .dc-rail { display:flex; flex-direction:column; background:var(--dc-bg-rail); min-width:0; }
     .dc-rail-head { display:flex; align-items:center; gap:.5rem; height:48px; padding:0 1rem;
         box-shadow:0 1px 0 rgba(0,0,0,.3); flex:none; text-decoration:none; color:var(--dc-text-bright);
-        font-weight:700; font-size:.95rem; }
-    .dc-rail-head:hover { background:var(--dc-hover); }
+        font-weight:800; font-size:.98rem; letter-spacing:-.01em;
+        background:linear-gradient(90deg, color-mix(in srgb, var(--bz-accent) 16%, transparent), transparent); }
+    .dc-rail-head:hover { background:linear-gradient(90deg, color-mix(in srgb, var(--bz-accent) 28%, var(--dc-hover)), var(--dc-hover)); }
     .dc-rail-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .dc-rail-chev { color:var(--dc-text-mut); font-size:1.1rem; line-height:1; }
 
@@ -294,14 +297,17 @@
     .dc-rail-cat { display:flex; align-items:center; gap:.3rem; padding:.3rem .5rem .15rem; text-transform:uppercase;
         font-size:.72rem; font-weight:700; letter-spacing:.02em; color:var(--dc-text-mut); }
     .dc-chan-list { list-style:none; margin:.15rem 0 0; padding:0; }
-    .dc-chan { display:flex; align-items:center; gap:.4rem; padding:.35rem .5rem; margin:.1rem 0; border-radius:6px;
+    .dc-chan { position:relative; display:flex; align-items:center; gap:.4rem; padding:.35rem .5rem; margin:.1rem 0; border-radius:6px;
         text-decoration:none; color:var(--dc-text-mut); font-weight:600; font-size:.93rem; }
     .dc-chan:hover { background:var(--dc-hover); color:var(--dc-text); }
     .dc-chan-ico { font-weight:600; font-size:1.05rem; opacity:.75; width:1.1rem; text-align:center; flex:none; }
     .dc-chan-lock { font-size:.8rem; }
     .dc-chan-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dc-chan.is-active { background:var(--dc-active); color:var(--dc-text-bright); }
-    .dc-chan.is-active .dc-chan-ico { opacity:1; }
+    /* active channel pill — vibrant blurple tint + accent edge bar */
+    .dc-chan.is-active { background:color-mix(in srgb, var(--bz-accent) 22%, var(--dc-active)); color:var(--dc-text-bright); }
+    .dc-chan.is-active::before { content:""; position:absolute; left:-.5rem; top:50%; transform:translateY(-50%);
+        width:4px; height:1.3rem; border-radius:0 3px 3px 0; background:linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
+    .dc-chan.is-active .dc-chan-ico { opacity:1; color:var(--bz-accent); }
 
     .dc-rail-foot { display:flex; align-items:center; gap:.5rem; padding:.5rem .6rem; background:var(--dc-bg-head); flex:none; }
     .dc-rail-foot-ava { width:32px; height:32px; border-radius:50%; background:var(--dc-active); display:grid; place-items:center;
@@ -317,7 +323,9 @@
     .dc-topbar { display:flex; align-items:center; gap:.5rem; height:48px; padding:0 1rem; flex:none;
         box-shadow:0 1px 0 rgba(0,0,0,.2); }
     .dc-topbar-hash { color:var(--dc-text-mut); font-size:1.3rem; font-weight:600; }
-    .dc-topbar-name { font-weight:700; color:var(--dc-text-bright); font-size:1rem; }
+    /* accent the channel header hash */
+    .dc-accent-hash { color:var(--bz-accent); font-weight:800; }
+    .dc-topbar-name { font-weight:800; color:var(--dc-text-bright); font-size:1.05rem; letter-spacing:-.01em; }
     .dc-topbar-div { width:1px; height:1.1rem; background:var(--dc-text-mut); opacity:.4; margin:0 .35rem; }
     .dc-topbar-topic { color:var(--dc-text-mut); font-size:.82rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .dc-topbar-lock { margin-left:.4rem; font-size:.72rem; font-weight:700; color:#f0b232; background:rgba(240,178,50,.12);
@@ -329,9 +337,11 @@
     .dc-stream { flex:1; overflow-y:auto; padding:1rem 0 1.2rem; display:flex; flex-direction:column; }
 
     .dc-welcome { margin:auto auto 1rem; padding:1.5rem; text-align:left; max-width:90%; }
-    .dc-welcome-ico { width:68px; height:68px; border-radius:50%; background:var(--dc-active); display:grid; place-items:center;
-        font-size:2.2rem; font-weight:700; color:var(--dc-text-bright); margin-bottom:.6rem; }
-    .dc-welcome h2 { margin:.2rem 0; font-size:1.6rem; color:var(--dc-text-bright); }
+    .dc-welcome-ico { width:68px; height:68px; border-radius:50%;
+        background:linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2)); display:grid; place-items:center;
+        font-size:2.2rem; font-weight:800; color:#fff; margin-bottom:.6rem;
+        box-shadow:0 10px 24px -10px var(--bz-accent); }
+    .dc-welcome h2 { margin:.2rem 0; font-size:1.7rem; font-weight:800; letter-spacing:-.02em; color:var(--dc-text-bright); }
     .dc-welcome p { margin:0; color:var(--dc-text-mut); }
 
     .dc-msg { position:relative; display:flex; gap:1rem; padding:.1rem 1rem .1rem; }
@@ -354,14 +364,14 @@
     /* role colors (Discord-ish) for names, tags, dots */
     .dc-role-owner   { color:#f0b232; } .dc-author-tag.dc-role-owner   { background:#f0b232; color:#1e1f22; }
     .dc-role-admin   { color:#eb459e; } .dc-author-tag.dc-role-admin   { background:#eb459e; }
-    .dc-role-moderator{ color:#5865f2; } .dc-author-tag.dc-role-moderator{ background:#5865f2; }
+    .dc-role-moderator{ color:var(--bz-accent); } .dc-author-tag.dc-role-moderator{ background:var(--bz-accent); }
     .dc-role-member  { color:var(--dc-text-bright); }
     .dc-mem-dot.dc-role-owner   { background:#f0b232; }
     .dc-mem-dot.dc-role-admin   { background:#eb459e; }
-    .dc-mem-dot.dc-role-moderator{ background:#5865f2; }
+    .dc-mem-dot.dc-role-moderator{ background:var(--bz-accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--bz-accent) 30%, transparent); }
     .dc-mem-name.dc-role-owner   { color:#f0b232; }
     .dc-mem-name.dc-role-admin   { color:#eb459e; }
-    .dc-mem-name.dc-role-moderator{ color:#5865f2; }
+    .dc-mem-name.dc-role-moderator{ color:var(--bz-accent); }
 
     .dc-reply-ctx { font-size:.78rem; color:var(--dc-text-mut); margin:.05rem 0 .1rem; }
     .dc-reply-snip { font-style:normal; }
@@ -425,15 +435,25 @@
     .dc-composer-row .mv-field, .dc-composer-row .mv-input, .dc-composer-row input { background:transparent; }
     .dc-composer-plus { width:24px; height:24px; border-radius:50%; background:var(--dc-text-mut); color:var(--dc-active);
         display:grid; place-items:center; font-weight:700; font-size:1.1rem; flex:none; }
+    /* accent-gradient Send button */
+    .dc-send-btn { flex:none; font-size:.86rem; font-weight:800; letter-spacing:.01em; padding:.42rem .95rem; border-radius:8px;
+        cursor:pointer; border:0; color:#fff; background:linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
+        box-shadow:0 6px 16px -8px var(--bz-accent); transition:filter .15s ease, transform .15s ease; }
+    .dc-send-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
+    .dc-send-btn:active { transform:translateY(0); }
     .dc-composer-locked { margin:0 1rem 1.1rem; padding:.7rem .9rem; background:var(--dc-active); border-radius:8px;
         color:var(--dc-text-mut); font-size:.88rem; flex:none; }
     .dc-composer-locked a { color:var(--dc-link); font-weight:600; }
 
     /* ====================== RIGHT member list ====================== */
     .dc-members { background:var(--dc-bg-mem); overflow-y:auto; padding:1rem .5rem; min-width:0; }
-    .dc-mem-cat { padding:1.1rem .5rem .35rem; text-transform:uppercase; font-size:.72rem; font-weight:700;
-        letter-spacing:.02em; color:var(--dc-text-mut); }
+    .dc-mem-cat { padding:1.1rem .5rem .35rem; text-transform:uppercase; font-size:.72rem; font-weight:800;
+        letter-spacing:.04em; color:var(--dc-text-mut); }
     .dc-mem-cat:first-child { padding-top:0; }
+    /* staff group header pops with the accent */
+    .dc-mem-cat-staff { color:var(--bz-accent); display:flex; align-items:center; gap:.35rem; }
+    .dc-mem-cat-staff::before { content:""; width:4px; height:.9em; border-radius:999px;
+        background:linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
     .dc-mem-list { list-style:none; margin:0; padding:0; }
     .dc-mem { display:flex; align-items:center; gap:.6rem; padding:.3rem .5rem; border-radius:6px; }
     .dc-mem:hover { background:var(--dc-hover); }

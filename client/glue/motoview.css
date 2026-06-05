@@ -317,7 +317,7 @@
    durations and curves are theme-independent and inherit from :root.
    ========================================================================== */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme]) {
     color-scheme: dark;
 
     /* ---- Neutral foreground ---- */
@@ -502,8 +502,9 @@
 }
 
 /* Explicit opt-in dark theme (data attribute) — same overrides as the media
-   query so the framework can force dark independent of OS preference. */
-[data-theme="dark"] {
+   query so the framework can force dark independent of OS preference. Shared by
+   the named dark themes (web-dark, teams-dark) which then layer brand on top. */
+[data-theme="dark"], [data-theme="web-dark"], [data-theme="teams-dark"] {
   color-scheme: dark;
 
   --colorNeutralForeground1: #ffffff;
@@ -3290,3 +3291,102 @@ label.mv-field-label {
 }
 [data-theme="dark"] .mv-theme-ico::before { content: "☀️"; }
 [data-theme="light"] .mv-theme-ico::before { content: "🌙"; }
+
+/* ===========================================================================
+   Named Fluent themes (the theme picker) — layered on top of the light/dark
+   neutral bases above. web-light = :root, web-dark = the dark block.
+   teams-* swap the brand to Teams purple; hc is a high-contrast token set.
+   =========================================================================== */
+
+/* Teams — purple brand on the LIGHT neutral base */
+[data-theme="teams-light"] {
+  --colorBrandBackground: #5b5fc7 !important;
+  --colorBrandBackgroundHover: #4f52b2 !important;
+  --colorBrandBackgroundPressed: #383966 !important;
+  --colorBrandBackgroundSelected: #444791 !important;
+  --colorBrandBackground2: #e8ebfa !important;
+  --colorBrandForeground1: #5b5fc7 !important;
+  --colorBrandForeground2: #4f52b2 !important;
+  --colorCompoundBrandForeground1: #5b5fc7 !important;
+  --colorCompoundBrandForeground1Hover: #4f52b2 !important;
+  --colorBrandStroke1: #5b5fc7 !important;
+  --colorBrandForegroundLink: #4f52b2 !important;
+  --colorNeutralForegroundOnBrand: #ffffff !important;
+}
+/* Teams — purple brand on the DARK neutral base (lighter foreground for contrast) */
+[data-theme="teams-dark"] {
+  --colorBrandBackground: #5b5fc7 !important;
+  --colorBrandBackgroundHover: #6e72d6 !important;
+  --colorBrandBackgroundPressed: #444791 !important;
+  --colorBrandBackgroundSelected: #4f52b2 !important;
+  --colorBrandBackground2: #2a2a40 !important;
+  --colorBrandForeground1: #9299f7 !important;
+  --colorBrandForeground2: #b3b9fa !important;
+  --colorCompoundBrandForeground1: #9299f7 !important;
+  --colorCompoundBrandForeground1Hover: #b3b9fa !important;
+  --colorBrandStroke1: #9299f7 !important;
+  --colorBrandForegroundLink: #9299f7 !important;
+  --colorNeutralForegroundOnBrand: #ffffff !important;
+}
+
+/* High Contrast — black / white / yellow with cyan hover (accessibility) */
+[data-theme="hc"] {
+  color-scheme: dark;
+  --colorNeutralBackground1: #000000;
+  --colorNeutralBackground1Hover: #1aebff;
+  --colorNeutralBackground1Pressed: #1aebff;
+  --colorNeutralBackground2: #000000;
+  --colorNeutralBackground3: #000000;
+  --colorNeutralBackground4: #000000;
+  --colorNeutralBackground5: #000000;
+  --colorNeutralBackground6: #000000;
+  --colorNeutralForeground1: #ffffff;
+  --colorNeutralForeground2: #ffffff;
+  --colorNeutralForeground3: #ffffff;
+  --colorNeutralForeground4: #ffffff;
+  --colorNeutralForegroundOnBrand: #000000 !important;
+  --colorNeutralForegroundInverted: #000000;
+  --colorNeutralStroke1: #ffffff;
+  --colorNeutralStroke2: #ffffff;
+  --colorNeutralStroke3: #ffffff;
+  --colorNeutralStrokeAccessible: #ffffff;
+  --colorBrandBackground: #ffff00 !important;
+  --colorBrandBackgroundHover: #1aebff !important;
+  --colorBrandBackgroundPressed: #1aebff !important;
+  --colorBrandBackground2: #000000 !important;
+  --colorBrandForeground1: #ffff00 !important;
+  --colorBrandForeground2: #ffff00 !important;
+  --colorCompoundBrandForeground1: #ffff00 !important;
+  --colorBrandStroke1: #ffff00 !important;
+  --colorBrandForegroundLink: #ffff00 !important;
+  --colorNeutralStroke1Hover: #1aebff;
+}
+
+/* ---- Theme picker dropdown (CSS-only details; the glue sets the theme) ---- */
+.mv-theme-picker { position: relative; display: inline-block; }
+.mv-theme-picker > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .35rem;
+  height: 34px; padding: 0 .55rem; box-sizing: border-box; border: 1px solid var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusMedium); background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); user-select: none; white-space: nowrap; }
+.mv-theme-picker > summary::-webkit-details-marker { display: none; }
+.mv-theme-picker > summary:hover { background: var(--colorNeutralBackground3); border-color: var(--colorNeutralStroke1); }
+.mv-theme-picker[open] > summary { border-color: var(--colorBrandStroke1, var(--colorBrandBackground)); }
+.mv-theme-picker-chev { font-size: .7rem; opacity: .7; }
+.mv-theme-picker-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 210px;
+  background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusLarge); box-shadow: var(--shadow28, var(--shadow16)); padding: 6px; display: flex; flex-direction: column; }
+.mv-theme-opt { display: flex; align-items: center; gap: .55rem; padding: .5rem .55rem; border: none; background: none;
+  cursor: pointer; border-radius: var(--borderRadiusMedium); color: var(--colorNeutralForeground1);
+  font-size: var(--fontSizeBase300); text-align: left; font-family: inherit; }
+.mv-theme-opt:hover { background: var(--colorNeutralBackground3); }
+.mv-theme-opt-check { width: 14px; flex: none; color: var(--colorBrandForeground1); font-weight: 700; }
+.mv-theme-opt[aria-current="true"] { font-weight: var(--fontWeightSemibold); }
+.mv-theme-opt-sw { width: 16px; height: 16px; border-radius: 5px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.mv-theme-opt-label { flex: 1; }
+
+/* High Contrast purity: flatten the vibrant gradients to solid HC colors */
+[data-theme="hc"] .bz-banner { background: #000000 !important; border: 2px solid #ffff00; box-shadow: none; color: #ffffff; }
+[data-theme="hc"] .bz-banner h1, [data-theme="hc"] .bz-banner p { color: #ffffff; }
+[data-theme="hc"] .bz-hero { background: #000000; border: 2px solid #ffff00; box-shadow: none; }
+[data-theme="hc"] .bz-card-accent::before, [data-theme="hc"] .bz-sec-title::before { background: #ffff00 !important; }
+[data-theme="hc"] .bz-accent-chip { background: #000000 !important; color: #ffff00 !important; box-shadow: inset 0 0 0 1px #ffff00; }

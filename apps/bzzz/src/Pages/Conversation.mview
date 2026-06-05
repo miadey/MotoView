@@ -3,11 +3,14 @@
 @title "Conversation — end-to-end encrypted on Bzzz"
 @description "A private, end-to-end encrypted conversation on Bzzz. Message bodies are stored as ciphertext envelopes and decrypted only in your client — never on-chain."
 
-<div class="wa">
+<div class="wa wa-accent">
     <aside class="wa-list">
         <header class="wa-list-head">
             <a class="wa-list-back" href="/messages" aria-label="All conversations">←</a>
-            <Persona name="@meName" secondary="🔒 End-to-end encrypted" avatar="@meAvatar" />
+            <div class="wa-list-id">
+                <Persona name="@meName" secondary="🔒 End-to-end encrypted" avatar="@meAvatar" />
+                <span class="bz-accent-chip wa-e2ee-chip">🔒 Encrypted</span>
+            </div>
         </header>
 
         <div class="wa-search" aria-hidden="true">
@@ -55,7 +58,7 @@
                     <span class="wa-thread-title">@title</span>
                     <span class="wa-thread-status">@subtitle</span>
                 </div>
-                <span class="wa-thread-e2ee" title="End-to-end encrypted">🔒</span>
+                <span class="bz-accent-chip wa-thread-e2ee" title="End-to-end encrypted">🔒 E2E</span>
             </header>
 
             <div class="wa-thread-stream" id="wa-thread-stream">
@@ -65,7 +68,7 @@
 
                 @if (msgs.size() == 0) {
                     <div class="wa-thread-empty">
-                        <div class="wa-welcome-ico">💬</div>
+                        <div class="wa-welcome-ico wa-welcome-ico-accent">💬</div>
                         <p>No messages yet. Say hello — your message is encrypted before it leaves your device.</p>
                     </div>
                 } else {
@@ -260,6 +263,8 @@
 
 <style>
     /* ---- two-pane WhatsApp shell ---------------------------------------- */
+    /* WhatsApp surface accent: signature green -> teal (see AppLayout). */
+    .wa-accent { --bz-accent: #25d366; --bz-accent-2: #0ea5e9; }
     .wa { display: grid; grid-template-columns: 360px 1fr; gap: 0;
         height: calc(100vh - 140px); min-height: 520px;
         border: 1px solid var(--mv-border); border-radius: 14px; overflow: hidden;
@@ -269,7 +274,15 @@
     .wa-list { display: flex; flex-direction: column; min-width: 0;
         border-right: 1px solid var(--mv-border); background: var(--mv-surface); }
     .wa-list-head { display: flex; align-items: center; gap: .5rem;
-        padding: .7rem .85rem; background: var(--mv-muted); border-bottom: 1px solid var(--mv-border); }
+        padding: .7rem .85rem; border-bottom: 1px solid var(--mv-border);
+        background:
+            linear-gradient(120deg, color-mix(in srgb, var(--bz-accent) 12%, transparent), color-mix(in srgb, var(--bz-accent-2) 12%, transparent)),
+            var(--mv-muted); }
+    .wa-list-id { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+    /* Green chip reads cleaner with a deeper-green text + brighter tint. */
+    .wa-accent .bz-accent-chip { color: #0a7d3e;
+        background: color-mix(in srgb, var(--bz-accent) 20%, var(--colorNeutralBackground1)); }
+    .wa-e2ee-chip { align-self: flex-start; }
     .wa-list-back { text-decoration: none; font-size: 1.3rem; color: var(--mv-text-soft); line-height: 1;
         width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 8px; }
     .wa-list-back:hover { background: var(--mv-surface); color: var(--mv-text); }
@@ -283,18 +296,24 @@
     .wa-chat { display: flex; align-items: center; gap: .75rem; padding: .7rem .85rem;
         text-decoration: none; color: inherit; border-bottom: 1px solid var(--mv-border);
         transition: background .12s ease; }
+    .wa-chat { position: relative; }
     .wa-chat:hover { background: var(--mv-muted); }
-    .wa-chat.is-active { background: var(--mv-muted); }
-    .wa-chat.is-active::before { content: ""; position: absolute; }
+    .wa-chat.is-active { background: color-mix(in srgb, var(--bz-accent) 10%, var(--mv-surface)); }
+    .wa-chat.is-active::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+        background: linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
     .wa-chat-avatar { flex: none; width: 48px; height: 48px; border-radius: 50%;
         background: var(--mv-muted); display: grid; place-items: center; font-size: 1.45rem; }
     .wa-chat.is-active .wa-chat-avatar { background: var(--mv-surface); }
     .wa-chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
     .wa-chat-top { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
-    .wa-chat-name { font-weight: 600; font-size: .96rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-chat-name { font-weight: 700; font-size: 1rem; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .wa-chat-time { flex: none; color: var(--mv-text-soft); font-size: .72rem; }
-    .wa-chat-time.is-unread { color: #1fa855; font-weight: 700; }
+    .wa-chat-time.is-unread { color: var(--bz-accent); font-weight: 800; }
     .wa-chat-bottom { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+    /* Accent the unread-count badge with the WhatsApp green. */
+    .wa-chat-bottom .mv-badge {
+        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
+        color: #fff; border: none; font-weight: 700; }
     .wa-chat-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden;
         text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
@@ -304,22 +323,32 @@
         background: var(--mv-muted); }
     .wa-welcome { max-width: 42ch; }
     .wa-welcome-ico { font-size: 2.6rem; }
-    .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.4rem; letter-spacing: -.02em; }
+    /* Accent icon chip for empty-state panels. */
+    .wa-welcome-ico-accent { display: inline-grid; place-items: center; width: 80px; height: 80px;
+        border-radius: 22px; font-size: 2.4rem; line-height: 1; margin-bottom: .4rem;
+        color: #fff; background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
+        box-shadow: 0 14px 30px -10px color-mix(in srgb, var(--bz-accent) 65%, transparent); }
+    .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.6rem; font-weight: 800; letter-spacing: -.025em; }
     .wa-welcome p { margin: 0 auto; color: var(--mv-text-soft); }
 
     .wa-thread { background:
         linear-gradient(180deg, rgba(0,0,0,.012), rgba(0,0,0,.012)), var(--mv-muted); }
 
     .wa-thread-head { display: flex; align-items: center; gap: .7rem; flex: none;
-        padding: .6rem .9rem; background: var(--mv-muted); border-bottom: 1px solid var(--mv-border); }
+        padding: .6rem .9rem; border-bottom: 1px solid var(--mv-border);
+        background:
+            linear-gradient(120deg, color-mix(in srgb, var(--bz-accent) 12%, transparent), color-mix(in srgb, var(--bz-accent-2) 12%, transparent)),
+            var(--mv-muted); }
     .wa-thread-back { display: none; text-decoration: none; font-size: 1.3rem; color: var(--mv-text-soft);
         line-height: 1; width: 30px; flex: none; }
-    .wa-thread-avatar { flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--mv-surface);
-        display: grid; place-items: center; font-size: 1.3rem; }
+    .wa-thread-avatar { flex: none; width: 44px; height: 44px; border-radius: 50%;
+        display: grid; place-items: center; font-size: 1.3rem; color: #fff;
+        background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
+        box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--bz-accent) 65%, transparent); }
     .wa-thread-titlewrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .05rem; }
-    .wa-thread-title { font-weight: 600; font-size: 1.02rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wa-thread-status { font-size: .76rem; color: #047857; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wa-thread-e2ee { flex: none; font-size: 1rem; color: var(--mv-text-soft); }
+    .wa-thread-title { font-weight: 800; font-size: 1.08rem; letter-spacing: -.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-thread-status { font-size: .76rem; color: color-mix(in srgb, var(--bz-accent) 78%, #0a6b3a); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-thread-e2ee { flex: none; }
 
     .wa-thread-stream { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .35rem;
         padding: 1rem; }
@@ -330,18 +359,23 @@
     .wa-bubble-row { display: flex; max-width: 100%; }
     .wa-recv { justify-content: flex-start; }
     .wa-sent { justify-content: flex-end; }
-    .wa-bubble { max-width: 72%; padding: .42rem .6rem .3rem; border-radius: 10px;
-        box-shadow: 0 1px 1px rgba(0,0,0,.08); position: relative; }
-    .wa-recv .wa-bubble { background: var(--mv-surface); color: var(--mv-text); border-top-left-radius: 2px; }
-    .wa-sent .wa-bubble { background: #d9fdd3; color: #111b21; border-top-right-radius: 2px; }
+    .wa-bubble { max-width: 72%; padding: .45rem .62rem .32rem; border-radius: 14px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.1); position: relative; }
+    .wa-recv .wa-bubble { background: var(--mv-surface); color: var(--mv-text); border-top-left-radius: 3px; }
+    /* SENT bubbles: vivid WhatsApp-green accent gradient. */
+    .wa-sent .wa-bubble { border-top-right-radius: 3px; color: #fff;
+        background: linear-gradient(135deg, var(--bz-accent), color-mix(in srgb, var(--bz-accent) 60%, var(--bz-accent-2)));
+        box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--bz-accent) 70%, transparent); }
     .wa-bubble-sender { display: block; font-size: .74rem; font-weight: 700; color: var(--bz-accent, #6d28d9); margin-bottom: .1rem; }
     .wa-bubble-text { font-size: .92rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
     .wa-bubble-meta { display: inline-flex; align-items: center; gap: .25rem; float: right;
         margin: .15rem 0 0 .6rem; }
     .wa-bubble-time { font-size: .68rem; color: rgba(0,0,0,.45); }
     .wa-recv .wa-bubble-time { color: var(--mv-text-soft); }
-    .wa-ticks { font-size: .72rem; color: rgba(0,0,0,.35); letter-spacing: -.05em; }
-    .wa-ticks.is-read { color: #53bdeb; }
+    .wa-sent .wa-bubble-time { color: rgba(255,255,255,.82); }
+    .wa-ticks { font-size: .72rem; color: rgba(255,255,255,.7); letter-spacing: -.05em; }
+    /* Read receipt: bright accent-teal ✓✓ once a peer has read it. */
+    .wa-ticks.is-read { color: #b8f5ff; text-shadow: 0 0 6px rgba(255,255,255,.4); }
 
     .wa-thread-empty { text-align: center; color: var(--mv-text-soft); margin: auto; padding: 2rem 1rem; }
     .wa-thread-empty p { max-width: 36ch; margin: .5rem auto 0; }
@@ -350,6 +384,13 @@
         padding: .7rem .9rem .55rem; }
     .wa-composer-row { display: flex; align-items: flex-end; gap: .6rem; }
     .wa-composer-row > :first-child { flex: 1; }
+    /* Accent-gradient the composer "Send" button. */
+    .wa-composer-row .mv-btn {
+        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
+        color: #fff; border: none; font-weight: 700;
+        box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--bz-accent) 70%, transparent); }
+    .wa-composer-row .mv-btn:hover { filter: brightness(1.06); }
+    .wa-composer-row .mv-btn:active { filter: brightness(.96); }
     .wa-composer-note { margin: .4rem 0 0; font-size: .7rem; color: var(--mv-text-soft); }
 
     @media (max-width: 720px) {
