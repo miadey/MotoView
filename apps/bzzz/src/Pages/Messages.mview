@@ -3,70 +3,87 @@
 @title "Messages — end-to-end encrypted chats on Bzzz"
 @description "Your private WhatsApp-style conversations on Bzzz: encrypted 1:1 direct messages and group chats, running entirely on-chain on the Internet Computer."
 
-<div class="bz-msg-wrap">
-    <header class="bz-msg-head">
-        <div>
-            <h1>Messages</h1>
-            <p class="bz-msg-sub">🔒 End-to-end encrypted · 1:1 &amp; group chats</p>
-        </div>
-        <span class="bz-msg-e2ee">End-to-end encrypted</span>
-    </header>
-
+<div class="wa">
     @if bound {
-        <div class="bz-msg-new">
-            <div class="bz-card bz-msg-newcard">
-                <h3>New chat</h3>
-                <p class="bz-msg-hint">Start a direct message by their Bzzz handle.</p>
-                <form @submit="startChat" secure>
-                    <ValidationSummary />
-                    <InputText name="peerHandle" label="Handle" bind="@peerHandle" required />
-                    <div class="bz-msg-actions">
-                        <Button kind="primary" type="submit">Start chat</Button>
-                    </div>
-                </form>
-            </div>
-            <div class="bz-card bz-msg-newcard">
-                <h3>New group</h3>
-                <p class="bz-msg-hint">Name your group and add members by handle (comma separated).</p>
-                <form @submit="startGroupChat" secure>
-                    <ValidationSummary />
-                    <InputText name="groupName" label="Group name" bind="@groupName" required />
-                    <InputText name="groupHandles" label="Member handles" bind="@groupHandles" />
-                    <div class="bz-msg-actions">
-                        <Button kind="primary" type="submit">Create group</Button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <aside class="wa-list">
+            <header class="wa-list-head">
+                <Persona name="@meName" secondary="🔒 End-to-end encrypted" avatar="@meAvatar" />
+                <div class="wa-list-tools">
+                    <Dialog id="wa-new-direct" trigger="💬 New chat" title="New chat">
+                        <p class="wa-dialog-hint">Start a direct message by their Bzzz handle.</p>
+                        <form @submit="startChat" secure>
+                            <ValidationSummary />
+                            <InputText name="peerHandle" label="Handle" bind="@peerHandle" required />
+                            <div class="wa-dialog-actions">
+                                <Button kind="primary" type="submit">Start chat</Button>
+                            </div>
+                        </form>
+                    </Dialog>
+                    <Dialog id="wa-new-group" trigger="👥 New group" title="New group">
+                        <p class="wa-dialog-hint">Name your group and add members by handle (comma separated).</p>
+                        <form @submit="startGroupChat" secure>
+                            <ValidationSummary />
+                            <InputText name="groupName" label="Group name" bind="@groupName" required />
+                            <InputText name="groupHandles" label="Member handles" bind="@groupHandles" />
+                            <div class="wa-dialog-actions">
+                                <Button kind="primary" type="submit">Create group</Button>
+                            </div>
+                        </form>
+                    </Dialog>
+                </div>
+            </header>
 
-        <h2 class="bz-msg-listtitle">Conversations</h2>
-        @if (convos.size() == 0) {
-            <div class="bz-card bz-msg-empty">
-                <div class="bz-msg-empty-ico">💬</div>
-                <h3>No conversations yet</h3>
-                <p>Start a direct message or create a group above to begin chatting securely.</p>
+            <div class="wa-search" aria-hidden="true">
+                <span class="wa-search-ico">🔍</span>
+                <span class="wa-search-ph">Search or start a new chat</span>
             </div>
-        } else {
-            <ul class="bz-msg-list">
-                @for c in convos {
-                    <li>
-                        <a class="bz-msg-row" href="/messages/@c.id">
-                            <Persona name="@rowTitle(c)" secondary="@rowKind(c)" avatar="@rowAvatar(c)" />
-                            <span class="bz-msg-time">@rowTime(c)</span>
-                            @if (rowUnread(c) > 0) {
-                                <Badge color="brand">@rowUnread(c)</Badge>
-                            }
-                        </a>
-                    </li>
-                }
-            </ul>
-        }
+
+            @if (convos.size() == 0) {
+                <div class="wa-list-empty">
+                    <div class="wa-list-empty-ico">💬</div>
+                    <p>No conversations yet. Start a direct message or create a group to begin chatting securely.</p>
+                </div>
+            } else {
+                <ul class="wa-chats">
+                    @for c in convos {
+                        <li>
+                            <a class="wa-chat" href="/messages/@c.id">
+                                <span class="wa-chat-avatar">@rowAvatar(c)</span>
+                                <span class="wa-chat-main">
+                                    <span class="wa-chat-top">
+                                        <span class="wa-chat-name">@rowTitle(c)</span>
+                                        <span class="wa-chat-time @(unreadClass(c))">@rowTime(c)</span>
+                                    </span>
+                                    <span class="wa-chat-bottom">
+                                        <span class="wa-chat-preview">@rowPreview(c)</span>
+                                        @if (rowUnread(c) > 0) {
+                                            <Badge color="brand">@rowUnread(c)</Badge>
+                                        }
+                                    </span>
+                                </span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </aside>
+
+        <section class="wa-pane wa-pane-empty">
+            <div class="wa-welcome">
+                <div class="wa-welcome-ico">💬</div>
+                <h1>Bzzz Messages</h1>
+                <p>Select a conversation on the left to start messaging, or create a new chat.</p>
+                <p class="wa-welcome-e2ee">🔒 Your personal messages are end-to-end encrypted</p>
+            </div>
+        </section>
     } else {
-        <div class="bz-card bz-msg-empty">
-            <div class="bz-msg-empty-ico">🔒</div>
-            <h3>Pick a handle first</h3>
-            <p>You need a Bzzz handle before you can send encrypted messages. <a href="/">Claim your handle</a> to get started.</p>
-        </div>
+        <section class="wa-pane wa-pane-empty wa-pane-full">
+            <div class="wa-welcome">
+                <div class="wa-welcome-ico">🔒</div>
+                <h1>Pick a handle first</h1>
+                <p>You need a Bzzz handle before you can send encrypted messages. <a href="/">Claim your handle</a> to get started.</p>
+            </div>
+        </section>
     }
 </div>
 
@@ -74,6 +91,8 @@
     // Identity of the viewer, cached for thin row helpers below.
     var bound : Bool = false;
     var me : Principal = Principal.fromText("2vxsx-fae");
+    var meName : Text = "You";
+    var meAvatar : Text = "🙂";
 
     // Conversation list for the caller, most-recently-active first.
     var convos : [Messenger.Conversation] = [];
@@ -86,6 +105,8 @@
     func onLoad(ctx : Context) {
         me := ctx.caller;
         bound := Identity.isBound(ctx.caller);
+        meName := Identity.handleOf(ctx.caller);
+        meAvatar := Identity.avatarOf(ctx.caller);
         convos := Messenger.conversations(ctx.caller);
     };
 
@@ -117,17 +138,51 @@
         };
     };
 
-    // A short preview describing the conversation kind / member count.
-    func rowKind(c : Messenger.Conversation) : Text {
-        switch (c.kind) {
-            case (#Group) { Nat.toText(Messenger.memberCount(c.id)) # " members · encrypted" };
-            case (#Direct) { "Direct message · encrypted" };
+    // Last-message preview: sender prefix for groups + the (ciphertext) body.
+    // Mirrors what the thread renders as the message body; no decrypt claim.
+    func rowPreview(c : Messenger.Conversation) : Text {
+        switch (Messenger.lastMessage(me, c.id)) {
+            case null {
+                switch (c.kind) {
+                    case (#Group) { Nat.toText(Messenger.memberCount(c.id)) # " members · encrypted" };
+                    case (#Direct) { "Direct message · encrypted" };
+                };
+            };
+            case (?m) {
+                let body = previewBody(m.ciphertext);
+                switch (c.kind) {
+                    case (#Group) {
+                        let who = if (m.sender == me) "You" else m.senderHandle;
+                        who # ": " # body;
+                    };
+                    case (#Direct) {
+                        if (m.sender == me) "You: " # body else body;
+                    };
+                };
+            };
         };
+    };
+
+    // Truncate a preview so long bodies don't overflow the list row.
+    func previewBody(t : Text) : Text {
+        if (Text.size(t) <= 38) { return t };
+        var out = "";
+        var i = 0;
+        for (ch in t.chars()) {
+            if (i < 36) { out #= Text.fromChar(ch) };
+            i += 1;
+        };
+        out # "…";
     };
 
     func rowTime(c : Messenger.Conversation) : Text { Messenger.relativeTime(c.lastAt) };
 
     func rowUnread(c : Messenger.Conversation) : Nat { Messenger.unreadCount(me, c.id) };
+
+    // Brand-green the timestamp when the row has unread messages (WhatsApp).
+    func unreadClass(c : Messenger.Conversation) : Text {
+        if (Messenger.unreadCount(me, c.id) > 0) { "is-unread" } else { "" };
+    };
 
     // ---- handlers: mutate the service, then onLoad refreshes page vars ------
 
@@ -144,7 +199,10 @@
                 } else {
                     let id = Messenger.startDirect(ctx.caller, prof.principal);
                     peerHandle := "";
-                    toast("Chat with " # prof.handle # " ready.");
+                    // Land on the freshly opened conversation (mvRedirect is the
+                    // page's navigation sink; the runtime turns it into a client
+                    // redirect after dispatch).
+                    mvRedirect := "/messages/" # Nat.toText(id);
                 };
             };
         };
@@ -174,53 +232,67 @@
         groupName := "";
         groupHandles := "";
         if (missing > 0) {
-            toast("Group created — " # Nat.toText(missing) # " handle(s) weren't found.");
-        } else {
-            toast("Group created.");
+            toast(Nat.toText(missing) # " handle(s) weren't found.");
         };
+        mvRedirect := "/messages/" # Nat.toText(id);
     };
 }
 
 <style>
-    .bz-msg-wrap { max-width: 720px; margin: 0 auto; }
-    .bz-msg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-    .bz-msg-head h1 { margin: 0; font-size: 1.7rem; letter-spacing: -.02em; }
-    .bz-msg-sub { margin: .25rem 0 0; color: var(--mv-text-soft); font-size: .9rem; }
-    .bz-msg-e2ee { flex: none; background: #e7f8ef; color: #047857; border: 1px solid #a7f3d0;
-        font-size: .72rem; font-weight: 700; padding: .3rem .6rem; border-radius: 999px; white-space: nowrap; }
+    /* ---- two-pane WhatsApp shell ---------------------------------------- */
+    .wa { display: grid; grid-template-columns: 360px 1fr; gap: 0;
+        height: calc(100vh - 140px); min-height: 520px;
+        border: 1px solid var(--mv-border); border-radius: 14px; overflow: hidden;
+        background: var(--mv-surface); box-shadow: var(--mv-shadow); }
 
-    .bz-msg-new { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.75rem; }
-    .bz-msg-newcard { padding: 1.1rem 1.2rem; }
-    .bz-msg-newcard h3 { margin: 0 0 .25rem; font-size: 1.02rem; }
-    .bz-msg-hint { margin: 0 0 .7rem; color: var(--mv-text-soft); font-size: .82rem; }
-    .bz-msg-actions { margin-top: .6rem; }
+    /* ---- LEFT pane: chat list ------------------------------------------- */
+    .wa-list { display: flex; flex-direction: column; min-width: 0;
+        border-right: 1px solid var(--mv-border); background: var(--mv-surface); }
+    .wa-list-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+        padding: .7rem .85rem; background: var(--mv-muted); border-bottom: 1px solid var(--mv-border); }
+    .wa-list-tools { display: flex; gap: .35rem; flex: none; }
 
-    .bz-msg-listtitle { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--mv-text-soft); text-transform: uppercase; letter-spacing: .04em; }
+    .wa-dialog-hint { margin: 0 0 .75rem; color: var(--mv-text-soft); font-size: .85rem; }
+    .wa-dialog-actions { margin-top: .75rem; }
 
-    .bz-msg-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--mv-border);
-        border-radius: 14px; overflow: hidden; background: var(--mv-surface); box-shadow: var(--mv-shadow); }
-    .bz-msg-list li + li .bz-msg-row { border-top: 1px solid var(--mv-border); }
-    .bz-msg-row { display: flex; align-items: center; gap: .85rem; padding: .85rem 1rem; text-decoration: none; color: inherit;
+    .wa-search { display: flex; align-items: center; gap: .55rem; margin: .55rem .7rem;
+        padding: .5rem .75rem; background: var(--mv-muted); border-radius: 999px;
+        color: var(--mv-text-soft); font-size: .85rem; flex: none; }
+    .wa-search-ico { font-size: .85rem; opacity: .7; }
+
+    .wa-chats { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+    .wa-chat { display: flex; align-items: center; gap: .75rem; padding: .7rem .85rem;
+        text-decoration: none; color: inherit; border-bottom: 1px solid var(--mv-border);
         transition: background .12s ease; }
-    .bz-msg-row:hover { background: var(--mv-muted); }
-    .bz-msg-avatar { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--mv-muted);
-        display: grid; place-items: center; font-size: 1.4rem; }
-    .bz-msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
-    .bz-msg-toprow { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
-    .bz-msg-name { font-weight: 700; font-size: .98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bz-msg-time { flex: none; color: var(--mv-text-soft); font-size: .76rem; }
-    .bz-msg-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bz-msg-badge { flex: none; min-width: 22px; height: 22px; padding: 0 .4rem; border-radius: 999px;
-        background: var(--bz-accent, #6d28d9); color: #fff; font-size: .76rem; font-weight: 700;
-        display: grid; place-items: center; }
+    .wa-chat:hover { background: var(--mv-muted); }
+    .wa-chat-avatar { flex: none; width: 48px; height: 48px; border-radius: 50%;
+        background: var(--mv-muted); display: grid; place-items: center; font-size: 1.45rem; }
+    .wa-chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+    .wa-chat-top { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+    .wa-chat-name { font-weight: 600; font-size: .96rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-chat-time { flex: none; color: var(--mv-text-soft); font-size: .72rem; }
+    .wa-chat-time.is-unread { color: #1fa855; font-weight: 700; }
+    .wa-chat-bottom { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+    .wa-chat-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
-    .bz-msg-empty { text-align: center; padding: 2.5rem 1.5rem; }
-    .bz-msg-empty-ico { font-size: 2.4rem; }
-    .bz-msg-empty h3 { margin: .6rem 0 .3rem; }
-    .bz-msg-empty p { margin: 0 auto; color: var(--mv-text-soft); max-width: 42ch; }
+    .wa-list-empty { text-align: center; color: var(--mv-text-soft); padding: 2rem 1.25rem; }
+    .wa-list-empty-ico { font-size: 2rem; }
+    .wa-list-empty p { max-width: 30ch; margin: .5rem auto 0; font-size: .88rem; }
 
-    @media (max-width: 640px) {
-        .bz-msg-new { grid-template-columns: 1fr; }
-        .bz-msg-head { flex-direction: column; gap: .5rem; }
+    /* ---- RIGHT pane: empty / welcome ------------------------------------ */
+    .wa-pane { display: flex; flex-direction: column; min-width: 0; background: var(--mv-bg, var(--mv-muted)); }
+    .wa-pane-empty { align-items: center; justify-content: center; text-align: center; padding: 2rem; }
+    .wa-pane-full { grid-column: 1 / -1; }
+    .wa-welcome { max-width: 42ch; }
+    .wa-welcome-ico { font-size: 3rem; }
+    .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.5rem; letter-spacing: -.02em; }
+    .wa-welcome p { margin: 0 auto; color: var(--mv-text-soft); }
+    .wa-welcome-e2ee { margin-top: 1.25rem !important; font-size: .8rem; color: #047857; }
+
+    @media (max-width: 720px) {
+        .wa { grid-template-columns: 1fr; height: auto; min-height: 0; }
+        .wa-list { border-right: none; }
+        .wa-pane-empty { display: none; }
     }
 </style>
