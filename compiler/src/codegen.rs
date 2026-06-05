@@ -920,6 +920,13 @@ impl<'a> Codegen<'a> {
                 out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-spinner{}\\\"></span>\");\n", indent, size));
                 Some(())
             }
+            // Light/dark theme switch. The button carries [data-mv-theme-toggle];
+            // the glue flips <html data-theme> + persists the mv_theme cookie, and
+            // the sun/moon icon is pure CSS driven by [data-theme]. No app JS.
+            "ThemeToggle" => {
+                out.push_str(&format!("{}b.raw(\"<button type=\\\"button\\\" class=\\\"mv-theme-toggle\\\" data-mv-theme-toggle aria-label=\\\"Toggle light or dark theme\\\" title=\\\"Toggle theme\\\"><span class=\\\"mv-theme-ico\\\"></span></button>\");\n", indent));
+                Some(())
+            }
             "MessageBar" => {
                 let ty = lit("intent").or_else(|| lit("type")).unwrap_or_else(|| "info".into());
                 out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-alert mv-alert-{}\\\">\");\n", indent, ty));

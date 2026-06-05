@@ -145,6 +145,23 @@ Every semantic component and any `@style` that reads tokens flips automatically 
 no JavaScript, no extra wiring. The compiled base stylesheet is served by the
 canister at `/motoview.css` alongside `/motoview.wasm` and `/motoview.js`.
 
+### Let the user choose: `<ThemeToggle />`
+
+Light and dark are both baked into the theme, and you can let the user pick. Drop
+the built-in toggle anywhere (an app bar, a nav, a settings page):
+
+```razor
+<ThemeToggle />
+```
+
+It's a framework primitive, so there's still **no application JavaScript**. Clicking
+it flips `<html data-theme="light|dark">` instantly and saves the choice in an
+`mv_theme` cookie; the runtime injects a tiny inline script that re-applies the
+saved theme **before first paint on every load** (so there's no flash, and it
+works on certified cacheable pages too, whose certificate can't vary by cookie).
+With no saved choice it follows `prefers-color-scheme`. The sun/moon icon is pure
+CSS driven by `[data-theme]`.
+
 ## Avoiding utility-class soup
 
 The pattern across all three levels is the same: push styling decisions *down* into tokens and components, and keep your markup describing intent.

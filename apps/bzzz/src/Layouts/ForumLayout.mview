@@ -139,6 +139,7 @@
         </form>
         <span class="fl-topbar-spacer"></span>
         <div class="fl-topbar-actions">
+            <ThemeToggle />
             <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
         </div>
     </header>

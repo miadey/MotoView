@@ -327,6 +327,19 @@
   }
 
   function onClick(ev) {
+    // Theme switch: flip <html data-theme> instantly and persist the choice in the
+    // mv_theme cookie (the server's inline head script applies it on later loads,
+    // even for certified pages). A dumb framework primitive — no app logic.
+    var t = ev.target.closest ? ev.target.closest("[data-mv-theme-toggle]") : null;
+    if (t) {
+      ev.preventDefault();
+      var cur = document.documentElement.getAttribute("data-theme");
+      if (!cur) cur = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      var next = cur === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      document.cookie = "mv_theme=" + next + "; path=/; max-age=31536000; samesite=lax";
+      return;
+    }
     var el = handlerEl(ev.target, "click");
     if (!el) return;
     if (el.tagName === "BUTTON" || el.tagName === "A") ev.preventDefault();

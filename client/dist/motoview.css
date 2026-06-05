@@ -3267,3 +3267,26 @@ label.mv-field-label {
 /* back-compat alias for the original fade-in name used by existing apps */
 .mv-anim-fadein { animation: mv-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+
+/* ===========================================================================
+   Light/dark theme toggle — paired with [data-mv-theme-toggle] in the glue,
+   which flips <html data-theme> and persists the mv_theme cookie. The icon is
+   pure CSS (the theme you'll switch TO): moon in light, sun in dark.
+   =========================================================================== */
+.mv-theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; box-sizing: border-box;
+  border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusMedium);
+  background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground2);
+  cursor: pointer; font-size: 1rem; line-height: 1;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.mv-theme-toggle:hover { background: var(--colorNeutralBackground3); border-color: var(--colorNeutralStroke1); }
+.mv-theme-toggle:active { transform: translateY(0.5px); }
+.mv-theme-ico { display: inline-block; }
+.mv-theme-ico::before { content: "🌙"; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mv-theme-ico::before { content: "☀️"; }
+}
+[data-theme="dark"] .mv-theme-ico::before { content: "☀️"; }
+[data-theme="light"] .mv-theme-ico::before { content: "🌙"; }

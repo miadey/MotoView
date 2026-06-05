@@ -60,6 +60,7 @@
             <MenuItem href="/messages">✉️ Messages</MenuItem>
             <MenuItem href="/about">ℹ️ About Bzzz</MenuItem>
         </Menu>
+        <ThemeToggle />
         <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
     </AppBar>
     <div class="bz-shell">

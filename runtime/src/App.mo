@@ -629,6 +629,18 @@ module {
       if (not Text.contains(d, #text "href=\"/motoview.css\"")) {
         d := Text.replace(d, #text "<head>", "<head><link rel=\"stylesheet\" href=\"/motoview.css\">");
       };
+      // Theme: apply the user's saved light/dark choice from the mv_theme cookie
+      // BEFORE first paint (no flash), client-side so it also works on certified
+      // cacheable pages (whose cert can't vary by cookie). Framework glue, not app
+      // JS — same category as the injected scripts below. The toggle is in
+      // motoview.js ([data-mv-theme-toggle]); absent cookie -> prefers-color-scheme.
+      if (not Text.contains(d, #text "mv_theme")) {
+        d := Text.replace(
+          d,
+          #text "<head>",
+          "<head><script>(function(){try{var m=document.cookie.match(/(?:^|; )mv_theme=(light|dark)/);if(m)document.documentElement.setAttribute('data-theme',m[1]);}catch(e){}})();</script>",
+        );
+      };
       // PWA: actually LINK the web manifest (it is served at /manifest.webmanifest
       // but a page must reference it for the browser to offer "Install") plus the
       // iOS/standalone meta. Without this the app is not installable.
