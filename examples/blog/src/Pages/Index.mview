@@ -1,0 +1,63 @@
+@page "/"
+@layout BlogLayout
+@title "The Canister Log — Building on the Internet Computer"
+@description "Essays on building full-stack apps on the Internet Computer with MotoView: zero frontend JavaScript, certified queries, and secure forms by default."
+@canonical "https://thecanisterlog.ic0.app/"
+
+<header class="article-head">
+    <h1>The Canister Log</h1>
+    <p class="post-excerpt">Field notes on building real apps on the Internet Computer — server-rendered, certified, and free of frontend JavaScript.</p>
+</header>
+
+<ul class="post-list">
+    @for post in posts {
+        <li class="post-list-item" key="@post.slug">
+            <span class="post-date">@formatDate(post.date)</span>
+            <h2><a href="/post/@post.slug">@post.title</a></h2>
+            <p class="post-excerpt">@post.excerpt</p>
+            <a class="post-readmore" href="/post/@post.slug">Read post →</a>
+        </li>
+    }
+</ul>
+
+@code {
+    var posts : [Blog.Post] = [];
+
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        posts := Blog.all();
+    };
+
+    // Render "2026-05-28" as "May 28, 2026".
+    func formatDate(iso : Text) : Text {
+        let parts = Text.split(iso, #char '-');
+        let arr = Iter.toArray(parts);
+        if (arr.size() != 3) { return iso };
+        monthName(arr[1]) # " " # stripLead(arr[2]) # ", " # arr[0];
+    };
+
+    func monthName(mm : Text) : Text {
+        switch (mm) {
+            case "01" { "January" };
+            case "02" { "February" };
+            case "03" { "March" };
+            case "04" { "April" };
+            case "05" { "May" };
+            case "06" { "June" };
+            case "07" { "July" };
+            case "08" { "August" };
+            case "09" { "September" };
+            case "10" { "October" };
+            case "11" { "November" };
+            case "12" { "December" };
+            case _ { mm };
+        };
+    };
+
+    func stripLead(s : Text) : Text {
+        if (Text.startsWith(s, #char '0')) {
+            let t = Text.trimStart(s, #char '0');
+            if (t == "") { "0" } else { t };
+        } else { s };
+    };
+}

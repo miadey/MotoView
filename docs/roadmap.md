@@ -47,7 +47,7 @@ These ship in the current compiler and runtime:
 - **The WASM client** — the browser "brain" (the `motoview/1` protocol, adaptive polling state machine, batch interpretation, event sequencing) is Rust compiled to WebAssembly, with a tiny hand-written JS glue for DOM, fetch, timers, and focus/scroll/input preservation. No npm, no bundler.
 - **Output** — escaped interpolation (`@count`, `@(expr)`) plus `@raw(expr)` for trusted, unescaped server-rendered HTML, and `@@` for a literal `@`. The compiler scans `Model`/`Service` record types so `@item.name` interpolates with the field's real type (`Text` directly, `Nat`/`Int`/`Float`/`Bool` converted) instead of a `debug_show` fallback.
 - **Tooling** — `motoview check` builds and type-checks the generated actor, mapping any `moc` error back to the originating `.mview` (not the generated `main.mo`). A parser/codegen regression suite runs with `make test`.
-- **Examples & apps** — `counter`, `contact` (secure form) and `crm` (drag-and-drop Kanban) under `examples/`; two full apps under `apps/` — **bzzz** (a Discord × X × forum × WhatsApp super-app) and **this site** (the docs + marketing site, itself a MotoView canister).
+- **Examples & apps** — `counter`, `contact` (secure form), `crm` (Kanban), `products` (CRUD), `blog` (SEO) and `svg-network` (interactive SVG) under `examples/`; two full apps under `apps/` — **bzzz** (a Discord × X × forum × WhatsApp super-app) and **this site** (the docs + marketing site, itself a MotoView canister).
 
 ## Production features
 
@@ -77,7 +77,7 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 - Theme packages & design tokens (the `@theme` directive exists; shareable packages do not).
 - A richer animation engine (the `@effect` / `@animate` primitives exist).
 - A visual page designer.
-- More examples (blog/SEO, SVG network) and an offline-first cache layer.
+- An offline-first service-worker cache layer.
 
 > **Realtime is not on this list.** The adaptive-polling render/event protocol *is* MotoView's communication layer; a canister cannot open a WebSocket without an external gateway. Polling is the design, not a placeholder.
 

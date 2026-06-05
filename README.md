@@ -114,11 +114,14 @@ The `@click="increment(5)"` handler argument is evaluated server-side at render 
 
 ## Verified status
 
-The runtime, the WASM client, and the `dfx` pipeline are **verified end to end** in a real browser on a local replica. Three examples ship under `examples/`, each compiled from `.mview` and exercised live:
+The runtime, the WASM client, and the `dfx` pipeline are **verified end to end** in a real browser on a local replica. Six examples ship under `examples/`, each compiled from `.mview` and exercised live:
 
 - **`examples/counter`** — the canonical demo. Clicking updates state via `event -> update -> batch -> DOM swap`; adaptive polling picks up external changes; state persists across calls.
 - **`examples/contact`** — a **secure, server-validated form**. Invalid submits show persistent field errors; valid submits succeed. HMAC-SHA256 tokens + replay protection (verified against standard SHA-256/HMAC test vectors).
 - **`examples/crm`** — a **CRM sales-pipeline Kanban** with **drag-and-drop** between stages (plus ◀ ▶ move buttons), create/delete, live pipeline totals, toast notifications, and column pulse animations. The deal logic lives in `src/Services/Crm.mo` (real Motoko); the page holds the state. **No frontend JavaScript** — the drag-and-drop is the WASM client talking to on-chain handlers.
+- **`examples/products`** — a full **CRUD** catalog: a keyed product table, a secure server-validated create form, an edit form on a typed route (`/edit/{id:Nat}`), and delete — backed by an upgrade-stable `Catalog` service.
+- **`examples/blog`** — an **SEO-first blog**: per-post `<title>` / `<meta description>` / `<link canonical>`, server-rendered, with each post served as a `@cacheable` certified query and a 404 fallback for unknown slugs.
+- **`examples/svg-network`** — an **interactive SVG** network graph: click a node to highlight it and its neighbors (a side panel lists them), reset to clear — all server-driven, no frontend JavaScript.
 
 ```bash
 cd examples/crm && dfx start --background && dfx deploy
@@ -159,7 +162,7 @@ These shipped while building the **Bzzz** reference app (see below) and are veri
 compiler/   Rust crate — the motoview binary (parses .mview, generates Motoko)
 runtime/    Motoko library (the "motoview" mops package) — serves HTTP from the canister
 client/     Rust → WebAssembly browser client + tiny hand-written JS glue (no bundler)
-examples/   counter, contact (secure form), crm (drag-and-drop Kanban)
+examples/   counter, contact (secure form), crm (Kanban), products (CRUD), blog (SEO), svg-network
 apps/       bzzz (reference super-app) and site (this docs + marketing site, itself a MotoView canister)
 docs/       documentation (markdown — the source the site renders)
 skills/     AI agent skills for working with MotoView

@@ -1,0 +1,72 @@
+@page "/edit/{id:Nat}"
+@layout ProductsLayout
+@title "Edit product — MotoView Store"
+@description "Edit an existing product with a secure, server-validated MotoView form."
+
+<a class="back-link" href="/">← Back to products</a>
+
+@if found {
+    <div class="shop-header">
+        <div>
+            <h1>Edit @name</h1>
+            <p class="shop-sub">Update this product. Changes are validated on the server.</p>
+        </div>
+    </div>
+
+    <div class="shop-card">
+        <form @submit="save" secure>
+            <ValidationSummary />
+            <div class="shop-form-grid">
+                <InputText name="name" label="Name" bind="@name" required />
+                <InputText name="category" label="Category" bind="@category" required />
+                <InputNumber name="price" label="Price ($)" bind="@price" required />
+                <InputNumber name="stock" label="Stock" bind="@stock" required />
+            </div>
+            <div class="shop-form-actions">
+                <Button kind="primary" type="submit">Save changes</Button>
+                <a class="mv-btn mv-btn-secondary" href="/">Cancel</a>
+            </div>
+        </form>
+    </div>
+} else {
+    <Alert type="warning">That product doesn't exist. <a href="/">Back to products</a>.</Alert>
+}
+
+@code {
+    var found : Bool = false;
+    var name : Text = "";
+    var category : Text = "";
+    var price : Nat = 0;
+    var stock : Nat = 0;
+
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        // Pre-fill the form from the product's current values. onLoad runs on
+        // every GET render and again after a successful submit (which redirects),
+        // but it is SKIPPED when the handler set validation errors — so the values
+        // the user just edited survive a failed submit instead of being reset.
+        switch (Catalog.get(id)) {
+            case (?p) {
+                found := true;
+                name := p.name;
+                category := p.category;
+                price := p.price;
+                stock := p.stock;
+            };
+            case null { found := false };
+        };
+    };
+
+    func save(ctx : Context) : async () {
+        ignore ctx;
+        validate {
+            name required "Give the product a name.";
+            category required "Pick a category.";
+            price min 1 "Price must be at least $1.";
+        };
+
+        Catalog.update(id, name, price, stock, category);
+        toast("Product updated");
+        mvRedirect := "/";
+    };
+}

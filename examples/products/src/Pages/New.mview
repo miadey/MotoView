@@ -1,0 +1,49 @@
+@page "/new"
+@layout ProductsLayout
+@title "New product — MotoView Store"
+@description "Create a product with a secure, server-validated MotoView form."
+
+<a class="back-link" href="/">← Back to products</a>
+
+<div class="shop-header">
+    <div>
+        <h1>New product</h1>
+        <p class="shop-sub">Server-validated and signed — no frontend JavaScript.</p>
+    </div>
+</div>
+
+<div class="shop-card">
+    <form @submit="create" secure>
+        <ValidationSummary />
+        <div class="shop-form-grid">
+            <InputText name="name" label="Name" bind="@name" required />
+            <InputText name="category" label="Category" bind="@category" required />
+            <InputNumber name="price" label="Price ($)" bind="@price" required />
+            <InputNumber name="stock" label="Stock" bind="@stock" required />
+        </div>
+        <div class="shop-form-actions">
+            <Button kind="primary" type="submit">Create product</Button>
+            <a class="mv-btn mv-btn-secondary" href="/">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@code {
+    var name : Text = "";
+    var category : Text = "";
+    var price : Nat = 0;
+    var stock : Nat = 0;
+
+    func create(ctx : Context) : async () {
+        ignore ctx;
+        validate {
+            name required "Give the product a name.";
+            category required "Pick a category.";
+            price min 1 "Price must be at least $1.";
+        };
+
+        ignore Catalog.add(name, price, stock, category);
+        toast("Product created");
+        mvRedirect := "/";
+    };
+}

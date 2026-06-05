@@ -1,0 +1,32 @@
+@page "/about"
+@layout BlogLayout
+@cacheable
+@title "About — The Canister Log"
+@description "The Canister Log is a blog about building real applications on the Internet Computer with MotoView — server-rendered, certified, and free of frontend JavaScript."
+@canonical "https://thecanisterlog.ic0.app/about"
+
+<article>
+    <header class="article-head">
+        <h1>About this blog</h1>
+        <p class="post-excerpt">Why a blog about the Internet Computer is itself running on the Internet Computer.</p>
+    </header>
+    <div class="article-body">
+        <p><strong>The Canister Log</strong> is a small publication about building full-stack applications directly on the Internet Computer. Every post here is written, stored, and served from a single Motoko canister — there is no separate web server, no CDN, and no frontend JavaScript bundle.</p>
+
+        <h2>How this page reaches you</h2>
+        <p>This page is marked <code>@@cacheable</code>, so the canister serves it as a <em>certified query</em>: the HTML you are reading arrives with a cryptographic proof that it really came from this canister, in milliseconds, with no update call.</p>
+
+        <h2>Built for search engines, by default</h2>
+        <p>Because MotoView renders real HTML on the server, every post ships with a correct <code>&lt;title&gt;</code>, meta description, and canonical link on the first byte. Crawlers and link previews see a complete document — no hydration, no waiting for a script to run.</p>
+
+        <h2>The stack</h2>
+        <ul>
+            <li><strong>One actor.</strong> Pages, routing, and content compile into a single Motoko canister.</li>
+            <li><strong>Certified delivery.</strong> Public pages are served as fast, verifiable queries.</li>
+            <li><strong>No frontend JavaScript.</strong> The browser only swaps DOM the canister already rendered.</li>
+        </ul>
+
+        <p>Want to see it in motion? Head back to the <a href="/">latest posts</a>.</p>
+    </div>
+    <a class="back-link" href="/">← Back to all posts</a>
+</article>

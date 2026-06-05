@@ -1,0 +1,84 @@
+@page "/post/{slug}"
+@layout BlogLayout
+@cacheable
+@title postTitle()
+@description postDescription()
+@canonical "https://thecanisterlog.ic0.app/post/" # slug
+
+@switch post {
+    case (?p) {
+        <article>
+            <header class="article-head">
+                <span class="post-date">@formatDate(p.date)</span>
+                <h1>@p.title</h1>
+                <p class="post-excerpt">@p.excerpt</p>
+            </header>
+            <div class="article-body">
+                @raw(p.bodyHtml)
+            </div>
+        </article>
+        <a class="back-link" href="/">← Back to all posts</a>
+    }
+    case null {
+        <div class="notfound">
+            <h1>Post not found</h1>
+            <p class="post-excerpt">There is no post at <code>/post/@slug</code>. It may have been moved or never existed.</p>
+            <a class="post-readmore" href="/">Browse all posts →</a>
+        </div>
+    }
+}
+
+@code {
+    var post : ?Blog.Post = null;
+
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        post := Blog.get(slug);
+    };
+
+    func postTitle() : Text {
+        switch (post) {
+            case (?p) { p.title # " — The Canister Log" };
+            case null { "Post not found — The Canister Log" };
+        };
+    };
+
+    func postDescription() : Text {
+        switch (post) {
+            case (?p) { p.excerpt };
+            case null { "The post you are looking for does not exist on The Canister Log." };
+        };
+    };
+
+    func formatDate(iso : Text) : Text {
+        let parts = Text.split(iso, #char '-');
+        let arr = Iter.toArray(parts);
+        if (arr.size() != 3) { return iso };
+        monthName(arr[1]) # " " # stripLead(arr[2]) # ", " # arr[0];
+    };
+
+    func monthName(mm : Text) : Text {
+        switch (mm) {
+            case "01" { "January" };
+            case "02" { "February" };
+            case "03" { "March" };
+            case "04" { "April" };
+            case "05" { "May" };
+            case "06" { "June" };
+            case "07" { "July" };
+            case "08" { "August" };
+            case "09" { "September" };
+            case "10" { "October" };
+            case "11" { "November" };
+            case "12" { "December" };
+            case _ { mm };
+        };
+    };
+
+    func stripLead(s : Text) : Text {
+        if (Text.startsWith(s, #char '0')) {
+            let t = Text.trimStart(s, #char '0');
+            if (t == "") { "0" } else { t };
+        } else { s };
+    };
+}

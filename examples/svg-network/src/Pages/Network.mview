@@ -1,0 +1,118 @@
+@page "/"
+@layout NetworkLayout
+@title "SVG network graph"
+@description "An interactive SVG network graph rendered server-side with MotoView — click a node to highlight its neighbours. No frontend JavaScript."
+
+<div class="net-head">
+    <h1>Service mesh</h1>
+    <p class="net-sub">Click a node to select it. The node and everything it connects to light up, and the panel lists its neighbours. The whole diagram is server-rendered SVG — no frontend JavaScript.</p>
+</div>
+
+<div class="net-stage">
+    <div class="net-canvas">
+        <svg viewBox="0 0 600 400" role="img" aria-label="Service mesh network graph">
+            @for e in edges {
+                <line
+                    x1="@(Graph.get(e.from).x)" y1="@(Graph.get(e.from).y)"
+                    x2="@(Graph.get(e.to).x)" y2="@(Graph.get(e.to).y)"
+                    class="@edgeClass(e)" />
+            }
+
+            @for n in nodes {
+                <g class="@nodeClass(n.id)" @click="selectNode(n.id)" key="@n.id">
+                    <circle cx="@n.x" cy="@n.y" r="26" />
+                    <text x="@n.x" y="@(n.y + 5)" text-anchor="middle">@n.caption</text>
+                </g>
+            }
+        </svg>
+    </div>
+
+    <aside class="net-panel">
+        @if isSelected() {
+            <h2>@selectedCaption()</h2>
+            <p class="net-muted">@neighborCount() direct connection(s)</p>
+
+            @if neighborCount() == 0 {
+                <p class="net-empty">This node has no neighbours.</p>
+            } else {
+                <ul class="net-neigh">
+                    @for nb in neighbors {
+                        <li>
+                            <span>@nb.caption</span>
+                            <span class="net-id">#@nb.id</span>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <button class="net-reset" @click="reset">Clear selection</button>
+        } else {
+            <h2>No node selected</h2>
+            <p class="net-muted">Pick a node in the graph to inspect its connections.</p>
+            <button class="net-reset" @click="reset" disabled>Clear selection</button>
+        }
+    </aside>
+</div>
+
+<p class="net-hint">State lives in Motoko · the shapes are a projection of that state · every click is an update.</p>
+
+@code {
+    var nodes : [Graph.Node] = [];
+    var edges : [Graph.Edge] = [];
+    var neighbors : [Graph.Node] = [];
+    var selected : ?Nat = null;
+
+    // Runs on every GET render: load the fixed graph and recompute the
+    // neighbour list for whatever node is currently selected.
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        nodes := Graph.nodes();
+        edges := Graph.edges();
+        neighbors := switch (selected) {
+            case (?id) { Graph.neighbors(id) };
+            case null { [] };
+        };
+    };
+
+    func isSelected() : Bool {
+        switch (selected) { case (?_) { true }; case null { false } };
+    };
+
+    func selectedCaption() : Text {
+        switch (selected) { case (?id) { Graph.get(id).caption }; case null { "" } };
+    };
+
+    func neighborCount() : Nat { neighbors.size() };
+
+    // Computed class for a node group: selected > neighbor > plain.
+    func nodeClass(id : Nat) : Text {
+        switch (selected) {
+            case (?sel) {
+                if (sel == id) { "net-node selected" }
+                else if (Graph.connected(sel, id)) { "net-node neighbor" }
+                else { "net-node" };
+            };
+            case null { "net-node" };
+        };
+    };
+
+    // Computed class for an edge: highlight edges touching the selection.
+    func edgeClass(e : Graph.Edge) : Text {
+        switch (selected) {
+            case (?sel) { if (Graph.edgeTouches(e, sel)) { "net-edge hot" } else { "net-edge" } };
+            case null { "net-edge" };
+        };
+    };
+
+    func selectNode(ctx : Context, id : Nat) : async () {
+        ignore ctx;
+        selected := ?id;
+        neighbors := Graph.neighbors(id);
+    };
+
+    func reset(ctx : Context) : async () {
+        ignore ctx;
+        selected := null;
+        neighbors := [];
+    };
+}

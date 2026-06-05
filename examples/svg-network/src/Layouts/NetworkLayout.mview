@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { background: #0f1020; color: #e7e7f4; }
+        .net-shell { max-width: 980px; margin: 0 auto; padding: 1.4rem; }
+        .net-nav { display: flex; align-items: center; gap: .7rem; padding: .4rem 0 1.2rem; }
+        .net-logo { font-weight: 800; color: #8b8bff; font-size: 1.15rem; }
+        .net-pill { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #b9b9d6; background: #232342; padding: .22rem .6rem; border-radius: 999px; }
+        .net-head h1 { margin: 0 0 .25rem; font-size: 1.7rem; }
+        .net-sub { margin: 0 0 1.1rem; color: #a6a6c8; }
+
+        .net-stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); gap: 1.1rem; align-items: start; }
+        @media (max-width: 760px) { .net-stage { grid-template-columns: 1fr; } }
+
+        .net-canvas { background: #15162b; border: 1px solid #2a2a4d; border-radius: 16px; padding: .6rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+        .net-canvas svg { width: 100%; height: auto; display: block; }
+
+        /* edges */
+        .net-edge { stroke: #3a3a63; stroke-width: 2; }
+        .net-edge.hot { stroke: #8b8bff; stroke-width: 3.5; }
+
+        /* nodes */
+        .net-node { cursor: pointer; }
+        .net-node circle { fill: #1f2042; stroke: #4a4a82; stroke-width: 2.5; transition: fill .12s ease, stroke .12s ease; }
+        .net-node:hover circle { stroke: #8b8bff; }
+        .net-node text { fill: #d7d7f0; font: 600 13px system-ui, sans-serif; pointer-events: none; }
+
+        .net-node.neighbor circle { fill: #2d3a73; stroke: #6f8bff; }
+        .net-node.selected circle { fill: #8b8bff; stroke: #c7c7ff; stroke-width: 3.5; }
+        .net-node.selected text { fill: #0f1020; }
+
+        /* side panel */
+        .net-panel { background: #15162b; border: 1px solid #2a2a4d; border-radius: 16px; padding: 1rem 1.1rem; }
+        .net-panel h2 { margin: 0 0 .15rem; font-size: 1.05rem; }
+        .net-panel .net-muted { color: #a6a6c8; font-size: .85rem; margin: 0 0 .9rem; }
+        .net-neigh { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+        .net-neigh li { background: #1f2042; border: 1px solid #34346a; border-radius: 10px; padding: .45rem .7rem; font-weight: 600; font-size: .92rem; display: flex; justify-content: space-between; align-items: center; }
+        .net-neigh li .net-id { color: #8b8bff; font-size: .78rem; font-weight: 700; }
+        .net-empty { color: #8a8aac; font-size: .9rem; padding: .6rem 0; }
+
+        .net-reset { width: 100%; border: 1px solid #4a4a82; background: #1f2042; color: #e7e7f4; border-radius: 10px; padding: .55rem 0; cursor: pointer; font-weight: 700; font-size: .9rem; transition: background .12s ease; }
+        .net-reset:hover { background: #2d2d59; }
+        .net-reset:disabled { opacity: .45; cursor: default; }
+
+        .net-hint { text-align: center; color: #7d7da0; font-size: .82rem; margin-top: 1.4rem; }
+    </style>
+</head>
+<body>
+    <div class="net-shell">
+        <nav class="net-nav">
+            <span class="net-logo">▼ MotoView</span>
+            <span class="net-pill">SVG network</span>
+        </nav>
+        @yield
+    </div>
+</body>
+</html>

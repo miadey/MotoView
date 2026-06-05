@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { background: #faf9fc; color: #1c1b22; }
+        .blog-shell { max-width: 760px; margin: 0 auto; padding: 1.25rem; }
+        .blog-nav { display: flex; align-items: center; gap: 1rem; padding: .75rem 0 1.5rem; border-bottom: 1px solid var(--mv-border); margin-bottom: 2rem; }
+        .blog-brand { font-weight: 800; color: var(--mv-primary); font-size: 1.2rem; text-decoration: none; }
+        .blog-nav-links { margin-left: auto; display: flex; gap: 1.1rem; }
+        .blog-nav-links a { color: var(--mv-text-soft); text-decoration: none; font-weight: 600; font-size: .95rem; }
+        .blog-nav-links a:hover { color: var(--mv-primary); }
+
+        .post-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1.6rem; }
+        .post-list-item { border-bottom: 1px solid var(--mv-border); padding-bottom: 1.6rem; }
+        .post-list-item:last-child { border-bottom: none; }
+        .post-list-item h2 { margin: 0 0 .35rem; font-size: 1.5rem; line-height: 1.25; }
+        .post-list-item h2 a { color: #1c1b22; text-decoration: none; }
+        .post-list-item h2 a:hover { color: var(--mv-primary); }
+        .post-date { color: var(--mv-text-soft); font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+        .post-excerpt { color: #43424c; margin: .55rem 0 .35rem; line-height: 1.55; }
+        .post-readmore { font-weight: 700; color: var(--mv-primary); text-decoration: none; font-size: .9rem; }
+        .post-readmore:hover { text-decoration: underline; }
+
+        .article-head { margin-bottom: 1.5rem; }
+        .article-head h1 { margin: .35rem 0 .2rem; font-size: 2.1rem; line-height: 1.15; }
+        .article-body { line-height: 1.7; font-size: 1.05rem; color: #2b2a33; }
+        .article-body h2 { margin: 1.8rem 0 .6rem; font-size: 1.35rem; }
+        .article-body p { margin: 0 0 1.1rem; }
+        .article-body ul { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+        .article-body li { margin-bottom: .4rem; }
+        .article-body pre { background: #1c1b22; color: #f4f4f8; padding: .9rem 1.1rem; border-radius: 10px; overflow-x: auto; font-size: .9rem; }
+        .article-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .article-body p code, .article-body li code { background: #ecebf3; padding: .1rem .35rem; border-radius: 5px; font-size: .9em; }
+        .back-link { display: inline-block; margin-top: 2rem; color: var(--mv-text-soft); text-decoration: none; font-weight: 600; }
+        .back-link:hover { color: var(--mv-primary); }
+
+        .blog-footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--mv-border); color: var(--mv-text-soft); font-size: .85rem; text-align: center; }
+        .notfound { background: #fff; border: 1px solid var(--mv-border); border-radius: 14px; padding: 2rem; text-align: center; box-shadow: var(--mv-shadow); }
+    </style>
+</head>
+<body>
+    <div class="blog-shell">
+        <nav class="blog-nav">
+            <a class="blog-brand" href="/">▼ The Canister Log</a>
+            <span class="blog-nav-links">
+                <a href="/">Posts</a>
+                <a href="/about">About</a>
+            </span>
+        </nav>
+        @yield
+        <footer class="blog-footer">
+            Server-rendered on the Internet Computer with MotoView · no frontend JavaScript.
+        </footer>
+    </div>
+</body>
+</html>

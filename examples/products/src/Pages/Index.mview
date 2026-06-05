@@ -1,0 +1,73 @@
+@page "/"
+@layout ProductsLayout
+@title "Products — MotoView Store"
+@description "A products CRUD app built with MotoView — list, create, edit and delete, all on-chain with no frontend JavaScript."
+
+<div class="shop-header">
+    <div>
+        <h1>Products</h1>
+        <p class="shop-sub">@countText() in the catalog</p>
+    </div>
+    <a class="mv-btn mv-btn-primary mv-btn-large" href="/new">+ New product</a>
+</div>
+
+@if products.size() == 0 {
+    <div class="shop-card">
+        <p class="empty">No products yet. <a href="/new">Add your first product</a>.</p>
+    </div>
+} else {
+    <div class="shop-card">
+        <table class="mv-table prod-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for p in products {
+                    <tr key="@p.id">
+                        <td><strong>@p.name</strong></td>
+                        <td><span class="mv-badge">@p.category</span></td>
+                        <td class="price">@money(p.price)</td>
+                        <td>@stockCell(p.stock)</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="mv-btn mv-btn-secondary mv-btn-small" href="/edit/@p.id">Edit</a>
+                                <button class="mv-btn mv-btn-danger mv-btn-small" @click="remove(p.id)">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    var products : [Catalog.Product] = [];
+
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        products := Catalog.all();
+    };
+
+    func countText() : Text {
+        let n = Catalog.count();
+        if (n == 1) { "1 product" } else { Nat.toText(n) # " products" };
+    };
+
+    func money(n : Nat) : Text { "$" # Nat.toText(n) };
+
+    func stockCell(n : Nat) : Text {
+        if (n == 0) { "Out of stock" } else { Nat.toText(n) # " in stock" };
+    };
+
+    func remove(ctx : Context, id : Nat) : async () {
+        Catalog.delete(id);
+        toast("Product deleted");
+    };
+}
