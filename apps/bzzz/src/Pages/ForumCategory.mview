@@ -14,6 +14,12 @@
     </nav>
 
     @if found {
+        <Breadcrumb>
+            <BreadcrumbItem href="/">Home</BreadcrumbItem>
+            <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
+            <BreadcrumbItem current="true">@catName</BreadcrumbItem>
+        </Breadcrumb>
+
         <header class="fr-cat-head">
             <span class="fr-sq fr-sq-lg" style="background:@catColor"></span>
             <div class="fr-cat-head-body">
@@ -48,7 +54,7 @@
                                             <span class="fr-badge-name">@catNameOf(t.categoryId)</span>
                                         </a>
                                         @for tag in t.tags {
-                                            <span class="fr-pill">@tag</span>
+                                            <Tag>@tag</Tag>
                                         }
                                     </div>
                                 </td>

@@ -13,11 +13,16 @@
     <div class="ch-wrap bz-card">
         <header class="ch-head">
             <div class="ch-head-main">
+                <Breadcrumb>
+                    <BreadcrumbItem href="/servers">Servers</BreadcrumbItem>
+                    <BreadcrumbItem href="/servers/@(serverId)">Server</BreadcrumbItem>
+                    <BreadcrumbItem href="/channel/@(rid)" current="true">#@roomName</BreadcrumbItem>
+                </Breadcrumb>
                 <h1><span class="ch-hash">#</span>@roomName</h1>
                 <span class="ch-sub">@(liveCount) @plural(liveCount, "message", "messages") · @(onlineCount) online</span>
             </div>
             @if locked {
-                <span class="ch-lockchip">🔒 Locked — only moderators can post</span>
+                <Badge color="warning">🔒 Locked — only moderators can post</Badge>
             }
             <a class="ch-back" href="/servers/@(serverId)">↩ server</a>
         </header>

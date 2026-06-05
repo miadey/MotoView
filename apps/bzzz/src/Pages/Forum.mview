@@ -4,11 +4,18 @@
 @description "Browse categories and the latest topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer."
 
 <div class="fr-wrap">
+    <Breadcrumb>
+        <BreadcrumbItem href="/">Home</BreadcrumbItem>
+        <BreadcrumbItem href="/forum" current="true">Forum</BreadcrumbItem>
+    </Breadcrumb>
+
     <nav class="fr-subnav">
-        <a class="fr-tab active" href="/forum">Latest</a>
-        <a class="fr-tab" href="/forum?sort=new">New</a>
-        <a class="fr-tab" href="/forum?sort=top">Top</a>
-        <a class="fr-tab" href="#categories">Categories</a>
+        <TabList>
+            <Tab href="/forum" match="/forum">Latest</Tab>
+            <Tab href="/forum?sort=new" match="/forum?sort=new">New</Tab>
+            <Tab href="/forum?sort=top" match="/forum?sort=top">Top</Tab>
+            <Tab href="#categories" match="#categories">Categories</Tab>
+        </TabList>
         <span class="fr-subnav-spacer"></span>
         <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
     </nav>
@@ -58,7 +65,7 @@
                                         <span class="fr-badge-name">@catName(t.categoryId)</span>
                                     </a>
                                     @for tag in t.tags {
-                                        <span class="fr-pill">@tag</span>
+                                        <Tag>@tag</Tag>
                                     }
                                 </div>
                             </td>

@@ -51,16 +51,10 @@
                 @for c in convos {
                     <li>
                         <a class="bz-msg-row" href="/messages/@c.id">
-                            <span class="bz-msg-avatar">@rowAvatar(c)</span>
-                            <span class="bz-msg-body">
-                                <span class="bz-msg-toprow">
-                                    <span class="bz-msg-name">@rowTitle(c)</span>
-                                    <span class="bz-msg-time">@rowTime(c)</span>
-                                </span>
-                                <span class="bz-msg-preview">@rowKind(c)</span>
-                            </span>
+                            <Persona name="@rowTitle(c)" secondary="@rowKind(c)" avatar="@rowAvatar(c)" />
+                            <span class="bz-msg-time">@rowTime(c)</span>
                             @if (rowUnread(c) > 0) {
-                                <span class="bz-msg-badge">@rowUnread(c)</span>
+                                <Badge color="brand">@rowUnread(c)</Badge>
                             }
                         </a>
                     </li>

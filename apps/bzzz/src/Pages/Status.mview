@@ -41,9 +41,9 @@
         </form>
     </div>
 } else {
-    <Alert kind="info">
+    <MessageBar intent="info">
         Pick a handle on your <a href="/me">profile</a> to post a status.
-    </Alert>
+    </MessageBar>
 }
 
 <h2 class="bz-section-title">Live now</h2>
@@ -58,11 +58,7 @@
         @for s in statuses {
             <article class="bz-status-card" style="--c:@s.color">
                 <header class="bz-status-author">
-                    <span class="bz-status-ava">@(Identity.avatarOf(s.author))</span>
-                    <div class="bz-status-meta">
-                        <span class="bz-status-handle">@@@s.authorHandle</span>
-                        <span class="bz-status-time">@(Status.relativeTime(s.at))</span>
-                    </div>
+                    <Persona name="@("@" # s.authorHandle)" secondary="@(Status.relativeTime(s.at))" avatar="@(Identity.avatarOf(s.author))" />
                     <span class="bz-status-kind">@(Status.kindLabel(s.kind))</span>
                 </header>
                 @switch s.kind {

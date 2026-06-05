@@ -4,11 +4,13 @@
 @description pageDesc
 
 @if exists {
+    <Breadcrumb>
+        <BreadcrumbItem href="/feed">Home</BreadcrumbItem>
+        <BreadcrumbItem current="true">@@@handleText</BreadcrumbItem>
+    </Breadcrumb>
     <section class="bz-prof-head bz-card mv-anim-fadein">
-        <div class="bz-prof-ava">@avatar</div>
+        <Persona name="@display" secondary="@handleText" avatar="@avatar" />
         <div class="bz-prof-id">
-            <h1>@display</h1>
-            <p class="bz-prof-handle">@@@handleText</p>
             @if (Text.size(bio) > 0) {
                 <p class="bz-prof-bio">@bio</p>
             }
@@ -48,9 +50,7 @@
                 @for p in posts {
                     <article class="bz-post">
                         <div class="bz-post-head">
-                            <span class="bz-post-ava">@avatar</span>
-                            <span class="bz-post-name">@display</span>
-                            <span class="bz-post-handle">@@@handleText</span>
+                            <Persona name="@display" secondary="@handleText" avatar="@avatar" />
                             <span class="bz-post-dot">·</span>
                             <span class="bz-post-time">@ago(p.at)</span>
                         </div>

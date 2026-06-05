@@ -79,11 +79,7 @@
                     @for s in suggestions {
                         <li class="fd-suggest-row">
                             <a class="fd-suggest-id" href="/u/@s.handle">
-                                <span class="fd-ava fd-ava-sm">@s.avatar</span>
-                                <span class="fd-suggest-meta">
-                                    <span class="fd-suggest-name">@s.display</span>
-                                    <span class="fd-suggest-handle">@(at(s.handle))</span>
-                                </span>
+                                <Persona name="@s.display" secondary="@(at(s.handle))" avatar="@s.avatar" />
                             </a>
                             @if bound {
                                 <button class="fd-follow @(followClass(s.principal))" @click="toggleFollow(s.handle)" type="button">@(followLabel(s.principal))</button>
@@ -95,6 +91,8 @@
                 <p class="fd-panel-empty">No one else here yet. Invite a friend to Bzzz.</p>
             }
         </div>
+
+        <Divider />
 
         <div class="fd-panel bz-card">
             <h3 class="fd-panel-title">Your network</h3>

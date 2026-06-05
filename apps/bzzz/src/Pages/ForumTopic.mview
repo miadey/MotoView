@@ -8,6 +8,11 @@
 @if exists {
 
     <header class="ft-head">
+        <Breadcrumb>
+            <BreadcrumbItem href="/">Home</BreadcrumbItem>
+            <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
+            <BreadcrumbItem href="/forum/c/@categoryId" current="true">@catName</BreadcrumbItem>
+        </Breadcrumb>
         <div class="ft-cat">
             <span class="ft-cat-sq" style="--c:@catColor"></span>
             <a class="ft-cat-name" href="/forum/c/@categoryId">@catName</a>
@@ -21,7 +26,7 @@
         @if hasTags {
             <div class="ft-tags">
                 @for t in tags {
-                    <span class="ft-tag">@t</span>
+                    <Tag>@t</Tag>
                 }
             </div>
         }

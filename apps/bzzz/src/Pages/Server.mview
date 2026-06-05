@@ -12,6 +12,11 @@
 } else {
     <div class="sv-head bz-card">
         <div class="sv-head-main">
+            <Breadcrumb>
+                <BreadcrumbItem href="/">Home</BreadcrumbItem>
+                <BreadcrumbItem href="/servers">Servers</BreadcrumbItem>
+                <BreadcrumbItem current="true">@serverName</BreadcrumbItem>
+            </Breadcrumb>
             <div class="sv-title-row">
                 <h1>@serverName</h1>
                 <span class="sv-badge sv-badge-@kindClass">@kindLabel</span>
@@ -105,11 +110,7 @@
                     <ul class="sv-members">
                         @for mr in memberRows {
                             <li class="sv-member">
-                                <span class="sv-ava">@(avatarOf(mr.principal))</span>
-                                <span class="sv-member-main">
-                                    <span class="sv-member-handle">@(handleOf(mr.principal))</span>
-                                    <span class="sv-member-role sv-role-@(roleClass(mr.principal))">@(roleLabel(mr.principal))</span>
-                                </span>
+                                <Persona name="@(handleOf(mr.principal))" secondary="@(roleLabel(mr.principal))" avatar="@(avatarOf(mr.principal))" />
                                 @if canAdmin {
                                     @if isOwnerPrincipal(mr.principal) {
                                         <span class="sv-member-actions sv-owner-pill">Owner</span>

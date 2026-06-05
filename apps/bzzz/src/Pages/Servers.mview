@@ -50,9 +50,9 @@
                 <div class="srv-card-top">
                     <a class="srv-name" href="/servers/@(s.id)">@s.name</a>
                     @switch s.kind {
-                        case (#Discussion) { <span class="srv-badge srv-badge-discussion">Discussion</span> }
-                        case (#Forum) { <span class="srv-badge srv-badge-forum">Forum</span> }
-                        case (#Feed) { <span class="srv-badge srv-badge-feed">Feed</span> }
+                        case (#Discussion) { <Badge color="brand">Discussion</Badge> }
+                        case (#Forum) { <Badge color="brand">Forum</Badge> }
+                        case (#Feed) { <Badge color="brand">Feed</Badge> }
                     }
                 </div>
                 <p class="srv-summary">@(summaryOf(s.id))</p>
