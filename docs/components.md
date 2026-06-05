@@ -181,6 +181,17 @@ A small example:
 
 The form-oriented inputs pair with `bind=` and handler-side validation — see [Forms & Validation](forms.md) for the full flow.
 
+## Theming the components
+
+Every built-in is drawn from the **Fluent UI 2 design tokens**, so you re-theme the entire component set by changing tokens — never by touching component markup.
+
+- **Brand from one color.** `@theme brand="#107c41"` generates the full 16-step brand ramp plus every brand alias, for light *and* dark, from a single hex. Buttons, tabs, links, focus rings — everything brand-colored follows.
+- **Light & dark.** Automatic from the OS (`prefers-color-scheme`), or force it with `<html data-theme="dark">`. Drop in `<ThemeToggle/>` for a one-click switch — it persists the choice and applies it *before first paint*, so there's no flash, even on certified pages.
+- **The full Fluent theme set.** `<ThemePicker/>` is a dropdown of the official themes — **Web Light, Web Dark, Teams Light, Teams Dark, High Contrast** — exactly like the Fluent UI docs. The user's pick is remembered and overrides the app's brand.
+- **Complete variants, every theme.** Each component carries its complete variant matrix — every appearance, size, shape, color and state — and reads tokens rather than hard-coded colors, so all of it adapts to whichever theme is active.
+
+See it live: the **`/components`** gallery (every component with a copy-paste snippet) and the **`/variants`** gallery (every variant of every component, side by side). The full token reference, ramps, presets, and picker internals are in [Styling & Themes](styling-and-themes.md).
+
 ## Where to go next
 
 - [Events](events.md) — wiring `@click`, `@submit`, and friends.

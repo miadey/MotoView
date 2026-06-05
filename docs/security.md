@@ -1,155 +1,139 @@
 ---
 title: Security
-section: Architecture
+section: Security
 slug: security
 ---
 
 # Security
 
-MotoView pushes rendering, validation, and authorization into the canister. Because there is no application JavaScript and no separate API layer, there is also no second place for security rules to drift out of sync. The browser is a renderer; the canister is the source of truth.
+MotoView is **secure by construction**. Rendering, validation, and authorization all live inside the canister, there is **no application JavaScript** and **no separate API layer**, and the responses the browser receives are **certified by the chain**. There is simply no second place for security rules to drift out of sync: the browser is a renderer, the canister is the source of truth.
 
-This page covers secure forms, the HMAC token MotoView mints for them, replay and principal binding, the threat model, and what is still on the roadmap.
+This page walks the whole posture — the attack surface, certified responses, secure forms, authentication, authorization and roles, and zero-trust encryption — and ends with a threat-to-defense table.
+
+## The attack surface (what *isn't* there)
+
+A lot of a web app's security problems come from things MotoView doesn't have:
+
+- **No application JavaScript.** You don't ship app JS, so there's no app-level XSS sink, no `eval`, no dynamic code, no place to leak a key. The only JavaScript on the page is MotoView's small, audited framework glue (DOM sync, fetch, focus/scroll preservation) — it carries no business logic and is identical for every app.
+- **No npm / build-time supply chain.** No `node_modules`, no transitive dependency tree, no bundler plugins running arbitrary code at build time. The client "brain" is Rust → WASM, compiled reproducibly.
+- **No separate API to guard.** There's no REST/GraphQL layer that can disagree with the UI about who may do what. Handlers are typed Motoko functions in the same actor that renders the page.
+- **Output is escaped by default.** `@value` interpolation HTML-escapes; raw HTML requires the explicit, opt-in `@raw(...)`. So untrusted data can't become markup by accident.
+
+## Certified responses (integrity)
+
+What the browser renders is **provably what the canister produced**:
+
+- Static framework assets and pages you mark `@cacheable` are served as **certified queries** (HTTP response certification v2). The IC boundary verifies the canister's signature over the response bytes against the subnet's certified state — a boundary node or a man-in-the-middle cannot tamper with them undetected.
+- Every dynamic page and every mutation goes through **`http_request_update`** — an update call validated by subnet **consensus**, so it is always fresh and agreed-upon, never a stale or forged read.
+
+In short: certified for the static, consensus for the dynamic. There is no "trust the CDN" step.
 
 ## Secure forms
 
-Mark any form that mutates state with the `secure` attribute. Inputs bind to your model with `bind`, and the handler runs server-side.
+Mark any form that mutates state with `secure`. Inputs `bind` to your model; the handler runs server-side.
 
 ```razor
 <form @submit="send" secure>
   <InputText  name="name"  label="Name"  bind="@model.name"  required />
   <InputEmail name="email" label="Email" bind="@model.email" required />
   <ValidationSummary />
-  <Button kind="primary">Send</Button>
+  <Button appearance="primary">Send</Button>
 </form>
 ```
 
-When the form is rendered, MotoView mints a signed token and embeds it in the form. The token is not a session cookie and it is not a CSRF nonce alone — it is a MAC over the exact request that is allowed to follow.
+When the form renders, MotoView mints a signed token and embeds it. It is **not** a bare CSRF nonce and **not** a session cookie — it is a MAC over the exact request that is allowed to follow.
 
-## The token
+### The token
 
-The token is an **HMAC-SHA256** value computed by the canister over a tuple that binds the submission to a specific context:
+An **HMAC-SHA256** value the canister computes over a tuple that binds the submission to a specific context:
 
 - **path** — the page the form was rendered on
-- **handler** — the event handler that is permitted to run (`send`)
+- **handler** — the one event handler permitted to run (`send`)
 - **principal** — the caller's IC principal at render time
 - **nonce** — a single-use random value
 - **expiry** — an absolute deadline after which the token is dead
-- **schema hash** — a hash of the form's field schema (names and constraints)
+- **schema hash** — a hash of the form's field schema (names + constraints)
 
-SHA-256 and HMAC are implemented in Motoko and verified against standard test vectors, so the MAC is the same primitive a server would compute anywhere else — there is no JavaScript crypto in the trust path.
-
-On submit, the [event](events.md) is delivered as a `POST` to `/_motoview/event`, served by `http_request_update`. The canister re-derives the MAC from the live request — the actual path, the resolved handler, the *current* caller principal, and the field schema it expects — and compares it to the token. Any mismatch is rejected before the handler runs.
+SHA-256 and HMAC are implemented in Motoko and verified against standard test vectors — there is no JavaScript crypto in the trust path. On submit, the event is delivered as a `POST` to `/_motoview/event` (served by `http_request_update`); the canister re-derives the MAC from the *live* request and rejects any mismatch before the handler runs.
 
 ```motoko
-// Conceptual shape of what the canister checks before dispatch.
 let expected = HMAC.sha256(secretKey, encode(path, handler, caller, nonce, expiry, schemaHash));
-if (token != expected)          return reject("bad token");
-if (now() > expiry)             return reject("expired");
-if (nonceStore.seen(nonce))     return reject("replay");
+if (token != expected)      return reject("bad token");
+if (now() > expiry)         return reject("expired");
+if (nonceStore.seen(nonce)) return reject("replay");
 ```
 
-### Replay protection
+This single token gives you four protections at once:
 
-Each token carries a single-use **nonce** and an **expiry**. A captured submission cannot be replayed: once a nonce is consumed it is rejected, and once the expiry passes the token is worthless even if the nonce were never seen. This closes the window on both double-submits and captured-then-resent requests.
+- **CSRF / cross-origin submits** — it can't be forged without the canister's secret key (minted from `raw_rand` at first boot; never leaves the canister).
+- **Replay** — single-use nonce + expiry: a captured submission can't be resent.
+- **Principal substitution** — bound to the caller principal at render time; a token minted for one caller won't verify for another. Authorization is *cryptographic*, not advisory.
+- **Field tampering** — the schema hash binds the allowed field set; added or renamed fields diverge the hash and are rejected.
 
-### Principal binding
+And there's no client-side-only validation to bypass — the `validate { … }` rules run in the handler. See [Forms & Validation](forms.md).
 
-The token is bound to the **caller principal** present when the form was rendered. The canister compares that to the principal making the submit call. A token minted for one caller cannot be lifted and submitted by another — the re-derived MAC will not match. This means authorization is not advisory: it is cryptographically tied to who is allowed to act.
+## Authentication — Internet Identity
 
-### Schema binding
+Sign-in uses **Internet Identity** (passkeys / WebAuthn) — **no passwords**, hand-rolled with no npm or `agent-js`:
 
-The **schema hash** covers the form's declared fields and their constraints. If an attacker tampers with field names or adds fields the handler never declared, the re-derived hash diverges and the request is rejected. Validation still runs server-side regardless — see [Forms & Validation](forms.md) — but schema binding stops malformed submissions before that point.
+- The browser makes **one** authenticated update call the IC has cryptographically verified; the canister records the real signed-in principal.
+- The canister then mints a short, HMAC-signed **httpOnly session cookie**. Because it's `httpOnly`, page JavaScript cannot read or steal it; `ctx.caller` resolves from it on every later request.
+- The login nonce is **server-generated and browser-bound** (an httpOnly `mv_login` cookie), which prevents login-CSRF and nonce theft, and the II `postMessage` flow is pinned to the exact II origin.
+- Sessions are **revocable per principal** (an epoch bump invalidates outstanding cookies) and survive canister upgrades.
 
-## Threat model
+Drop in a `<button data-mv-signin>` and it's wired automatically.
 
-What MotoView defends against today:
+## Authorization — roles & scopes
 
-- **CSRF / cross-origin submits** — the token cannot be forged without the canister's secret key.
-- **Replay** — single-use nonces plus expiry.
-- **Principal substitution** — the MAC is bound to the caller principal.
-- **Field tampering** — the schema hash binds the allowed field set.
-- **Client-side validation bypass** — there is no client-side-only validation to bypass; rules live in the handler.
-
-What it does **not** attempt to solve: it is not a transport layer (IC boundary nodes and `http_request_update` handle that), and it does not by itself encrypt stored state. Tokens authenticate *requests*; they do not authenticate *users* across sessions — that is the job of authentication, below.
-
-## Authorization
-
-Pages and handlers can require authorization with `@authorize`, optionally scoped to a role:
+Gate pages and handlers with `@authorize`, optionally scoped to a role:
 
 ```razor
 @page "/admin"
 @authorize role="Admin"
 ```
 
-`@authorize` (no role) requires an authenticated caller — a principal resolved
-from the [Internet Identity session](security.md). `@authorize role="Admin"`
-additionally requires the caller to **hold that role** in the runtime's role
-store; otherwise the page redirects to `/` and its content never renders.
+`@authorize` (no role) requires an authenticated caller; `role="Admin"` additionally requires the caller to **hold that role** in the runtime's persisted role store — otherwise the page redirects and its content never renders (server-side; not a hidden div).
 
-### The role store
+Manage roles from any handler via the request context — `hasRole(who, role)`, `callerRoles()`, `grantRole`, `revokeRole`, and `claimRole(role)` (first-come bootstrap for the first admin). The store is a `stable var`, so grants survive `dfx deploy --mode upgrade`.
 
-Roles are assigned per principal and persist across upgrades. Manage them from
-any handler through the request context:
-
-```razor
+```motoko
 @code {
-  // First-come bootstrap: grant "Admin" to the caller iff nobody holds it yet.
-  func claimAdmin(ctx : Context) : async () {
-    ignore ctx.claimRole("Admin");
-  };
-
-  // An existing admin grants/revokes others.
+  func claimAdmin(ctx : Context) : async () { ignore ctx.claimRole("Admin"); };
   func makeEditor(ctx : Context) : async () {
-    if (ctx.hasRole(ctx.caller, "Admin")) {
-      ctx.grantRole(somePrincipal, "Editor");
-    };
+    if (ctx.hasRole(ctx.caller, "Admin")) { ctx.grantRole(somePrincipal, "Editor"); };
   };
 }
 ```
 
-The context exposes `hasRole(who, role)`, `callerRoles()`, `grantRole(who, role)`,
-`revokeRole(who, role)`, and `claimRole(role)` (claims for the caller, first-come).
-Reads are safe anywhere; mutations should run in event handlers (updates). The
-store is backed by a `stable var` in the generated actor, so role assignments
-survive `dfx deploy --mode upgrade`.
+For a fuller picture, apps can build a **scoped** role model on top of this — global tiers (e.g. SuperAdmin / Admin / Moderator) plus per-resource roles (e.g. per-server Owner/Admin/Moderator/Member), with the page combining the two so a global staffer can act in any scope. The flagship Bzzz app ships exactly this, with an Admin Console; the framework primitive (`@authorize` + the role store) is what backs it.
 
-## vetKeys (threshold encryption)
+## Zero-trust encryption — vetKeys, the browser decrypts locally
 
-Every MotoView actor exposes two vetKeys endpoints for identity-based encryption
-(IBE), so an app can give each user encrypted state only they can read:
+For data the canister itself must never read, MotoView ships **end-to-end encryption with vetKeys** — the **browser decrypts locally** and the canister holds **only ciphertext**.
 
-- `mvVetkdPublicKey()` → the 96-byte BLS12-381 master public key for the app's
-  context. Free; reveals no secret.
-- `mvVetkdDeriveKey(transportKey)` → a 192-byte vetKey for the **caller's
-  principal**, encrypted to a client-generated transport key. The canister
-  attaches the cycles and calls the management canister; it never sees the
-  plaintext key.
+- Every actor exposes the endpoints `GET /_motoview/vetkd/public-key` (the BLS12-381 master key) and `POST /_motoview/vetkd/derive` (a vetKey bound to the **session caller's** principal — only they can unwrap it). The threshold key is derived across the subnet; **no single node holds it**, and the canister never sees the plaintext key.
+- All the crypto (BLS unwrap + identity-based encrypt/decrypt) runs in a **Rust → WASM** module in the browser (`ic-vetkeys`). Two declarative attributes make it JS-free for apps: `data-mv-encrypt` (a form field is IBE-encrypted *before* it's sent) and `data-mv-decrypt="<ciphertext>"` (decrypted in place on render). The canister stores ciphertext and audits each access; it can prove *who did what, when* without ever reading the data.
 
-The threshold key is derived across the subnet (no single node holds it). The
-BLS unwrap and the IBE encrypt/decrypt run in the **client** (the Rust brain via
-[`ic-vetkeys`](https://crates.io/crates/ic-vetkeys)), never in the canister.
-Because the derivation `input` is the caller's principal, each user gets their
-own key — encrypt a secret to a principal, store the ciphertext, and only that
-principal can recover it.
+So a compromised canister or a curious node operator sees only ciphertext. This is verified end to end on a deployed canister, and there's a worked `examples/vault` (a per-user encrypted notes app). Full walkthrough: [Building a Zero-Trust App](zero-trust.md). (Local dfx uses `dfx_test_key`; mainnet uses `key_1`. The crypto is opt-in — it's only fetched when an app uses it — so non-crypto apps keep the lean default brain.)
 
-This canister foundation is verified end to end against a real local replica with
-the real client crypto — see [`tools/vetkeys-roundtrip`](../tools/vetkeys-roundtrip)
-(`ROUND_TRIP_OK`: derive → unwrap → IBE encrypt/decrypt recovers the plaintext).
-Local dfx uses the `dfx_test_key`; switch the key name to `key_1` for mainnet
-(`runtime/src/VetKeys.mo`).
+## Denial-of-service
 
-> **Next:** shipping the same `ic-vetkeys` crypto *inside the browser brain* (so a
-> page encrypts/decrypts with no external tool) is the in-progress step. It is
-> opt-in: the crypto adds ~300 KB to the wasm, so apps that don't use vetKeys
-> keep the lean ~76 KB brain.
+The update path enforces a request-size cap, and the certified-query path serves static assets without consuming a consensus round. Heavy reads should be `@cacheable` so they're served as queries rather than updates.
 
-## Roadmap
+## Threat → defense
 
-These are planned and **not yet implemented**:
+| Threat | Defense |
+|---|---|
+| Cross-site request forgery | secure-form HMAC token (can't forge without the canister secret) + browser-bound login nonce |
+| Replay / double-submit | single-use nonce + token expiry |
+| Acting as another user | token bound to the caller principal; httpOnly session resolves `ctx.caller` |
+| Field tampering / over-posting | schema-hash binding rejects unexpected fields |
+| Client validation bypass | validation runs server-side in the handler |
+| Response tampering / stale reads | certified queries (static/`@cacheable`) + consensus updates (dynamic) |
+| XSS from app code | no application JavaScript; output escaped by default (`@raw` is explicit) |
+| Supply-chain / dependency attacks | no npm; reproducible Rust→WASM client |
+| Session theft via JS | httpOnly session cookie; per-principal revocation |
+| Privilege escalation | `@authorize` + persisted role store enforced server-side |
+| Canister/operator reading private data | vetKeys E2E encryption — only ciphertext on-chain, browser decrypts locally |
 
-- **In-browser vetKeys brain** — the client-side IBE (above) wired into the
-  shipped brain + an example app; the canister endpoints and crypto are proven,
-  the browser integration is the remaining work.
-- **Role hierarchies / wildcard scopes** — today roles are flat string grants.
-
-Until those land, build on what is verified: secure forms, HMAC token binding, replay and principal protection, and server-side validation.
+Build on what is verified end to end: secure forms, certified responses, Internet Identity, role-based authorization, and zero-trust vetKeys encryption.

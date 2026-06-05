@@ -21,12 +21,13 @@ OUT = os.path.normpath(os.path.join(HERE, "..", "src", "Services", "Docs.mo"))
 
 # Sidebar order: (Section, [slugs]). persistence added under Interactivity.
 NAV = [
-    ("Prologue", ["introduction", "why-motoview"]),
+    ("Prologue", ["introduction", "why-motoview", "whats-new"]),
     ("Getting Started", ["installation", "quickstart", "project-structure"]),
     ("The .mview Format", ["mview-files", "pages-and-routing", "layouts", "components", "control-flow"]),
     ("Interactivity", ["events", "forms", "validation", "state", "persistence", "drag-drop-and-effects"]),
     ("Styling", ["styling-and-themes", "svg"]),
-    ("Architecture", ["protocol", "security", "client-bridge", "runtime"]),
+    ("Security", ["security", "zero-trust"]),
+    ("Architecture", ["protocol", "client-bridge", "runtime"]),
     ("Deployment", ["deployment", "cli"]),
     ("Tooling", ["ai-tools"]),
     ("Reference", ["directives-reference", "roadmap"]),
