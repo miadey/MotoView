@@ -810,7 +810,7 @@ module {
     /// protocol/session endpoints (`/_motoview/*`, `/mv-session`, …) are never
     /// cached. A bumped cache name + activate cleanup retires old versions.
     func serviceWorker() : Text {
-      "var C='motoview-v2';\n"
+      "var C='motoview-v3';\n"
       # "var SHELL=['/motoview.js','/motoview.wasm','/motoview.css','/mv-auth.js','/favicon.svg','/manifest.webmanifest'];\n"
       # "function dyn(p){return p.indexOf('/_motoview/')===0||p==='/mv-session'||p==='/mv-login-begin'||p==='/mv-whoami'||p==='/mv-logout';}\n"
       # "self.addEventListener('install',function(e){self.skipWaiting();e.waitUntil(caches.open(C).then(function(c){return c.addAll(SHELL).catch(function(){});}));});\n"
