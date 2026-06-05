@@ -1,0 +1,32 @@
+@theme brand="#107c41"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase); }
+        .vault { max-width: 720px; margin: 0 auto; padding: var(--spacingVerticalXXL) var(--spacingHorizontalL); }
+        .v-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: var(--spacingVerticalL); }
+        .v-head h1 { margin: 0 0 .2rem; font-size: var(--fontSizeHero700, 28px); }
+        .v-sub { margin: 0; color: var(--colorNeutralForeground3); max-width: 52ch; }
+        .v-card { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke1); border-radius: var(--borderRadiusXLarge); box-shadow: var(--shadow2); padding: var(--spacingVerticalL) var(--spacingHorizontalL); margin: var(--spacingVerticalL) 0; }
+        .v-card h2 { margin: 0 0 .8rem; font-size: var(--fontSizeBase500); font-weight: var(--fontWeightSemibold); }
+        .v-actions { margin-top: .7rem; }
+        .v-notes, .v-audit { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
+        .v-note { border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusMedium); padding: .7rem .9rem; }
+        .v-note-text { display: block; font-size: var(--fontSizeBase400); white-space: pre-wrap; }
+        .v-cipher { margin-top: .4rem; }
+        .v-cipher summary { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); cursor: pointer; }
+        .v-cipher code { display: block; margin-top: .3rem; word-break: break-all; font-size: 11px; color: var(--colorNeutralForeground4); background: var(--colorNeutralBackground3); padding: .4rem .5rem; border-radius: var(--borderRadiusSmall); }
+        .v-empty { color: var(--colorNeutralForeground3); }
+        .v-audit li { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2); display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--colorNeutralStroke3); padding: .3rem 0; }
+        .v-audit-who { color: var(--colorNeutralForeground4); font-family: var(--fontFamilyMonospace, monospace); font-size: 11px; }
+    </style>
+</head>
+<body>
+    @yield
+</body>
+</html>

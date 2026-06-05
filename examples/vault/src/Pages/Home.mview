@@ -1,0 +1,79 @@
+@page "/"
+@layout VaultLayout
+@title "Encrypted Vault — MotoView zero-trust"
+@description "A zero-trust encrypted notes vault on the Internet Computer: notes are encrypted in your browser with vetKeys and stored on-chain as ciphertext the canister can never read."
+
+<section class="vault">
+    <header class="v-head">
+        <div>
+            <h1>🔐 Encrypted Vault</h1>
+            <p class="v-sub">Notes are encrypted in your browser (vetKeys + IBE) and stored on-chain as ciphertext. The canister can never read them — only you can decrypt, locally.</p>
+        </div>
+        <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
+    </header>
+
+    <MessageBar intent="info">Your browser derives a vetKey bound to your principal and does the encrypt/decrypt. The server only ever sees the ciphertext shown under each note.</MessageBar>
+
+    <div class="v-card">
+        <h2>Add a note</h2>
+        <form @submit="addNote" secure>
+            <textarea name="note" class="mv-textarea" placeholder="Type a secret note — it is encrypted before it leaves your browser…" data-mv-encrypt required></textarea>
+            <div class="v-actions">
+                <Button appearance="primary" type="submit">Encrypt &amp; save</Button>
+            </div>
+        </form>
+    </div>
+
+    <div class="v-card">
+        <h2>Your notes (@noteCount)</h2>
+        @if (noteCount > 0) {
+            <ul class="v-notes">
+                @for n in notes {
+                    <li class="v-note">
+                        <span class="v-note-text" data-mv-decrypt="@n.ciphertext">🔒 decrypting…</span>
+                        <details class="v-cipher"><summary>what the server stored (ciphertext)</summary><code>@n.ciphertext</code></details>
+                    </li>
+                }
+            </ul>
+        } else {
+            <p class="v-empty">No notes yet. Add one above — it'll be encrypted before it leaves your browser.</p>
+        }
+    </div>
+
+    <div class="v-card">
+        <h2>Server-side audit log</h2>
+        <ul class="v-audit">
+            @for a in audit {
+                <li><span>@a.action</span> <span class="v-audit-who">@a.who</span></li>
+            }
+        </ul>
+    </div>
+</section>
+
+@code {
+    var notes : [Vault.Note] = [];
+    var noteCount : Nat = 0;
+    var audit : [Vault.Audit] = [];
+
+    func reload(ctx : Context) {
+        notes := Vault.notesOf(ctx.caller);
+        noteCount := notes.size();
+        audit := Vault.recentAudit(8);
+    };
+
+    func onLoad(ctx : Context) { reload(ctx); };
+
+    func formGet(ctx : Context, k : Text) : Text {
+        for ((kk, vv) in ctx.form.vals()) { if (kk == k) { return vv } };
+        "";
+    };
+
+    func addNote(ctx : Context) : async () {
+        let ct = formGet(ctx, "note");
+        if (Text.size(ct) > 0) {
+            Vault.add(ctx.caller, ct);
+            toast("Encrypted note stored on-chain.");
+        };
+        reload(ctx);
+    };
+}

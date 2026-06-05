@@ -123,6 +123,7 @@
     var sx = window.scrollX, sy = window.scrollY;
 
     el.innerHTML = html;
+    mvDecryptRendered(); // decrypt any [data-mv-decrypt] in the new render
 
     // restore the field the user was editing
     if (snap && snap.key) {
@@ -336,6 +337,20 @@
     var form = ev.target;
     if (!form || form.tagName !== "FORM" || !form.getAttribute("data-mv-handler")) return;
     ev.preventDefault();
+    // Zero-trust: fields marked [data-mv-encrypt] are IBE-encrypted in the browser
+    // before the form is sent, so the canister only ever receives ciphertext.
+    var encFields = form.querySelectorAll("[data-mv-encrypt]");
+    if (encFields.length && window.mvCrypto) {
+      var jobs = [];
+      for (var i = 0; i < encFields.length; i++) {
+        (function (f) { jobs.push(mvCrypto.encrypt(f.value).then(function (ct) { f.value = ct; })); })(encFields[i]);
+      }
+      Promise.all(jobs).then(function () { submitForm(form); }).catch(function (e) { console.error("[motoview] encrypt failed", e); });
+      return;
+    }
+    submitForm(form);
+  }
+  function submitForm(form) {
     var parts = [enc1("__mv_handler", form.getAttribute("data-mv-handler")), enc1("__mv_event", "submit")];
     var fd = new FormData(form);
     fd.forEach(function (v, k) { parts.push(enc1(k, v)); });
@@ -345,6 +360,23 @@
       parts.push(enc1("__mv_schema", form.getAttribute("data-mv-schema") || ""));
     }
     emit(parts.join("&"));
+  }
+
+  // Zero-trust: decrypt any [data-mv-decrypt="<base64 ciphertext>"] element in the
+  // browser, so the canister only ever served ciphertext. Idempotent.
+  function mvDecryptRendered() {
+    if (!window.mvCrypto) return;
+    var els = document.querySelectorAll("[data-mv-decrypt]");
+    for (var i = 0; i < els.length; i++) {
+      (function (el) {
+        if (el.__mvDec) return; el.__mvDec = true;
+        var ct = el.getAttribute("data-mv-decrypt");
+        if (!ct) return;
+        if (!el.textContent) el.textContent = "🔒 decrypting…";
+        mvCrypto.decrypt(ct).then(function (pt) { el.textContent = pt; el.setAttribute("data-mv-decrypted", "1"); })
+          .catch(function () { el.textContent = "🔒 locked"; });
+      })(els[i]);
+    }
   }
 
   function onInput(ev) {
@@ -441,6 +473,8 @@
     document.addEventListener("visibilitychange", function () {
       if (wasm) wasm.mv_on_visibility(document.hidden ? 1 : 0);
     });
+
+    mvDecryptRendered(); // decrypt any server-rendered ciphertext on first paint
 
     // Register the offline-first service worker the canister serves at /sw.js,
     // so every MotoView app is an installable PWA that works offline. Best
