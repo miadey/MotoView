@@ -804,18 +804,22 @@ module {
 
     /// An offline-first service worker. On install it precaches the app shell
     /// (the WASM client + CSS + auth glue + icon), so the app loads with no
-    /// network. At runtime: immutable framework assets are cache-first; page
+    /// network. At runtime: framework assets use stale-while-revalidate (cache + background
+    /// refresh, so redeploys propagate); page
     /// navigations are network-first with a cache fallback (so a page you've
     /// visited still opens offline, showing its last-seen content); the live
     /// protocol/session endpoints (`/_motoview/*`, `/mv-session`, …) are never
     /// cached. A bumped cache name + activate cleanup retires old versions.
     func serviceWorker() : Text {
-      "var C='motoview-v3';\n"
+      "var C='motoview-v4';\n"
       # "var SHELL=['/motoview.js','/motoview.wasm','/motoview.css','/mv-auth.js','/favicon.svg','/manifest.webmanifest'];\n"
       # "function dyn(p){return p.indexOf('/_motoview/')===0||p==='/mv-session'||p==='/mv-login-begin'||p==='/mv-whoami'||p==='/mv-logout';}\n"
       # "self.addEventListener('install',function(e){self.skipWaiting();e.waitUntil(caches.open(C).then(function(c){return c.addAll(SHELL).catch(function(){});}));});\n"
       # "self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){if(k!==C){return caches.delete(k);}}));}).then(function(){return self.clients.claim();}));});\n"
-      # "function cacheFirst(req){return caches.open(C).then(function(c){return c.match(req).then(function(h){return h||fetch(req).then(function(r){if(r&&r.ok){c.put(req,r.clone());}return r;});});});}\n"
+      // Stale-while-revalidate for shell assets: serve cache instantly (fast +
+      // offline) AND refresh the cache from the network in the background, so a
+      // redeploy's new CSS/JS/wasm propagates on the next load (no manual cache bump).
+      # "function cacheFirst(req){return caches.open(C).then(function(c){return c.match(req).then(function(h){var f=fetch(req).then(function(r){if(r&&r.ok){c.put(req,r.clone());}return r;}).catch(function(){return h;});return h||f;});});}\n"
       # "function netFirst(req){return caches.open(C).then(function(c){return fetch(req).then(function(r){if(r&&r.ok){c.put(req,r.clone());}return r;}).catch(function(){return c.match(req).then(function(h){return h||c.match('/');});});});}\n"
       # "self.addEventListener('fetch',function(e){var req=e.request;if(req.method!=='GET'){return;}var u=new URL(req.url);if(u.origin!==self.location.origin){return;}var p=u.pathname;if(dyn(p)){return;}"
       # "if(SHELL.indexOf(p)!==-1){e.respondWith(cacheFirst(req));return;}"
