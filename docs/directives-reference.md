@@ -131,12 +131,14 @@ usually the item's id:
 </ul>
 ```
 
-`key="@item.id"` compiles to `data-mv-key`. When a re-render keeps the same keys
-in the same order and only some items' content changed, the brain (the Rust→WASM
-client) replaces *only* the changed items — every other node is left untouched,
-so its focus, selection, scroll and media state survive. Structural changes
-(adding, removing or reordering keyed items, or a change to the surrounding
-markup) safely fall back to a full re-render. All of this logic runs in WASM;
+`key="@item.id"` compiles to `data-mv-key`. On a re-render, the brain (the
+Rust→WASM client) diffs the keyed regions and touches only what changed:
+content-only changes **replace** just those items; added, removed and reordered
+items are **inserted, removed and moved** (a reorder moves the minimum number of
+nodes). Every node that doesn't change keeps its identity — so its focus,
+selection, scroll and media state survive an update to its siblings, and even a
+reorder *moves* a node rather than recreating it. A change to the surrounding
+markup safely falls back to a full re-render. All of this logic runs in WASM;
 there is no application JavaScript.
 
 ## Events

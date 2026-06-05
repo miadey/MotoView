@@ -75,6 +75,15 @@
       host_replace_keyed: function (tPtr, tLen, kPtr, kLen, hPtr, hLen) {
         replaceKeyed(readStr(tPtr, tLen), readStr(kPtr, kLen), readStr(hPtr, hLen));
       },
+      host_remove_keyed: function (tPtr, tLen, kPtr, kLen) {
+        removeKeyed(readStr(tPtr, tLen), readStr(kPtr, kLen));
+      },
+      host_insert_keyed: function (tPtr, tLen, hPtr, hLen, aPtr, aLen) {
+        insertKeyed(readStr(tPtr, tLen), readStr(hPtr, hLen), readStr(aPtr, aLen));
+      },
+      host_move_keyed: function (tPtr, tLen, kPtr, kLen, aPtr, aLen) {
+        moveKeyed(readStr(tPtr, tLen), readStr(kPtr, kLen), readStr(aPtr, aLen));
+      },
       host_effect: function (kPtr, kLen, tPtr, tLen, vPtr, vLen) {
         runEffect(readStr(kPtr, kLen), readStr(tPtr, tLen), readStr(vPtr, vLen));
       },
@@ -155,6 +164,52 @@
           if (snap.start != null && next.setSelectionRange && /text|search|url|tel|password|textarea/i.test(snap.type || next.tagName)) next.setSelectionRange(snap.start, snap.end);
         } catch (e) {}
       }
+    }
+  }
+
+  // The other keyed primitives the brain commands — all dumb DOM ops.
+  function rootFor(targetId) {
+    return document.getElementById(targetId) || document.querySelector("[data-mv-root]");
+  }
+  function findKeyed(root, key) {
+    return root.querySelector("[data-mv-key=" + cssEscape(key) + "]");
+  }
+  function nodeFromHtml(html) {
+    var tpl = document.createElement("template");
+    tpl.innerHTML = html;
+    return tpl.content.firstElementChild;
+  }
+  function removeKeyed(targetId, key) {
+    var root = rootFor(targetId);
+    if (!root) return;
+    var n = findKeyed(root, key);
+    if (n && n.parentNode) n.parentNode.removeChild(n);
+  }
+  function insertKeyed(targetId, html, afterKey) {
+    var root = rootFor(targetId);
+    if (!root) return;
+    var node = nodeFromHtml(html);
+    if (!node) return;
+    if (afterKey) {
+      var a = findKeyed(root, afterKey);
+      if (a) a.parentNode.insertBefore(node, a.nextSibling);
+    } else {
+      var first = root.querySelector("[data-mv-key]");
+      if (first) first.parentNode.insertBefore(node, first);
+      else root.appendChild(node);
+    }
+  }
+  function moveKeyed(targetId, key, afterKey) {
+    var root = rootFor(targetId);
+    if (!root) return;
+    var node = findKeyed(root, key);
+    if (!node) return;
+    if (afterKey) {
+      var a = findKeyed(root, afterKey);
+      if (a && a !== node) a.parentNode.insertBefore(node, a.nextSibling);
+    } else {
+      var first = root.querySelector("[data-mv-key]");
+      if (first && first !== node) first.parentNode.insertBefore(node, first);
     }
   }
 

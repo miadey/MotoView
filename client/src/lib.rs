@@ -170,9 +170,18 @@ impl Bridge {
                 // the decision logic is here in the brain — the hands just apply.
                 let old = self.last_html.get(&target).cloned().unwrap_or_default();
                 match diff::plan(&old, &html) {
-                    diff::Plan::Patch(patches) => {
-                        for (key, region_html) in &patches {
-                            host::replace_keyed(&target, key, region_html);
+                    diff::Plan::Patch(ops) => {
+                        for op in &ops {
+                            match op {
+                                diff::Op::Replace { key, html } => host::replace_keyed(&target, key, html),
+                                diff::Op::Remove { key } => host::remove_keyed(&target, key),
+                                diff::Op::Insert { html, after } => {
+                                    host::insert_keyed(&target, html, after.as_deref().unwrap_or(""))
+                                }
+                                diff::Op::Move { key, after } => {
+                                    host::move_keyed(&target, key, after.as_deref().unwrap_or(""))
+                                }
+                            }
                         }
                     }
                     diff::Plan::Full => host::apply_html(&target, &html),

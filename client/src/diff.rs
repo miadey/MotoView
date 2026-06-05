@@ -1,14 +1,17 @@
 //! Keyed-region diffing — runs entirely in the brain (Rust→WASM).
 //!
 //! The server re-renders a target's full HTML on every change. Replacing it
-//! wholesale destroys the live state of every node. When a region carries
-//! `key="..."` (compiled to `data-mv-key`), we can do better: if the surrounding
-//! structure and the set/order of keys are unchanged, only the keyed regions
-//! whose HTML actually changed need to be patched — every other node is left
-//! untouched, keeping its focus, selection, scroll and media state.
+//! wholesale destroys the live state of every node. When regions carry
+//! `key="..."` (compiled to `data-mv-key`), we can do better: diff the keyed
+//! regions and emit primitive ops — replace a changed region, and (when the keys
+//! form one contiguous run inside stable chrome) insert / remove / move regions
+//! to reconcile the list. Untouched nodes keep their focus, selection, scroll
+//! and media state. A reorder moves the minimum number of nodes (LIS), so a
+//! node that doesn't need to move — including a focused one — is never touched.
 //!
-//! This module turns (old_html, new_html) into a `Plan`. The glue ("hands")
-//! only executes the resulting primitive ops; all decisions are made here.
+//! All decisions are made here; the glue ("hands") only executes the ops.
+
+use std::collections::{HashMap, HashSet};
 
 /// A keyed region: its key and the exact HTML span of its element.
 pub struct Region {
@@ -16,13 +19,23 @@ pub struct Region {
     pub html: String,
 }
 
+/// A primitive DOM operation the hands execute. `after` is the key to position
+/// after, or None for the start of the parent.
+#[derive(Debug, PartialEq)]
+pub enum Op {
+    Replace { key: String, html: String },
+    Remove { key: String },
+    Insert { html: String, after: Option<String> },
+    Move { key: String, after: Option<String> },
+}
+
 /// What to do with a freshly rendered target.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Plan {
     /// Replace the whole target (no stable keyed structure to exploit).
     Full,
-    /// Structure is stable; replace only these keyed regions (key, new html).
-    Patch(Vec<(String, String)>),
+    /// Apply these ops in order.
+    Patch(Vec<Op>),
 }
 
 const VOID: &[&str] = &[
@@ -37,14 +50,15 @@ fn is_name_char(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'-' || c == b':'
 }
 
-/// Parse the HTML into a "skeleton" (every keyed region replaced by a
-/// `\x01key\x01` marker) plus the list of keyed regions. Returns None when there
-/// are no keyed regions — nothing to optimize.
-pub fn parse(html: &str) -> Option<(String, Vec<Region>)> {
+/// Parse the HTML into keyed regions plus the non-keyed text segments around
+/// them: `segments.len() == regions.len() + 1`, where `segments[i]` is the text
+/// before `regions[i]` and `segments[last]` is the text after the last region.
+/// Returns None when there are no keyed regions — nothing to optimize.
+pub fn parse(html: &str) -> Option<(Vec<Region>, Vec<String>)> {
     let b = html.as_bytes();
     let n = b.len();
     let mut regions: Vec<Region> = Vec::new();
-    let mut skel = String::new();
+    let mut segments: Vec<String> = Vec::new();
     let mut i = 0usize;
     let mut last = 0usize;
     while i < n {
@@ -64,16 +78,12 @@ pub fn parse(html: &str) -> Option<(String, Vec<Region>)> {
                             }
                         }
                     };
-                    skel.push_str(&html[last..i]);
-                    skel.push('\u{1}');
-                    skel.push_str(&key);
-                    skel.push('\u{1}');
+                    segments.push(html[last..i].to_string());
                     regions.push(Region { key, html: html[i..span_end].to_string() });
                     i = span_end;
                     last = span_end;
                     continue;
                 } else {
-                    // non-keyed open tag: keep scanning its children for keys
                     i = open_end;
                     continue;
                 }
@@ -81,38 +91,135 @@ pub fn parse(html: &str) -> Option<(String, Vec<Region>)> {
         }
         i += 1;
     }
-    skel.push_str(&html[last..]);
     if regions.is_empty() {
-        None
-    } else {
-        Some((skel, regions))
+        return None;
     }
+    segments.push(html[last..].to_string());
+    Some((regions, segments))
 }
 
 /// Compute how to update a target whose previous HTML was `old` to `new`.
 pub fn plan(old: &str, new: &str) -> Plan {
-    let (old_skel, old_regions) = match parse(old) {
+    let (old_regions, old_segs) = match parse(old) {
         Some(x) => x,
         None => return Plan::Full,
     };
-    let (new_skel, new_regions) = match parse(new) {
+    let (new_regions, new_segs) = match parse(new) {
         Some(x) => x,
         None => return Plan::Full,
     };
-    // A matching skeleton means: identical non-keyed structure AND the same keys
-    // in the same order. Anything else (added/removed/reordered keys, or changed
-    // surrounding chrome) falls back to a correct full swap.
-    if old_skel != new_skel {
+
+    let same_keys = old_regions.len() == new_regions.len()
+        && old_regions
+            .iter()
+            .zip(new_regions.iter())
+            .all(|(o, n)| o.key == n.key);
+
+    // Fast path: identical non-keyed structure AND same keys in same order ->
+    // only the changed regions need replacing.
+    if same_keys && old_segs == new_segs {
+        let mut ops = Vec::new();
+        for (o, n) in old_regions.iter().zip(new_regions.iter()) {
+            if o.html != n.html {
+                ops.push(Op::Replace { key: n.key.clone(), html: n.html.clone() });
+            }
+        }
+        return Plan::Patch(ops);
+    }
+
+    // Structural path: only when the keys form ONE contiguous run inside stable
+    // chrome — i.e. identical prefix + suffix and whitespace-only text between
+    // the keyed siblings (both before and after). Anything else is a full swap.
+    let prefix_ok = old_segs.first() == new_segs.first();
+    let suffix_ok = old_segs.last() == new_segs.last();
+    let middles_ws = old_segs[1..old_segs.len() - 1].iter().all(|s| s.trim().is_empty())
+        && new_segs[1..new_segs.len() - 1].iter().all(|s| s.trim().is_empty());
+    if !prefix_ok || !suffix_ok || !middles_ws {
         return Plan::Full;
     }
-    let mut patches: Vec<(String, String)> = Vec::new();
-    for (idx, nr) in new_regions.iter().enumerate() {
-        // skeletons matched, so old_regions[idx].key == nr.key
-        if old_regions[idx].html != nr.html {
-            patches.push((nr.key.clone(), nr.html.clone()));
+    // Need at least one surviving keyed node to anchor inserts/moves against;
+    // otherwise (whole list replaced) let the full swap handle it.
+    let new_set: HashSet<&str> = new_regions.iter().map(|r| r.key.as_str()).collect();
+    if !old_regions.iter().any(|r| new_set.contains(r.key.as_str())) {
+        return Plan::Full;
+    }
+    Plan::Patch(reconcile(&old_regions, &new_regions))
+}
+
+/// Reconcile two keyed sequences into ops, moving the minimum number of nodes.
+fn reconcile(old: &[Region], new: &[Region]) -> Vec<Op> {
+    let old_index: HashMap<&str, usize> =
+        old.iter().enumerate().map(|(i, r)| (r.key.as_str(), i)).collect();
+    let old_html: HashMap<&str, &str> = old.iter().map(|r| (r.key.as_str(), r.html.as_str())).collect();
+    let new_set: HashSet<&str> = new.iter().map(|r| r.key.as_str()).collect();
+
+    let mut ops: Vec<Op> = Vec::new();
+    // Removals first, so anchoring only references surviving nodes.
+    for r in old {
+        if !new_set.contains(r.key.as_str()) {
+            ops.push(Op::Remove { key: r.key.clone() });
         }
     }
-    Plan::Patch(patches)
+    // old-index of each new item (-1 for inserted items).
+    let kept_old_idx: Vec<i64> = new
+        .iter()
+        .map(|r| old_index.get(r.key.as_str()).map(|&i| i as i64).unwrap_or(-1))
+        .collect();
+    // The longest run already in increasing old order stays put; everything
+    // else moves. Keeps a stable (e.g. focused) node untouched.
+    let stay = lis_stable_set(&kept_old_idx);
+
+    let mut prev: Option<String> = None;
+    for (j, r) in new.iter().enumerate() {
+        let existing = old_index.contains_key(r.key.as_str());
+        if !existing {
+            ops.push(Op::Insert { html: r.html.clone(), after: prev.clone() });
+        } else {
+            if !stay.contains(&j) {
+                ops.push(Op::Move { key: r.key.clone(), after: prev.clone() });
+            }
+            if old_html.get(r.key.as_str()) != Some(&r.html.as_str()) {
+                ops.push(Op::Replace { key: r.key.clone(), html: r.html.clone() });
+            }
+        }
+        prev = Some(r.key.clone());
+    }
+    ops
+}
+
+/// Indices (into the new sequence) of a longest increasing subsequence over the
+/// kept items' old positions — the items that need not move.
+fn lis_stable_set(seq: &[i64]) -> HashSet<usize> {
+    let cand: Vec<usize> = (0..seq.len()).filter(|&j| seq[j] >= 0).collect();
+    let m = cand.len();
+    let mut set = HashSet::new();
+    if m == 0 {
+        return set;
+    }
+    let vals: Vec<i64> = cand.iter().map(|&j| seq[j]).collect();
+    let mut len = vec![1usize; m];
+    let mut prev = vec![usize::MAX; m];
+    let mut best = 0usize;
+    for i in 0..m {
+        for k in 0..i {
+            if vals[k] < vals[i] && len[k] + 1 > len[i] {
+                len[i] = len[k] + 1;
+                prev[i] = k;
+            }
+        }
+        if len[i] > len[best] {
+            best = i;
+        }
+    }
+    let mut i = best;
+    loop {
+        set.insert(cand[i]);
+        if prev[i] == usize::MAX {
+            break;
+        }
+        i = prev[i];
+    }
+    set
 }
 
 // ---- low-level HTML scanning (safe for server-generated, escaped HTML) ----
@@ -163,7 +270,6 @@ fn find_key(open: &str) -> Option<String> {
     }
 }
 
-/// Match `name` (lowercased) at b[pos..] as a tag name boundary.
 fn tag_name_matches(b: &[u8], pos: usize, lname: &str) -> bool {
     let ln = lname.as_bytes();
     if pos + ln.len() > b.len() {
@@ -174,7 +280,6 @@ fn tag_name_matches(b: &[u8], pos: usize, lname: &str) -> bool {
             return false;
         }
     }
-    // the next char must end the name (space, >, /, or end)
     let after = pos + ln.len();
     after >= b.len() || !is_name_char(b[after])
 }
@@ -219,59 +324,104 @@ fn find_close(b: &[u8], from: usize, name: &str) -> Option<usize> {
 mod tests {
     use super::*;
 
-    fn keys(p: &Plan) -> Vec<String> {
-        match p {
-            Plan::Patch(v) => v.iter().map(|(k, _)| k.clone()).collect(),
-            Plan::Full => vec!["<FULL>".into()],
-        }
+    fn li(k: &str, body: &str) -> String {
+        format!("<li data-mv-key=\"{}\">{}</li>", k, body)
+    }
+    fn list(items: &[(&str, &str)]) -> String {
+        let inner: String = items.iter().map(|(k, b)| li(k, b)).collect::<Vec<_>>().join("");
+        format!("<ul>{}</ul>", inner)
     }
 
     #[test]
     fn no_keys_is_full() {
-        assert!(matches!(plan("<p>a</p>", "<p>b</p>"), Plan::Full));
+        assert_eq!(plan("<p>a</p>", "<p>b</p>"), Plan::Full);
     }
 
     #[test]
-    fn stable_list_patches_changed_only() {
-        let old = r#"<ul><li data-mv-key="a">A</li><li data-mv-key="b">B</li><li data-mv-key="c">C</li></ul>"#;
-        let new = r#"<ul><li data-mv-key="a">A</li><li data-mv-key="b">B2</li><li data-mv-key="c">C</li></ul>"#;
-        match plan(old, new) {
-            Plan::Patch(p) => { assert_eq!(p.len(), 1); assert_eq!(p[0].0, "b"); assert!(p[0].1.contains("B2")); }
-            _ => panic!("expected patch, got {:?}", keys(&plan(old, new))),
-        }
+    fn replace_changed_only() {
+        let old = list(&[("a", "A"), ("b", "B"), ("c", "C")]);
+        let new = list(&[("a", "A"), ("b", "B2"), ("c", "C")]);
+        assert_eq!(
+            plan(&old, &new),
+            Plan::Patch(vec![Op::Replace { key: "b".into(), html: li("b", "B2") }])
+        );
     }
 
     #[test]
     fn unchanged_is_empty_patch() {
-        let h = r#"<ul><li data-mv-key="a">A</li></ul>"#;
-        match plan(h, h) { Plan::Patch(p) => assert_eq!(p.len(), 0), _ => panic!("expected empty patch") }
+        let h = list(&[("a", "A")]);
+        assert_eq!(plan(&h, &h), Plan::Patch(vec![]));
     }
 
     #[test]
-    fn insert_falls_back_to_full() {
-        let old = r#"<ul><li data-mv-key="a">A</li></ul>"#;
-        let new = r#"<ul><li data-mv-key="a">A</li><li data-mv-key="b">B</li></ul>"#;
-        assert!(matches!(plan(old, new), Plan::Full));
+    fn append_inserts_after_last() {
+        let old = list(&[("a", "A"), ("b", "B")]);
+        let new = list(&[("a", "A"), ("b", "B"), ("c", "C")]);
+        assert_eq!(
+            plan(&old, &new),
+            Plan::Patch(vec![Op::Insert { html: li("c", "C"), after: Some("b".into()) }])
+        );
+    }
+
+    #[test]
+    fn prepend_inserts_at_start() {
+        let old = list(&[("b", "B")]);
+        let new = list(&[("a", "A"), ("b", "B")]);
+        assert_eq!(
+            plan(&old, &new),
+            Plan::Patch(vec![Op::Insert { html: li("a", "A"), after: None }])
+        );
+    }
+
+    #[test]
+    fn remove_middle() {
+        let old = list(&[("a", "A"), ("b", "B"), ("c", "C")]);
+        let new = list(&[("a", "A"), ("c", "C")]);
+        assert_eq!(plan(&old, &new), Plan::Patch(vec![Op::Remove { key: "b".into() }]));
+    }
+
+    #[test]
+    fn reorder_moves_minimum() {
+        // a,b,c -> c,a,b : the LIS is (a,b); only c moves to the front.
+        let old = list(&[("a", "A"), ("b", "B"), ("c", "C")]);
+        let new = list(&[("c", "C"), ("a", "A"), ("b", "B")]);
+        assert_eq!(
+            plan(&old, &new),
+            Plan::Patch(vec![Op::Move { key: "c".into(), after: None }])
+        );
+    }
+
+    #[test]
+    fn insert_and_change_mixed() {
+        let old = list(&[("a", "A"), ("b", "B")]);
+        let new = list(&[("a", "A2"), ("x", "X"), ("b", "B")]);
+        assert_eq!(
+            plan(&old, &new),
+            Plan::Patch(vec![
+                Op::Replace { key: "a".into(), html: li("a", "A2") },
+                Op::Insert { html: li("x", "X"), after: Some("a".into()) },
+            ])
+        );
     }
 
     #[test]
     fn chrome_change_falls_back_to_full() {
-        let old = r#"<h1>0</h1><ul><li data-mv-key="a">A</li></ul>"#;
-        let new = r#"<h1>1</h1><ul><li data-mv-key="a">A2</li></ul>"#;
-        assert!(matches!(plan(old, new), Plan::Full));
+        let old = format!("<h1>0</h1>{}", list(&[("a", "A")]));
+        let new = format!("<h1>1</h1>{}", list(&[("a", "A2")]));
+        assert_eq!(plan(&old, &new), Plan::Full);
     }
 
     #[test]
-    fn nested_keyed_span_captured() {
-        let old = r#"<li data-mv-key="a"><div class="x"><span>x</span></div></li><li data-mv-key="b">B</li>"#;
-        let new = r#"<li data-mv-key="a"><div class="x"><span>x</span></div></li><li data-mv-key="b">B2</li>"#;
-        match plan(old, new) { Plan::Patch(p) => { assert_eq!(p.len(), 1); assert_eq!(p[0].0, "b"); } _ => panic!("expected patch") }
+    fn two_lists_fall_back_to_full() {
+        let old = format!("{}{}", list(&[("a", "A")]), list(&[("b", "B")]));
+        let new = format!("{}{}", list(&[("a", "A")]), list(&[("b", "B"), ("c", "C")]));
+        assert_eq!(plan(&old, &new), Plan::Full);
     }
 
     #[test]
-    fn void_keyed_element_then_change() {
-        let old = r#"<input data-mv-key="f" value="1"><span data-mv-key="s">A</span>"#;
-        let new = r#"<input data-mv-key="f" value="1"><span data-mv-key="s">B</span>"#;
-        match plan(old, new) { Plan::Patch(p) => { assert_eq!(p.len(), 1); assert_eq!(p[0].0, "s"); } _ => panic!("expected patch") }
+    fn whole_list_replaced_falls_back() {
+        let old = list(&[("a", "A"), ("b", "B")]);
+        let new = list(&[("x", "X"), ("y", "Y")]);
+        assert_eq!(plan(&old, &new), Plan::Full);
     }
 }

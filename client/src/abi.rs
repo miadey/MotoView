@@ -69,6 +69,23 @@ pub mod host {
             html_ptr: *const u8,
             html_len: usize,
         );
+        fn host_remove_keyed(target_ptr: *const u8, target_len: usize, key_ptr: *const u8, key_len: usize);
+        fn host_insert_keyed(
+            target_ptr: *const u8,
+            target_len: usize,
+            html_ptr: *const u8,
+            html_len: usize,
+            after_ptr: *const u8,
+            after_len: usize,
+        );
+        fn host_move_keyed(
+            target_ptr: *const u8,
+            target_len: usize,
+            key_ptr: *const u8,
+            key_len: usize,
+            after_ptr: *const u8,
+            after_len: usize,
+        );
         fn host_effect(
             kind_ptr: *const u8,
             kind_len: usize,
@@ -117,6 +134,36 @@ pub mod host {
                 key.len(),
                 html.as_ptr(),
                 html.len(),
+            )
+        }
+    }
+    /// Remove the keyed region `key` from `target`.
+    pub fn remove_keyed(target: &str, key: &str) {
+        unsafe { host_remove_keyed(target.as_ptr(), target.len(), key.as_ptr(), key.len()) }
+    }
+    /// Insert `html` as a new keyed region after region `after` (empty = start).
+    pub fn insert_keyed(target: &str, html: &str, after: &str) {
+        unsafe {
+            host_insert_keyed(
+                target.as_ptr(),
+                target.len(),
+                html.as_ptr(),
+                html.len(),
+                after.as_ptr(),
+                after.len(),
+            )
+        }
+    }
+    /// Move the existing keyed region `key` to after region `after` (empty = start).
+    pub fn move_keyed(target: &str, key: &str, after: &str) {
+        unsafe {
+            host_move_keyed(
+                target.as_ptr(),
+                target.len(),
+                key.as_ptr(),
+                key.len(),
+                after.as_ptr(),
+                after.len(),
             )
         }
     }
