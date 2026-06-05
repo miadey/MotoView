@@ -3,7 +3,7 @@
   "canisters": {
     "bzzz": {
       "type": "motoko",
-      "main": "src/main.mo",
+      "main": ".mvbuild/main.mo",
       "args": "--package motoview ../../runtime/src"
     }
   },

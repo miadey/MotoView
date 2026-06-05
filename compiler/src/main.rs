@@ -1,7 +1,7 @@
 //! `motoview` — the MotoView compiler CLI.
 //!
 //!   motoview new <name>           scaffold a new project
-//!   motoview build [dir]          compile .mview files -> src/main.mo
+//!   motoview build [dir]          compile .mview files -> .mvbuild/main.mo
 //!   motoview compile <file.mview> compile one file and print the Motoko (debug)
 //!   motoview dev [dir]            build, then `dfx deploy` (local)
 //!   motoview version
@@ -54,7 +54,7 @@ fn print_help() {
         "MotoView {VERSION} — a Motoko-native, server-driven UI framework for ICP.\n\n\
          USAGE:\n\
          \x20 motoview new <name>            Scaffold a new MotoView project\n\
-         \x20 motoview build [dir]           Compile .mview files into Motoko (src/main.mo)\n\
+         \x20 motoview build [dir]           Compile .mview files into Motoko (.mvbuild/main.mo)\n\
          \x20 motoview check [dir]           Build, then type-check; errors point at your .mview\n\
          \x20 motoview compile <file.mview>  Compile a single file and print the Motoko\n\
          \x20 motoview dev [dir]             Build, then `dfx deploy` to the local replica\n\
@@ -112,9 +112,12 @@ fn first_json_key_under(txt: &str, parent: &str) -> Option<String> {
 fn cmd_build(args: &[String]) -> i32 {
     let dir = PathBuf::from(positional(args).unwrap_or("."));
     let name = app_name_for(&dir, opt(args, "--name"));
+    // The generated actor is a BUILD ARTIFACT (like Blazor's obj/) — written to
+    // .mvbuild/ (gitignored), not committed. You edit .mview; dfx + `motoview
+    // check` read it from here; errors map back to your .mview.
     let out = opt(args, "--out")
         .map(PathBuf::from)
-        .unwrap_or_else(|| dir.join("src").join("main.mo"));
+        .unwrap_or_else(|| dir.join(".mvbuild").join("main.mo"));
     let opts = project::BuildOptions {
         project_dir: dir,
         app_name: name,
@@ -188,7 +191,7 @@ fn cmd_compile(args: &[String]) -> i32 {
 fn cmd_check(args: &[String]) -> i32 {
     let dir = PathBuf::from(positional(args).unwrap_or("."));
     let name = app_name_for(&dir, opt(args, "--name"));
-    let out = dir.join("src").join("main.mo");
+    let out = dir.join(".mvbuild").join("main.mo");
     let opts = project::BuildOptions {
         project_dir: dir.clone(),
         app_name: name,
@@ -204,7 +207,7 @@ fn cmd_check(args: &[String]) -> i32 {
     let (moc, base) = match find_moc() {
         Some(x) => x,
         None => {
-            eprintln!("\nnote: `moc` not found under ~/.cache/dfinity/versions — run `dfx deploy`\nto type-check. Errors there map to src/main.mo; the `// mv:src <file>`\nmarkers above each region tell you which .mview it came from.");
+            eprintln!("\nnote: `moc` not found under ~/.cache/dfinity/versions — run `dfx deploy`\nto type-check. Errors map to .mvbuild/main.mo; the `// mv:src <file>`\nmarkers above each region tell you which .mview it came from.");
             return 0;
         }
     };
@@ -392,14 +395,14 @@ mod scaffold {
         // Bind a dedicated local port (not dfx's default 4943) so `dfx start
         // --clean` here never wipes other projects' replica state.
         format!(
-            "{{\n  \"version\": 1,\n  \"canisters\": {{\n    \"{}\": {{\n      \"type\": \"motoko\",\n      \"main\": \"src/main.mo\",\n      \"args\": \"--package motoview ../../runtime/src\"\n    }}\n  }},\n  \"networks\": {{\n    \"local\": {{\n      \"bind\": \"127.0.0.1:4955\",\n      \"type\": \"ephemeral\"\n    }}\n  }}\n}}\n",
+            "{{\n  \"version\": 1,\n  \"canisters\": {{\n    \"{}\": {{\n      \"type\": \"motoko\",\n      \"main\": \".mvbuild/main.mo\",\n      \"args\": \"--package motoview ../../runtime/src\"\n    }}\n  }},\n  \"networks\": {{\n    \"local\": {{\n      \"bind\": \"127.0.0.1:4955\",\n      \"type\": \"ephemeral\"\n    }}\n  }}\n}}\n",
             name
         )
     }
 
     pub fn motoview_json(name: &str) -> String {
         format!(
-            "{{\n  \"name\": \"{}\",\n  \"pages\": \"src/Pages\",\n  \"components\": \"src/Components\",\n  \"layouts\": \"src/Layouts\",\n  \"output\": \"src/main.mo\",\n  \"seo\": true\n}}\n",
+            "{{\n  \"name\": \"{}\",\n  \"pages\": \"src/Pages\",\n  \"components\": \"src/Components\",\n  \"layouts\": \"src/Layouts\",\n  \"output\": \".mvbuild/main.mo\",\n  \"seo\": true\n}}\n",
             name
         )
     }

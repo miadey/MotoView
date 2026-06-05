@@ -96,7 +96,7 @@ If you're developing against a local checkout of the runtime, point `dfx.json` a
   "canisters": {
     "app": {
       "type": "motoko",
-      "main": "src/main.mo",
+      "main": ".mvbuild/main.mo",
       "args": "--package motoview ../../runtime/src"
     }
   }

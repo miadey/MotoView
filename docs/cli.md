@@ -32,7 +32,7 @@ Compile every `.mview` file in `src/` to Motoko.
 motoview build
 ```
 
-`build` is the heart of the toolchain. It parses your templates and `@code { ... }` blocks and emits a Motoko actor as `src/main.mo`. It does **not** deploy — use it in CI or when you want to inspect generated Motoko before shipping.
+`build` is the heart of the toolchain. It parses your templates and `@code { ... }` blocks and emits a Motoko actor to `.mvbuild/main.mo` (a gitignored build artifact). It does **not** deploy — use it in CI or when you want to inspect generated Motoko before shipping.
 
 ### The build pipeline
 
@@ -43,7 +43,7 @@ Each `motoview build` runs these steps in order:
 3. **Resolve routes** from `@page "/path"` directives, including parameterized routes like `@page "/orders/{id:Nat}"`.
 4. **Type-bind handlers**: each `@click="save"` / `@submit="send"` is matched to a typed Motoko function, and handler arguments are lowered into `data-mv-arg*` attributes so the WASM client can forward `handlerId + args`.
 5. **Generate Motoko**: render functions, the event dispatcher, and the [`motoview/1` protocol](protocol.md) wiring (`http_request` / `http_request_update`, the `/_motoview/render` and `/_motoview/event` endpoints).
-6. **Write output** to the `src/main.mo` actor (override with `--out`).
+6. **Write output** to the `.mvbuild/main.mo` actor (override with `--out`).
 
 If a template references a handler that does not exist, or a `bind="@model.field"` points at an unknown field, the build fails here with a clear error — before you ever reach the replica.
 

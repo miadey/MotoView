@@ -119,7 +119,7 @@ For local development against a checkout of the runtime, you can instead pass it
   "canisters": {
     "app": {
       "type": "motoko",
-      "main": "src/main.mo",
+      "main": ".mvbuild/main.mo",
       "args": "--package motoview ../../runtime/src"
     }
   }

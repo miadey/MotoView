@@ -13,6 +13,7 @@ canister_ids.json
 # Generated Motoko (from .mview compilation)
 **/src/Generated/
 **/.motoview/
+**/.mvbuild/
 
 # WASM build artifacts that are rebuilt
 client/pkg/*.tmp

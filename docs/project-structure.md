@@ -108,9 +108,9 @@ module {
 }
 ```
 
-## src/Generated
+## .mvbuild (generated — never edit or commit)
 
-`motoview build` parses every `.mview` file and emits a Motoko actor. That generated code lands under `src/Generated/` (with an entry actor such as `src/main.mo`). Treat this directory as build output — do not edit it by hand, and let it regenerate on every build. Your hand-written code lives in Services and Models; the compiler wires it into the actor.
+`motoview build` parses every `.mview` file and emits a single Motoko actor to `.mvbuild/main.mo`. **This is a build artifact, not source** — exactly like Blazor's `obj/` or a JS bundler's `dist/`. It is gitignored, never edited, and regenerated on every build; `dfx.json` points its canister `main` at it. You never read it: you write `.mview` files, and `motoview check` maps any `moc` error back to the originating `.mview` (via the `// mv:src` markers in the generated file). Your hand-written Motoko lives in `Services/` and `Models/`, which the compiler imports into the actor.
 
 ## motoview.json
 
@@ -134,7 +134,7 @@ The standard DFINITY SDK manifest. It defines the canister, points dfx at the ge
   "canisters": {
     "shop": {
       "type": "motoko",
-      "main": "src/main.mo",
+      "main": ".mvbuild/main.mo",
       "args": "--package motoview ../../runtime/src"
     }
   }
