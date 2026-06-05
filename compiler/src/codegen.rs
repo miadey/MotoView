@@ -851,7 +851,16 @@ impl<'a> Codegen<'a> {
             "NavItem" | "Tab" => {
                 let base = if c.name == "Tab" { "mv-tab" } else { "mv-nav-item" };
                 out.push_str(&format!("{}b.raw(\"<a class=\\\"{}\");\n", indent, base));
-                if let Some(a) = prop("active") {
+                // `match="/feed"` marks active when ctx.path matches (prefix; exact
+                // for "/"). `active="@expr"` / `active` are also supported.
+                if let Some(m) = lit("match") {
+                    let cond = if m == "/" {
+                        "ctx.path == \"/\"".to_string()
+                    } else {
+                        format!("Text.startsWith(ctx.path, #text \"{}\")", m)
+                    };
+                    out.push_str(&format!("{}if ({}) {{ b.raw(\" is-active\") }};\n", indent, cond));
+                } else if let Some(a) = prop("active") {
                     match &a.value {
                         AttrValue::Expr(e) => out.push_str(&format!("{}if ({}) {{ b.raw(\" is-active\") }};\n", indent, e)),
                         _ => out.push_str(&format!("{}b.raw(\" is-active\");\n", indent)),

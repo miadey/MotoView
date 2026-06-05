@@ -1,86 +1,87 @@
+@theme brand="#0f6cbd"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#6d28d9">
-    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/favicon.svg">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Bzzz">
     <title>@View.title</title>
     @head
     <style>
-        :root { --bz-accent: #6d28d9; --bz-nav-h: 56px; }
-        body { background: var(--mv-muted); margin: 0; }
-        .bz-shell { min-height: 100vh; display: flex; flex-direction: column; }
+        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase); }
 
-        .bz-nav { position: sticky; top: 0; z-index: 50; height: var(--bz-nav-h);
-            display: flex; align-items: center; gap: .25rem; padding: 0 1rem;
-            background: var(--bz-accent); color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
-        .bz-brand { font-weight: 800; font-size: 1.15rem; margin-right: .75rem; color: #fff; text-decoration: none; letter-spacing: -.02em; }
-        .bz-navlink { color: #ece9fb; text-decoration: none; padding: .45rem .7rem; border-radius: 8px; font-weight: 600; font-size: .92rem; }
-        .bz-navlink:hover { background: rgba(255,255,255,.14); color: #fff; }
-        .bz-navlink.active { background: rgba(255,255,255,.22); color: #fff; }
-        .bz-auth-btn { background: rgba(255,255,255,.16); border: none; cursor: pointer; font: inherit; }
-        .bz-auth-btn:hover { background: rgba(255,255,255,.28); }
-        .bz-nav-spacer { flex: 1; }
-        .bz-nav-me { display: flex; align-items: center; gap: .4rem; color: #fff; font-weight: 600; font-size: .9rem; }
-        .bz-ava { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.22);
-            display: grid; place-items: center; font-size: 1rem; }
+        /* App bar (Fluent) */
+        .mv-appbar { backdrop-filter: saturate(1.4) blur(2px); overflow: visible; }
+        .bz-brand-logo { font-size: 1.15rem; }
+        .mv-appbar .mv-menu-list { right: 0; left: auto; }
 
-        .bz-main { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto; padding: 1.25rem 1rem 3rem; box-sizing: border-box; }
-        .bz-foot { text-align: center; color: var(--mv-text-soft); font-size: .82rem; padding: 1.5rem 1rem 2rem; }
+        /* Shell: app bar on top, Nav rail + content below */
+        .bz-shell { display: flex; align-items: flex-start; }
+        .mv-nav { position: sticky; top: 48px; height: calc(100vh - 48px); width: 240px;
+            flex-shrink: 0; box-sizing: border-box; border-right: 1px solid var(--colorNeutralStroke2);
+            overflow-y: auto; }
+        .bz-content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
+        .bz-main { flex: 1; width: 100%; max-width: 920px; margin: 0 auto; box-sizing: border-box;
+            padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); }
+        .bz-foot { text-align: center; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
+            padding: var(--spacingVerticalXL) var(--spacingHorizontalL) var(--spacingVerticalXXL); }
 
-        .bz-card { background: var(--mv-surface); border: 1px solid var(--mv-border); border-radius: 14px; box-shadow: var(--mv-shadow); }
-        .bz-hero { background: linear-gradient(135deg, #6d28d9, #9333ea 60%, #c026d3); color: #fff; border-radius: 18px; padding: 2rem 1.8rem; }
-        .bz-hero h1 { margin: 0 0 .4rem; font-size: 2rem; letter-spacing: -.02em; }
+        /* Re-skin the existing bz-* page classes to Fluent (so every page adopts it) */
+        .bz-card { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke1);
+            border-radius: var(--borderRadiusXLarge); box-shadow: var(--shadow2); }
+        .bz-hero { background: var(--colorBrandBackground); color: var(--colorNeutralForegroundOnBrand);
+            border-radius: var(--borderRadiusXLarge); padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); box-shadow: var(--shadow8); }
+        .bz-hero h1 { margin: 0 0 var(--spacingVerticalS); font-size: 32px; font-weight: var(--fontWeightBold); letter-spacing: -.02em; }
         .bz-hero p { margin: 0; opacity: .92; max-width: 60ch; }
-
-        .bz-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.25rem; }
-        .bz-tile { display: block; text-decoration: none; color: inherit; padding: 1.1rem 1.2rem; border-radius: 14px;
-            background: var(--mv-surface); border: 1px solid var(--mv-border); box-shadow: var(--mv-shadow);
-            transition: transform .12s ease, box-shadow .12s ease; }
-        .bz-tile:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(16,16,40,.12); }
+        .bz-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--spacingHorizontalL); margin-top: var(--spacingVerticalL); }
+        .bz-tile { display: block; text-decoration: none; color: inherit; padding: var(--spacingVerticalL) var(--spacingHorizontalL);
+            border-radius: var(--borderRadiusXLarge); background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke1);
+            box-shadow: var(--shadow2); transition: box-shadow var(--durationFaster) var(--curveEasyEase), transform var(--durationFaster) var(--curveEasyEase); }
+        .bz-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow8); border-color: var(--colorNeutralStroke1Hover); }
         .bz-tile-ico { font-size: 1.6rem; }
-        .bz-tile h3 { margin: .5rem 0 .2rem; font-size: 1.05rem; }
-        .bz-tile p { margin: 0; color: var(--mv-text-soft); font-size: .88rem; }
+        .bz-tile h3 { margin: var(--spacingVerticalS) 0 var(--spacingVerticalXS); font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold); }
+        .bz-tile p { margin: 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 
-        @media (max-width: 720px) {
-            .bz-nav { gap: 0; padding: 0 .4rem; overflow-x: auto; }
-            .bz-navlink { padding: .4rem .5rem; font-size: .82rem; }
-            .bz-brand { margin-right: .4rem; }
+        @media (max-width: 860px) {
+            .mv-nav { display: none; }
+            .bz-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
         }
     </style>
 </head>
 <body>
+    <AppBar>
+        <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
+        <span class="mv-appbar-spacer"></span>
+        <Menu label="⋯">
+            <div class="mv-nav-cat" style="padding:.3rem .75rem">Account</div>
+            <MenuItem href="/me">👤 My profile</MenuItem>
+            <MenuItem href="/status">🟢 My status</MenuItem>
+            <MenuItem href="/messages">✉️ Messages</MenuItem>
+            <MenuItem href="/about">ℹ️ About Bzzz</MenuItem>
+        </Menu>
+        <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
+    </AppBar>
     <div class="bz-shell">
-        <nav class="bz-nav">
-            <a class="bz-brand" href="/">🐝 Bzzz</a>
-            <a class="bz-navlink" href="/servers">Servers</a>
-            <a class="bz-navlink" href="/forum">Forum</a>
-            <a class="bz-navlink" href="/feed">Feed</a>
-            <a class="bz-navlink" href="/messages">Messages</a>
-            <a class="bz-navlink" href="/status">Status</a>
-            <span class="bz-nav-spacer"></span>
-            <a class="bz-navlink" href="/me">Me</a>
-            <button data-mv-signin class="bz-navlink bz-auth-btn" type="button">Sign in</button>
-        </nav>
-        <main class="bz-main">
-            @yield
-        </main>
-        <footer class="bz-foot">
-            Bzzz — a Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on the Internet Computer. No frontend JavaScript framework.
-        </footer>
+        <Nav>
+            <div class="mv-nav-cat">Bzzz</div>
+            <NavItem href="/" match="/" icon="🏠">Home</NavItem>
+            <NavItem href="/feed" match="/feed" icon="📰">Feed</NavItem>
+            <NavItem href="/servers" match="/servers" icon="💬">Servers</NavItem>
+            <NavItem href="/forum" match="/forum" icon="🗨️">Forum</NavItem>
+            <NavItem href="/messages" match="/messages" icon="✉️">Messages</NavItem>
+            <NavItem href="/status" match="/status" icon="🟢">Status</NavItem>
+            <Divider />
+            <NavItem href="/me" match="/me" icon="👤">Me</NavItem>
+        </Nav>
+        <div class="bz-content">
+            <main class="bz-main">
+                @yield
+            </main>
+            <footer class="bz-foot">
+                Bzzz — a Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on the Internet Computer. No frontend JavaScript framework.
+            </footer>
+        </div>
     </div>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/sw.js').catch(function () {});
-            });
-        }
-    </script>
-
 </body>
 </html>
