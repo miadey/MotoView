@@ -4623,3 +4623,2558 @@ label.mv-field-label {
 /* ===== MenuItemRadio ===== */
 /* MenuItemRadio CSS lives in the checkable-menu-items block above
    (.mv-menu-radioitem, .mv-menu-radioinput, .mv-menu-radio). */
+
+/* ============================================================
+   TYPOGRAPHY & CARDS — COMPLETE FLUENT 2 VARIANT COVERAGE
+   Modifier/variant classes only (bases live above):
+     - .fui-text-*      : the generic <Text variant="…"> ramp
+     - .mv-type-*       : the dedicated typography components
+     - .mv-card-*       : Card appearance / size / selectable / interactive
+     - .mv-card-header/preview/footer modifiers
+   All values are the EXACT Fluent 2 ramp, expressed with the authentic
+   tokens already defined at the top of this file. Adapts to light/dark
+   because every color resolves through --colorNeutral*/--colorBrand*.
+   ============================================================ */
+
+/* -----------------------------------------------------------------
+   1. <Text variant="…"> ramp  (codegen emits .fui-text-<variant>)
+   The partial table above defines caption1, body1, body1-strong,
+   subtitle2, subtitle1, title3, title2, title1, largetitle.
+   These COMPLETE the ramp so EVERY Fluent type token is reachable.
+   ----------------------------------------------------------------- */
+
+/* Caption2 — 10/14 regular (smallest ramp step) */
+.fui-text-caption2 {
+  font-family: inherit;
+  font-size: var(--fontSizeBase100);   /* 10px */
+  line-height: var(--lineHeightBase100); /* 14px */
+  font-weight: var(--fontWeightRegular);
+  color: var(--colorNeutralForeground1);
+}
+/* Caption2Strong — 10/14 semibold */
+.fui-text-caption2-strong {
+  font-family: inherit;
+  font-size: var(--fontSizeBase100);
+  line-height: var(--lineHeightBase100);
+  font-weight: var(--fontWeightSemibold);
+  color: var(--colorNeutralForeground1);
+}
+/* Caption1Strong — 12/16 semibold */
+.fui-text-caption1-strong {
+  font-family: inherit;
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  font-weight: var(--fontWeightSemibold);
+  color: var(--colorNeutralForeground1);
+}
+/* Body1Stronger — 14/20 bold */
+.fui-text-body1-stronger {
+  font-family: inherit;
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+  font-weight: var(--fontWeightBold);
+  color: var(--colorNeutralForeground1);
+}
+/* Body2 — 16/22 regular */
+.fui-text-body2 {
+  font-family: inherit;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+  font-weight: var(--fontWeightRegular);
+  color: var(--colorNeutralForeground1);
+}
+/* Body2Strong — 16/22 semibold */
+.fui-text-body2-strong {
+  font-family: inherit;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+  font-weight: var(--fontWeightSemibold);
+  color: var(--colorNeutralForeground1);
+}
+/* Subtitle2Stronger — 16/22 bold */
+.fui-text-subtitle2-stronger {
+  font-family: inherit;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+  font-weight: var(--fontWeightBold);
+  color: var(--colorNeutralForeground1);
+}
+/* Display — 68/92 semibold (top of the ramp) */
+.fui-text-display {
+  font-family: inherit;
+  font-size: var(--fontSizeHero1000);  /* 68px */
+  line-height: var(--lineHeightHero1000); /* 92px */
+  font-weight: var(--fontWeightSemibold);
+  color: var(--colorNeutralForeground1);
+}
+
+/* Keep the pre-existing largetitle in sync with the token (40/52). The
+   base block hardcoded line-height:52px; this re-expresses via token so a
+   theme override of --lineHeightHero900 flows through. */
+.fui-text-largetitle {
+  line-height: var(--lineHeightHero900); /* 52px */
+}
+
+/* -----------------------------------------------------------------
+   1b. <Text> generic prop pass-through utilities
+   These let the *generic* Text component carry the same expressive
+   props the dedicated components / Fluent <Text> support, once the
+   codegen arm forwards them (see codegen_gap). Class-name shapes are
+   chosen to match the existing mv-* prop->class convention so the arm
+   can append them mechanically.
+   ----------------------------------------------------------------- */
+/* weight axis (Fluent FontWeights: regular|medium|semibold|bold) */
+.fui-text-weight-regular  { font-weight: var(--fontWeightRegular); }
+.fui-text-weight-medium   { font-weight: var(--fontWeightMedium); }
+.fui-text-weight-semibold { font-weight: var(--fontWeightSemibold); }
+.fui-text-weight-bold     { font-weight: var(--fontWeightBold); }
+/* alignment (Fluent align: start|center|end|justify) */
+.fui-text-align-start   { text-align: start; }
+.fui-text-align-center  { text-align: center; }
+.fui-text-align-end     { text-align: end; }
+.fui-text-align-justify { text-align: justify; }
+/* font family (Fluent font: base|monospace|numeric) */
+.fui-text-font-base      { font-family: var(--fontFamilyBase); }
+.fui-text-font-monospace { font-family: var(--fontFamilyMonospace); }
+.fui-text-font-numeric   { font-family: var(--fontFamilyNumeric); }
+/* style toggles (Fluent: italic|underline|strikethrough) */
+.fui-text-italic        { font-style: italic; }
+.fui-text-underline     { text-decoration-line: underline; }
+.fui-text-strikethrough { text-decoration-line: line-through; }
+.fui-text-underline.fui-text-strikethrough { text-decoration-line: underline line-through; }
+/* block (renders as a block <p> rather than inline span) */
+.fui-text-block { display: block; }
+/* wrap / nowrap / truncate (Fluent: wrap=false, truncate) */
+.fui-text-nowrap   { white-space: nowrap; }
+.fui-text-truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------
+   2. Dedicated typography components — COMPLETIONS
+   Bases (.mv-type-title1…caption2, .mv-type-strong, .mv-type-display)
+   live above. These add: the missing LargeTitle step, the second
+   emphasis weight (-stronger), and the shared color/alignment/block
+   modifiers so the components are axis-complete.
+   ----------------------------------------------------------------- */
+
+/* LargeTitle — 40/52 bold. Missing from the dedicated ramp entirely. */
+.mv-type-largetitle {
+  margin: 0;
+  font-family: var(--fontFamilyBase);
+  color: var(--colorNeutralForeground1);
+  font-size: var(--fontSizeHero900);    /* 40px */
+  line-height: var(--lineHeightHero900); /* 52px */
+  font-weight: var(--fontWeightBold);
+}
+
+/* Second emphasis weight for Body/Caption/Subtitle dedicated components.
+   `strong` -> semibold (above); `stronger` -> bold. */
+.mv-type-stronger { font-weight: var(--fontWeightBold); }
+
+/* Color axis shared by all typography components (Fluent Text colors:
+   brand, error/danger, success, warning, subtle, disabled, on-brand,
+   plus the neutral foreground ramp). Token-driven => light/dark safe. */
+.mv-type-brand    { color: var(--colorBrandForeground1); }
+.mv-type-onbrand  { color: var(--colorNeutralForegroundOnBrand); }
+.mv-type-danger,
+.mv-type-error    { color: var(--colorStatusDangerForeground1); }
+.mv-type-success  { color: var(--colorStatusSuccessForeground1); }
+.mv-type-warning  { color: var(--colorStatusWarningForeground1); }
+.mv-type-subtle   { color: var(--colorNeutralForeground3); }
+.mv-type-disabled { color: var(--colorNeutralForegroundDisabled); }
+.mv-type-neutral  { color: var(--colorNeutralForeground1); }
+
+/* Alignment + block for the dedicated components (mirror fui-text-*). */
+.mv-type-align-start   { text-align: start; }
+.mv-type-align-center  { text-align: center; }
+.mv-type-align-end     { text-align: end; }
+.mv-type-align-justify { text-align: justify; }
+.mv-type-block         { display: block; }
+.mv-type-italic        { font-style: italic; }
+.mv-type-truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------
+   3. CARD — COMPLETE Fluent 2 variant coverage
+   Base .mv-card + .mv-card-interactive live above. These add every
+   APPEARANCE (filled | filled-alternative | outline | subtle),
+   every SIZE (small | medium | large), and the selectable +
+   interactive states (hover / pressed / selected / focus / disabled).
+   ----------------------------------------------------------------- */
+
+/* ----- Appearance ----- */
+/* filled (default look, explicit class for symmetry): neutral bg + shadow */
+.mv-card-filled {
+  background: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke, transparent);
+  box-shadow: var(--shadow4);
+}
+/* filled-alternative: a slightly recessed surface, no shadow, hairline */
+.mv-card-filled-alternative,
+.mv-card-filled-alt {
+  background: var(--colorNeutralBackground2);
+  border-color: var(--colorTransparentStroke, transparent);
+  box-shadow: none;
+}
+/* outline: transparent-ish surface, visible 1px stroke, no shadow */
+.mv-card-outline {
+  background: var(--colorTransparentBackground, transparent);
+  border-color: var(--colorNeutralStroke1);
+  box-shadow: none;
+}
+/* subtle: faint neutral fill, no stroke, no shadow */
+.mv-card-subtle {
+  background: var(--colorSubtleBackground, var(--colorNeutralBackground2));
+  border-color: var(--colorTransparentStroke, transparent);
+  box-shadow: none;
+}
+
+/* ----- Size (controls padding density + corner radius per Fluent) ----- */
+.mv-card-small {
+  padding: var(--spacingVerticalS) var(--spacingHorizontalS);
+  border-radius: var(--borderRadiusMedium);
+  gap: var(--spacingVerticalS);
+}
+.mv-card-small > .mv-card-preview {
+  margin: calc(-1 * var(--spacingVerticalS)) calc(-1 * var(--spacingHorizontalS));
+}
+.mv-card-small > .mv-card-preview:first-child {
+  border-top-left-radius: var(--borderRadiusMedium);
+  border-top-right-radius: var(--borderRadiusMedium);
+}
+.mv-card-small > .mv-card-preview:last-child {
+  border-bottom-left-radius: var(--borderRadiusMedium);
+  border-bottom-right-radius: var(--borderRadiusMedium);
+}
+
+.mv-card-medium {
+  padding: var(--spacingVerticalM) var(--spacingHorizontalM);
+  border-radius: var(--borderRadiusLarge);
+  gap: var(--spacingVerticalM);
+}
+.mv-card-medium > .mv-card-preview {
+  margin: calc(-1 * var(--spacingVerticalM)) calc(-1 * var(--spacingHorizontalM));
+}
+.mv-card-medium > .mv-card-preview:first-child {
+  border-top-left-radius: var(--borderRadiusLarge);
+  border-top-right-radius: var(--borderRadiusLarge);
+}
+.mv-card-medium > .mv-card-preview:last-child {
+  border-bottom-left-radius: var(--borderRadiusLarge);
+  border-bottom-right-radius: var(--borderRadiusLarge);
+}
+
+.mv-card-large {
+  padding: var(--spacingVerticalL) var(--spacingHorizontalL);
+  border-radius: var(--borderRadiusXLarge);
+  gap: var(--spacingVerticalL);
+}
+/* large preview bleed already matches the base .mv-card padding (L), so the
+   base .mv-card-preview rules cover it; explicit radius for completeness. */
+.mv-card-large > .mv-card-preview:first-child {
+  border-top-left-radius: var(--borderRadiusXLarge);
+  border-top-right-radius: var(--borderRadiusXLarge);
+}
+.mv-card-large > .mv-card-preview:last-child {
+  border-bottom-left-radius: var(--borderRadiusXLarge);
+  border-bottom-right-radius: var(--borderRadiusXLarge);
+}
+
+/* ----- Interactive (hover/pressed lift) — completes the base variant
+   with explicit pressed + keyboard-focus states. Base hover/active live
+   above; re-stated focus uses the focus stroke token. ----- */
+.mv-card-interactive:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible));
+  outline-offset: 2px;
+}
+
+/* ----- Selectable (Fluent "selectable" Card: a checkbox-hack selection
+   state). Pair .mv-card-selectable on the <label> shell with a hidden
+   checkbox sibling carrying .mv-card-select-input; the :checked state
+   lights the card with the brand selection ring. CSS-only, no JS. ----- */
+.mv-card-selectable {
+  position: relative;
+  cursor: pointer;
+  transition:
+    box-shadow var(--durationFaster) var(--curveEasyEase),
+    border-color var(--durationFaster) var(--curveEasyEase),
+    background var(--durationFaster) var(--curveEasyEase);
+}
+.mv-card-select-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.mv-card-selectable:hover {
+  background: var(--colorNeutralBackground1Hover);
+  box-shadow: var(--shadow4);
+}
+.mv-card-selectable:active {
+  background: var(--colorNeutralBackground1Pressed);
+  box-shadow: var(--shadow2);
+}
+/* selected state via the checkbox hack: brand ring + brand-tinted fill */
+.mv-card-select-input:checked ~ .mv-card-selectable,
+.mv-card-selectable:has(> .mv-card-select-input:checked),
+.mv-card-selectable.mv-card-selected {
+  border-color: var(--colorCompoundBrandStroke, var(--colorBrandStroke1));
+  box-shadow: inset 0 0 0 1px var(--colorCompoundBrandStroke, var(--colorBrandStroke1));
+  background: var(--colorBrandBackground2);
+}
+/* keyboard focus on the (visually hidden) input lights the card */
+.mv-card-select-input:focus-visible ~ .mv-card-selectable,
+.mv-card-selectable:has(> .mv-card-select-input:focus-visible),
+.mv-card-selectable:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible));
+  outline-offset: 2px;
+}
+
+/* ----- Disabled card (non-interactive, dimmed) ----- */
+.mv-card-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ----- Orientation (Fluent Card orientation: vertical default | horizontal) */
+.mv-card-horizontal {
+  flex-direction: row;
+  align-items: stretch;
+}
+.mv-card-horizontal > .mv-card-preview {
+  /* side media band: full-height, fixed-ish width, clip to the leading edge */
+  margin: calc(-1 * var(--spacingVerticalL)) 0 calc(-1 * var(--spacingVerticalL)) calc(-1 * var(--spacingHorizontalL));
+  width: 40%;
+  flex-shrink: 0;
+}
+.mv-card-horizontal > .mv-card-preview-img { height: 100%; }
+
+/* -----------------------------------------------------------------
+   3b. Card sub-component (header/preview/footer) modifiers
+   ----------------------------------------------------------------- */
+/* CardHeader: a trailing action slot (e.g. an overflow menu) pinned right */
+.mv-card-header-action {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+/* CardFooter alignment variants */
+.mv-card-footer-end    { justify-content: flex-end; }
+.mv-card-footer-center { justify-content: center; }
+.mv-card-footer-between { justify-content: space-between; }
+/* CardPreview logo overlay slot (Fluent CardPreview `logo`) */
+.mv-card-preview-logo {
+  position: absolute;
+  bottom: var(--spacingVerticalS);
+  inset-inline-start: var(--spacingHorizontalS);
+  display: inline-flex;
+}
+.mv-card-preview { position: relative; }
+
+/* ==================================================================
+   COMPLETE Fluent UI 2 variant coverage (every appearance/size/shape/
+   color/state). Variant-only modifier classes; base classes above.
+   ================================================================== */
+
+/* ===== Button — complete variants (buttons) ===== */
+/* ============================================================
+   BUTTON — completing variant coverage (base .mv-btn already exists)
+   Adds: explicit .mv-btn-medium + .mv-btn-rounded no-op classes (so the
+   shape/size prop value always maps to a real class), and the Fluent
+   "danger" treatment ACROSS appearances (Fluent danger is a cross-axis
+   modifier, not a standalone appearance), plus icon-only sizing for the
+   missing 'medium' default and disabled icon-only.
+   ============================================================ */
+
+/* --- Sizes (medium is the default 32px height; add explicit no-op so
+   size="medium" produces a class and stays consistent) --- */
+.mv-btn-medium {
+  height: 32px;
+  min-width: 96px;
+  padding: 0 var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+  border-radius: var(--borderRadiusMedium);
+}
+
+/* --- Shape: rounded is the default; explicit class so shape="rounded"
+   always maps. Fluent: rounded = borderRadiusMedium. --- */
+.mv-btn-rounded {
+  border-radius: var(--borderRadiusMedium);
+}
+/* On small buttons Fluent uses the small radius; keep parity */
+.mv-btn-small.mv-btn-rounded { border-radius: var(--borderRadiusMedium); }
+.mv-btn-large.mv-btn-rounded { border-radius: var(--borderRadiusMedium); }
+
+/* --- Icon-only at medium when no size class is present is handled by
+   .mv-btn-icon (32px). Provide circular icon-only sizing parity. --- */
+.mv-btn-icon.mv-btn-circular { border-radius: var(--borderRadiusCircular); }
+.mv-btn-icon.mv-btn-square   { border-radius: var(--borderRadiusNone, 0); }
+
+/* ===== Fluent DANGER across every appearance =====
+   Fluent applies appearance + a danger "color" together. The base file only
+   wired filled danger (.mv-btn-danger). Add the outline / subtle /
+   transparent danger treatments so danger composes with appearance. */
+
+/* danger + outline: red text + red border, transparent fill */
+.mv-btn-danger.mv-btn-outline {
+  background: transparent;
+  border-color: var(--colorStatusDangerBorder2, var(--colorPaletteRedBorder2, #d13438));
+  color: var(--colorStatusDangerForeground3, var(--colorPaletteRedForeground1, #d13438));
+}
+.mv-btn-danger.mv-btn-outline:hover {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.08));
+  border-color: var(--colorStatusDangerBorder2, #d13438);
+  color: var(--colorStatusDangerForeground1, #bc2f32);
+}
+.mv-btn-danger.mv-btn-outline:active {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.14));
+  filter: brightness(0.96);
+  color: var(--colorStatusDangerForeground2, #751d1f);
+}
+
+/* danger + subtle: red text, transparent border, subtle red hover fill */
+.mv-btn-danger.mv-btn-subtle,
+.mv-btn-danger.mv-btn-transparent {
+  background: transparent;
+  border-color: transparent;
+  color: var(--colorStatusDangerForeground3, #d13438);
+}
+.mv-btn-danger.mv-btn-subtle:hover {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.08));
+  color: var(--colorStatusDangerForeground1, #bc2f32);
+}
+.mv-btn-danger.mv-btn-subtle:active {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.14));
+  color: var(--colorStatusDangerForeground2, #751d1f);
+}
+.mv-btn-danger.mv-btn-transparent:hover {
+  background: transparent;
+  color: var(--colorStatusDangerForeground1, #bc2f32);
+}
+.mv-btn-danger.mv-btn-transparent:active {
+  background: transparent;
+  color: var(--colorStatusDangerForeground2, #751d1f);
+}
+
+/* danger + secondary (neutral surface, red text) — Fluent's default danger
+   when appearance is the implicit secondary but NOT the filled primary look.
+   The bare .mv-btn-danger in the base is the FILLED danger; expose a
+   secondary-danger when explicitly combined. */
+.mv-btn-danger.mv-btn-secondary {
+  background: var(--colorNeutralBackground1);
+  border-color: var(--colorStatusDangerBorder2, #d13438);
+  color: var(--colorStatusDangerForeground3, #d13438);
+}
+.mv-btn-danger.mv-btn-secondary:hover {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.06));
+  color: var(--colorStatusDangerForeground1, #bc2f32);
+}
+.mv-btn-danger.mv-btn-secondary:active {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.12));
+  color: var(--colorStatusDangerForeground2, #751d1f);
+}
+
+/* --- Disabled refinement: icon-only + filled keep flat disabled look
+   (mirror the base :disabled but ensure filled danger/primary go flat) --- */
+.mv-btn-icon:disabled,
+.mv-btn-icon[disabled],
+.mv-btn-icon[aria-disabled="true"] {
+  filter: none;
+}
+.mv-btn-danger:disabled,
+.mv-btn-danger[disabled] {
+  filter: none;
+}
+
+/* ===== CompoundButton — complete variants (buttons) ===== */
+/* ============================================================
+   COMPOUND BUTTON — complete the appearance + shape coverage.
+   Base .mv-compound-btn + small/large sizing already exist, and the
+   secondary-line color flips for primary/danger. Missing: outline /
+   subtle / transparent secondary-line legibility, shapes, and the
+   danger-across-appearance secondary tint. The appearance fill itself is
+   inherited from the shared .mv-btn-* classes (no need to redeclare).
+   ============================================================ */
+
+/* Shape parity (compound buttons accept the same shape axis as Button) */
+.mv-compound-btn.mv-btn-circular { border-radius: var(--borderRadiusXLarge, 12px); }
+.mv-compound-btn.mv-btn-square   { border-radius: var(--borderRadiusNone, 0); }
+.mv-compound-btn.mv-btn-rounded  { border-radius: var(--borderRadiusMedium); }
+
+/* Secondary line color per appearance. Filled (primary/danger) already
+   handled in base. Add subtle/transparent/outline so the description line
+   uses the muted neutral-2 foreground consistently and brightens on hover. */
+.mv-compound-btn.mv-btn-subtle .mv-compound-secondary,
+.mv-compound-btn.mv-btn-transparent .mv-compound-secondary,
+.mv-compound-btn.mv-btn-outline .mv-compound-secondary,
+.mv-compound-btn.mv-btn-secondary .mv-compound-secondary {
+  color: var(--colorNeutralForeground2);
+}
+
+/* On hover of a filled compound button, keep the secondary readable. */
+.mv-compound-btn.mv-btn-primary:hover .mv-compound-secondary,
+.mv-compound-btn.mv-btn-danger:hover .mv-compound-secondary {
+  color: var(--colorNeutralForegroundOnBrand);
+  opacity: 0.9;
+}
+
+/* Danger across appearances (outline/subtle): secondary line tints red-muted */
+.mv-compound-btn.mv-btn-danger.mv-btn-outline .mv-compound-secondary,
+.mv-compound-btn.mv-btn-danger.mv-btn-subtle .mv-compound-secondary,
+.mv-compound-btn.mv-btn-danger.mv-btn-transparent .mv-compound-secondary {
+  color: var(--colorStatusDangerForeground2, #751d1f);
+  opacity: 0.85;
+}
+
+/* Disabled: secondary line goes flat-disabled too */
+.mv-compound-btn:disabled .mv-compound-secondary,
+.mv-compound-btn[disabled] .mv-compound-secondary,
+.mv-compound-btn.mv-btn-disabled .mv-compound-secondary {
+  color: var(--colorNeutralForegroundDisabled);
+  opacity: 1;
+}
+
+/* ===== ToggleButton — complete variants (buttons) ===== */
+/* ============================================================
+   TOGGLE BUTTON — complete checked coverage for EVERY appearance and add
+   a checkbox-hack sibling fallback (the base only uses :has(), which a
+   handful of engines lag on; the sibling selector works everywhere).
+   Base already wires: secondary/primary/danger/subtle/transparent checked,
+   focus and disabled (via :has). Missing: OUTLINE checked, the sibling
+   fallback, and checked-hover/pressed deepening.
+   ============================================================ */
+
+/* ---- Sibling-combinator fallback (input precedes label content) ----
+   Markup: <label class="mv-btn mv-toggle-btn ..."><input class=mv-toggle-input ...> Bold</label>
+   :has() handles it, but add the universal `:checked ~` path on the label's
+   ::before-free content by re-stating the checked look via the input's own
+   adjacent styling is not possible (label is the parent). So we ALSO support
+   an explicit [data-checked] attribute the codegen can stamp for engines
+   without :has(). ---- */
+.mv-toggle-btn[data-checked] {
+  background: var(--colorBrandBackground2, var(--colorSubtleBackgroundSelected));
+  border-color: var(--colorCompoundBrandStroke, var(--colorBrandStroke1));
+  color: var(--colorBrandForeground1);
+}
+.mv-toggle-btn.mv-btn-primary[data-checked] {
+  background: var(--colorBrandBackgroundPressed);
+  border-color: transparent;
+  color: var(--colorNeutralForegroundOnBrand);
+}
+.mv-toggle-btn.mv-btn-danger[data-checked] {
+  background: var(--colorStatusDangerBackground3Pressed, var(--colorPaletteRedForeground1, #d13438));
+  border-color: transparent;
+  color: var(--colorNeutralForegroundOnBrand);
+  filter: brightness(0.9);
+}
+.mv-toggle-btn.mv-btn-subtle[data-checked],
+.mv-toggle-btn.mv-btn-transparent[data-checked] {
+  background: var(--colorSubtleBackgroundSelected, var(--colorSubtleBackgroundHover));
+  color: var(--colorNeutralForeground1Selected, var(--colorNeutralForeground1));
+}
+
+/* ---- OUTLINE checked (was missing on BOTH :has and data paths) ---- */
+.mv-toggle-btn.mv-btn-outline:has(> .mv-toggle-input:checked),
+.mv-toggle-btn.mv-btn-outline[data-checked] {
+  background: var(--colorBrandBackground2, var(--colorSubtleBackgroundSelected));
+  border-color: var(--colorCompoundBrandStroke, var(--colorBrandStroke1));
+  color: var(--colorBrandForeground1);
+}
+
+/* ---- Checked + hover / pressed deepening (Fluent darkens on interaction
+   while pressed) for the default + filled toggles ---- */
+.mv-toggle-btn:has(> .mv-toggle-input:checked):hover {
+  background: var(--colorBrandBackground2Hover, var(--colorSubtleBackgroundSelected));
+}
+.mv-toggle-btn.mv-btn-primary:has(> .mv-toggle-input:checked):hover {
+  background: var(--colorBrandBackgroundHover);
+}
+.mv-toggle-btn.mv-btn-danger:has(> .mv-toggle-input:checked):hover {
+  filter: brightness(0.85);
+}
+
+/* ---- Checked + danger across appearances (outline/subtle danger toggle) ---- */
+.mv-toggle-btn.mv-btn-danger.mv-btn-outline:has(> .mv-toggle-input:checked),
+.mv-toggle-btn.mv-btn-danger.mv-btn-outline[data-checked] {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.12));
+  border-color: var(--colorStatusDangerBorder2, #d13438);
+  color: var(--colorStatusDangerForeground3, #d13438);
+}
+
+/* ---- Shape parity (toggle accepts shape like Button; base passes it) ---- */
+.mv-toggle-btn.mv-btn-circular { border-radius: var(--borderRadiusCircular); }
+.mv-toggle-btn.mv-btn-square   { border-radius: var(--borderRadiusNone, 0); }
+.mv-toggle-btn.mv-btn-rounded  { border-radius: var(--borderRadiusMedium); }
+
+/* ---- Disabled + checked: flat selected-disabled look (data + :has) ---- */
+.mv-toggle-btn:has(> .mv-toggle-input:checked:disabled),
+.mv-toggle-btn[data-checked]:has(> .mv-toggle-input:disabled),
+.mv-toggle-btn.mv-btn-disabled[data-checked] {
+  background: var(--colorNeutralBackgroundDisabled, var(--colorNeutralBackground1));
+  border-color: var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke1));
+  color: var(--colorNeutralForegroundDisabled);
+  filter: none;
+}
+
+/* ===== SplitButton — complete variants (buttons) ===== */
+/* ============================================================
+   SPLIT BUTTON — complete appearance coverage on BOTH halves + sizes,
+   shapes, disabled, focus. Base wires .mv-split / -action / -trigger and a
+   white inset divider for primary/danger only, plus small/large trigger
+   widths. Missing: the divider for the quiet appearances (outline/subtle/
+   transparent/secondary), per-appearance group classes so both halves stay
+   visually joined, shape rounding of the OUTER corners only, and disabled.
+   ============================================================ */
+
+/* The action + trigger halves inherit fill from their own .mv-btn-* classes.
+   Provide the joining divider for the non-filled appearances (a neutral
+   stroke instead of the white inset used on filled). */
+.mv-split-secondary .mv-split-trigger,
+.mv-split-outline .mv-split-trigger,
+.mv-split-subtle .mv-split-trigger,
+.mv-split-transparent .mv-split-trigger {
+  box-shadow: inset 1px 0 0 0 var(--colorNeutralStroke1);
+}
+/* Quiet appearances: the trigger keeps its left border off but shows the
+   divider; ensure the action half drops only its joined edge. */
+.mv-split-subtle .mv-split-action,
+.mv-split-transparent .mv-split-action,
+.mv-split-subtle .mv-split-trigger,
+.mv-split-transparent .mv-split-trigger {
+  border-color: transparent;
+}
+
+/* Danger group (filled-danger across the whole split) */
+.mv-split-danger .mv-split-action,
+.mv-split-danger .mv-split-trigger {
+  background: var(--colorStatusDangerBackground3, var(--colorPaletteRedForeground1, #d13438));
+  border-color: transparent;
+  color: var(--colorNeutralForegroundOnBrand);
+}
+.mv-split-danger .mv-split-action:hover,
+.mv-split-danger .mv-split-trigger:hover { filter: brightness(0.94); }
+.mv-split-danger .mv-split-action:active,
+.mv-split-danger .mv-split-trigger:active { filter: brightness(0.88); }
+
+/* ---- Shapes: only the OUTER corners round; the joined seam stays square.
+   circular -> pill ends; square -> no radius anywhere. ---- */
+.mv-split-circular .mv-split-action {
+  border-top-left-radius: var(--borderRadiusCircular);
+  border-bottom-left-radius: var(--borderRadiusCircular);
+}
+.mv-split-circular .mv-split-trigger {
+  border-top-right-radius: var(--borderRadiusCircular);
+  border-bottom-right-radius: var(--borderRadiusCircular);
+}
+.mv-split-square .mv-split-action,
+.mv-split-square .mv-split-trigger {
+  border-radius: 0;
+}
+.mv-split-rounded .mv-split-action {
+  border-top-left-radius: var(--borderRadiusMedium);
+  border-bottom-left-radius: var(--borderRadiusMedium);
+}
+.mv-split-rounded .mv-split-trigger {
+  border-top-right-radius: var(--borderRadiusMedium);
+  border-bottom-right-radius: var(--borderRadiusMedium);
+}
+
+/* ---- Disabled: both halves go flat-disabled, popover suppressed ---- */
+.mv-split-disabled .mv-split-action,
+.mv-split-disabled .mv-split-trigger,
+.mv-split-disabled .mv-split-action:hover,
+.mv-split-disabled .mv-split-trigger:hover {
+  background: var(--colorNeutralBackgroundDisabled, var(--colorNeutralBackground1));
+  border-color: var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke1));
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  filter: none;
+}
+.mv-split-disabled .mv-split-menu { pointer-events: none; }
+
+/* ---- Focus: focusing either half outlines just that half ---- */
+.mv-split-action:focus-visible,
+.mv-split-trigger:focus-visible {
+  outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralForeground1));
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+/* ===== MenuButton — complete variants (buttons) ===== */
+/* ============================================================
+   MENU BUTTON — the trigger is a .mv-btn so it already inherits every
+   appearance/size/shape from the shared Button classes. Base wires the
+   chevron + marker reset only. Add: size parity for the chevron, shape
+   rounding of the summary, disabled trigger, open-state pressed look, and
+   the danger appearance chevron contrast.
+   ============================================================ */
+
+/* Shape: the summary is the button, so rounding follows the same classes.
+   (circular/square/rounded already work via .mv-btn-* on the summary; add
+   the rounded no-op + ensure circular keeps the chevron centered.) */
+.mv-menubtn-trigger.mv-btn-circular { border-radius: var(--borderRadiusCircular); }
+.mv-menubtn-trigger.mv-btn-square   { border-radius: var(--borderRadiusNone, 0); }
+.mv-menubtn-trigger.mv-btn-rounded  { border-radius: var(--borderRadiusMedium); }
+
+/* Chevron size tracks the button size */
+.mv-menubtn-trigger.mv-btn-small .mv-menubtn-chev { font-size: var(--fontSizeBase100); }
+.mv-menubtn-trigger.mv-btn-large .mv-menubtn-chev { font-size: var(--fontSizeBase300); }
+
+/* Open state: hold the pressed look while the menu is open (Fluent keeps the
+   trigger in its active/selected state while expanded). */
+.mv-menubtn[open] > .mv-menubtn-trigger {
+  background: var(--colorNeutralBackground1Pressed);
+}
+.mv-menubtn[open] > .mv-menubtn-trigger.mv-btn-primary {
+  background: var(--colorBrandBackgroundPressed);
+}
+.mv-menubtn[open] > .mv-menubtn-trigger.mv-btn-subtle,
+.mv-menubtn[open] > .mv-menubtn-trigger.mv-btn-transparent {
+  background: var(--colorSubtleBackgroundSelected, var(--colorSubtleBackgroundPressed));
+}
+.mv-menubtn[open] > .mv-menubtn-trigger.mv-btn-outline {
+  background: var(--colorSubtleBackgroundPressed);
+}
+
+/* On a filled (primary/danger) trigger the chevron must stay on-brand. */
+.mv-menubtn-trigger.mv-btn-primary .mv-menubtn-chev,
+.mv-menubtn-trigger.mv-btn-danger .mv-menubtn-chev {
+  color: var(--colorNeutralForegroundOnBrand);
+}
+
+/* Disabled trigger: flat look + no popover. */
+.mv-menubtn-trigger.mv-btn-disabled,
+.mv-menubtn-trigger:disabled,
+.mv-menubtn-trigger[aria-disabled="true"] {
+  background: var(--colorNeutralBackgroundDisabled, var(--colorNeutralBackground1));
+  border-color: var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke1));
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-menubtn.mv-menu-disabled { pointer-events: none; }
+
+/* Icon-only menu button: keep the chevron alongside a square trigger. */
+.mv-menubtn-trigger.mv-btn-icon { width: auto; padding: 0 var(--spacingHorizontalSNudge); }
+
+/* ===== MenuItem — complete variants (buttons) ===== */
+/* ============================================================
+   MENU ITEM (+ Checkbox / Radio checked states) — base .mv-menu-item and
+   the checkable shells already exist. Add the FULL state matrix Fluent
+   gives menu items: disabled, danger/destructive, selected/active, a
+   secondary (right-aligned) content slot, an icon slot, a submenu chevron,
+   and the checked indicator coloring (incl. hover/pressed and disabled).
+   ============================================================ */
+
+/* ---- Icon slot (leading) ---- */
+.mv-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  font-size: var(--fontSizeBase400);
+  color: var(--colorNeutralForeground2);
+}
+
+/* ---- Secondary content (trailing, e.g. a shortcut like Ctrl+S) ---- */
+.mv-menu-item-secondary {
+  margin-left: auto;
+  padding-left: var(--spacingHorizontalL);
+  color: var(--colorNeutralForeground3, var(--colorNeutralForeground2));
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+
+/* ---- Submenu chevron (trailing) ---- */
+.mv-menu-item-submenu {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--colorNeutralForeground3, var(--colorNeutralForeground2));
+  font-size: var(--fontSizeBase200);
+}
+
+/* ---- Disabled ---- */
+.mv-menu-item-disabled,
+.mv-menu-item[aria-disabled="true"] {
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-menu-item-disabled .mv-menu-item-icon,
+.mv-menu-item-disabled .mv-menu-item-secondary {
+  color: var(--colorNeutralForegroundDisabled);
+}
+
+/* ---- Danger / destructive menu item (e.g. Delete) ---- */
+.mv-menu-item-danger {
+  color: var(--colorStatusDangerForeground1, var(--colorPaletteRedForeground1, #bc2f32));
+}
+.mv-menu-item-danger .mv-menu-item-icon {
+  color: var(--colorStatusDangerForeground1, #bc2f32);
+}
+.mv-menu-item-danger:hover {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.08));
+  color: var(--colorStatusDangerForeground2, #751d1f);
+}
+.mv-menu-item-danger:active {
+  background: var(--colorStatusDangerBackground1, rgba(209,52,56,0.14));
+}
+
+/* ---- Selected / active (current route) ---- */
+.mv-menu-item-selected {
+  background: var(--colorSubtleBackgroundSelected, var(--colorNeutralBackground1Selected));
+  color: var(--colorNeutralForeground1Selected, var(--colorNeutralForeground1));
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* ============================================================
+   CHECKABLE STATES (MenuItemCheckbox / MenuItemRadio)
+   The base shows the ✓ / ● only on :checked. Complete: the checked
+   ROW tint, brand indicator hover/pressed, and disabled-checked.
+   ============================================================ */
+
+/* Checked row gets a subtle selected tint (Fluent highlights the checked row) */
+.mv-menu-checkitem:has(.mv-menu-checkinput:checked),
+.mv-menu-radioitem:has(.mv-menu-radioinput:checked) {
+  color: var(--colorNeutralForeground1Selected, var(--colorNeutralForeground1));
+}
+
+/* Indicator follows the compound-brand foreground across interaction states */
+.mv-menu-checkitem:hover .mv-menu-checkinput:checked ~ .mv-menu-check,
+.mv-menu-radioitem:hover .mv-menu-radioinput:checked ~ .mv-menu-radio {
+  color: var(--colorCompoundBrandForeground1Hover, var(--colorCompoundBrandForeground1));
+}
+.mv-menu-checkitem:active .mv-menu-checkinput:checked ~ .mv-menu-check,
+.mv-menu-radioitem:active .mv-menu-radioinput:checked ~ .mv-menu-radio {
+  color: var(--colorCompoundBrandForeground1Pressed, var(--colorCompoundBrandForeground1));
+}
+
+/* Disabled checkable item: indicator + label go disabled-grey */
+.mv-menu-checkinput:disabled ~ .mv-menu-check,
+.mv-menu-radioinput:disabled ~ .mv-menu-radio,
+.mv-menu-checkinput:disabled ~ .mv-menu-itemlabel,
+.mv-menu-radioinput:disabled ~ .mv-menu-itemlabel {
+  color: var(--colorNeutralForegroundDisabled);
+}
+.mv-menu-checkitem:has(.mv-menu-checkinput:disabled),
+.mv-menu-radioitem:has(.mv-menu-radioinput:disabled) {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ===== Badge — complete variants (badges-tags-avatars) ===== */
+/* ===== Badge — complete variant set ===== */
+
+/* --- APPEARANCE x STATUS COLOR completion ---
+   Base + filled status intents (brand/success/warning/danger/severe/informative/subtle)
+   already exist. ADD: the missing `important` intent on every appearance, and fill
+   the ghost/outline/tint matrix for brand + severe + subtle + important so EVERY
+   appearance x EVERY status color is covered. */
+
+/* important = high-contrast neutral (Fluent: neutralForeground bg) */
+.mv-badge-important {
+  background: var(--colorNeutralForeground1);
+  color: var(--colorNeutralBackground1);
+}
+.mv-badge-ghost.mv-badge-important   { background: transparent; color: var(--colorNeutralForeground1); border-color: transparent; }
+.mv-badge-outline.mv-badge-important { background: transparent; color: var(--colorNeutralForeground1); border-color: var(--colorNeutralStroke1); }
+.mv-badge-tint.mv-badge-important    { background: var(--colorNeutralBackground4); color: var(--colorNeutralForeground1); border-color: var(--colorNeutralStroke2); }
+
+/* ghost: fill the gaps (brand exists as default; add severe/subtle) */
+.mv-badge-ghost.mv-badge-brand   { color: var(--colorBrandForeground1); }
+.mv-badge-ghost.mv-badge-subtle  { color: var(--colorNeutralForeground3); }
+.mv-badge-ghost.mv-badge-severe  { color: var(--colorStatusDangerForeground1); }
+
+/* outline: add the missing severe + subtle + brand-explicit */
+.mv-badge-outline.mv-badge-brand  { color: var(--colorBrandForeground1); border-color: var(--colorBrandStroke1); }
+.mv-badge-outline.mv-badge-severe { color: var(--colorStatusDangerForeground1); border-color: var(--colorStatusDangerBorder2); }
+.mv-badge-outline.mv-badge-subtle { color: var(--colorNeutralForeground3); border-color: var(--colorNeutralStroke2); }
+
+/* tint: add the missing severe + subtle + informative-explicit + brand-explicit */
+.mv-badge-tint.mv-badge-brand   { background: var(--colorBrandBackground2); color: var(--colorBrandForeground2); border-color: var(--colorBrandStroke2); }
+.mv-badge-tint.mv-badge-severe  { background: var(--colorStatusDangerBackground1); color: var(--colorStatusDangerForeground1); border-color: var(--colorStatusDangerBorder1); }
+.mv-badge-tint.mv-badge-subtle  { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground2); border-color: var(--colorNeutralStroke2); }
+
+/* --- NON-FILLED x FULL NAMED PALETTE completion ---
+   Only red/green/blue/purple/teal/magenta were covered for ghost/outline/tint.
+   ADD the rest of the Fluent named set so any palette hue works under any
+   non-filled appearance (transparent bg, hue text, currentColor border). */
+.mv-badge-ghost.mv-badge-darkred,    .mv-badge-outline.mv-badge-darkred,    .mv-badge-tint.mv-badge-darkred    { background: transparent; color: #750b1c; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-cranberry,  .mv-badge-outline.mv-badge-cranberry,  .mv-badge-tint.mv-badge-cranberry  { background: transparent; color: #c50f1f; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-pumpkin,    .mv-badge-outline.mv-badge-pumpkin,    .mv-badge-tint.mv-badge-pumpkin    { background: transparent; color: #ca5010; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-peach,      .mv-badge-outline.mv-badge-peach,      .mv-badge-tint.mv-badge-peach      { background: transparent; color: #bc4b09; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-marigold,   .mv-badge-outline.mv-badge-marigold,   .mv-badge-tint.mv-badge-marigold   { background: transparent; color: #815b00; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-gold,       .mv-badge-outline.mv-badge-gold,       .mv-badge-tint.mv-badge-gold       { background: transparent; color: #6c5700; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-brass,      .mv-badge-outline.mv-badge-brass,      .mv-badge-tint.mv-badge-brass      { background: transparent; color: #553e06; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-brown,      .mv-badge-outline.mv-badge-brown,      .mv-badge-tint.mv-badge-brown      { background: transparent; color: #4d291c; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-forest,     .mv-badge-outline.mv-badge-forest,     .mv-badge-tint.mv-badge-forest     { background: transparent; color: #294903; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-seafoam,    .mv-badge-outline.mv-badge-seafoam,    .mv-badge-tint.mv-badge-seafoam    { background: transparent; color: #00723b; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-darkgreen,  .mv-badge-outline.mv-badge-darkgreen,  .mv-badge-tint.mv-badge-darkgreen  { background: transparent; color: #063b06; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-lightteal,  .mv-badge-outline.mv-badge-lightteal,  .mv-badge-tint.mv-badge-lightteal  { background: transparent; color: #006666; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-steel,      .mv-badge-outline.mv-badge-steel,      .mv-badge-tint.mv-badge-steel      { background: transparent; color: #005b70; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-royalblue,  .mv-badge-outline.mv-badge-royalblue,  .mv-badge-tint.mv-badge-royalblue  { background: transparent; color: #004e8c; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-cornflower, .mv-badge-outline.mv-badge-cornflower, .mv-badge-tint.mv-badge-cornflower { background: transparent; color: #3a4eba; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-navy,       .mv-badge-outline.mv-badge-navy,       .mv-badge-tint.mv-badge-navy       { background: transparent; color: #003966; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-lavender,   .mv-badge-outline.mv-badge-lavender,   .mv-badge-tint.mv-badge-lavender   { background: transparent; color: #5b4ec2; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-grape,      .mv-badge-outline.mv-badge-grape,      .mv-badge-tint.mv-badge-grape      { background: transparent; color: #881798; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-lilac,      .mv-badge-outline.mv-badge-lilac,      .mv-badge-tint.mv-badge-lilac      { background: transparent; color: #8f3aa0; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-pink,       .mv-badge-outline.mv-badge-pink,       .mv-badge-tint.mv-badge-pink       { background: transparent; color: #b4009e; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-plum,       .mv-badge-outline.mv-badge-plum,       .mv-badge-tint.mv-badge-plum       { background: transparent; color: #77004d; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-beige,      .mv-badge-outline.mv-badge-beige,      .mv-badge-tint.mv-badge-beige      { background: transparent; color: #4d4642; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-mink,       .mv-badge-outline.mv-badge-mink,       .mv-badge-tint.mv-badge-mink       { background: transparent; color: #4d4642; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-platinum,   .mv-badge-outline.mv-badge-platinum,   .mv-badge-tint.mv-badge-platinum   { background: transparent; color: #41595e; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-anchor,     .mv-badge-outline.mv-badge-anchor,     .mv-badge-tint.mv-badge-anchor     { background: transparent; color: #202634; border-color: currentColor; }
+.mv-badge-ghost.mv-badge-neutral,    .mv-badge-outline.mv-badge-neutral,    .mv-badge-tint.mv-badge-neutral    { background: transparent; color: var(--colorNeutralForeground3); border-color: currentColor; }
+
+/* The tint variant of the named hues should keep a faint fill (Fluent tint)
+   rather than fully transparent — soften with a low-alpha wash. */
+.mv-badge-tint.mv-badge-red       { background: color-mix(in srgb, #d13438 12%, transparent); }
+.mv-badge-tint.mv-badge-green     { background: color-mix(in srgb, #107c10 12%, transparent); }
+.mv-badge-tint.mv-badge-blue      { background: color-mix(in srgb, #0078d4 12%, transparent); }
+.mv-badge-tint.mv-badge-purple    { background: color-mix(in srgb, #5c2e91 12%, transparent); }
+.mv-badge-tint.mv-badge-teal      { background: color-mix(in srgb, #038387 12%, transparent); }
+.mv-badge-tint.mv-badge-magenta   { background: color-mix(in srgb, #bf0077 12%, transparent); }
+
+/* --- STATES (CSS-only) --- */
+/* Badges are non-interactive by default; expose disabled + a hoverable variant
+   for clickable/removable badges, plus selected via [aria-pressed]. */
+.mv-badge-clickable { cursor: pointer; transition: filter var(--durationFaster) var(--curveEasyEase), background var(--durationFaster) var(--curveEasyEase); }
+.mv-badge-clickable:hover { filter: brightness(0.95); }
+.mv-badge-clickable:active { filter: brightness(0.90); }
+.mv-badge[aria-disabled="true"],
+.mv-badge-disabled {
+  background: var(--colorNeutralBackgroundDisabled);
+  color: var(--colorNeutralForegroundDisabled);
+  border-color: var(--colorNeutralStrokeDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-badge[aria-pressed="true"],
+.mv-badge-selected { outline: var(--strokeWidthThick) solid var(--colorBrandStroke1); outline-offset: 1px; }
+.mv-badge:focus-visible { outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible)); outline-offset: 1px; }
+
+/* Icon-only badge: square padding so a glyph centers (Fluent iconBadge) */
+.mv-badge-icon { padding: 0; }
+
+/* ===== CounterBadge — complete variants (badges-tags-avatars) ===== */
+/* ===== CounterBadge — complete variant set ===== */
+/* Base + filled/ghost/outline x {brand,danger,important,informative,severe,
+   subtle,success,warning} + sizes + dot already exist. ADD: the missing
+   `tint` appearance across every color, the `warning`-already-present, plus
+   the full named palette under filled, shape modifiers, and states. */
+
+/* --- tint appearance (light wash + colored text + subtle ring) --- */
+.mv-cbadge-tint { background: transparent; }
+.mv-cbadge-tint.mv-cbadge-brand       { background: var(--colorBrandBackground2);        color: var(--colorBrandForeground2);        border-color: var(--colorBrandStroke2); }
+.mv-cbadge-tint.mv-cbadge-danger      { background: var(--colorStatusDangerBackground1);  color: var(--colorStatusDangerForeground1);  border-color: var(--colorStatusDangerBorder1); }
+.mv-cbadge-tint.mv-cbadge-important   { background: var(--colorNeutralBackground4);       color: var(--colorNeutralForeground1);       border-color: var(--colorNeutralStroke2); }
+.mv-cbadge-tint.mv-cbadge-informative { background: var(--colorNeutralBackground4);       color: var(--colorNeutralForeground3);       border-color: var(--colorNeutralStroke2); }
+.mv-cbadge-tint.mv-cbadge-severe      { background: var(--colorStatusDangerBackground1);  color: var(--colorStatusDangerForeground1);  border-color: var(--colorStatusDangerBorder1); }
+.mv-cbadge-tint.mv-cbadge-subtle      { background: var(--colorNeutralBackground3);       color: var(--colorNeutralForeground2);       border-color: var(--colorNeutralStroke2); }
+.mv-cbadge-tint.mv-cbadge-success     { background: var(--colorStatusSuccessBackground1); color: var(--colorStatusSuccessForeground1); border-color: var(--colorStatusSuccessBorder1); }
+.mv-cbadge-tint.mv-cbadge-warning     { background: var(--colorStatusWarningBackground1); color: var(--colorStatusWarningForeground1); border-color: var(--colorStatusWarningBorder1); }
+.mv-cbadge-tint.mv-cbadge-dot         { background: currentColor; }
+
+/* --- ghost: warning gap was already present; nothing missing here --- */
+
+/* --- shape modifiers (Fluent counter is circular pill by default) --- */
+.mv-cbadge-rounded  { border-radius: var(--borderRadiusMedium); }
+.mv-cbadge-circular { border-radius: var(--borderRadiusCircular); }
+.mv-cbadge-square   { border-radius: var(--borderRadiusNone); }
+
+/* --- named-palette filled colors (parity with Badge/Avatar palette) --- */
+.mv-cbadge-filled.mv-cbadge-red        { background: #d13438; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-green      { background: #107c10; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-blue       { background: #0078d4; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-purple     { background: #5c2e91; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-teal       { background: #038387; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-magenta    { background: #bf0077; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-pink       { background: #e3008c; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-gold       { background: #c19c00; color: #000; }
+.mv-cbadge-filled.mv-cbadge-forest     { background: #498205; color: #fff; }
+.mv-cbadge-filled.mv-cbadge-navy       { background: #003966; color: #fff; }
+
+/* --- overflow cap helper (Fluent renders "99+" past overflowCount) ---
+   purely cosmetic min-width bump so wide caps don't clip. */
+.mv-cbadge-overflow { padding-inline: var(--spacingHorizontalSNudge); }
+
+/* --- STATES --- */
+.mv-cbadge[aria-disabled="true"],
+.mv-cbadge-disabled {
+  background: var(--colorNeutralBackgroundDisabled);
+  color: var(--colorNeutralForegroundDisabled);
+  border-color: var(--colorNeutralStrokeDisabled);
+}
+.mv-cbadge:focus-visible { outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible)); outline-offset: 1px; }
+
+/* ===== PresenceBadge — complete variants (badges-tags-avatars) ===== */
+/* ===== PresenceBadge — complete status + size set ===== */
+/* Base + available/busy/dnd/away/offline/out-of-office(+oof alias) + sizes
+   tiny..large + oof-ring already exist. ADD: the `do-not-disturb` long-form
+   alias the codegen will emit verbatim from status="do-not-disturb", the
+   `unknown`/`blocked` Fluent edge statuses, and a couple of polish bits. */
+
+/* do-not-disturb (long form) === dnd (red bar). Fluent status string is
+   'do-not-disturb'; codegen passes it through verbatim, so alias it. */
+.mv-presence-do-not-disturb::before { background: var(--colorStatusDangerForeground3); }
+.mv-presence-do-not-disturb::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  top: 44%;
+  width: 56%;
+  height: 14%;
+  border-radius: 1px;
+  background: var(--colorNeutralForegroundOnBrand);
+}
+
+/* blocked: red ring with a slash (Fluent 'blocked') */
+.mv-presence-blocked::before {
+  background: var(--colorNeutralBackground1);
+  border: 1.5px solid var(--colorStatusDangerForeground3);
+}
+.mv-presence-blocked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 1.5px;
+  background: var(--colorStatusDangerForeground3);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* unknown: hollow grey ring with a centered dot (Fluent 'unknown') */
+.mv-presence-unknown::before {
+  background: var(--colorNeutralBackground1);
+  border: 1.5px solid var(--colorNeutralForeground4);
+}
+
+/* offline alias parity (some callers use status='offline' already handled) */
+
+/* The OOF ring may combine with ANY status (Fluent: out-of-office overlays the
+   base status). Provide combinators so available/busy/away keep their glyph
+   but gain the brand OOF ring. */
+.mv-presence-oof-ring.mv-presence-available::before,
+.mv-presence-oof-ring.mv-presence-busy::before,
+.mv-presence-oof-ring.mv-presence-do-not-disturb::before,
+.mv-presence-oof-ring.mv-presence-dnd::before,
+.mv-presence-oof-ring.mv-presence-away::before {
+  border: 1.5px solid var(--colorBrandForeground1) !important;
+}
+
+/* extra-large size for parity with the larger avatar sizes (Fluent presence
+   tops out at 20px for the badge itself; expose an xl alias = 20 for callers
+   that pass size='extra-large'/'huge' generically) */
+.mv-presence-extra-large { width: 20px; height: 20px; }
+.mv-presence-huge        { width: 24px; height: 24px; }
+
+/* ===== Tag — complete variants (badges-tags-avatars) ===== */
+/* ===== Tag — complete variant set ===== */
+/* Base + small/medium/extra-large + outline/filled/brand + rounded/circular +
+   dismiss + interactive already exist. ADD: the missing default `medium` is
+   the base; complete appearance/shape/state matrix + secondary-text sizing +
+   icon slot + selected/disabled/checked states. */
+
+/* --- appearance completion (Fluent: filled / outline(default) / brand) ---
+   filled/outline/brand exist; add explicit `subtle` (transparent, no border)
+   and a `transparent` alias used by InteractionTag-style chips. */
+.mv-tag-subtle      { background: transparent; border-color: transparent; }
+.mv-tag-transparent { background: transparent; border-color: transparent; }
+
+/* --- shape completion: add `square` for parity --- */
+.mv-tag-square { border-radius: var(--borderRadiusNone); }
+
+/* --- size completion: ensure each size also sizes the dismiss + media slots --- */
+.mv-tag-small  .mv-tag-dismiss { width: 16px; height: 16px; }
+.mv-tag-extra-large .mv-tag-dismiss { width: 24px; height: 24px; }
+
+/* --- media / icon / avatar slots inside a Tag --- */
+.mv-tag-media {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: calc(-1 * var(--spacingHorizontalXXS));
+  flex-shrink: 0;
+}
+.mv-tag-media > img,
+.mv-tag-media > svg,
+.mv-tag-media > .mv-avatar { width: 20px; height: 20px; border-radius: var(--borderRadiusCircular); }
+.mv-tag-extra-large .mv-tag-media > .mv-avatar { width: 28px; height: 28px; }
+
+/* --- primary text + secondary stacked (Fluent tag has 2-line variant) --- */
+.mv-tag-content { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1; }
+.mv-tag-primary { color: var(--colorNeutralForeground2); }
+
+/* --- STATES (CSS-only) --- */
+/* selected / checked: brand tint + brand border (checkbox-hack friendly:
+   also responds to a sibling :checked input via [data-checked]) */
+.mv-tag-selected,
+.mv-tag[data-checked] {
+  background: var(--colorBrandBackground2);
+  border-color: var(--colorBrandStroke1);
+  color: var(--colorBrandForeground2);
+}
+/* disabled */
+.mv-tag[aria-disabled="true"],
+.mv-tag-disabled {
+  background: var(--colorNeutralBackgroundDisabled);
+  border-color: var(--colorNeutralStrokeDisabled);
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-tag-disabled .mv-tag-dismiss { color: var(--colorNeutralForegroundDisabled); pointer-events: none; }
+/* focus ring on the whole tag when it is focusable */
+.mv-tag:focus-visible { outline: 2px solid var(--colorStrokeFocus2, var(--colorNeutralStrokeAccessible)); outline-offset: -1px; }
+
+/* brand appearance hover/pressed when interactive */
+.mv-tag-brand.mv-tag-interactive:hover  { background: var(--colorBrandBackground2Hover, var(--colorBrandBackground2)); }
+.mv-tag-brand.mv-tag-interactive:active { background: var(--colorBrandBackground2Pressed, var(--colorBrandBackground2)); }
+
+/* ===== InteractionTag — complete variants (badges-tags-avatars) ===== */
+/* ===== InteractionTag — complete variant set ===== */
+/* Base shell (mv-tag mv-interactiontag) + primary button (hover/active/focus)
+   + trailing dismiss already exist. ADD: appearance pass-through parity with
+   Tag, sizes wiring for the inner button height, selected/disabled states,
+   and the media slot. */
+
+/* The shell is a .mv-tag, so it inherits Tag appearance/size/shape classes.
+   Ensure the primary button fills the shell at every size. */
+.mv-tag-small.mv-interactiontag .mv-interactiontag-primary  { padding-inline: var(--spacingHorizontalSNudge); }
+.mv-tag-extra-large.mv-interactiontag .mv-interactiontag-primary { padding-inline: var(--spacingHorizontalM); }
+.mv-tag-small.mv-interactiontag .mv-interactiontag-dismiss   { width: 22px; }
+.mv-tag-extra-large.mv-interactiontag .mv-interactiontag-dismiss { width: 34px; }
+
+/* appearance recolor of the interactive surfaces (brand/filled) */
+.mv-tag-brand.mv-interactiontag .mv-interactiontag-primary:hover  { background: var(--colorBrandBackground2Hover, color-mix(in srgb, var(--colorBrandForeground2) 8%, transparent)); }
+.mv-tag-brand.mv-interactiontag .mv-interactiontag-primary:active { background: var(--colorBrandBackground2Pressed, color-mix(in srgb, var(--colorBrandForeground2) 14%, transparent)); }
+.mv-tag-filled.mv-interactiontag .mv-interactiontag-primary:hover { background: var(--colorSubtleBackgroundHover); }
+
+/* selected (Fluent: aria-pressed primary) */
+.mv-interactiontag-primary[aria-pressed="true"],
+.mv-tag-selected .mv-interactiontag-primary {
+  background: var(--colorBrandBackground2);
+  color: var(--colorBrandForeground2);
+}
+
+/* disabled — kills both the primary button and the dismiss */
+.mv-tag-disabled.mv-interactiontag,
+.mv-interactiontag[aria-disabled="true"] {
+  background: var(--colorNeutralBackgroundDisabled);
+  border-color: var(--colorNeutralStrokeDisabled);
+  color: var(--colorNeutralForegroundDisabled);
+}
+.mv-tag-disabled.mv-interactiontag .mv-interactiontag-primary,
+.mv-tag-disabled.mv-interactiontag .mv-interactiontag-dismiss {
+  cursor: not-allowed;
+  pointer-events: none;
+  color: var(--colorNeutralForegroundDisabled);
+}
+
+/* media slot inside the primary button */
+.mv-interactiontag-primary .mv-tag-media > img,
+.mv-interactiontag-primary .mv-tag-media > .mv-avatar { width: 20px; height: 20px; border-radius: var(--borderRadiusCircular); }
+
+/* ===== TagGroup — complete variants (badges-tags-avatars) ===== */
+/* ===== TagGroup — complete variant set ===== */
+/* Base (flex wrap, gap) + small (tighter gap) already exist. ADD: the other
+   Fluent sizes' gaps, a non-wrapping/scrolling variant, and vertical layout. */
+
+/* size-matched gaps so the group spacing tracks the tag size */
+.mv-taggroup-medium      { gap: var(--spacingHorizontalS); }
+.mv-taggroup-extra-large { gap: var(--spacingHorizontalM); }
+
+/* no-wrap horizontal scroller (Fluent filter bars) */
+.mv-taggroup-nowrap {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* vertical stack of tags */
+.mv-taggroup-vertical {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* dismissible-group affordance: reserve the dismiss column consistently */
+.mv-taggroup-dismissible .mv-tag { padding-inline-end: var(--spacingHorizontalXXS); }
+
+/* ===== Avatar — complete variants (badges-tags-avatars) ===== */
+/* ===== Avatar — complete size / shape / color / state set ===== */
+/* Existing sizes: 20/24/32/40/48/56/64/72. Existing: square, online/busy/away
+   ring+dot, active/inactive, badge dots, full named palette. ADD the missing
+   Fluent fixed sizes 16/28/36/96/120/128, the full presence-status set on the
+   ring, the `colorful` auto marker, ring-color states, and an `image`/`icon`
+   fit helper. */
+
+/* --- MISSING Fluent fixed sizes --- */
+.mv-avatar-16  { --mv-avatar-size: 16px; font-size: 8px; }
+.mv-avatar-28  { --mv-avatar-size: 28px; font-size: var(--fontSizeBase200); /* 12 */ }
+.mv-avatar-36  { --mv-avatar-size: 36px; font-size: var(--fontSizeBase300); /* 14 */ }
+.mv-avatar-96  { --mv-avatar-size: 96px; font-size: var(--fontSizeHero700); /* 28 */ }
+.mv-avatar-120 { --mv-avatar-size: 120px; font-size: var(--fontSizeHero800); /* 32 */ }
+.mv-avatar-128 { --mv-avatar-size: 128px; font-size: var(--fontSizeHero800); /* 32 */ }
+
+/* --- SHAPE: circular is the base; add explicit circular + keep square --- */
+.mv-avatar-circular { border-radius: var(--borderRadiusCircular); }
+/* square already exists (.mv-avatar-square -> borderRadiusMedium); scale its
+   radius up on the very large sizes so the rounding reads correctly */
+.mv-avatar-square.mv-avatar-96,
+.mv-avatar-square.mv-avatar-120,
+.mv-avatar-square.mv-avatar-128 { border-radius: var(--borderRadiusLarge); }
+
+/* --- PRESENCE ring: complete the status set (only online/busy/away existed) ---
+   Reuse the badge-status colors so presence=available/dnd/offline/oof all work
+   on the ring-style avatar. */
+.mv-avatar-available,
+.mv-avatar-dnd,
+.mv-avatar-offline,
+.mv-avatar-do-not-disturb,
+.mv-avatar-out-of-office,
+.mv-avatar-oof {
+  box-shadow: 0 0 0 2px var(--colorNeutralBackground1);
+}
+.mv-avatar-available::after,
+.mv-avatar-dnd::after,
+.mv-avatar-do-not-disturb::after,
+.mv-avatar-offline::after,
+.mv-avatar-out-of-office::after,
+.mv-avatar-oof::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28%;
+  height: 28%;
+  min-width: 6px; min-height: 6px; max-width: 14px; max-height: 14px;
+  border-radius: var(--borderRadiusCircular);
+  border: 2px solid var(--colorNeutralBackground1);
+  box-sizing: border-box;
+}
+.mv-avatar-available::after        { background-color: var(--colorStatusSuccessForeground3); }
+.mv-avatar-dnd::after,
+.mv-avatar-do-not-disturb::after   { background-color: var(--colorStatusDangerForeground3); }
+.mv-avatar-offline::after          { background-color: var(--colorNeutralForeground4); }
+.mv-avatar-out-of-office::after,
+.mv-avatar-oof::after              { background-color: var(--colorBrandForeground1); }
+
+/* badge-status long-form parity (codegen may emit badge='do-not-disturb') */
+.mv-avatar-badge-dnd::after,
+.mv-avatar-badge-do-not-disturb::after { background-color: var(--colorStatusDangerForeground3); }
+.mv-avatar-badge-available::after      { background-color: var(--colorStatusSuccessForeground3); }
+.mv-avatar-badge-oof::after,
+.mv-avatar-badge-out-of-office::after  { background-color: var(--colorBrandForeground1); }
+
+/* --- 'colorful' auto marker: when color='colorful' Fluent hashes the name to
+   a hue. With no JS we cannot hash, so map `colorful` to a pleasant default
+   (brand tint) and let an explicit named color override it. --- */
+.mv-avatar-colorful { background-color: var(--colorBrandBackground2); color: var(--colorBrandForeground2); }
+
+/* --- ACTIVE ring color follows Fluent activeAppearance (ring | shadow | glow) --- */
+.mv-avatar-ring   { box-shadow: 0 0 0 2px var(--colorNeutralBackground1), 0 0 0 4px var(--colorBrandStroke1); }
+.mv-avatar-shadow { box-shadow: var(--shadow8); }
+.mv-avatar-glow   { box-shadow: 0 0 0 2px var(--colorNeutralBackground1), 0 0 12px 2px var(--colorBrandStroke1); }
+
+/* --- image / icon fit helpers --- */
+.mv-avatar-icon > svg { width: 60%; height: 60%; }
+
+/* --- ring inset must scale on big sizes so it stays visible --- */
+.mv-avatar-96.mv-avatar-active,
+.mv-avatar-120.mv-avatar-active,
+.mv-avatar-128.mv-avatar-active {
+  box-shadow: 0 0 0 3px var(--colorNeutralBackground1), 0 0 0 6px var(--colorBrandStroke1);
+}
+
+/* ===== AvatarGroup — complete variants (badges-tags-avatars) ===== */
+/* ===== AvatarGroup — complete variant set ===== */
+/* Base (inline-flex, -8px overlap, ring, overflow pill) already exists. ADD:
+   the Fluent layouts (stack/spread/pie), per-size overlap, and the overflow
+   count interaction. */
+
+/* --- layout: spread (gap, no overlap) --- */
+.mv-avatar-group-spread { gap: var(--spacingHorizontalXS); }
+.mv-avatar-group-spread .mv-avatar { margin-left: 0; box-shadow: none; }
+
+/* --- layout: stack (default overlap) explicit class --- */
+.mv-avatar-group-stack .mv-avatar { margin-left: -8px; box-shadow: 0 0 0 2px var(--colorNeutralBackground1); }
+.mv-avatar-group-stack .mv-avatar:first-child { margin-left: 0; }
+
+/* --- per-size overlap so the stack reads correctly at each avatar size --- */
+.mv-avatar-group-16 .mv-avatar  { margin-left: -4px; }
+.mv-avatar-group-24 .mv-avatar  { margin-left: -6px; }
+.mv-avatar-group-32 .mv-avatar  { margin-left: -8px; }
+.mv-avatar-group-40 .mv-avatar  { margin-left: -10px; }
+.mv-avatar-group-48 .mv-avatar  { margin-left: -12px; }
+.mv-avatar-group-56 .mv-avatar  { margin-left: -14px; }
+.mv-avatar-group-64 .mv-avatar  { margin-left: -16px; }
+.mv-avatar-group-16 .mv-avatar:first-child,
+.mv-avatar-group-24 .mv-avatar:first-child,
+.mv-avatar-group-32 .mv-avatar:first-child,
+.mv-avatar-group-40 .mv-avatar:first-child,
+.mv-avatar-group-48 .mv-avatar:first-child,
+.mv-avatar-group-56 .mv-avatar:first-child,
+.mv-avatar-group-64 .mv-avatar:first-child { margin-left: 0; }
+
+/* --- pie / face-pile layout (Fluent 'pie' partial overlap with reverse z) --- */
+.mv-avatar-group-pie { flex-direction: row-reverse; justify-content: flex-end; }
+.mv-avatar-group-pie .mv-avatar { margin-left: 0; margin-right: -10px; }
+.mv-avatar-group-pie .mv-avatar:first-child { margin-right: 0; }
+
+/* --- overflow pill always sits last and is interactive-looking --- */
+.mv-avatar-group .mv-avatar-overflow { font-weight: var(--fontWeightSemibold); }
+
+/* ===== Persona — complete variants (badges-tags-avatars) ===== */
+/* ===== Persona — complete size / presence / layout set ===== */
+/* Base (flex row, avatar + name + secondary) already exists. ADD: explicit
+   size scaling of the text to track the avatar size, presence pass-through
+   (already works via the inner avatar), tertiary/quaternary text lines,
+   vertical layout, and text-position (before/after). */
+
+/* size variants scale the name/secondary type to match the avatar size.
+   The arm already sizes the avatar via mv-avatar-<size>; these tune the text. */
+.mv-persona-16 .mv-persona-name,
+.mv-persona-20 .mv-persona-name,
+.mv-persona-24 .mv-persona-name { font-size: var(--fontSizeBase200); line-height: var(--lineHeightBase200); }
+.mv-persona-16 .mv-persona-secondary,
+.mv-persona-20 .mv-persona-secondary,
+.mv-persona-24 .mv-persona-secondary { font-size: var(--fontSizeBase100); line-height: var(--lineHeightBase100); }
+.mv-persona-48 .mv-persona-name,
+.mv-persona-56 .mv-persona-name { font-size: var(--fontSizeBase400); line-height: var(--lineHeightBase400); }
+.mv-persona-64 .mv-persona-name,
+.mv-persona-72 .mv-persona-name,
+.mv-persona-96 .mv-persona-name { font-size: var(--fontSizeBase500); line-height: var(--lineHeightBase500); }
+.mv-persona-96 .mv-persona-secondary,
+.mv-persona-120 .mv-persona-secondary { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); }
+.mv-persona-120 .mv-persona-name,
+.mv-persona-128 .mv-persona-name { font-size: var(--fontSizeBase600); line-height: var(--lineHeightBase600); }
+
+/* tertiary / quaternary text lines (Fluent Persona supports up to 4 lines) */
+.mv-persona-tertiary,
+.mv-persona-quaternary {
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  font-weight: var(--fontWeightRegular);
+  color: var(--colorNeutralForeground4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mv-persona-quaternary { font-size: var(--fontSizeBase100); line-height: var(--lineHeightBase100); }
+
+/* --- layout: text BEFORE the avatar (textPosition='before') --- */
+.mv-persona-before { flex-direction: row-reverse; }
+.mv-persona-before .mv-persona-text { align-items: flex-end; text-align: right; }
+
+/* --- layout: vertical (avatar on top, centered) --- */
+.mv-persona-vertical { flex-direction: column; align-items: center; text-align: center; gap: var(--spacingVerticalS); }
+.mv-persona-vertical .mv-persona-text { align-items: center; }
+
+/* --- size of the gap tracks the avatar --- */
+.mv-persona-16, .mv-persona-20, .mv-persona-24 { gap: var(--spacingHorizontalS); }
+.mv-persona-72, .mv-persona-96, .mv-persona-120, .mv-persona-128 { gap: var(--spacingHorizontalL); }
+
+/* ===== Input — complete variants (inputs) ===== */
+/* ===== Input — APPEARANCE ===== */
+/* outline (default) — base .mv-input already draws the outline; explicit no-op so the class always resolves */
+.mv-input-outline { /* full border box + 1px accessible bottom edge from base */ }
+
+/* underline — no top/side borders, only the bottom accessible stroke; sharp top corners */
+.mv-input-underline {
+  border: none;
+  border-bottom: 1px solid var(--colorNeutralStrokeAccessible);
+  border-radius: var(--borderRadiusMedium) var(--borderRadiusMedium) 0 0;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+.mv-input-underline:hover {
+  border-bottom-color: var(--colorNeutralStrokeAccessibleHover);
+  background: transparent;
+}
+.mv-input-underline:focus,
+.mv-input-underline:focus-within {
+  border: none;
+  border-bottom: 1px solid var(--colorCompoundBrandStroke);
+  box-shadow: inset 0 -1px 0 0 var(--colorCompoundBrandStroke);
+  background: transparent;
+}
+.mv-input-underline:disabled {
+  border: none;
+  border-bottom: 1px solid var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke3));
+  background: transparent;
+}
+
+/* filled-lighter — Background1 fill with subtle stroke (Fluent filledLighter) */
+.mv-input-filled-lighter {
+  background: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-input-filled-lighter:hover {
+  background: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessibleHover);
+}
+
+/* filled-darker — Background3 fill (Fluent filledDarker) */
+.mv-input-filled-darker {
+  background: var(--colorNeutralBackground3);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-input-filled-darker:hover {
+  background: var(--colorNeutralBackground3Hover);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessibleHover);
+}
+
+/* ===== Input — SIZE (Fluent small 24 / medium 32 / large 40) ===== */
+.mv-input-small {
+  min-height: 24px;
+  padding: 0 var(--spacingHorizontalSNudge);
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+.mv-input-medium { /* base default 32px / base300 — explicit no-op */ }
+.mv-input-large {
+  min-height: 40px;
+  padding: 0 var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+
+/* ===== Input — STATE: error (validation) ===== */
+.mv-input-error,
+.mv-input.mv-invalid {
+  border-color: var(--colorStatusDangerBorder2);
+  border-bottom-color: var(--colorStatusDangerBorder2);
+}
+.mv-input-error:focus,
+.mv-input.mv-invalid:focus {
+  border-bottom-color: var(--colorStatusDangerBorder2);
+  box-shadow: inset 0 -1px 0 0 var(--colorStatusDangerBorder2);
+}
+/* disabled is handled by the base :disabled rule for every appearance */
+
+/* ===== Field — complete variants (inputs) ===== */
+/* ===== Field — VALIDATION MESSAGE (codegen emits .mv-field-validation + .mv-field-validation-<state>, which had NO CSS) ===== */
+.mv-field-validation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacingHorizontalXS);
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  margin-top: var(--spacingVerticalXS);
+  color: var(--colorNeutralForeground3);
+}
+/* leading status glyph, tinted per state */
+.mv-field-validation::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 10.5a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8ZM10 5.5a.75.75 0 0 0-.74.65L9.25 6.25v4.5a.75.75 0 0 0 1.5.1V6.25A.75.75 0 0 0 10 5.5Z'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 10.5a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8ZM10 5.5a.75.75 0 0 0-.74.65L9.25 6.25v4.5a.75.75 0 0 0 1.5.1V6.25A.75.75 0 0 0 10 5.5Z'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+/* validationState = error */
+.mv-field-validation-error { color: var(--colorStatusDangerForeground1); }
+/* validationState = warning */
+.mv-field-validation-warning { color: var(--colorStatusWarningForeground1); }
+/* validationState = success — checkmark glyph */
+.mv-field-validation-success { color: var(--colorStatusSuccessForeground1); }
+.mv-field-validation-success::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm3.7 5.3a.75.75 0 0 0-1.05 0L9 10.94 7.35 9.3a.75.75 0 1 0-1.06 1.06l2.18 2.18c.3.29.77.29 1.06 0l4.17-4.18a.75.75 0 0 0 0-1.06Z'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm3.7 5.3a.75.75 0 0 0-1.05 0L9 10.94 7.35 9.3a.75.75 0 1 0-1.06 1.06l2.18 2.18c.3.29.77.29 1.06 0l4.17-4.18a.75.75 0 0 0 0-1.06Z'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+/* validationState = none — no glyph */
+.mv-field-validation-none::before { display: none; }
+
+/* ===== Field — when in error/warning/success, tint the contained control's underline ===== */
+.mv-field-error .mv-input,
+.mv-field-error .mv-textarea,
+.mv-field-error .mv-select,
+.mv-field-error .mv-combobox,
+.mv-field-error .mv-spinbutton {
+  border-color: var(--colorStatusDangerBorder2);
+  border-bottom-color: var(--colorStatusDangerBorder2);
+}
+.mv-field-warning .mv-input,
+.mv-field-warning .mv-textarea,
+.mv-field-warning .mv-select {
+  border-bottom-color: var(--colorStatusWarningBorder2);
+}
+.mv-field-success .mv-input,
+.mv-field-success .mv-textarea,
+.mv-field-success .mv-select {
+  border-bottom-color: var(--colorStatusSuccessBorder2);
+}
+
+/* ===== Field — SIZE (propagates Fluent label sizing; control sized via mv-input-* on the child) ===== */
+.mv-field-small > .mv-field-label,
+label.mv-field-small {
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+.mv-field-medium { /* base default */ }
+.mv-field-large > .mv-field-label,
+label.mv-field-large {
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+
+/* ===== Switch — complete variants (inputs) ===== */
+/* ===== Switch — SIZE. Fluent ships one size; we expose small / medium(default) / large for parity with the size axis ===== */
+/* small — 32x16 track, 12px thumb */
+.mv-switch-small .mv-switch-track {
+  width: 32px;
+  height: 16px;
+}
+.mv-switch-small .mv-switch-track::before {
+  width: 10px;
+  height: 10px;
+  left: 3px;
+}
+.mv-switch-small > input[type="checkbox"]:checked + .mv-switch-track::before {
+  left: 19px;
+}
+.mv-switch-small { font-size: var(--fontSizeBase200); }
+
+/* medium — base default 40x20, 14px thumb — explicit no-op */
+.mv-switch-medium { }
+
+/* large — 48x24 track, 18px thumb */
+.mv-switch-large .mv-switch-track {
+  width: 48px;
+  height: 24px;
+}
+.mv-switch-large .mv-switch-track::before {
+  width: 18px;
+  height: 18px;
+  left: 3px;
+}
+.mv-switch-large > input[type="checkbox"]:checked + .mv-switch-track::before {
+  left: 27px;
+}
+.mv-switch-large { font-size: var(--fontSizeBase400); }
+
+/* ===== Switch — LABEL POSITION (Fluent: above / before / after(default) / below) ===== */
+.mv-switch-before { flex-direction: row-reverse; }
+.mv-switch-above {
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: var(--spacingVerticalXS);
+}
+.mv-switch-below {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacingVerticalXS);
+}
+/* checked / disabled / focus states are already fully covered by the base
+   :checked, :disabled and :focus-visible rules and inherit through every size. */
+
+/* ===== Checkbox — complete variants (inputs) ===== */
+/* ===== Checkbox — SIZE (Fluent: medium 16, large 20) ===== */
+.mv-checkbox-medium { /* base default 16px box — no-op */ }
+.mv-checkbox-large {
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+.mv-checkbox-large .mv-checkbox-box {
+  width: 20px;
+  height: 20px;
+}
+.mv-checkbox-large .mv-checkbox-box::after {
+  -webkit-mask-size: 16px 16px;
+  mask-size: 16px 16px;
+}
+
+/* ===== Checkbox — SHAPE: circular (Fluent circular checkbox) ===== */
+.mv-checkbox-circular .mv-checkbox-box {
+  border-radius: var(--borderRadiusCircular);
+}
+
+/* ===== Checkbox — STATE: mixed / indeterminate (dash instead of check) ===== */
+/* Driven by the native :indeterminate pseudo (set via the indeterminate IDL
+   attr) OR by an explicit .mv-checkbox-mixed modifier for SSR. */
+.mv-checkbox > input[type="checkbox"]:indeterminate + .mv-checkbox-box,
+.mv-checkbox-mixed .mv-checkbox-box {
+  background: var(--colorCompoundBrandBackground);
+  border-color: var(--colorCompoundBrandBackground);
+}
+.mv-checkbox > input[type="checkbox"]:indeterminate + .mv-checkbox-box::after,
+.mv-checkbox-mixed .mv-checkbox-box::after {
+  opacity: 1;
+  /* dash glyph overrides the check mask */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Crect x='3' y='7' width='10' height='2' rx='1'/%3E%3C/svg%3E") no-repeat center / 12px 12px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Crect x='3' y='7' width='10' height='2' rx='1'/%3E%3C/svg%3E") no-repeat center / 12px 12px;
+}
+.mv-checkbox-large.mv-checkbox-mixed .mv-checkbox-box::after,
+.mv-checkbox-large > input:indeterminate + .mv-checkbox-box::after {
+  -webkit-mask-size: 16px 16px;
+  mask-size: 16px 16px;
+}
+
+/* ===== Checkbox — LABEL POSITION (Fluent: before / after(default)) ===== */
+.mv-checkbox-before { flex-direction: row-reverse; }
+/* checked / disabled / focus already covered by the base rules and inherit through size + shape + mixed. */
+
+/* ===== Radio — complete variants (inputs) ===== */
+/* ===== Radio — SIZE (Fluent radio is fixed; expose medium(default)/large for axis parity) ===== */
+.mv-radio-medium { /* base default 16px outer / 8px dot — no-op */ }
+.mv-radio-large {
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+.mv-radio-large .mv-radio-dot {
+  width: 20px;
+  height: 20px;
+}
+.mv-radio-large .mv-radio-dot::after {
+  width: 10px;
+  height: 10px;
+}
+
+/* ===== Radio — LABEL POSITION (Fluent: below / after(default) for RadioGroup horizontal stacking) ===== */
+.mv-radio-below {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacingVerticalXS);
+}
+.mv-radio-before { flex-direction: row-reverse; }
+
+/* ===== RadioGroup layout (Fluent: vertical(default) / horizontal) ===== */
+.mv-radiogroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalS);
+}
+.mv-radiogroup-horizontal {
+  flex-direction: row;
+  gap: var(--spacingHorizontalL);
+}
+/* checked / disabled / disabled-checked / focus are all already in the base
+   and inherit through every size + position. */
+
+/* ===== Slider — complete variants (inputs) ===== */
+/* ===== Slider — SIZE (Fluent: small / medium(default)) ===== */
+/* small — 2px track (strokeWidthThick), 12px thumb */
+.mv-slider-small { height: 20px; }
+.mv-slider-small::-webkit-slider-runnable-track { height: var(--strokeWidthThick); }
+.mv-slider-small::-moz-range-track            { height: var(--strokeWidthThick); }
+.mv-slider-small::-moz-range-progress         { height: var(--strokeWidthThick); }
+.mv-slider-small::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -5px; /* center on the 2px track */
+}
+.mv-slider-small::-moz-range-thumb { width: 12px; height: 12px; }
+
+/* medium — base default (3px track / 16px thumb) — no-op */
+.mv-slider-medium { }
+
+/* large — 4px track (strokeWidthThicker+1), 20px thumb */
+.mv-slider-large { height: 28px; }
+.mv-slider-large::-webkit-slider-runnable-track { height: 4px; }
+.mv-slider-large::-moz-range-track            { height: 4px; }
+.mv-slider-large::-moz-range-progress         { height: 4px; }
+.mv-slider-large::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+}
+.mv-slider-large::-moz-range-thumb { width: 20px; height: 20px; }
+
+/* ===== Slider — vertical sizing overrides (base .mv-slider-vertical sets writing-mode) ===== */
+.mv-slider-vertical.mv-slider-small { width: 20px; height: 140px; }
+.mv-slider-vertical.mv-slider-large { width: 28px; height: 200px; }
+
+/* vertical + disabled + hover/active/focus already handled by the base; sizes inherit them. */
+
+/* ===== SpinButton — complete variants (inputs) ===== */
+/* ===== SpinButton — SIZE (inherits .mv-input shell; Fluent small 24 / medium 32 / large 40) ===== */
+.mv-spinbutton-small {
+  min-height: 24px;
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+.mv-spinbutton-small::-webkit-outer-spin-button,
+.mv-spinbutton-small::-webkit-inner-spin-button { height: 22px; }
+
+.mv-spinbutton-medium { /* base default 32px — no-op */ }
+
+.mv-spinbutton-large {
+  min-height: 40px;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+.mv-spinbutton-large::-webkit-outer-spin-button,
+.mv-spinbutton-large::-webkit-inner-spin-button { height: 36px; }
+
+/* ===== SpinButton — APPEARANCE (mirrors Input: underline / filled-lighter / filled-darker) ===== */
+.mv-spinbutton-underline {
+  border: none;
+  border-bottom: 1px solid var(--colorNeutralStrokeAccessible);
+  border-radius: var(--borderRadiusMedium) var(--borderRadiusMedium) 0 0;
+  background: transparent;
+}
+.mv-spinbutton-underline:focus {
+  border-bottom: 1px solid var(--colorCompoundBrandStroke);
+  box-shadow: inset 0 -1px 0 0 var(--colorCompoundBrandStroke);
+}
+.mv-spinbutton-filled-lighter {
+  background: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-spinbutton-filled-darker {
+  background: var(--colorNeutralBackground3);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+/* disabled handled by base .mv-input:disabled / .mv-spinbutton:disabled. */
+
+/* ===== Select — complete variants (inputs) ===== */
+/* ===== Select — APPEARANCE (Fluent dropdown: outline(default)/underline/filled-lighter/filled-darker) ===== */
+.mv-select-outline { /* base full-border outline — no-op */ }
+.mv-select-underline {
+  border: none;
+  border-bottom: 1px solid var(--colorNeutralStrokeAccessible);
+  border-radius: var(--borderRadiusMedium) var(--borderRadiusMedium) 0 0;
+  background-color: transparent;
+}
+.mv-select-underline:focus {
+  border-bottom: 1px solid var(--colorCompoundBrandStroke);
+  box-shadow: inset 0 -1px 0 0 var(--colorCompoundBrandStroke);
+}
+.mv-select-filled-lighter {
+  background-color: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-select-filled-darker {
+  background-color: var(--colorNeutralBackground3);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+
+/* ===== Select — SIZE (small 24 / medium 32 / large 40) ===== */
+.mv-select-small {
+  min-height: 24px;
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  padding-right: var(--spacingHorizontalXL);
+  background-position: calc(100% - 10px) calc(50% - 1px), calc(100% - 6px) calc(50% - 1px);
+}
+.mv-select-medium { }
+.mv-select-large {
+  min-height: 40px;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+/* disabled handled by base .mv-select:disabled for every appearance + size. */
+
+/* ===== Combobox — complete variants (inputs) ===== */
+/* ===== Combobox — APPEARANCE (inherits .mv-input shell + chevron; Fluent outline/underline/filled-lighter/filled-darker) ===== */
+.mv-combobox-outline { /* base outline — no-op */ }
+.mv-combobox-underline {
+  border: none;
+  border-bottom: 1px solid var(--colorNeutralStrokeAccessible);
+  border-radius: var(--borderRadiusMedium) var(--borderRadiusMedium) 0 0;
+  background-color: transparent;
+}
+.mv-combobox-underline:focus {
+  border-bottom: 1px solid var(--colorCompoundBrandStroke);
+  box-shadow: inset 0 -1px 0 0 var(--colorCompoundBrandStroke);
+}
+.mv-combobox-filled-lighter {
+  background-color: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-combobox-filled-darker {
+  background-color: var(--colorNeutralBackground3);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+
+/* ===== Combobox — SIZE (small 24 / medium 32 / large 40) ===== */
+.mv-combobox-small {
+  min-height: 24px;
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  background-size: 10px 10px;
+}
+.mv-combobox-medium { }
+.mv-combobox-large {
+  min-height: 40px;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+/* disabled handled by base .mv-combobox:disabled for every appearance + size. */
+
+/* ===== Searchbox — complete variants (inputs) ===== */
+/* ===== Searchbox — APPEARANCE (Fluent: outline(default)/filled-lighter/filled-darker; underline is not a Fluent Searchbox appearance but added for axis parity) ===== */
+.mv-search-outline { /* base outline — no-op */ }
+.mv-search-filled-lighter {
+  background-color: var(--colorNeutralBackground1);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-search-filled-darker {
+  background-color: var(--colorNeutralBackground3);
+  border-color: var(--colorTransparentStroke);
+  border-bottom-color: var(--colorNeutralStrokeAccessible);
+}
+.mv-search-underline {
+  border: none;
+  border-bottom: 1px solid var(--colorNeutralStrokeAccessible);
+  border-radius: var(--borderRadiusMedium) var(--borderRadiusMedium) 0 0;
+  background-color: transparent;
+}
+.mv-search-underline:focus {
+  border-bottom: 1px solid var(--colorCompoundBrandStroke);
+  box-shadow: inset 0 -1px 0 0 var(--colorCompoundBrandStroke);
+}
+
+/* ===== Searchbox — SIZE (small 24 / medium 32 / large 40) ===== */
+.mv-search-small {
+  min-height: 24px;
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+  padding-left: var(--spacingHorizontalXL);
+  background-size: 14px 14px;
+}
+.mv-search-medium { }
+.mv-search-large {
+  min-height: 40px;
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+  background-size: 18px 18px;
+}
+
+/* ===== Searchbox — STATE: disabled (the search input has no base :disabled rule of its own) ===== */
+.mv-search:disabled {
+  background-color: var(--colorNeutralBackground1);
+  border: 1px solid var(--colorNeutralStrokeDisabled, var(--colorNeutralStroke3));
+  color: var(--colorNeutralForegroundDisabled);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.mv-search:disabled::placeholder { color: var(--colorNeutralForegroundDisabled); }
+
+/* ===== Spinner — complete variants (feedback) ===== */
+/* ===== Spinner — complete variant set ===== */
+/* Base .mv-spinner already exists (32px ring, brand stroke, mv-spin keyframes). */
+/* Existing partials: .mv-spinner-tiny(20), -small(24), -large(40), plus -wrap/-below/-label. */
+/* Fluent Spinner sizes: tiny / extra-small / small / medium(default) / large / extra-large / huge. */
+
+.mv-spinner-tiny        { width: 20px; height: 20px; border-width: 2px; }   /* Fluent xx-tiny */
+.mv-spinner-extra-small { width: 24px; height: 24px; border-width: 2px; }   /* Fluent extra-small */
+.mv-spinner-small       { width: 28px; height: 28px; border-width: 2px; }   /* Fluent small (28) */
+.mv-spinner-medium      { width: 32px; height: 32px; border-width: 3px; }   /* Fluent medium (default) */
+.mv-spinner-large       { width: 36px; height: 36px; border-width: 3px; }   /* Fluent large (36) */
+.mv-spinner-extra-large { width: 40px; height: 40px; border-width: 4px; }   /* Fluent extra-large (40) */
+.mv-spinner-huge        { width: 44px; height: 44px; border-width: 4px; }   /* Fluent huge (44) */
+
+/* ---- appearance: primary (default) vs inverted ---- */
+/* primary = brand ring on neutral track (the base already is primary). Restate so .mv-spinner-primary is explicit. */
+.mv-spinner-primary {
+  border-color: var(--colorBrandStroke2);
+  border-top-color: var(--colorCompoundBrandStroke);
+}
+/* inverted = white ring for use on a dark/brand surface (Fluent 'inverted'). */
+.mv-spinner-inverted {
+  border-color: rgba(255, 255, 255, 0.4);
+  border-top-color: var(--colorNeutralBackground1, #ffffff);
+}
+.mv-spinner-inverted ~ .mv-spinner-label,
+.mv-spinner-wrap.mv-spinner-inverted .mv-spinner-label {
+  color: var(--colorNeutralForegroundInverted, #ffffff);
+}
+
+/* ---- label position: after(default,inline) | below(stacked) | before | above ---- */
+/* .mv-spinner-wrap + .mv-spinner-below already exist. Add the remaining two positions + sized label gap. */
+.mv-spinner-wrap.mv-spinner-after  { flex-direction: row; }            /* label after spinner (default) */
+.mv-spinner-wrap.mv-spinner-before { flex-direction: row-reverse; }    /* label before spinner */
+.mv-spinner-wrap.mv-spinner-above  { flex-direction: column-reverse; gap: var(--spacingVerticalSNudge); }
+.mv-spinner-wrap.mv-spinner-below  { flex-direction: column; gap: var(--spacingVerticalSNudge); }
+
+/* Label tracks the spinner size where Fluent shrinks/grows the caption. */
+.mv-spinner-wrap.mv-spinner-tiny  .mv-spinner-label,
+.mv-spinner-wrap.mv-spinner-extra-small .mv-spinner-label { font-size: var(--fontSizeBase200); line-height: var(--lineHeightBase200); }
+.mv-spinner-wrap.mv-spinner-extra-large .mv-spinner-label,
+.mv-spinner-wrap.mv-spinner-huge  .mv-spinner-label { font-size: var(--fontSizeBase400); line-height: var(--lineHeightBase400); }
+.mv-spinner-wrap.mv-spinner-inverted .mv-spinner-label { color: var(--colorNeutralForegroundInverted, #ffffff); }
+
+/* ===== ProgressBar — complete variants (feedback) ===== */
+/* ===== ProgressBar — complete variant set ===== */
+/* Base .mv-progress + .mv-progress-bar + indeterminate keyframes already exist. */
+/* Existing partials: -brand/-success/-warning/-error (bar color), -large (4px), -rounded/-square, -indeterminate. */
+
+/* ---- color / validationState (full set) ---- */
+.mv-progress-brand   .mv-progress-bar { background-color: var(--colorCompoundBrandBackground); }
+.mv-progress-success .mv-progress-bar { background-color: var(--colorStatusSuccessForeground1); }
+.mv-progress-warning .mv-progress-bar { background-color: var(--colorStatusWarningForeground1); }
+.mv-progress-error   .mv-progress-bar { background-color: var(--colorStatusDangerForeground1); }
+/* alias: Fluent uses validationState="error"; allow "danger" too for parity with MessageBar/Button. */
+.mv-progress-danger  .mv-progress-bar { background-color: var(--colorStatusDangerForeground1); }
+
+/* ---- thickness: medium (default, 2px) | large (4px) ---- */
+.mv-progress-medium { height: 2px; }
+.mv-progress-large  { height: 4px; }
+
+/* ---- shape: rounded (pill) | square ---- */
+.mv-progress-rounded,
+.mv-progress-rounded .mv-progress-bar { border-radius: var(--borderRadiusCircular); }
+.mv-progress-square,
+.mv-progress-square .mv-progress-bar { border-radius: 0; }
+
+/* ---- indeterminate look: a gliding brand sweep; recolor follows the color class ---- */
+.mv-progress-indeterminate .mv-progress-bar {
+  width: 33%;
+  border-radius: inherit;
+  animation: mv-progress-indeterminate 2s var(--curveEasyEase) infinite;
+}
+/* Fluent's indeterminate also drops the track tint slightly so the sweep reads. */
+.mv-progress-indeterminate { background-color: var(--colorNeutralBackground6); }
+@media (prefers-reduced-motion: reduce) {
+  /* Fluent halts the sweep and shows a partial bar when motion is reduced. */
+  .mv-progress-indeterminate .mv-progress-bar { animation: none; transform: none; width: 50%; }
+}
+
+/* ===== Skeleton — complete variants (feedback) ===== */
+/* ===== Skeleton — complete variant set ===== */
+/* Base .mv-skeleton (block, 12px, stencil shimmer) + .mv-skeleton-circle + .mv-skeleton-text already exist. */
+
+/* ---- shapes (Fluent SkeletonItem shape: rectangle | circle | square) ---- */
+.mv-skeleton-rectangle { border-radius: var(--borderRadiusMedium); }   /* default */
+.mv-skeleton-square    { aspect-ratio: 1 / 1; width: auto; border-radius: var(--borderRadiusMedium); }
+.mv-skeleton-circle    { width: 32px; height: 32px; border-radius: var(--borderRadiusCircular); flex-shrink: 0; }
+/* a single text line (cap height ~14px, small radius, stacked spacing) */
+.mv-skeleton-text { height: var(--fontSizeBase300); border-radius: var(--borderRadiusSmall); margin-bottom: var(--spacingVerticalS); }
+.mv-skeleton-text:last-child { margin-bottom: 0; }
+
+/* ---- sizes (Fluent SkeletonItem size ramp: 8/12/16/20/24/28/32/36/40/48/56/64/72/96/120/128) ---- */
+.mv-skeleton-8   { height: 8px; }
+.mv-skeleton-12  { height: 12px; }
+.mv-skeleton-16  { height: 16px; }
+.mv-skeleton-20  { height: 20px; }
+.mv-skeleton-24  { height: 24px; }
+.mv-skeleton-28  { height: 28px; }
+.mv-skeleton-32  { height: 32px; }
+.mv-skeleton-36  { height: 36px; }
+.mv-skeleton-40  { height: 40px; }
+.mv-skeleton-48  { height: 48px; }
+.mv-skeleton-56  { height: 56px; }
+.mv-skeleton-64  { height: 64px; }
+.mv-skeleton-72  { height: 72px; }
+.mv-skeleton-96  { height: 96px; }
+.mv-skeleton-120 { height: 120px; }
+.mv-skeleton-128 { height: 128px; }
+/* square + circle should be width=height when sized */
+.mv-skeleton-square.mv-skeleton-8,.mv-skeleton-circle.mv-skeleton-8   { width: 8px; }
+.mv-skeleton-square.mv-skeleton-16,.mv-skeleton-circle.mv-skeleton-16 { width: 16px; }
+.mv-skeleton-square.mv-skeleton-24,.mv-skeleton-circle.mv-skeleton-24 { width: 24px; }
+.mv-skeleton-square.mv-skeleton-32,.mv-skeleton-circle.mv-skeleton-32 { width: 32px; }
+.mv-skeleton-square.mv-skeleton-40,.mv-skeleton-circle.mv-skeleton-40 { width: 40px; }
+.mv-skeleton-square.mv-skeleton-48,.mv-skeleton-circle.mv-skeleton-48 { width: 48px; }
+.mv-skeleton-square.mv-skeleton-56,.mv-skeleton-circle.mv-skeleton-56 { width: 56px; }
+.mv-skeleton-square.mv-skeleton-64,.mv-skeleton-circle.mv-skeleton-64 { width: 64px; }
+.mv-skeleton-square.mv-skeleton-72,.mv-skeleton-circle.mv-skeleton-72 { width: 72px; }
+.mv-skeleton-square.mv-skeleton-96,.mv-skeleton-circle.mv-skeleton-96 { width: 96px; }
+.mv-skeleton-square.mv-skeleton-120,.mv-skeleton-circle.mv-skeleton-120 { width: 120px; }
+.mv-skeleton-square.mv-skeleton-128,.mv-skeleton-circle.mv-skeleton-128 { width: 128px; }
+
+/* ---- width helpers for text lines (Fluent uses widths to fake paragraph ragging) ---- */
+.mv-skeleton-w25  { width: 25%; }
+.mv-skeleton-w50  { width: 50%; }
+.mv-skeleton-w75  { width: 75%; }
+.mv-skeleton-w100 { width: 100%; }
+
+/* ---- animation: shimmer (default, wave) | pulse | static (Fluent animation prop) ---- */
+@keyframes mv-skeleton-pulse { 0%,100%{ opacity: 1; } 50%{ opacity: .4; } }
+.mv-skeleton-shimmer { /* explicit default */
+  background-image: linear-gradient(90deg, var(--colorNeutralStencil1) 0%, var(--colorNeutralStencil2) 50%, var(--colorNeutralStencil1) 100%);
+  background-size: 200% 100%;
+  animation: mv-skeleton-shimmer 2s var(--curveEasyEase) infinite;
+}
+.mv-skeleton-pulse {
+  background-image: none;
+  background-color: var(--colorNeutralStencil1);
+  animation: mv-skeleton-pulse 1.8s var(--curveEasyEase) infinite;
+}
+.mv-skeleton-static {
+  background-image: none;
+  background-color: var(--colorNeutralStencil1);
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv-skeleton { animation: none; background-image: none; background-color: var(--colorNeutralStencil1); }
+}
+
+/* ===== MessageBar — complete variants (feedback) ===== */
+/* ===== MessageBar — complete variant set ===== */
+/* MotoView renders MessageBar through the .mv-alert base (leading accent bar + intent colors). */
+/* Existing partials: .mv-alert-info / -success / -warning / -danger. */
+/* Fluent MessageBar intents: info / success / warning / error. We also alias error<->danger. */
+
+/* ---- intents (full set; theme-aware via status tokens) ---- */
+.mv-alert-info    { background: var(--colorStatusInfoBackground1);    border-color: var(--colorStatusInfoBorder1);    color: var(--colorNeutralForeground1); }
+.mv-alert-info::before    { background: var(--colorBrandStroke1); }
+.mv-alert-success { background: var(--colorStatusSuccessBackground1); border-color: var(--colorStatusSuccessBorder1); color: var(--colorStatusSuccessForeground1); }
+.mv-alert-success::before { background: var(--colorStatusSuccessForeground1); }
+.mv-alert-warning { background: var(--colorStatusWarningBackground1); border-color: var(--colorStatusWarningBorder1); color: var(--colorStatusWarningForeground1); }
+.mv-alert-warning::before { background: var(--colorStatusWarningForeground1); }
+.mv-alert-error,
+.mv-alert-danger  { background: var(--colorStatusDangerBackground1);  border-color: var(--colorStatusDangerBorder1);  color: var(--colorStatusDangerForeground1); }
+.mv-alert-error::before,
+.mv-alert-danger::before { background: var(--colorStatusDangerForeground1); }
+
+/* ---- layout: singleline (default, icon+text inline, actions trail) | multiline (wraps, actions drop) ---- */
+.mv-alert-singleline {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.mv-alert-singleline .mv-alert-body { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mv-alert-multiline {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: var(--spacingVerticalM);
+  padding-bottom: var(--spacingVerticalM);
+}
+.mv-alert-multiline .mv-alert-body { white-space: normal; flex: 1 1 100%; }
+.mv-alert-multiline .mv-alert-actions { flex: 1 1 100%; margin-top: var(--spacingVerticalS); }
+/* actions slot (Fluent MessageBarActions): pushed to the trailing edge on singleline */
+.mv-alert-actions { display: inline-flex; gap: var(--spacingHorizontalS); margin-inline-start: auto; }
+
+/* ---- appearance: filled(default tint) | outline | subtle ---- */
+/* outline: transparent fill, intent-colored border + accent bar kept */
+.mv-alert-outline { background: transparent; }
+.mv-alert-outline.mv-alert-success { border-color: var(--colorStatusSuccessBorder2); }
+.mv-alert-outline.mv-alert-warning { border-color: var(--colorStatusWarningBorder2); }
+.mv-alert-outline.mv-alert-error,
+.mv-alert-outline.mv-alert-danger  { border-color: var(--colorStatusDangerBorder2); }
+.mv-alert-outline.mv-alert-info    { border-color: var(--colorNeutralStroke1); }
+/* subtle: no border, no fill — just the accent bar + text (Fluent 'subtle' look) */
+.mv-alert-subtle {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* ---- shape: rounded(default) | square ---- */
+.mv-alert-rounded { border-radius: var(--borderRadiusMedium); }
+.mv-alert-square  { border-radius: 0; }
+
+/* ---- dismissible (CSS-only close via the checkbox-hack) ---- */
+.mv-alert-dismiss-toggle { position: absolute; opacity: 0; pointer-events: none; }
+.mv-alert-dismiss-toggle:checked + .mv-alert { display: none; }
+.mv-alert-dismiss {
+  margin-inline-start: var(--spacingHorizontalS);
+  width: 20px; height: 20px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--colorNeutralForeground3); border-radius: var(--borderRadiusSmall);
+}
+.mv-alert-dismiss:hover { background: var(--colorNeutralBackground1Hover); color: var(--colorNeutralForeground1); }
+.mv-alert-dismiss::before { content: "\00d7"; font-size: 16px; line-height: 1; }
+
+/* ===== Divider — complete variants (feedback) ===== */
+/* ===== Divider — complete variant set ===== */
+/* Base .mv-divider (horizontal flex, 1px rules either side of optional text) + .mv-divider-vertical + .mv-divider-strong already exist. */
+
+/* ---- orientation ---- */
+/* horizontal is the base. vertical already exists (.mv-divider-vertical). Restate horizontal explicitly for symmetry. */
+.mv-divider-horizontal { /* default — matches base */ }
+
+/* ---- appearance: default | subtle | strong | brand ---- */
+/* default = neutralStroke2 (base). subtle = the faintest rule. strong = neutralStroke1 (exists). brand = brand-colored rule + text. */
+.mv-divider-subtle::before,
+.mv-divider-subtle::after { background: var(--colorNeutralStroke3); }
+.mv-divider-subtle { color: var(--colorNeutralForeground3); }
+.mv-divider-strong::before,
+.mv-divider-strong::after { background: var(--colorNeutralStroke1); }
+.mv-divider-brand { color: var(--colorBrandForeground1); }
+.mv-divider-brand::before,
+.mv-divider-brand::after { background: var(--colorBrandStroke1); }
+/* vertical equivalents (the ::before/::after are width-based there) */
+.mv-divider-vertical.mv-divider-subtle::before,
+.mv-divider-vertical.mv-divider-subtle::after { background: var(--colorNeutralStroke3); }
+.mv-divider-vertical.mv-divider-strong::before,
+.mv-divider-vertical.mv-divider-strong::after { background: var(--colorNeutralStroke1); }
+.mv-divider-vertical.mv-divider-brand::before,
+.mv-divider-vertical.mv-divider-brand::after { background: var(--colorBrandStroke1); }
+
+/* ---- alignment of the inset label: start | center(default) | end ---- */
+/* center is the base (both rules flex:1). start collapses the leading rule; end collapses the trailing rule. */
+.mv-divider-start::before  { flex: 0 0 var(--spacingHorizontalL); }
+.mv-divider-start::after   { flex: 1 1 0; }
+.mv-divider-center::before { flex: 1 1 0; }
+.mv-divider-center::after  { flex: 1 1 0; }
+.mv-divider-end::before    { flex: 1 1 0; }
+.mv-divider-end::after     { flex: 0 0 var(--spacingHorizontalL); }
+/* vertical alignment (start = top, end = bottom) */
+.mv-divider-vertical.mv-divider-start::before { flex: 0 0 var(--spacingVerticalL); }
+.mv-divider-vertical.mv-divider-start::after  { flex: 1 1 0; }
+.mv-divider-vertical.mv-divider-end::before   { flex: 1 1 0; }
+.mv-divider-vertical.mv-divider-end::after    { flex: 0 0 var(--spacingVerticalL); }
+
+/* ---- inset (Fluent 'inset' prop: pad the rule away from the container edges) ---- */
+.mv-divider-inset { padding-inline: var(--spacingHorizontalM); }
+.mv-divider-vertical.mv-divider-inset { padding-block: var(--spacingVerticalM); padding-inline: 0; }
+
+/* ===== Text (generic type-ramp variant component, emits .fui-text-<variant>) — complete variants (typography-cards) ===== */
+All values use the authentic tokens already in motoview.css; light/dark safe via --colorNeutralForeground*. EXISTING (kept): .fui-text-caption1 {12/16 reg}, .fui-text-body1 {14/20 reg}, .fui-text-body1-strong {14/20 semibold}, .fui-text-subtitle2 {16/22 semibold}, .fui-text-subtitle1 {20/28 semibold}, .fui-text-title3 {24/32 semibold}, .fui-text-title2 {28/36 semibold}, .fui-text-title1 {32/40 bold}, .fui-text-largetitle {40/52 bold}. ADDED to complete the ramp: .fui-text-caption2 {font-size:--fontSizeBase100(10px);line-height:--lineHeightBase100(14px);font-weight:--fontWeightRegular}; .fui-text-caption2-strong {10/14;--fontWeightSemibold}; .fui-text-caption1-strong {--fontSizeBase200(12)/--lineHeightBase200(16);--fontWeightSemibold}; .fui-text-body1-stronger {--fontSizeBase300(14)/--lineHeightBase300(20);--fontWeightBold}; .fui-text-body2 {--fontSizeBase400(16)/--lineHeightBase400(22);--fontWeightRegular}; .fui-text-body2-strong {16/22;--fontWeightSemibold}; .fui-text-subtitle2-stronger {16/22;--fontWeightBold}; .fui-text-display {--fontSizeHero1000(68)/--lineHeightHero1000(92);--fontWeightSemibold}; re-tokenized .fui-text-largetitle {line-height:--lineHeightHero900}. PLUS generic prop-axis utilities (need codegen forwarding): weight .fui-text-weight-regular|medium|semibold|bold (--fontWeightRegular/Medium/Semibold/Bold); align .fui-text-align-start|center|end|justify (text-align); font .fui-text-font-base|monospace|numeric (--fontFamilyBase/Monospace/Numeric); style .fui-text-italic (font-style:italic), .fui-text-underline (text-decoration-line:underline), .fui-text-strikethrough (line-through), combined underline+strikethrough; layout .fui-text-block (display:block), .fui-text-nowrap (white-space:nowrap), .fui-text-truncate (block+overflow:hidden+text-overflow:ellipsis+nowrap).
+
+/* ===== Title1 / Title2 / Title3 / Subtitle1 / Subtitle2 / Body1 / Body2 / Caption1 / Caption2 / Display / LargeTitle (dedicated typography components, emit .mv-type-*) — complete variants (typography-cards) ===== */
+Bases EXISTED (kept): .mv-type-title1 {--fontSizeHero800(32)/--lineHeightHero800;semibold}, .mv-type-title2 {--fontSizeHero700(28)/--lineHeightHero700;semibold}, .mv-type-title3 {--fontSizeBase600(24)/--lineHeightBase600;semibold}, .mv-type-subtitle1 {--fontSizeBase500(20)/--lineHeightBase500;semibold}, .mv-type-subtitle2 {--fontSizeBase400(16)/--lineHeightBase400;semibold}, .mv-type-body1 {--fontSizeBase300(14)/--lineHeightBase300;regular}, .mv-type-body2 {--fontSizeBase400(16)/--lineHeightBase400;regular}, .mv-type-caption1 {--fontSizeBase200(12)/--lineHeightBase200;regular}, .mv-type-caption2 {--fontSizeBase100(10)/--lineHeightBase100;regular}, .mv-type-display {--fontSizeHero1000(68)/--lineHeightHero1000;semibold}, .mv-type-strong {font-weight:--fontWeightSemibold}. ADDED: .mv-type-largetitle {margin:0;font-family:--fontFamilyBase;color:--colorNeutralForeground1;font-size:--fontSizeHero900(40);line-height:--lineHeightHero900(52);font-weight:--fontWeightBold} (the entire LargeTitle step was missing); .mv-type-stronger {font-weight:--fontWeightBold} (second emphasis weight for Body/Caption/Subtitle, complementing -strong=semibold). Color axis: .mv-type-brand (--colorBrandForeground1), .mv-type-onbrand (--colorNeutralForegroundOnBrand), .mv-type-danger/.mv-type-error (--colorStatusDangerForeground1), .mv-type-success (--colorStatusSuccessForeground1), .mv-type-warning (--colorStatusWarningForeground1), .mv-type-subtle (--colorNeutralForeground3), .mv-type-disabled (--colorNeutralForegroundDisabled), .mv-type-neutral (--colorNeutralForeground1). Alignment/layout: .mv-type-align-start|center|end|justify (text-align), .mv-type-block (display:block), .mv-type-italic (font-style:italic), .mv-type-truncate (block+ellipsis). All color tokens resolve through the neutral/brand/status ramps so they re-theme automatically in light/dark.
+
+/* ===== Card — complete variants (typography-cards) ===== */
+Base .mv-card and .mv-card-interactive (hover/active/focus-within) EXISTED. ADDED full axes (all token-driven, light/dark safe). APPEARANCE: .mv-card-filled {background:--colorNeutralBackground1;border-color:--colorTransparentStroke;box-shadow:--shadow4} (explicit default); .mv-card-filled-alternative (alias .mv-card-filled-alt) {background:--colorNeutralBackground2;transparent border;no shadow}; .mv-card-outline {background:--colorTransparentBackground;border-color:--colorNeutralStroke1;no shadow}; .mv-card-subtle {background:--colorSubtleBackground fallback --colorNeutralBackground2;transparent border;no shadow}. SIZE (padding density + radius): .mv-card-small {padding:--spacingVerticalS/--spacingHorizontalS;radius:--borderRadiusMedium;gap:--spacingVerticalS} (+matching preview bleed/radius); .mv-card-medium {--spacingVerticalM/HorizontalM;--borderRadiusLarge} (+preview); .mv-card-large {--spacingVerticalL/HorizontalL;--borderRadiusXLarge} (+preview radii). INTERACTIVE: added .mv-card-interactive:focus-visible {outline:2px --colorStrokeFocus2/--colorNeutralStrokeAccessible;offset:2px} to complete base hover/active. SELECTABLE (checkbox-hack, CSS-only): .mv-card-selectable (label shell, hover/active lift) + .mv-card-select-input (visually-hidden checkbox) + :checked state -> brand ring (border-color/inset box-shadow --colorCompoundBrandStroke fallback --colorBrandStroke1, background --colorBrandBackground2) via :checked sibling, :has(), and .mv-card-selected fallback; focus-visible ring. DISABLED: .mv-card-disabled {cursor:not-allowed;opacity:.5;pointer-events:none}. ORIENTATION: .mv-card-horizontal {flex-direction:row} with side-banded .mv-card-preview (40% width, full-height image).
+
+/* ===== CardHeader / CardPreview / CardFooter (card composition sub-components) — complete variants (typography-cards) ===== */
+Bases EXISTED (.mv-card-header + -media/-text/-title/-desc, .mv-card-preview + -img + first/last-child radius clip, .mv-card-footer). ADDED modifiers: CardHeader trailing-action slot .mv-card-header-action {margin-inline-start:auto;inline-flex;flex-shrink:0} (pins an overflow menu to the right). CardFooter alignment: .mv-card-footer-end {justify-content:flex-end}, .mv-card-footer-center {center}, .mv-card-footer-between {space-between}. CardPreview logo overlay (Fluent CardPreview `logo` slot): .mv-card-preview-logo {position:absolute;bottom:--spacingVerticalS;inset-inline-start:--spacingHorizontalS;inline-flex} with .mv-card-preview made position:relative to anchor it. All spacing via --spacing* tokens; no hardcoded colors.
+
+/* ===== TabList + Tab — complete variants (nav-overlays) ===== */
+/* ===== TabList + Tab variants ===== */
+
+/* --- Appearance: transparent (default, no extra class) | subtle --- */
+/* Subtle gives the SELECTED tab a pill background (Fluent subtle appearance). */
+.mv-tablist-subtle { gap: var(--spacingHorizontalXXS); }
+.mv-tablist-subtle .mv-tab { border-radius: var(--borderRadiusMedium); }
+.mv-tablist-subtle .mv-tab:hover { background: var(--colorSubtleBackgroundHover); }
+.mv-tablist-subtle .mv-tab:active { background: var(--colorSubtleBackgroundPressed); }
+.mv-tablist-subtle .mv-tab.is-active { background: var(--colorSubtleBackgroundSelected); }
+/* Subtle appearance keeps the active indicator bar; nothing to remove. */
+
+/* --- Size: small | medium (default) | large --- */
+.mv-tab-small {
+  padding: var(--spacingVerticalSNudge) var(--spacingHorizontalSNudge);
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+.mv-tab-small.is-active::after { left: var(--spacingHorizontalSNudge); right: var(--spacingHorizontalSNudge); }
+.mv-tab-medium {
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+}
+.mv-tab-large {
+  padding: var(--spacingVerticalM) var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+.mv-tab-large.is-active::after { height: 3px; }
+
+/* --- Orientation: vertical --- */
+/* The list stacks; the active indicator moves to the inline-start edge. */
+.mv-tablist-vertical {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  border-bottom: none;
+  border-inline-end: 1px solid var(--colorNeutralStroke2);
+}
+.mv-tablist-vertical .mv-tab { text-align: start; }
+.mv-tablist-vertical .mv-tab.is-active::after {
+  left: 0; right: auto; top: var(--spacingVerticalS); bottom: var(--spacingVerticalS);
+  width: 2px; height: auto;
+}
+.mv-tablist-vertical .mv-tab-small.is-active::after { top: var(--spacingVerticalSNudge); bottom: var(--spacingVerticalSNudge); }
+.mv-tablist-vertical .mv-tab-large.is-active::after { width: 3px; }
+
+/* --- State: disabled --- */
+.mv-tab-disabled,
+.mv-tab[aria-disabled="true"],
+.mv-tab:disabled {
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-tab-disabled:hover { color: var(--colorNeutralForegroundDisabled); background: transparent; }
+.mv-tab-disabled.is-active::after { background: var(--colorNeutralForegroundDisabled); }
+
+/* Selected/hover/pressed/focus for the base + transparent appearance already
+   live on .mv-tab / .mv-tab:hover / .mv-tab:active / .mv-tab:focus-visible /
+   .mv-tab.is-active in the base block. */
+
+/* ===== Accordion — complete variants (nav-overlays) ===== */
+/* ===== Accordion variants ===== */
+
+/* --- Size: small | medium (default) | large --- (Fluent header type ramp) */
+.mv-accordion-small .mv-accordion-header {
+  padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+.mv-accordion-small .mv-accordion-panel {
+  padding: var(--spacingVerticalXS) var(--spacingHorizontalM) var(--spacingVerticalM);
+  font-size: var(--fontSizeBase200);
+  line-height: var(--lineHeightBase200);
+}
+.mv-accordion-medium .mv-accordion-header {
+  padding: var(--spacingVerticalM) var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase300);
+  line-height: var(--lineHeightBase300);
+}
+.mv-accordion-large .mv-accordion-header {
+  padding: var(--spacingVerticalL) var(--spacingHorizontalM);
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+.mv-accordion-large .mv-accordion-panel {
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM) var(--spacingVerticalXL);
+  font-size: var(--fontSizeBase400);
+  line-height: var(--lineHeightBase400);
+}
+
+/* --- Look: filled --- (Fluent expandIconPosition card surface) */
+.mv-accordion-filled {
+  background: var(--colorNeutralBackground2);
+  border: 1px solid var(--colorNeutralStroke2);
+}
+.mv-accordion-filled .mv-accordion-header:hover { background: var(--colorNeutralBackground2Hover); }
+.mv-accordion-filled .mv-accordion-header:active { background: var(--colorNeutralBackground2Pressed); }
+.mv-accordion-filled .mv-accordion-item[open] > .mv-accordion-header { background: var(--colorNeutralBackground2Selected); }
+
+/* --- Look: inline --- (Fluent expandIcon leading + chevron rotates inline) */
+/* Chevron moves to the inline-start of the header label instead of trailing. */
+.mv-accordion-inline .mv-accordion-header { justify-content: flex-start; }
+.mv-accordion-inline .mv-accordion-header::after { order: -1; margin-right: var(--spacingHorizontalS); }
+
+/* --- State: disabled item --- */
+.mv-accordion-item-disabled > .mv-accordion-header,
+.mv-accordion-header[aria-disabled="true"] {
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-accordion-item-disabled > .mv-accordion-header::after { color: var(--colorNeutralForegroundDisabled); }
+
+/* Base (.mv-accordion / -item / -header / -panel), hover/pressed/focus and the
+   [open] chevron rotation already exist in the base block. */
+
+/* ===== Breadcrumb — complete variants (nav-overlays) ===== */
+/* ===== Breadcrumb variants ===== */
+
+/* --- Size: small | medium (default) | large --- (Fluent: caption1 / body1 / body2 ramp) */
+.mv-breadcrumb-small { font-size: var(--fontSizeBase100); line-height: var(--lineHeightBase100); gap: var(--spacingHorizontalXXS); }
+.mv-breadcrumb-small .mv-breadcrumb-item { padding: var(--spacingVerticalXXS) var(--spacingHorizontalXS); }
+.mv-breadcrumb-small .mv-breadcrumb-item:not(:last-child)::after { margin-left: var(--spacingHorizontalXXS); }
+
+.mv-breadcrumb-medium { font-size: var(--fontSizeBase200); line-height: var(--lineHeightBase200); }
+
+.mv-breadcrumb-large { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); gap: var(--spacingHorizontalS); }
+.mv-breadcrumb-large .mv-breadcrumb-item { padding: var(--spacingVerticalXS) var(--spacingHorizontalS); }
+.mv-breadcrumb-large .mv-breadcrumb-item:not(:last-child)::after { margin-left: var(--spacingHorizontalS); }
+
+/* --- State: disabled item --- */
+.mv-breadcrumb-item-disabled,
+.mv-breadcrumb-item[aria-disabled="true"] {
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-breadcrumb-item-disabled:hover { background: transparent; color: var(--colorNeutralForegroundDisabled); }
+
+/* Base (.mv-breadcrumb / -item), hover/focus, the '/' separator and the
+   is-current (selected) state already exist in the base block. */
+
+/* ===== Tree + TreeItem — complete variants (nav-overlays) ===== */
+/* ===== Tree + TreeItem variants ===== */
+
+/* --- Size: small | medium (default) | large --- (Fluent tree row heights) */
+.mv-tree-small { font-size: var(--fontSizeBase200); line-height: var(--lineHeightBase200); }
+.mv-tree-small .mv-treeitem > summary { min-height: 24px; padding: var(--spacingVerticalXXS) var(--spacingHorizontalSNudge); }
+.mv-tree-small .mv-treeitem > summary::before { width: 14px; height: 14px; }
+
+.mv-tree-medium { font-size: var(--fontSizeBase300); line-height: var(--lineHeightBase300); }
+.mv-tree-medium .mv-treeitem > summary { min-height: 32px; }
+
+.mv-tree-large { font-size: var(--fontSizeBase400); line-height: var(--lineHeightBase400); }
+.mv-tree-large .mv-treeitem > summary { min-height: 40px; padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
+.mv-tree-large .mv-treeitem > summary::before { width: 20px; height: 20px; }
+
+/* --- Appearance: guide lines (Fluent 'tree with indentation guides') --- */
+/* Default Tree already draws a border on .mv-treeitem-group. This variant makes
+   the guide line explicit / themable and aligns it to the chevron column. */
+.mv-tree-lines .mv-treeitem-group {
+  margin-inline-start: var(--spacingHorizontalM);
+  padding-inline-start: var(--spacingHorizontalS);
+  border-inline-start: var(--strokeWidthThin, 1px) solid var(--colorNeutralStroke2);
+}
+/* Subtle appearance hides the guide lines entirely. */
+.mv-tree-subtle .mv-treeitem-group { border-inline-start: none; }
+
+/* --- State: selected (aria-selected) --- */
+.mv-treeitem-selected > summary,
+.mv-treeitem > summary[aria-selected="true"] {
+  background: var(--colorSubtleBackgroundSelected);
+  color: var(--colorNeutralForeground1Selected);
+  font-weight: var(--fontWeightSemibold);
+}
+.mv-treeitem-selected > summary::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  border-radius: var(--borderRadiusCircular);
+  background: var(--colorCompoundBrandStroke);
+}
+.mv-treeitem-selected > summary { position: relative; }
+
+/* --- State: disabled --- */
+.mv-treeitem-disabled > summary,
+.mv-treeitem > summary[aria-disabled="true"] {
+  color: var(--colorNeutralForegroundDisabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.mv-treeitem-disabled > summary::before { color: var(--colorNeutralForegroundDisabled); }
+
+/* Base (.mv-tree, .mv-treeitem, -group, -leaf), hover/focus, the rotating
+   chevron and the default indent guide already exist in the base block. */
+
+/* ===== Toolbar — complete variants (nav-overlays) ===== */
+/* ===== Toolbar variants ===== */
+
+/* --- Size: small | medium (default) | large --- */
+/* (.mv-toolbar-small and .mv-toolbar-large already exist in the base block;
+   add the explicit medium token so size="medium" matches the default density.) */
+.mv-toolbar-medium { gap: var(--spacingHorizontalXS); padding: var(--spacingVerticalXS) var(--spacingHorizontalS); }
+
+/* --- Orientation: vertical --- */
+.mv-toolbar-vertical {
+  flex-direction: column;
+  align-items: stretch;
+}
+.mv-toolbar-vertical .mv-toolbar-group { flex-direction: column; align-items: stretch; }
+.mv-toolbar-vertical .mv-toolbar-divider {
+  align-self: stretch;
+  width: auto;
+  height: 1px;
+  min-height: 0;
+  min-width: 20px;
+  margin: var(--spacingVerticalXS) var(--spacingHorizontalXXS);
+}
+
+/* --- Appearance: subtle (default, transparent) | surface --- */
+/* Surface gives the toolbar a card-like background + hairline (Fluent inset). */
+.mv-toolbar-surface {
+  background: var(--colorNeutralBackground2);
+  border: 1px solid var(--colorNeutralStroke2);
+}
+
+/* Base (.mv-toolbar, -group, -divider) plus the small/large sizes already
+   exist in the base block. */
+
+/* ===== Tooltip — complete variants (nav-overlays) ===== */
+/* ===== Tooltip — 12 placements ===== */
+/* The base .mv-tooltip-text defaults to top/center (above, centered, arrow at
+   bottom-center). Each placement class repositions the bubble + its ::after
+   arrow. Naming: mv-tooltip-{above|below|before|after}{-start|-end|}. */
+
+/* Reset helper applied by every non-default placement so transforms compose. */
+
+/* ---- TOP (above) ---- */
+.mv-tooltip-above .mv-tooltip-text { bottom: 100%; top: auto; left: 50%; right: auto; margin: 0 0 var(--spacingVerticalS) 0; transform: translateX(-50%) translateY(4px); }
+.mv-tooltip-above:hover .mv-tooltip-text, .mv-tooltip-above:focus-within .mv-tooltip-text { transform: translateX(-50%) translateY(0); }
+.mv-tooltip-above .mv-tooltip-text::after { top: 100%; bottom: auto; left: 50%; right: auto; transform: translateX(-50%) translateY(-50%) rotate(45deg); }
+
+.mv-tooltip-above-start .mv-tooltip-text { bottom: 100%; top: auto; left: 0; right: auto; margin: 0 0 var(--spacingVerticalS) 0; transform: translateY(4px); }
+.mv-tooltip-above-start:hover .mv-tooltip-text, .mv-tooltip-above-start:focus-within .mv-tooltip-text { transform: translateY(0); }
+.mv-tooltip-above-start .mv-tooltip-text::after { top: 100%; bottom: auto; left: var(--spacingHorizontalL); right: auto; transform: translateY(-50%) rotate(45deg); }
+
+.mv-tooltip-above-end .mv-tooltip-text { bottom: 100%; top: auto; left: auto; right: 0; margin: 0 0 var(--spacingVerticalS) 0; transform: translateY(4px); }
+.mv-tooltip-above-end:hover .mv-tooltip-text, .mv-tooltip-above-end:focus-within .mv-tooltip-text { transform: translateY(0); }
+.mv-tooltip-above-end .mv-tooltip-text::after { top: 100%; bottom: auto; left: auto; right: var(--spacingHorizontalL); transform: translateY(-50%) rotate(45deg); }
+
+/* ---- BOTTOM (below) ---- */
+.mv-tooltip-below .mv-tooltip-text { top: 100%; bottom: auto; left: 50%; right: auto; margin: var(--spacingVerticalS) 0 0 0; transform: translateX(-50%) translateY(-4px); }
+.mv-tooltip-below:hover .mv-tooltip-text, .mv-tooltip-below:focus-within .mv-tooltip-text { transform: translateX(-50%) translateY(0); }
+.mv-tooltip-below .mv-tooltip-text::after { top: auto; bottom: 100%; left: 50%; right: auto; transform: translateX(-50%) translateY(50%) rotate(45deg); }
+
+.mv-tooltip-below-start .mv-tooltip-text { top: 100%; bottom: auto; left: 0; right: auto; margin: var(--spacingVerticalS) 0 0 0; transform: translateY(-4px); }
+.mv-tooltip-below-start:hover .mv-tooltip-text, .mv-tooltip-below-start:focus-within .mv-tooltip-text { transform: translateY(0); }
+.mv-tooltip-below-start .mv-tooltip-text::after { top: auto; bottom: 100%; left: var(--spacingHorizontalL); right: auto; transform: translateY(50%) rotate(45deg); }
+
+.mv-tooltip-below-end .mv-tooltip-text { top: 100%; bottom: auto; left: auto; right: 0; margin: var(--spacingVerticalS) 0 0 0; transform: translateY(-4px); }
+.mv-tooltip-below-end:hover .mv-tooltip-text, .mv-tooltip-below-end:focus-within .mv-tooltip-text { transform: translateY(0); }
+.mv-tooltip-below-end .mv-tooltip-text::after { top: auto; bottom: 100%; left: auto; right: var(--spacingHorizontalL); transform: translateY(50%) rotate(45deg); }
+
+/* ---- LEFT (before) ---- */
+.mv-tooltip-before .mv-tooltip-text { left: auto; right: 100%; top: 50%; bottom: auto; margin: 0 var(--spacingHorizontalS) 0 0; transform: translateY(-50%) translateX(4px); }
+.mv-tooltip-before:hover .mv-tooltip-text, .mv-tooltip-before:focus-within .mv-tooltip-text { transform: translateY(-50%) translateX(0); }
+.mv-tooltip-before .mv-tooltip-text::after { top: 50%; bottom: auto; left: 100%; right: auto; transform: translateY(-50%) translateX(-50%) rotate(45deg); }
+
+.mv-tooltip-before-start .mv-tooltip-text { left: auto; right: 100%; top: 0; bottom: auto; margin: 0 var(--spacingHorizontalS) 0 0; transform: translateX(4px); }
+.mv-tooltip-before-start:hover .mv-tooltip-text, .mv-tooltip-before-start:focus-within .mv-tooltip-text { transform: translateX(0); }
+.mv-tooltip-before-start .mv-tooltip-text::after { top: var(--spacingVerticalM); bottom: auto; left: 100%; right: auto; transform: translateX(-50%) rotate(45deg); }
+
+.mv-tooltip-before-end .mv-tooltip-text { left: auto; right: 100%; top: auto; bottom: 0; margin: 0 var(--spacingHorizontalS) 0 0; transform: translateX(4px); }
+.mv-tooltip-before-end:hover .mv-tooltip-text, .mv-tooltip-before-end:focus-within .mv-tooltip-text { transform: translateX(0); }
+.mv-tooltip-before-end .mv-tooltip-text::after { top: auto; bottom: var(--spacingVerticalM); left: 100%; right: auto; transform: translateX(-50%) rotate(45deg); }
+
+/* ---- RIGHT (after) ---- */
+.mv-tooltip-after .mv-tooltip-text { left: 100%; right: auto; top: 50%; bottom: auto; margin: 0 0 0 var(--spacingHorizontalS); transform: translateY(-50%) translateX(-4px); }
+.mv-tooltip-after:hover .mv-tooltip-text, .mv-tooltip-after:focus-within .mv-tooltip-text { transform: translateY(-50%) translateX(0); }
+.mv-tooltip-after .mv-tooltip-text::after { top: 50%; bottom: auto; left: auto; right: 100%; transform: translateY(-50%) translateX(50%) rotate(45deg); }
+
+.mv-tooltip-after-start .mv-tooltip-text { left: 100%; right: auto; top: 0; bottom: auto; margin: 0 0 0 var(--spacingHorizontalS); transform: translateX(-4px); }
+.mv-tooltip-after-start:hover .mv-tooltip-text, .mv-tooltip-after-start:focus-within .mv-tooltip-text { transform: translateX(0); }
+.mv-tooltip-after-start .mv-tooltip-text::after { top: var(--spacingVerticalM); bottom: auto; left: auto; right: 100%; transform: translateX(50%) rotate(45deg); }
+
+.mv-tooltip-after-end .mv-tooltip-text { left: 100%; right: auto; top: auto; bottom: 0; margin: 0 0 0 var(--spacingHorizontalS); transform: translateX(-4px); }
+.mv-tooltip-after-end:hover .mv-tooltip-text, .mv-tooltip-after-end:focus-within .mv-tooltip-text { transform: translateX(0); }
+.mv-tooltip-after-end .mv-tooltip-text::after { top: auto; bottom: var(--spacingVerticalM); left: auto; right: 100%; transform: translateX(50%) rotate(45deg); }
+
+/* Base bubble, inverted surface, arrow and the hover/focus-within reveal
+   already exist in the base block (default = above-center). */
+
+/* ===== Popover — complete variants (nav-overlays) ===== */
+/* ===== Popover variants ===== */
+
+/* --- Placement --- (surface is absolutely positioned off the trigger) */
+/* Default (no class) = below-start (top:100%+4, left:0), matching base. */
+.mv-popover-below-start > .mv-popover-surface { top: calc(100% + 4px); bottom: auto; left: 0; right: auto; }
+.mv-popover-below > .mv-popover-surface { top: calc(100% + 4px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
+.mv-popover-below-end > .mv-popover-surface { top: calc(100% + 4px); bottom: auto; left: auto; right: 0; }
+
+.mv-popover-above-start > .mv-popover-surface { bottom: calc(100% + 4px); top: auto; left: 0; right: auto; }
+.mv-popover-above > .mv-popover-surface { bottom: calc(100% + 4px); top: auto; left: 50%; right: auto; transform: translateX(-50%); }
+.mv-popover-above-end > .mv-popover-surface { bottom: calc(100% + 4px); top: auto; left: auto; right: 0; }
+
+.mv-popover-after-start > .mv-popover-surface { left: calc(100% + 4px); right: auto; top: 0; bottom: auto; }
+.mv-popover-after > .mv-popover-surface { left: calc(100% + 4px); right: auto; top: 50%; bottom: auto; transform: translateY(-50%); }
+.mv-popover-after-end > .mv-popover-surface { left: calc(100% + 4px); right: auto; top: auto; bottom: 0; }
+
+.mv-popover-before-start > .mv-popover-surface { right: calc(100% + 4px); left: auto; top: 0; bottom: auto; }
+.mv-popover-before > .mv-popover-surface { right: calc(100% + 4px); left: auto; top: 50%; bottom: auto; transform: translateY(-50%); }
+.mv-popover-before-end > .mv-popover-surface { right: calc(100% + 4px); left: auto; top: auto; bottom: 0; }
+
+/* --- Size --- (Fluent Popover small | medium (default) | large padding) */
+.mv-popover-small > .mv-popover-surface { padding: var(--spacingVerticalS) var(--spacingHorizontalS); min-width: 200px; font-size: var(--fontSizeBase200); }
+.mv-popover-medium > .mv-popover-surface { padding: var(--spacingVerticalM) var(--spacingHorizontalM); min-width: 240px; }
+.mv-popover-large > .mv-popover-surface { padding: var(--spacingVerticalL) var(--spacingHorizontalL); min-width: 320px; font-size: var(--fontSizeBase400); }
+
+/* --- Appearance: brand --- (Fluent inverted/brand popover surface) */
+.mv-popover-brand > .mv-popover-surface {
+  background: var(--colorBrandBackground);
+  color: var(--colorNeutralForegroundOnBrand);
+  border-color: var(--colorBrandBackground);
+}
+.mv-popover-inverted > .mv-popover-surface {
+  background: var(--colorNeutralBackgroundInverted);
+  color: var(--colorNeutralForegroundInverted);
+  border-color: var(--colorNeutralBackgroundInverted);
+}
+
+/* Base (.mv-popover, -trigger, -surface), the trigger hover/focus/open states
+   and the enter animation already exist in the base block. */
+
+/* ===== Dialog — complete variants (nav-overlays) ===== */
+/* ===== Dialog variants ===== */
+
+/* --- Size: small | medium (default) | large --- (Fluent dialog max-width ramp) */
+.mv-dialog-small .mv-dialog-surface { max-width: 340px; }
+.mv-dialog-medium .mv-dialog-surface { max-width: 600px; }
+.mv-dialog-large .mv-dialog-surface { max-width: 760px; }
+/* Full-bleed convenience size (near-viewport). */
+.mv-dialog-full .mv-dialog-surface { max-width: calc(100vw - 48px); width: calc(100% - 48px); }
+
+/* --- Type: modal (default) | non-modal | alert --- */
+/* modal: dimmed, dismiss-on-backdrop (base behaviour — backdrop label closes). */
+/* non-modal: no dimming scrim; the surface floats, backdrop does not capture. */
+.mv-dialog-non-modal .mv-dialog-backdrop {
+  background-color: transparent;
+  pointer-events: none;
+  animation: none;
+}
+.mv-dialog-non-modal .mv-dialog-surface { box-shadow: var(--shadow28); }
+/* alert: modal but the backdrop is NOT a close affordance (must use an action). */
+.mv-dialog-alert .mv-dialog-backdrop { pointer-events: none; cursor: default; }
+
+/* --- Position: center (default) | top --- */
+.mv-dialog-top.mv-dialog-overlay,
+.mv-dialog-top .mv-dialog-overlay { align-items: flex-start; }
+.mv-dialog-top .mv-dialog-surface { margin-top: var(--spacingVerticalXXXL); }
+
+/* Base surface (max-width 600, scrim, scale-in animation, title/body/actions)
+   already exists in the base block. */
+
+/* ===== Drawer — complete variants (nav-overlays) ===== */
+/* ===== Drawer variants ===== */
+
+/* --- Side: start | end --- (.mv-drawer-start / .mv-drawer-end already exist) */
+
+/* --- Size: small | medium (default) | large | full --- (Fluent drawer widths) */
+.mv-drawer-small.mv-drawer-surface,
+.mv-drawer-small .mv-drawer-surface { width: 320px; }
+.mv-drawer-medium.mv-drawer-surface,
+.mv-drawer-medium .mv-drawer-surface { width: 592px; }
+.mv-drawer-large.mv-drawer-surface,
+.mv-drawer-large .mv-drawer-surface { width: 940px; }
+.mv-drawer-full.mv-drawer-surface,
+.mv-drawer-full .mv-drawer-surface { width: 100vw; }
+/* (the surface already caps at max-width:100vw, so full just fills) */
+
+/* --- Type: overlay (default) | inline --- */
+/* overlay: fixed, dims the page, slides over content (base behaviour). */
+/* inline: the drawer participates in layout — no scrim, static positioning,
+   pushes sibling content instead of floating. Apply on the root. */
+.mv-drawer-inline .mv-drawer-overlay {
+  position: static;
+  inset: auto;
+  z-index: auto;
+}
+.mv-drawer-inline .mv-drawer-backdrop { display: none; }
+.mv-drawer-inline .mv-drawer-surface {
+  position: relative;
+  height: 100%;
+  box-shadow: none;
+  border-inline: 1px solid var(--colorNeutralStroke2);
+}
+/* inline drawers slide in along their axis but stay in flow. */
+.mv-drawer-inline.mv-drawer-root { display: flex; }
+
+/* --- Position: top | bottom (horizontal drawers) --- */
+.mv-drawer-top .mv-drawer-surface {
+  top: 0; left: 0; right: 0; bottom: auto;
+  width: 100vw; height: auto; max-height: 60vh;
+  transform: translateY(-100%);
+}
+.mv-drawer-bottom .mv-drawer-surface {
+  bottom: 0; left: 0; right: 0; top: auto;
+  width: 100vw; height: auto; max-height: 60vh;
+  transform: translateY(100%);
+}
+.mv-drawer-toggle:checked ~ .mv-drawer-overlay .mv-drawer-top .mv-drawer-surface,
+.mv-drawer-toggle:checked ~ .mv-drawer-overlay .mv-drawer-bottom .mv-drawer-surface,
+.mv-drawer-toggle:checked ~ .mv-drawer-overlay .mv-drawer-surface.mv-drawer-top,
+.mv-drawer-toggle:checked ~ .mv-drawer-overlay .mv-drawer-surface.mv-drawer-bottom {
+  transform: translateY(0);
+}
+
+/* Base (.mv-drawer-root, -trigger, -overlay, -backdrop, -surface, -start, -end,
+   -title, -body), the 320px width, scrim and slide-in already exist in the
+   base block. */

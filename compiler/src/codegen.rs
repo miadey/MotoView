@@ -774,8 +774,11 @@ impl<'a> Codegen<'a> {
                 match lit("shape").as_deref() {
                     Some("circular") => cls.push_str(" mv-btn-circular"),
                     Some("square") => cls.push_str(" mv-btn-square"),
+                    Some("rounded") => cls.push_str(" mv-btn-rounded"),
                     _ => {}
                 }
+                if prop("danger").is_some() || lit("color").as_deref() == Some("danger") { cls.push_str(" mv-btn-danger"); }
+                if prop("iconOnly").is_some() { cls.push_str(" mv-btn-icon"); }
                 let disabled = prop("disabled").is_some();
                 if disabled { cls.push_str(" mv-btn-disabled"); }
                 let ty = lit("type").unwrap_or_else(|| "button".into());
@@ -914,7 +917,14 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Card" => {
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-card\\\">\");\n", indent));
+                let mut ccls = "mv-card".to_string();
+                if let Some(ap) = lit("appearance") { ccls.push_str(&format!(" mv-card-{}", ap)); }
+                if let Some(sz) = lit("size") { ccls.push_str(&format!(" mv-card-{}", sz)); }
+                if prop("interactive").is_some() { ccls.push_str(" mv-card-interactive"); }
+                if prop("disabled").is_some() { ccls.push_str(" mv-card-disabled"); }
+                if prop("horizontal").is_some() { ccls.push_str(" mv-card-horizontal"); }
+                if prop("selected").is_some() { ccls.push_str(" mv-card-selected"); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, ccls));
                 if let Some(t) = prop("title") {
                     out.push_str(&format!("{}b.raw(\"<h2>\");\n", indent));
                     self.gen_attr_text(t, out, indent);
@@ -1084,7 +1094,10 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "TabList" => {
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-tablist\\\">\");\n", indent));
+                let mut tlcls = "mv-tablist".to_string();
+                if lit("appearance").as_deref() == Some("subtle") { tlcls.push_str(" mv-tablist-subtle"); }
+                if lit("orientation").as_deref() == Some("vertical") { tlcls.push_str(" mv-tablist-vertical"); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, tlcls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())
@@ -1140,8 +1153,12 @@ impl<'a> Codegen<'a> {
             // ---- Fluent: feedback + text ----
             "Switch" => {
                 let name = lit("name").unwrap_or_default();
-                out.push_str(&format!("{}b.raw(\"<label class=\\\"mv-switch\\\"><input type=\\\"checkbox\\\" name=\\\"{}\\\"\");\n", indent, name));
+                let mut scls = "mv-switch".to_string();
+                if let Some(sz) = lit("size") { scls.push_str(&format!(" mv-switch-{}", sz)); }
+                if let Some(lp) = lit("labelPosition") { scls.push_str(&format!(" mv-switch-{}", lp)); }
+                out.push_str(&format!("{}b.raw(\"<label class=\\\"{}\\\"><input type=\\\"checkbox\\\" name=\\\"{}\\\"\");\n", indent, scls, name));
                 if prop("checked").is_some() { out.push_str(&format!("{}b.raw(\" checked\");\n", indent)); }
+                if prop("disabled").is_some() { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
                 out.push_str(&format!("{}b.raw(\"><span class=\\\"mv-switch-track\\\"></span>\");\n", indent));
                 if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
                 self.gen_nodes(&c.children, out, indent);
@@ -1150,20 +1167,22 @@ impl<'a> Codegen<'a> {
             }
             "Divider" => {
                 let mut cls = "mv-divider".to_string();
-                if lit("appearance").as_deref() == Some("strong") { cls.push_str(" mv-divider-strong"); }
+                if let Some(ap) = lit("appearance") { cls.push_str(&format!(" mv-divider-{}", ap)); }
                 if prop("vertical").is_some() { cls.push_str(" mv-divider-vertical"); }
+                if let Some(al) = lit("align") { cls.push_str(&format!(" mv-divider-{}", al)); }
+                if prop("inset").is_some() { cls.push_str(" mv-divider-inset"); }
                 out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, cls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())
             }
             "Spinner" => {
-                let size = lit("size").map(|s| format!(" mv-spinner-{}", s)).unwrap_or_default();
+                let size = format!("{}{}", lit("size").map(|s| format!(" mv-spinner-{}", s)).unwrap_or_default(), lit("appearance").map(|a| format!(" mv-spinner-{}", a)).unwrap_or_default());
                 // label: optional caption. labelPosition: after (default, inline) | below (stacked).
                 if let Some(label) = prop("label") {
                     let pos = lit("labelPosition").unwrap_or_else(|| "after".into());
-                    let pos_cls = if pos == "below" { " mv-spinner-below" } else { "" };
-                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-spinner-wrap{}\\\"><span class=\\\"mv-spinner{}\\\"></span><span class=\\\"mv-spinner-label\\\">\");\n", indent, pos_cls, size));
+                    let _ = &pos; let pos_cls = format!(" mv-spinner-{}", pos);
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-spinner-wrap{}{}\\\"><span class=\\\"mv-spinner{}\\\"></span><span class=\\\"mv-spinner-label\\\">\");\n", indent, pos_cls, size, size));
                     self.gen_attr_text(label, out, indent);
                     out.push_str(&format!("{}b.raw(\"</span></span>\");\n", indent));
                 } else {
@@ -1188,7 +1207,11 @@ impl<'a> Codegen<'a> {
             }
             "MessageBar" => {
                 let ty = lit("intent").or_else(|| lit("type")).unwrap_or_else(|| "info".into());
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-alert mv-alert-{}\\\">\");\n", indent, ty));
+                let mut mbcls = format!("mv-alert mv-alert-{}", ty);
+                if let Some(l) = lit("layout") { mbcls.push_str(&format!(" mv-alert-{}", l)); }
+                if let Some(ap) = lit("appearance") { mbcls.push_str(&format!(" mv-alert-{}", ap)); }
+                if let Some(sh) = lit("shape") { mbcls.push_str(&format!(" mv-alert-{}", sh)); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, mbcls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())
@@ -1218,9 +1241,15 @@ impl<'a> Codegen<'a> {
                     ("mv-checkbox", "checkbox", "mv-checkbox-box")
                 };
                 let name = lit("name").unwrap_or_default();
-                out.push_str(&format!("{}b.raw(\"<label class=\\\"{}\\\"><input type=\\\"{}\\\" name=\\\"{}\\\"\");\n", indent, cls, kind, name));
+                let mut lcls = cls.to_string();
+                if let Some(sz) = lit("size") { lcls.push_str(&format!(" {}-{}", cls, sz)); }
+                if lit("shape").as_deref() == Some("circular") { lcls.push_str(&format!(" {}-circular", cls)); }
+                if let Some(lp) = lit("labelPosition") { lcls.push_str(&format!(" {}-{}", cls, lp)); }
+                if prop("mixed").is_some() { lcls.push_str(&format!(" {}-mixed", cls)); }
+                out.push_str(&format!("{}b.raw(\"<label class=\\\"{}\\\"><input type=\\\"{}\\\" name=\\\"{}\\\"\");\n", indent, lcls, kind, name));
                 if let Some(v) = lit("value") { out.push_str(&format!("{}b.raw(\" value=\\\"{}\\\"\");\n", indent, esc_lit(&v))); }
                 if prop("checked").is_some() { out.push_str(&format!("{}b.raw(\" checked\");\n", indent)); }
+                if prop("disabled").is_some() { out.push_str(&format!("{}b.raw(\" disabled\");\n", indent)); }
                 out.push_str(&format!("{}b.raw(\"><span class=\\\"{}\\\"></span>\");\n", indent, dot));
                 if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
                 self.gen_nodes(&c.children, out, indent);
@@ -1235,7 +1264,11 @@ impl<'a> Codegen<'a> {
                     self.gen_attr_text(prop("label").unwrap(), out, indent);
                     out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
                 }
-                out.push_str(&format!("{}b.raw(\"<select class=\\\"mv-select\\\" name=\\\"{}\\\">\");\n", indent, name));
+                let mut selcls = "mv-select".to_string();
+                if let Some(ap) = lit("appearance") { selcls.push_str(&format!(" mv-select-{}", ap)); }
+                if let Some(sz) = lit("size") { selcls.push_str(&format!(" mv-select-{}", sz)); }
+                let seldis = if prop("disabled").is_some() { " disabled" } else { "" };
+                out.push_str(&format!("{}b.raw(\"<select class=\\\"{}\\\" name=\\\"{}\\\"{}>\");\n", indent, selcls, name, seldis));
                 if let Some(opts) = lit("options") {
                     for o in opts.split(',') {
                         out.push_str(&format!("{}b.raw(\"<option>{}</option>\");\n", indent, esc_lit(o.trim())));
@@ -1249,7 +1282,11 @@ impl<'a> Codegen<'a> {
             "Searchbox" => {
                 let name = lit("name").unwrap_or_default();
                 let ph = esc_lit(&lit("placeholder").unwrap_or_else(|| "Search".into()));
-                out.push_str(&format!("{}b.raw(\"<input type=\\\"search\\\" class=\\\"mv-input mv-search\\\" name=\\\"{}\\\" placeholder=\\\"{}\\\">\");\n", indent, name, ph));
+                let mut sbcls = "mv-input mv-search".to_string();
+                if let Some(ap) = lit("appearance") { sbcls.push_str(&format!(" mv-search-{}", ap)); }
+                if let Some(sz) = lit("size") { sbcls.push_str(&format!(" mv-search-{}", sz)); }
+                let sbdis = if prop("disabled").is_some() { " disabled" } else { "" };
+                out.push_str(&format!("{}b.raw(\"<input type=\\\"search\\\" class=\\\"{}\\\" name=\\\"{}\\\" placeholder=\\\"{}\\\"{}>\");\n", indent, sbcls, name, ph, sbdis));
                 Some(())
             }
             "Combobox" => {
@@ -1262,7 +1299,11 @@ impl<'a> Codegen<'a> {
                     out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
                 }
                 let ph = esc_lit(&lit("placeholder").unwrap_or_default());
-                out.push_str(&format!("{}b.raw(\"<input class=\\\"mv-input mv-combobox\\\" name=\\\"{}\\\" list=\\\"{}\\\" placeholder=\\\"{}\\\"><datalist id=\\\"{}\\\">\");\n", indent, name, listid, ph, listid));
+                let mut cbcls = "mv-input mv-combobox".to_string();
+                if let Some(ap) = lit("appearance") { cbcls.push_str(&format!(" mv-combobox-{}", ap)); }
+                if let Some(sz) = lit("size") { cbcls.push_str(&format!(" mv-combobox-{}", sz)); }
+                let cbdis = if prop("disabled").is_some() { " disabled" } else { "" };
+                out.push_str(&format!("{}b.raw(\"<input class=\\\"{}\\\" name=\\\"{}\\\" list=\\\"{}\\\" placeholder=\\\"{}\\\"{}><datalist id=\\\"{}\\\">\");\n", indent, cbcls, name, listid, ph, cbdis, listid));
                 if let Some(opts) = lit("options") {
                     for o in opts.split(',') {
                         out.push_str(&format!("{}b.raw(\"<option value=\\\"{}\\\"></option>\");\n", indent, esc_lit(o.trim())));
@@ -1348,7 +1389,9 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Breadcrumb" => {
-                out.push_str(&format!("{}b.raw(\"<nav class=\\\"mv-breadcrumb\\\">\");\n", indent));
+                let mut bccls = "mv-breadcrumb".to_string();
+                if let Some(sz) = lit("size") { bccls.push_str(&format!(" mv-breadcrumb-{}", sz)); }
+                out.push_str(&format!("{}b.raw(\"<nav class=\\\"{}\\\">\");\n", indent, bccls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</nav>\");\n", indent));
                 Some(())
@@ -1364,7 +1407,10 @@ impl<'a> Codegen<'a> {
             }
             // ---- Fluent: disclosure + overlays (CSS-only) ----
             "Accordion" => {
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-accordion\\\">\");\n", indent));
+                let mut accls = "mv-accordion".to_string();
+                if let Some(sz) = lit("size") { accls.push_str(&format!(" mv-accordion-{}", sz)); }
+                if let Some(lk) = lit("look") { accls.push_str(&format!(" mv-accordion-{}", lk)); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, accls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())
@@ -1379,7 +1425,11 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Popover" => {
-                out.push_str(&format!("{}b.raw(\"<details class=\\\"mv-popover\\\"><summary class=\\\"mv-popover-trigger\\\">\");\n", indent));
+                let mut pvcls = "mv-popover".to_string();
+                if let Some(pl) = lit("placement").or_else(|| lit("position")) { pvcls.push_str(&format!(" mv-popover-{}", pl)); }
+                if let Some(sz) = lit("size") { pvcls.push_str(&format!(" mv-popover-{}", sz)); }
+                if let Some(ap) = lit("appearance") { pvcls.push_str(&format!(" mv-popover-{}", ap)); }
+                out.push_str(&format!("{}b.raw(\"<details class=\\\"{}\\\"><summary class=\\\"mv-popover-trigger\\\">\");\n", indent, pvcls));
                 if let Some(l) = prop("label") { self.gen_attr_text(l, out, indent); }
                 out.push_str(&format!("{}b.raw(\"</summary><div class=\\\"mv-popover-surface\\\">\");\n", indent));
                 self.gen_nodes(&c.children, out, indent);
@@ -1387,7 +1437,9 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Tooltip" => {
-                out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-tooltip\\\" tabindex=\\\"0\\\">\");\n", indent));
+                let mut ttcls = "mv-tooltip".to_string();
+                if let Some(pl) = lit("placement").or_else(|| lit("position")) { ttcls.push_str(&format!(" mv-tooltip-{}", pl)); }
+                out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\" tabindex=\\\"0\\\">\");\n", indent, ttcls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-tooltip-text\\\" role=\\\"tooltip\\\">\");\n", indent));
                 if let Some(t) = prop("text") { self.gen_attr_text(t, out, indent); }
@@ -1485,7 +1537,10 @@ impl<'a> Codegen<'a> {
         self.gen_attr_text(prop("label").unwrap(), out, indent);
         out.push_str(&format!("{}b.raw(\"</label>\");\n", indent));
     }
-    out.push_str(&format!("{}b.raw(\"<input type=\\\"number\\\" class=\\\"mv-input mv-spinbutton\\\" name=\\\"{}\\\" id=\\\"{}\\\"\");\n", indent, esc_lit(&name), esc_lit(&name)));
+    let mut spcls = "mv-input mv-spinbutton".to_string();
+    if let Some(ap) = lit("appearance") { spcls.push_str(&format!(" mv-spinbutton-{}", ap)); }
+    if let Some(sz) = lit("size") { spcls.push_str(&format!(" mv-spinbutton-{}", sz)); }
+    out.push_str(&format!("{}b.raw(\"<input type=\\\"number\\\" class=\\\"{}\\\" name=\\\"{}\\\" id=\\\"{}\\\"\");\n", indent, spcls, esc_lit(&name), esc_lit(&name)));
     if let Some(v) = prop("value") {
         out.push_str(&format!("{}b.raw(\" value=\\\"\");\n", indent));
         self.gen_attr_text(v, out, indent);
@@ -1506,6 +1561,7 @@ impl<'a> Codegen<'a> {
     let max = lit("max").unwrap_or_else(|| "100".into());
     let step = lit("step").unwrap_or_else(|| "1".into());
     let mut cls = "mv-slider".to_string();
+    if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-slider-{}", sz)); }
     if prop("vertical").is_some() { cls.push_str(" mv-slider-vertical"); }
     out.push_str(&format!("{}b.raw(\"<input type=\\\"range\\\" class=\\\"{}\\\" name=\\\"{}\\\" min=\\\"{}\\\" max=\\\"{}\\\" step=\\\"{}\\\"\");\n", indent, cls, esc_lit(&name), esc_lit(&min), esc_lit(&max), esc_lit(&step)));
     if let Some(v) = prop("value") {
@@ -1695,7 +1751,10 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Tree" => {
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-tree\\\" role=\\\"tree\\\">\");\n", indent));
+                let mut trcls = "mv-tree".to_string();
+                if let Some(sz) = lit("size") { trcls.push_str(&format!(" mv-tree-{}", sz)); }
+                if let Some(ap) = lit("appearance") { trcls.push_str(&format!(" mv-tree-{}", ap)); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\" role=\\\"tree\\\">\");\n", indent, trcls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())
@@ -1717,7 +1776,10 @@ impl<'a> Codegen<'a> {
             }
             "Toolbar" => {
                 let size = lit("size").unwrap_or_else(|| "medium".into());
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-toolbar mv-toolbar-{}\\\" role=\\\"toolbar\\\">\");\n", indent, esc_lit(&size)));
+                let mut tbcls = format!("mv-toolbar mv-toolbar-{}", size);
+                if lit("appearance").as_deref() == Some("surface") { tbcls.push_str(" mv-toolbar-surface"); }
+                if lit("orientation").as_deref() == Some("vertical") { tbcls.push_str(" mv-toolbar-vertical"); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\" role=\\\"toolbar\\\">\");\n", indent, esc_lit(&tbcls)));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())

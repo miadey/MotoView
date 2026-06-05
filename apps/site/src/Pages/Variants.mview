@@ -1,0 +1,301 @@
+@page "/variants"
+@layout HomeLayout
+@title "Variants — MotoView"
+@description "Every Fluent UI 2 variant of every MotoView built-in component."
+
+<section class="wrap">
+  <h1>Complete component variants</h1>
+  <p class="lead">Every appearance, size, shape, color and state — server-rendered, CSS-only.</p>
+  <section class="vsec"><h2>Button</h2>
+    <h3 class="vh">Appearance</h3>
+    <div class="vrow">
+        <Button appearance="primary">primary</Button>
+        <Button appearance="secondary">secondary</Button>
+        <Button appearance="outline">outline</Button>
+        <Button appearance="subtle">subtle</Button>
+        <Button appearance="transparent">transparent</Button>
+    </div>
+
+    <h3 class="vh">Size</h3>
+    <div class="vrow">
+        <Button appearance="primary" size="small">small</Button>
+        <Button appearance="primary" size="medium">medium</Button>
+        <Button appearance="primary" size="large">large</Button>
+    </div>
+
+    <h3 class="vh">Shape</h3>
+    <div class="vrow">
+        <Button appearance="primary" shape="rounded">rounded</Button>
+        <Button appearance="primary" shape="circular">circular</Button>
+        <Button appearance="primary" shape="square">square</Button>
+    </div>
+
+    <h3 class="vh">Danger + appearance</h3>
+    <div class="vrow">
+        <Button appearance="primary" danger>danger primary</Button>
+        <Button appearance="outline" danger>danger outline</Button>
+        <Button appearance="subtle" danger>danger subtle</Button>
+    </div>
+
+    <h3 class="vh">Disabled</h3>
+    <div class="vrow">
+        <Button appearance="primary" disabled>primary</Button>
+        <Button appearance="secondary" disabled>secondary</Button>
+        <Button appearance="outline" disabled>outline</Button>
+        <Button appearance="subtle" disabled>subtle</Button>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Badge</h2>
+    <h3 class="vh">Appearance</h3>
+    <div class="vrow">
+        <Badge appearance="filled" color="brand">filled</Badge>
+        <Badge appearance="ghost" color="brand">ghost</Badge>
+        <Badge appearance="outline" color="brand">outline</Badge>
+        <Badge appearance="tint" color="brand">tint</Badge>
+    </div>
+
+    <h3 class="vh">Color (filled)</h3>
+    <div class="vrow">
+        <Badge appearance="filled" color="brand">brand</Badge>
+        <Badge appearance="filled" color="danger">danger</Badge>
+        <Badge appearance="filled" color="success">success</Badge>
+        <Badge appearance="filled" color="warning">warning</Badge>
+        <Badge appearance="filled" color="important">important</Badge>
+        <Badge appearance="filled" color="informative">informative</Badge>
+        <Badge appearance="filled" color="severe">severe</Badge>
+        <Badge appearance="filled" color="subtle">subtle</Badge>
+    </div>
+
+    <h3 class="vh">Size</h3>
+    <div class="vrow">
+        <Badge appearance="filled" color="brand" size="tiny">tiny</Badge>
+        <Badge appearance="filled" color="brand" size="extra-small">extra-small</Badge>
+        <Badge appearance="filled" color="brand" size="small">small</Badge>
+        <Badge appearance="filled" color="brand" size="medium">medium</Badge>
+        <Badge appearance="filled" color="brand" size="large">large</Badge>
+        <Badge appearance="filled" color="brand" size="extra-large">extra-large</Badge>
+    </div>
+
+    <h3 class="vh">Shape</h3>
+    <div class="vrow">
+        <Badge appearance="filled" color="brand" shape="circular">circular</Badge>
+        <Badge appearance="filled" color="brand" shape="rounded">rounded</Badge>
+        <Badge appearance="filled" color="brand" shape="square">square</Badge>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>CounterBadge & PresenceBadge</h2>
+    <h3 class="vh">CounterBadge color</h3>
+    <div class="vrow">
+        <CounterBadge count="8" color="brand" />
+        <CounterBadge count="8" color="danger" />
+        <CounterBadge count="8" color="success" />
+        <CounterBadge count="8" color="important" />
+        <CounterBadge count="8" color="informative" />
+        <CounterBadge count="8" color="severe" />
+    </div>
+
+    <h3 class="vh">PresenceBadge status</h3>
+    <div class="vrow">
+        <span style="display:inline-flex;gap:.5rem;align-items:center"><PresenceBadge status="available" /> available</span>
+        <span style="display:inline-flex;gap:.5rem;align-items:center"><PresenceBadge status="away" /> away</span>
+        <span style="display:inline-flex;gap:.5rem;align-items:center"><PresenceBadge status="busy" /> busy</span>
+        <span style="display:inline-flex;gap:.5rem;align-items:center"><PresenceBadge status="do-not-disturb" /> do-not-disturb</span>
+        <span style="display:inline-flex;gap:.5rem;align-items:center"><PresenceBadge status="offline" /> offline</span>
+        <span style="display:inline-flex;gap:.5rem;align-items:center"><PresenceBadge status="out-of-office" /> out-of-office</span>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Tag</h2>
+    <h3 class="vh">Appearance</h3>
+    <div class="vrow">
+        <Tag appearance="filled">filled</Tag>
+        <Tag appearance="outline">outline</Tag>
+        <Tag appearance="brand">brand</Tag>
+    </div>
+
+    <h3 class="vh">Size</h3>
+    <div class="vrow">
+        <Tag size="small">small</Tag>
+        <Tag size="medium">medium</Tag>
+        <Tag size="extra-large">extra-large</Tag>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Avatar</h2>
+    <h3 class="vh">Size</h3>
+    <div class="vrow">
+        <Avatar name="Ada Lovelace" size="20" />
+        <Avatar name="Ada Lovelace" size="24" />
+        <Avatar name="Ada Lovelace" size="32" />
+        <Avatar name="Ada Lovelace" size="48" />
+        <Avatar name="Ada Lovelace" size="64" />
+        <Avatar name="Ada Lovelace" size="96" />
+        <Avatar name="Ada Lovelace" size="120" />
+    </div>
+
+    <h3 class="vh">Shape</h3>
+    <div class="vrow">
+        <Avatar name="Bo" shape="circular" size="48" />
+        <Avatar name="Bo" shape="square" size="48" />
+    </div>
+
+    <h3 class="vh">Color</h3>
+    <div class="vrow">
+        <Avatar name="X" color="brand" size="40" />
+        <Avatar name="X" color="red" size="40" />
+        <Avatar name="X" color="green" size="40" />
+        <Avatar name="X" color="purple" size="40" />
+        <Avatar name="X" color="peach" size="40" />
+        <Avatar name="X" color="seafoam" size="40" />
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Spinner</h2>
+    <h3 class="vh">Size</h3>
+    <div class="vrow">
+        <Spinner size="tiny" />
+        <Spinner size="extra-small" />
+        <Spinner size="small" />
+        <Spinner size="medium" />
+        <Spinner size="large" />
+        <Spinner size="extra-large" />
+        <Spinner size="huge" />
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Switch, Checkbox, Radio, Slider</h2>
+    <h3 class="vh">Switch</h3>
+    <div class="vrow">
+        <Switch label="Off" />
+        <Switch label="On" checked />
+        <Switch label="Disabled" disabled />
+    </div>
+
+    <h3 class="vh">Slider size</h3>
+    <div class="vrow">
+        <Slider name="s0" size="small" value="40" />
+        <Slider name="s1" size="medium" value="40" />
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Select / Searchbox / Combobox / SpinButton — sizes</h2>
+    <h3 class="vh">Sizes</h3>
+    <div class="vrow">
+        <Select size="small" options="One,Two,Three" />
+        <Select size="medium" options="One,Two,Three" />
+        <Select size="large" options="One,Two,Three" />
+    </div>
+
+    <h3 class="vh">Searchbox</h3>
+    <div class="vrow">
+        <Searchbox placeholder="Search…" />
+        <Searchbox placeholder="Disabled" disabled />
+    </div>
+
+    <h3 class="vh">SpinButton</h3>
+    <div class="vrow">
+        <SpinButton name="q" value="3" min="0" max="10" />
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Card appearances</h2>
+    <h3 class="vh">Appearance</h3>
+    <div class="vrow">
+        <Card appearance="filled" title="filled"><p style="margin:.3rem 0 0">Card</p></Card>
+        <Card appearance="filled-alternative" title="filled-alternative"><p style="margin:.3rem 0 0">Card</p></Card>
+        <Card appearance="outline" title="outline"><p style="margin:.3rem 0 0">Card</p></Card>
+        <Card appearance="subtle" title="subtle"><p style="margin:.3rem 0 0">Card</p></Card>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>MessageBar intents</h2>
+    <h3 class="vh">Intent</h3>
+    <div class="vrow">
+        <MessageBar intent="info">info</MessageBar>
+        <MessageBar intent="success">success</MessageBar>
+        <MessageBar intent="warning">warning</MessageBar>
+        <MessageBar intent="error">error</MessageBar>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>ProgressBar colors</h2>
+    <h3 class="vh">Color</h3>
+    <div class="vrow">
+        <ProgressBar value="60" color="brand" />
+        <ProgressBar value="60" color="success" />
+        <ProgressBar value="60" color="warning" />
+        <ProgressBar value="60" color="error" />
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Divider</h2>
+    <h3 class="vh">Appearance</h3>
+    <div class="vrow">
+        <Divider appearance="default">default</Divider>
+        <Divider appearance="subtle">subtle</Divider>
+        <Divider appearance="strong">strong</Divider>
+        <Divider appearance="brand">brand</Divider>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Typography</h2>
+    <h3 class="vh">Type ramp</h3>
+    <div class="vrow">
+        <Display>Display</Display>
+        <Title1>Title1</Title1>
+        <Title3>Title3</Title3>
+        <Subtitle1>Subtitle1</Subtitle1>
+        <Body1>Body1</Body1>
+        <Caption1>Caption1</Caption1>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Tabs, Accordion, Breadcrumb, Toolbar, Tree</h2>
+    <h3 class="vh">TabList</h3>
+    <div class="vrow">
+        <TabList><Tab active>One</Tab><Tab>Two</Tab><Tab>Three</Tab></TabList>
+    </div>
+
+    <h3 class="vh">Breadcrumb size</h3>
+    <div class="vrow">
+        <Breadcrumb size="small"><BreadcrumbItem href="/">Home</BreadcrumbItem><BreadcrumbItem current="true">small</BreadcrumbItem></Breadcrumb>
+        <Breadcrumb size="medium"><BreadcrumbItem href="/">Home</BreadcrumbItem><BreadcrumbItem current="true">medium</BreadcrumbItem></Breadcrumb>
+        <Breadcrumb size="large"><BreadcrumbItem href="/">Home</BreadcrumbItem><BreadcrumbItem current="true">large</BreadcrumbItem></Breadcrumb>
+    </div>
+
+    <h3 class="vh">Toolbar</h3>
+    <div class="vrow">
+        <Toolbar><Button appearance="subtle" size="small">B</Button><Button appearance="subtle" size="small">I</Button></Toolbar>
+    </div>
+
+  </section>
+  <section class="vsec"><h2>Overlays</h2>
+    <h3 class="vh">Tooltip placements</h3>
+    <div class="vrow">
+        <Tooltip text="hint" placement="above"><Button appearance="subtle">above</Button></Tooltip>
+        <Tooltip text="hint" placement="below"><Button appearance="subtle">below</Button></Tooltip>
+        <Tooltip text="hint" placement="before"><Button appearance="subtle">before</Button></Tooltip>
+        <Tooltip text="hint" placement="after"><Button appearance="subtle">after</Button></Tooltip>
+    </div>
+
+    <h3 class="vh">Popover & Dialog & Drawer</h3>
+    <div class="vrow">
+        <Popover label="Popover"><p style="margin:0">Content</p></Popover>
+        <Dialog id="vd" trigger="Dialog" title="Hi">Modal</Dialog>
+        <Drawer id="vdr" trigger="Drawer" title="Panel" side="end">Side</Drawer>
+    </div>
+
+  </section>
+</section>
+
+<style>
+  body { background: var(--colorNeutralBackground2); }
+  .wrap { max-width: 1100px; margin: 0; padding: 2rem 1.5rem 4rem; }
+  .lead { color: var(--colorNeutralForeground3); margin: 0 0 1.5rem; }
+  .vsec { margin: 2rem 0; padding-top: 1rem; border-top: 1px solid var(--colorNeutralStroke2); }
+  .vsec h2 { font-size: var(--fontSizeBase500); font-weight: var(--fontWeightBold); margin: 0 0 .5rem; }
+  .vh { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); text-transform: uppercase; letter-spacing: .05em; margin: 1rem 0 .4rem; }
+  .vrow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+</style>
