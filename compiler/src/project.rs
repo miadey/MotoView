@@ -104,8 +104,18 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         ));
     }
 
-    // Model type scanning is a roadmap feature; pass an empty registry for now.
-    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    // Scan Service/Model record types (type Name = { field : T; ... }) so the
+    // codegen can type `@item.field` precisely instead of falling back to
+    // debug_show. Service types also register under `Service.Name`.
+    let mut models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for f in list_mo(&src.join("Services")) {
+        let content = fs::read_to_string(&f).unwrap_or_default();
+        scan_types(&content, Some(&file_stem(&f)), &mut models);
+    }
+    for f in list_mo(&src.join("Models")) {
+        let content = fs::read_to_string(&f).unwrap_or_default();
+        scan_types(&content, Some(&file_stem(&f)), &mut models);
+    }
 
     // App components: parse src/Components/*.mview, register their params, and
     // generate a render function per component. Pages then compile a `<Card .../>`
@@ -417,6 +427,112 @@ fn raw_literal(line: &str) -> Option<(&str, &str)> {
     Some((indent, inner))
 }
 
+/// Scan Motoko source for record type definitions — `[public ]type Name = { f :
+/// T; ... }` — and add `name -> (field -> type)` to `out`. `qualifier` (a service
+/// name) also registers a `Qualifier.Name` alias. Best-effort: complex/unparsed
+/// types simply don't get an entry (the codegen falls back to debug_show).
+fn scan_types(content: &str, qualifier: Option<&str>, out: &mut HashMap<String, HashMap<String, String>>) {
+    let bytes = content.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = content[search..].find("type ") {
+        let kw = search + rel;
+        search = kw + 5;
+        // must start a token (preceded by start / whitespace).
+        if kw > 0 && !bytes[kw - 1].is_ascii_whitespace() {
+            continue;
+        }
+        let rest = &content[kw + 5..];
+        let name_end = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .unwrap_or(rest.len());
+        let name = rest[..name_end].trim();
+        if name.is_empty() {
+            continue;
+        }
+        let tail = rest[name_end..].trim_start();
+        let body = match tail.strip_prefix('=') {
+            Some(b) => b.trim_start(),
+            None => continue,
+        };
+        if !body.starts_with('{') {
+            continue; // not a record type (alias, variant, etc.)
+        }
+        if let Some(inner) = read_braced(body) {
+            let fields = parse_record_fields(&inner);
+            if !fields.is_empty() {
+                out.entry(name.to_string()).or_default().extend(fields.clone());
+                if let Some(q) = qualifier {
+                    out.entry(format!("{}.{}", q, name)).or_default().extend(fields);
+                }
+            }
+        }
+    }
+}
+
+/// Read a balanced `{ ... }` (s must start with `{`), returning the inner text.
+fn read_braced(s: &str) -> Option<String> {
+    let mut depth = 0i32;
+    let mut inner = String::new();
+    for c in s.chars() {
+        match c {
+            '{' => {
+                depth += 1;
+                if depth > 1 {
+                    inner.push(c);
+                }
+            }
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(inner);
+                }
+                inner.push(c);
+            }
+            _ if depth >= 1 => inner.push(c),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Parse `field : type; field : type` (depth-aware on `;`) into a field->type map.
+fn parse_record_fields(inner: &str) -> HashMap<String, String> {
+    let mut fields = HashMap::new();
+    let mut depth = 0i32;
+    let mut seg = String::new();
+    let mut commit = |seg: &str, fields: &mut HashMap<String, String>| {
+        if let Some(colon) = seg.find(':') {
+            let name = seg[..colon].trim();
+            let ty = seg[colon + 1..].trim();
+            if !name.is_empty()
+                && !ty.is_empty()
+                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            {
+                fields.insert(name.to_string(), ty.to_string());
+            }
+        }
+    };
+    for c in inner.chars() {
+        match c {
+            '{' | '(' | '[' => {
+                depth += 1;
+                seg.push(c);
+            }
+            '}' | ')' | ']' => {
+                depth -= 1;
+                seg.push(c);
+            }
+            ';' if depth == 0 => {
+                commit(&seg, &mut fields);
+                seg.clear();
+            }
+            _ => seg.push(c),
+        }
+    }
+    commit(&seg, &mut fields);
+    fields
+}
+
 /// Path of a source file relative to the project dir (for `// mv:src` markers).
 fn rel_src(project_dir: &Path, file: &Path) -> String {
     file.strip_prefix(project_dir)
@@ -554,5 +670,34 @@ mod coalesce_tests {
         assert!(out.contains("// mv:src src/Pages/Home.mview"));
         assert!(out.contains("let x = 1;"));
         assert!(out.contains("b.raw(\"<a><b>\");"));
+    }
+}
+
+#[cfg(test)]
+mod scan_tests {
+    use super::scan_types;
+    use std::collections::HashMap;
+
+    #[test]
+    fn scans_record_fields_and_qualified_alias() {
+        let mut m: HashMap<String, HashMap<String, String>> = HashMap::new();
+        scan_types(
+            "module { public type Product = { id : Nat; name : Text; tags : [Text]; sub : { a : Nat } }; }",
+            Some("Catalog"),
+            &mut m,
+        );
+        assert_eq!(m["Product"]["name"], "Text");
+        assert_eq!(m["Product"]["id"], "Nat");
+        assert_eq!(m["Product"]["tags"], "[Text]");           // depth-aware split keeps [Text] whole
+        assert_eq!(m["Product"]["sub"], "{ a : Nat }");        // nested record kept as-is
+        assert!(m.contains_key("Catalog.Product"));            // qualified alias too
+    }
+
+    #[test]
+    fn ignores_non_record_types() {
+        let mut m: HashMap<String, HashMap<String, String>> = HashMap::new();
+        scan_types("type Color = { #red; #green }; type Id = Nat;", None, &mut m);
+        // variant + alias have no `field : type` pairs we can use
+        assert!(m.get("Id").is_none());
     }
 }

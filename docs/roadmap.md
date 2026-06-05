@@ -45,7 +45,7 @@ These ship in the current compiler and runtime:
 - **Forms, validation, security** — `secure` forms, `bind="@model.field"`, the `validate model { ... }` block, `<ValidationSummary />`, and per-field errors. See [Forms & Validation](forms.md) and [Security](security.md).
 - **Components** — capitalized app components in `src/Components/*.mview` plus built-ins (`Button`, `Card`, `Alert`, `Badge`, `InputText`, `InputEmail`, `InputNumber`, `TextArea`, `ValidationSummary`, `Table`, `PageHeader`, `Grid`). See [Components](components.md).
 - **The WASM client** — the browser "brain" (the `motoview/1` protocol, adaptive polling state machine, batch interpretation, event sequencing) is Rust compiled to WebAssembly, with a tiny hand-written JS glue for DOM, fetch, timers, and focus/scroll/input preservation. No npm, no bundler.
-- **Output** — escaped interpolation (`@count`, `@(expr)`) plus `@raw(expr)` for trusted, unescaped server-rendered HTML, and `@@` for a literal `@`.
+- **Output** — escaped interpolation (`@count`, `@(expr)`) plus `@raw(expr)` for trusted, unescaped server-rendered HTML, and `@@` for a literal `@`. The compiler scans `Model`/`Service` record types so `@item.name` interpolates with the field's real type (`Text` directly, `Nat`/`Int`/`Float`/`Bool` converted) instead of a `debug_show` fallback.
 - **Tooling** — `motoview check` builds and type-checks the generated actor, mapping any `moc` error back to the originating `.mview` (not the generated `main.mo`). A parser/codegen regression suite runs with `make test`.
 - **Examples & apps** — `counter`, `contact` (secure form) and `crm` (drag-and-drop Kanban) under `examples/`; two full apps under `apps/` — **bzzz** (a Discord × X × forum × WhatsApp super-app) and **this site** (the docs + marketing site, itself a MotoView canister).
 
@@ -70,7 +70,6 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 **Next**
 
 - **Certifying the root `/` and exact-vs-wildcard prefix collisions** — `@cacheable` works for most routes; the root path and an exact route that collides with a wildcard prefix (e.g. `/docs` alongside `/docs/{slug}`) are rejected by the boundary today and safely fall back to the update path.
-- **Model-type-directed `@expr` formatting** — `@expr` already renders correctly via a `debug_show` fallback; loop-var/cross-module field-type inference would refine the output.
 
 **Later**
 

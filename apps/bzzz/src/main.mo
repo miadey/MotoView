@@ -245,13 +245,13 @@ actor {
           b.raw("\n            <div class=\"bz-admin-row\">\n                <div class=\"bz-admin-id\">\n                    <span class=\"bz-admin-handle\">");
           b.text(handleLabel(a.handle));
           b.raw("</span>\n                    <code class=\"bz-principal bz-principal-sm\">");
-          b.text(Html.unquote(debug_show(a.principalText)));
+          b.text(a.principalText);
           b.raw("</code>\n                </div>\n                <span class=\"bz-admin-granted\">");
           b.text(Html.unquote(debug_show(Admin.relativeTime(a.grantedAt, now))));
           b.raw("</span>\n                ");
           if ((canRemove and a.principalText != whoamiPrincipal)) {
             b.raw("\n                    <button type=\"button\" class=\"mv-btn mv-btn-danger\" data-mv-handler=\"remove\" data-mv-event=\"click\"");
-            b.attr("data-mv-arg0", Html.unquote(debug_show(a.principalText)));
+            b.attr("data-mv-arg0", a.principalText);
             b.raw(">Remove</button>\n                ");
           } else if ((a.principalText == whoamiPrincipal)) {
             b.raw("\n                    <span class=\"bz-admin-you\">you</span>\n                ");
@@ -544,7 +544,7 @@ actor {
                 b.attr("data-mv-arg0", Html.unquote(debug_show(m.id)));
                 b.attr("data-mv-arg1", emo(e));
                 b.raw(">");
-                b.text(Html.unquote(debug_show(e)));
+                b.text(e);
                 b.raw("</button>\n                                        ");
               };
               b.raw("\n                                    </span>\n                                </div>\n\n                                <div class=\"ch-msg-actions\">\n                                    <button class=\"ch-mini-btn\" data-mv-handler=\"startReply\" data-mv-event=\"click\"");
@@ -786,7 +786,7 @@ actor {
         b.raw("\n            <div class=\"fd-stream\">\n                ");
         for (p in (timeline).vals()) {
           b.raw("\n                    <article class=\"fd-post bz-card\" id=\"post-");
-          b.text(Html.unquote(debug_show(p.id)));
+          b.text(Nat.toText(p.id));
           b.raw("\">\n                        <div class=\"fd-ava\">");
           b.text(avatarOf(p.author));
           b.raw("</div>\n                        <div class=\"fd-body\">\n                            <div class=\"fd-post-head\">\n                                <span class=\"fd-handle\">");
@@ -796,17 +796,17 @@ actor {
           b.raw("</span>\n                            </div>\n                            <div class=\"fd-text\">");
           b.text(Html.unquote(debug_show(p.text)));
           b.raw("</div>\n                            <div class=\"fd-actions\">\n                                <a class=\"fd-act\" href=\"/feed\">\n                                    <span class=\"fd-act-ico\">💬</span>\n                                    <span class=\"fd-act-n\">");
-          b.text(Html.unquote(debug_show(p.replyCount)));
+          b.text(Nat.toText(p.replyCount));
           b.raw("</span>\n                                </a>\n                                <button class=\"fd-act fd-act-repost ");
           b.text(repostClass(p.id));
           b.raw("\" type=\"button\" title=\"Repost\" data-mv-handler=\"repost\" data-mv-event=\"click\"");
-          b.attr("data-mv-arg0", Html.unquote(debug_show(p.id)));
+          b.attr("data-mv-arg0", Nat.toText(p.id));
           b.raw(">\n                                    <span class=\"fd-act-ico\">🔁</span>\n                                    <span class=\"fd-act-n\">");
-          b.text(Html.unquote(debug_show(p.reposts)));
+          b.text(Nat.toText(p.reposts));
           b.raw("</span>\n                                </button>\n                                <button class=\"fd-act fd-act-like ");
           b.text(likeClass(p.id));
           b.raw("\" type=\"button\" title=\"Like\" data-mv-handler=\"like\" data-mv-event=\"click\"");
-          b.attr("data-mv-arg0", Html.unquote(debug_show(p.id)));
+          b.attr("data-mv-arg0", Nat.toText(p.id));
           b.raw(">\n                                    <span class=\"fd-act-ico\">");
           b.text(heart(p.id));
           b.raw("</span>\n                                    <span class=\"fd-act-n\">");
@@ -822,9 +822,9 @@ actor {
         b.raw("\n                <ul class=\"fd-suggest\">\n                    ");
         for (s in (suggestions).vals()) {
           b.raw("\n                        <li class=\"fd-suggest-row\">\n                            <a class=\"fd-suggest-id\" href=\"/u/");
-          b.text(Html.unquote(debug_show(s.handle)));
+          b.text(s.handle);
           b.raw("\">\n                                <span class=\"fd-ava fd-ava-sm\">");
-          b.text(Html.unquote(debug_show(s.avatar)));
+          b.text(s.avatar);
           b.raw("</span>\n                                <span class=\"fd-suggest-meta\">\n                                    <span class=\"fd-suggest-name\">");
           b.text(Html.unquote(debug_show(s.display)));
           b.raw("</span>\n                                    <span class=\"fd-suggest-handle\">");
@@ -834,7 +834,7 @@ actor {
             b.raw("\n                                <button class=\"fd-follow ");
             b.text(followClass(s.principal));
             b.raw("\" type=\"button\" data-mv-handler=\"toggleFollow\" data-mv-event=\"click\"");
-            b.attr("data-mv-arg0", Html.unquote(debug_show(s.handle)));
+            b.attr("data-mv-arg0", s.handle);
             b.raw(">");
             b.text(followLabel(s.principal));
             b.raw("</button>\n                            ");
@@ -904,13 +904,13 @@ actor {
         b.raw("\n            <div class=\"fr-cats\">\n                ");
         for (c in (categories).vals()) {
           b.raw("\n                    <a class=\"fr-cat\" href=\"/forum/c/");
-          b.text(Html.unquote(debug_show(c.id)));
+          b.text(Nat.toText(c.id));
           b.raw("\">\n                        <span class=\"fr-sq\" style=\"background:");
-          b.text(Html.unquote(debug_show(c.color)));
+          b.text(c.color);
           b.raw("\"></span>\n                        <span class=\"fr-cat-body\">\n                            <span class=\"fr-cat-name\">");
-          b.text(Html.unquote(debug_show(c.name)));
+          b.text(c.name);
           b.raw("</span>\n                            <span class=\"fr-cat-desc\">");
-          b.text(Html.unquote(debug_show(c.description)));
+          b.text(c.description);
           b.raw("</span>\n                            <span class=\"fr-cat-counts\">");
           b.text(Html.unquote(debug_show(c.topicCount)));
           b.raw(" topics · ");
@@ -926,12 +926,12 @@ actor {
         b.raw("\n            <table class=\"fr-table\">\n                <thead>\n                    <tr>\n                        <th class=\"fr-th-topic\">Topic</th>\n                        <th class=\"fr-th-num\">Replies</th>\n                        <th class=\"fr-th-num\">Views</th>\n                        <th class=\"fr-th-act\">Activity</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    ");
         for (t in (topics).vals()) {
           b.raw("\n                        <tr class=\"fr-row\">\n                            <td class=\"fr-td-topic\">\n                                <a class=\"fr-title\" href=\"/forum/t/");
-          b.text(Html.unquote(debug_show(t.id)));
+          b.text(Nat.toText(t.id));
           b.raw("\">");
           b.text(glyphs(t.id));
-          b.text(Html.unquote(debug_show(t.title)));
+          b.text(t.title);
           b.raw("</a>\n                                <div class=\"fr-meta\">\n                                    <a class=\"fr-badge\" href=\"/forum/c/");
-          b.text(Html.unquote(debug_show(t.categoryId)));
+          b.text(Nat.toText(t.categoryId));
           b.raw("\">\n                                        <span class=\"fr-sq fr-sq-sm\" style=\"background:");
           b.text(catColor(t.categoryId));
           b.raw("\"></span>\n                                        <span class=\"fr-badge-name\">");
@@ -939,7 +939,7 @@ actor {
           b.raw("</span>\n                                    </a>\n                                    ");
           for (tag in (t.tags).vals()) {
             b.raw("\n                                        <span class=\"fr-pill\">");
-            b.text(Html.unquote(debug_show(tag)));
+            b.text(tag);
             b.raw("</span>\n                                    ");
           };
           b.raw("\n                                </div>\n                            </td>\n                            <td class=\"fr-td-num\">");
@@ -1036,12 +1036,12 @@ actor {
           b.raw("\n                <table class=\"fr-table\">\n                    <thead>\n                        <tr>\n                            <th class=\"fr-th-topic\">Topic</th>\n                            <th class=\"fr-th-num\">Replies</th>\n                            <th class=\"fr-th-num\">Views</th>\n                            <th class=\"fr-th-act\">Activity</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        ");
           for (t in (topics).vals()) {
             b.raw("\n                            <tr class=\"fr-row\">\n                                <td class=\"fr-td-topic\">\n                                    <a class=\"fr-title\" href=\"/forum/t/");
-            b.text(Html.unquote(debug_show(t.id)));
+            b.text(Nat.toText(t.id));
             b.raw("\">");
             b.text(glyphs(t.id));
-            b.text(Html.unquote(debug_show(t.title)));
+            b.text(t.title);
             b.raw("</a>\n                                    <div class=\"fr-meta\">\n                                        <a class=\"fr-badge\" href=\"/forum/c/");
-            b.text(Html.unquote(debug_show(t.categoryId)));
+            b.text(Nat.toText(t.categoryId));
             b.raw("\">\n                                            <span class=\"fr-sq fr-sq-sm\" style=\"background:");
             b.text(catColorOf(t.categoryId));
             b.raw("\"></span>\n                                            <span class=\"fr-badge-name\">");
@@ -1049,7 +1049,7 @@ actor {
             b.raw("</span>\n                                        </a>\n                                        ");
             for (tag in (t.tags).vals()) {
               b.raw("\n                                            <span class=\"fr-pill\">");
-              b.text(Html.unquote(debug_show(tag)));
+              b.text(tag);
               b.raw("</span>\n                                        ");
             };
             b.raw("\n                                    </div>\n                                </td>\n                                <td class=\"fr-td-num\">");
@@ -1183,17 +1183,17 @@ actor {
           b.raw("\">\n                                ");
           if (isSelected(c.id)) {
             b.raw("\n                                    <input type=\"radio\" name=\"categoryId\"");
-            b.attr("value", Html.unquote(debug_show(c.id)));
+            b.attr("value", Nat.toText(c.id));
             b.raw(" checked>\n                                ");
           } else {
             b.raw("\n                                    <input type=\"radio\" name=\"categoryId\"");
-            b.attr("value", Html.unquote(debug_show(c.id)));
+            b.attr("value", Nat.toText(c.id));
             b.raw(">\n                                ");
           };
           b.raw("\n                                <span class=\"fn-cat-sq\" style=\"--c:");
-          b.text(Html.unquote(debug_show(c.color)));
+          b.text(c.color);
           b.raw("\"></span>\n                                <span class=\"fn-cat-name\">");
-          b.text(Html.unquote(debug_show(c.name)));
+          b.text(c.name);
           b.raw("</span>\n                            </label>\n                        ");
         };
         b.raw("\n                    </div>\n                    <p class=\"fn-hint\">");
@@ -1378,7 +1378,7 @@ actor {
           b.raw("\n            <div class=\"ft-tags\">\n                ");
           for (t in (tags).vals()) {
             b.raw("\n                    <span class=\"ft-tag\">");
-            b.text(Html.unquote(debug_show(t)));
+            b.text(t);
             b.raw("</span>\n                ");
           };
           b.raw("\n            </div>\n        ");
@@ -1414,7 +1414,7 @@ actor {
           b.raw("\n            <article class=\"ft-post ");
           b.text(postClass(p.id));
           b.raw("\" id=\"post-");
-          b.text(Html.unquote(debug_show(p.id)));
+          b.text(Nat.toText(p.id));
           b.raw("\">\n                ");
           if (isAccepted(p.id)) {
             b.raw("\n                    <div class=\"ft-solution-tag\">✅ Solution</div>\n                ");
@@ -1422,7 +1422,7 @@ actor {
           b.raw("\n                <div class=\"ft-post-row\">\n                    <div class=\"ft-avatar\">");
           b.text(avatarFor(p.author));
           b.raw("</div>\n                    <div class=\"ft-post-main\">\n                        <div class=\"ft-post-head\">\n                            <span class=\"ft-handle\">");
-          b.text(Html.unquote(debug_show(p.authorHandle)));
+          b.text(p.authorHandle);
           b.raw("</span>\n                            ");
           if (isOp(p.replyToPost)) {
             b.raw("\n                                <span class=\"ft-op-badge\">OP</span>\n                            ");
@@ -1430,17 +1430,17 @@ actor {
           b.raw("\n                            <span class=\"ft-when\">");
           b.text(when(p.at));
           b.raw("</span>\n                        </div>\n                        <div class=\"ft-body\">");
-          b.text(Html.unquote(debug_show(p.body)));
+          b.text(p.body);
           b.raw("</div>\n                        <div class=\"ft-actions\">\n                            ");
           if (likedBy(p.id)) {
             b.raw("\n                                <button class=\"ft-act ft-liked\" title=\"Unlike\" data-mv-handler=\"toggleLike\" data-mv-event=\"click\"");
-            b.attr("data-mv-arg0", Html.unquote(debug_show(p.id)));
+            b.attr("data-mv-arg0", Nat.toText(p.id));
             b.raw(">\n                                    <span class=\"ft-heart\">♥</span>\n                                    <span class=\"ft-count\">");
             b.text(Html.unquote(debug_show(p.likeCount)));
             b.raw("</span>\n                                </button>\n                            ");
           } else {
             b.raw("\n                                <button class=\"ft-act\" title=\"Like\" data-mv-handler=\"toggleLike\" data-mv-event=\"click\"");
-            b.attr("data-mv-arg0", Html.unquote(debug_show(p.id)));
+            b.attr("data-mv-arg0", Nat.toText(p.id));
             b.raw(">\n                                    <span class=\"ft-heart\">♡</span>\n                                    ");
             if (hasLikes(p.likeCount)) {
               b.raw("\n                                        <span class=\"ft-count\">");
@@ -1458,7 +1458,7 @@ actor {
             b.raw("\n                            ");
           } else if (canAccept(p.replyToPost)) {
             b.raw("\n                                <button class=\"ft-act ft-act-accept\" title=\"Mark as solution\" data-mv-handler=\"acceptPost\" data-mv-event=\"click\"");
-            b.attr("data-mv-arg0", Html.unquote(debug_show(p.id)));
+            b.attr("data-mv-arg0", Nat.toText(p.id));
             b.raw(">Accept answer</button>\n                            ");
           };
           b.raw("\n                        </div>\n                    </div>\n                </div>\n            </article>\n        ");
@@ -1779,9 +1779,9 @@ actor {
           b.raw("</p>\n                            <div class=\"bz-post-meta\">\n                                <span>❤️ ");
           b.text(Html.unquote(debug_show(p.likes)));
           b.raw("</span>\n                                <span>🔁 ");
-          b.text(Html.unquote(debug_show(p.reposts)));
+          b.text(Nat.toText(p.reposts));
           b.raw("</span>\n                                <span>💬 ");
-          b.text(Html.unquote(debug_show(p.replyCount)));
+          b.text(Nat.toText(p.replyCount));
           b.raw("</span>\n                            </div>\n                        </article>\n                    ");
         };
         b.raw("\n                </div>\n            ");
@@ -1945,7 +1945,7 @@ actor {
           b.raw("\n            <ul class=\"bz-msg-list\">\n                ");
           for (c in (convos).vals()) {
             b.raw("\n                    <li>\n                        <a class=\"bz-msg-row\" href=\"/messages/");
-            b.text(Html.unquote(debug_show(c.id)));
+            b.text(Nat.toText(c.id));
             b.raw("\">\n                            <span class=\"bz-msg-avatar\">");
             b.text(rowAvatar(c));
             b.raw("</span>\n                            <span class=\"bz-msg-body\">\n                                <span class=\"bz-msg-toprow\">\n                                    <span class=\"bz-msg-name\">");
@@ -2110,9 +2110,9 @@ actor {
             b.raw("</p>\n                        <div class=\"bz-post-meta\">\n                            <span>❤️ ");
             b.text(Html.unquote(debug_show(p.likes)));
             b.raw("</span>\n                            <span>🔁 ");
-            b.text(Html.unquote(debug_show(p.reposts)));
+            b.text(Nat.toText(p.reposts));
             b.raw("</span>\n                            <span>💬 ");
-            b.text(Html.unquote(debug_show(p.replyCount)));
+            b.text(Nat.toText(p.replyCount));
             b.raw("</span>\n                        </div>\n                    </article>\n                ");
           };
           b.raw("\n            </div>\n        ");
@@ -2728,11 +2728,11 @@ actor {
         b.raw("\n    <div class=\"bz-status-grid\">\n        ");
         for (s in (statuses).vals()) {
           b.raw("\n            <article class=\"bz-status-card\" style=\"--c:");
-          b.text(Html.unquote(debug_show(s.color)));
+          b.text(s.color);
           b.raw("\">\n                <header class=\"bz-status-author\">\n                    <span class=\"bz-status-ava\">");
           b.text(Html.unquote(debug_show(Identity.avatarOf(s.author))));
           b.raw("</span>\n                    <div class=\"bz-status-meta\">\n                        <span class=\"bz-status-handle\">@");
-          b.text(Html.unquote(debug_show(s.authorHandle)));
+          b.text(s.authorHandle);
           b.raw("</span>\n                        <span class=\"bz-status-time\">");
           b.text(Html.unquote(debug_show(Status.relativeTime(s.at))));
           b.raw("</span>\n                    </div>\n                    <span class=\"bz-status-kind\">");
@@ -2857,11 +2857,11 @@ actor {
             b.raw("\">\n                        ");
             if ((m.sender != me)) {
               b.raw("\n                            <span class=\"bz-th-sender\">");
-              b.text(Html.unquote(debug_show(m.senderHandle)));
+              b.text(m.senderHandle);
               b.raw("</span>\n                        ");
             };
             b.raw("\n                        <div class=\"bz-th-bubble\">\n                            <span class=\"bz-th-cipher\" title=\"Stored ciphertext envelope — decrypted client-side\">");
-            b.text(Html.unquote(debug_show(m.ciphertext)));
+            b.text(m.ciphertext);
             b.raw("</span>\n                        </div>\n                        <span class=\"bz-th-meta\">\n                            <span class=\"bz-th-lock\" title=\"End-to-end encrypted — decrypted in your client\">🔒</span>\n                            ");
             b.text(relTime(m));
             b.raw("\n                        </span>\n                    </div>\n                ");

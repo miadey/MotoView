@@ -111,6 +111,39 @@ fn double_at_escapes_to_literal() {
 }
 
 #[test]
+fn typed_loop_field_access_avoids_debug_show() {
+    // #19: a Model record type lets @p.field type precisely.
+    let mut models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let mut product = HashMap::new();
+    product.insert("name".to_string(), "Text".to_string());
+    product.insert("price".to_string(), "Nat".to_string());
+    product.insert("on".to_string(), "Bool".to_string());
+    models.insert("Catalog.Product".to_string(), product.clone());
+    models.insert("Product".to_string(), product);
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    let src = "@page \"/\"\n@for p in products { <span>@p.name @p.price @p.on</span> }\n@code { var products : [Catalog.Product] = []; }";
+    let file = parser::parse(src, "T", FileKind::Page).unwrap();
+    let mut cg = Codegen::new(&models, &comps);
+    let g = cg.gen_page(&file).object_block;
+    assert!(g.contains("b.text(p.name)"), "Text field should render directly:\n{g}");
+    assert!(g.contains("Nat.toText(p.price)"), "Nat field via toText:\n{g}");
+    assert!(g.contains("if (p.on)"), "Bool field via if:\n{g}");
+    assert!(!g.contains("debug_show(p."), "no debug_show fallback for typed fields:\n{g}");
+}
+
+#[test]
+fn untyped_field_still_falls_back_to_debug_show() {
+    // No models registry -> unknown field type -> safe debug_show fallback.
+    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    let src = "@page \"/\"\n@for p in xs { <span>@p.whatever</span> }\n@code { var xs : [Mystery] = []; }";
+    let file = parser::parse(src, "T", FileKind::Page).unwrap();
+    let mut cg = Codegen::new(&models, &comps);
+    let g = cg.gen_page(&file).object_block;
+    assert!(g.contains("debug_show(p.whatever)"), "unknown field falls back:\n{g}");
+}
+
+#[test]
 fn raw_directive_emits_unescaped_html() {
     let g = page("@page \"/\"\n<div>@raw(body)</div>\n@code { var body : Text = \"<b>hi</b>\"; }");
     assert!(g.contains("b.raw(body)"), "@raw must emit b.raw (unescaped):\n{g}");

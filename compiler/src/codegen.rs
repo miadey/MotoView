@@ -54,10 +54,15 @@ pub fn collect_slot_names(nodes: &[Node]) -> Vec<String> {
 }
 
 pub struct Codegen<'a> {
-    types: HashMap<String, String>, // name -> Motoko type (vars, params, func returns)
+    // name -> Motoko type (vars, params, func returns, and scoped @for loop
+    // vars). RefCell so loop-var types can be pushed/popped during the otherwise
+    // `&self` render walk.
+    types: std::cell::RefCell<HashMap<String, String>>,
     is_layout: bool,
     is_component: bool,
-    _models: &'a HashMap<String, HashMap<String, String>>,
+    // Scanned record types: type name -> (field -> field type). Lets `@item.name`
+    // infer its type instead of falling back to debug_show.
+    models: &'a HashMap<String, HashMap<String, String>>,
     // app components: name -> params + slot names. Used to compile `<MyCard .../>`
     // to a call of the generated `mvComponent_MyCard(...)`.
     components: &'a HashMap<String, CompInfo>,
@@ -69,10 +74,10 @@ impl<'a> Codegen<'a> {
         components: &'a HashMap<String, CompInfo>,
     ) -> Self {
         Codegen {
-            types: HashMap::new(),
+            types: std::cell::RefCell::new(HashMap::new()),
             is_layout: false,
             is_component: false,
-            _models: models,
+            models,
             components,
         }
     }
@@ -112,19 +117,20 @@ impl<'a> Codegen<'a> {
     }
 
     fn build_type_env(&mut self, code: &CodeBlock) {
-        self.types.clear();
+        let mut t = self.types.borrow_mut();
+        t.clear();
         for v in &code.vars {
-            if let Some(t) = &v.ty {
-                self.types.insert(v.name.clone(), t.clone());
+            if let Some(ty) = &v.ty {
+                t.insert(v.name.clone(), ty.clone());
             }
         }
         for p in &code.params {
-            self.types.insert(p.name.clone(), p.ty.clone());
+            t.insert(p.name.clone(), p.ty.clone());
         }
         for f in &code.funcs {
             if let Some(r) = &f.ret {
                 if r != "()" && !r.is_empty() {
-                    self.types.insert(f.name.clone(), r.clone());
+                    t.insert(f.name.clone(), r.clone());
                 }
             }
         }
@@ -143,7 +149,7 @@ impl<'a> Codegen<'a> {
         let declared: HashSet<String> = file.code.vars.iter().map(|v| v.name.clone()).collect();
         // register their types so @id renders correctly
         for (n, t) in &route_params {
-            self.types.insert(n.clone(), t.clone());
+            self.types.borrow_mut().insert(n.clone(), t.clone());
         }
         let set_params = {
             let mut sp = String::new();
@@ -271,7 +277,7 @@ impl<'a> Codegen<'a> {
         // converting to the bound var's declared type.
         let binds = collect_simple_binds(&file.template);
         for (lvalue, name) in &binds {
-            let ty = self.types.get(lvalue).cloned().unwrap_or_default();
+            let ty = self.types.borrow().get(lvalue).cloned().unwrap_or_default();
             let conv = convert_from_text(&ty, "mvV");
             s.push_str(&format!(
                 "      switch (mvFormGet(ctx, \"{}\")) {{ case (?mvV) {{ {} := {} }}; case null {{}} }};\n",
@@ -466,7 +472,19 @@ impl<'a> Codegen<'a> {
             }
             Node::For { var, iter, body } => {
                 out.push_str(&format!("{}for ({} in ({}).vals()) {{\n", indent, var, iter));
+                // Scope the loop var's element type so `@var.field` resolves.
+                let prev = self.types.borrow().get(var).cloned();
+                if let Some(elem) = self.element_type(iter) {
+                    self.types.borrow_mut().insert(var.clone(), elem);
+                }
                 self.gen_nodes(body, out, &format!("{}  ", indent));
+                {
+                    let mut t = self.types.borrow_mut();
+                    match prev {
+                        Some(p) => { t.insert(var.clone(), p); }
+                        None => { t.remove(var); }
+                    }
+                }
                 out.push_str(&format!("{}}};\n", indent));
             }
             Node::Switch { subject, cases } => {
@@ -836,17 +854,62 @@ impl<'a> Codegen<'a> {
     }
 
     fn infer_type(&self, e: &str) -> Option<String> {
-        if let Some(t) = self.types.get(e) {
+        let e = e.trim();
+        if let Some(t) = self.types.borrow().get(e) {
             return Some(t.clone());
+        }
+        // member access `base.field[.field...]` — resolve through scanned types.
+        if let Some(dot) = e.find('.') {
+            let base = &e[..dot];
+            let path = &e[dot + 1..];
+            // base must be a typed value (var / param / loop var), not a module.
+            if let Some(bt) = self.types.borrow().get(base).cloned() {
+                return self.field_type(&bt, path);
+            }
         }
         // function call f(...)
         if let Some(open) = e.find('(') {
             let f = &e[..open];
-            if let Some(t) = self.types.get(f) {
+            if let Some(t) = self.types.borrow().get(f) {
                 return Some(t.clone());
             }
         }
         None
+    }
+
+    /// The element type of an iterable expression: `[T]` -> `T`. Used to type a
+    /// `@for x in expr` loop variable so `@x.field` resolves precisely.
+    fn element_type(&self, iter: &str) -> Option<String> {
+        let t = self.infer_type(iter.trim())?;
+        let t = t.trim();
+        if t.starts_with('[') && t.ends_with(']') {
+            Some(t[1..t.len() - 1].trim().to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Resolve `path` (e.g. "name" or "author.handle") against record type `ty`.
+    fn field_type(&self, ty: &str, path: &str) -> Option<String> {
+        let (field, rest) = match path.find('.') {
+            Some(d) => (&path[..d], Some(&path[d + 1..])),
+            None => (path, None),
+        };
+        let ft = self.lookup_type(ty)?.get(field)?.clone();
+        match rest {
+            Some(r) => self.field_type(&ft, r),
+            None => Some(ft),
+        }
+    }
+
+    /// The scanned field map for a record type, tolerating an `?` optional and a
+    /// `Module.Type` qualifier (falls back to the bare type name).
+    fn lookup_type(&self, ty: &str) -> Option<&'a HashMap<String, String>> {
+        let ty = ty.trim().trim_start_matches('?').trim();
+        if let Some(m) = self.models.get(ty) {
+            return Some(m);
+        }
+        ty.rfind('.').and_then(|d| self.models.get(&ty[d + 1..]))
     }
 }
 
