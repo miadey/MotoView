@@ -180,6 +180,9 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         &persistence,
         &component_funcs,
     );
+    // Collapse the per-token `b.raw("…")` storm into one call per contiguous
+    // static run, so the generated actor reads as readable HTML chunks.
+    let main = coalesce_raw(&main);
 
     if let Some(parent) = opts.out.parent() {
         let _ = fs::create_dir_all(parent);
@@ -359,6 +362,61 @@ fn is_stateful_service(content: &str, name: &str) -> bool {
     })
 }
 
+/// Merge runs of consecutive `b.raw("literal")` statements into a single call,
+/// so the generated render code reads as contiguous HTML chunks broken only at
+/// real dynamic boundaries (b.text / b.attr / control flow), not one call per
+/// token. Purely cosmetic — byte-identical rendered output.
+fn coalesce_raw(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut run: Option<(String, String)> = None; // (indent, accumulated escaped inner)
+    fn flush(out: &mut String, run: &mut Option<(String, String)>) {
+        if let Some((indent, inner)) = run.take() {
+            out.push_str(&indent);
+            out.push_str("b.raw(\"");
+            out.push_str(&inner);
+            out.push_str("\");\n");
+        }
+    }
+    for line in src.lines() {
+        match raw_literal(line) {
+            Some((indent, inner)) => match &mut run {
+                Some((ri, acc)) if ri == indent => acc.push_str(inner),
+                _ => {
+                    flush(&mut out, &mut run);
+                    run = Some((indent.to_string(), inner.to_string()));
+                }
+            },
+            None => {
+                flush(&mut out, &mut run);
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+    }
+    flush(&mut out, &mut run);
+    out
+}
+
+/// If `line` is exactly `<indent>b.raw("<escaped>");`, return (indent, escaped).
+/// Rejects anything else (a `b.raw(ident)` call, a concatenation, etc.).
+fn raw_literal(line: &str) -> Option<(&str, &str)> {
+    let l = line.trim_end();
+    let trimmed = l.trim_start();
+    let indent = &l[..l.len() - trimmed.len()];
+    let inner = trimmed.strip_prefix("b.raw(\"")?.strip_suffix("\");")?;
+    // A single string literal has no UNescaped `"` in its body.
+    let bytes = inner.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => i += 2,
+            b'"' => return None,
+            _ => i += 1,
+        }
+    }
+    Some((indent, inner))
+}
+
 /// Path of a source file relative to the project dir (for `// mv:src` markers).
 fn rel_src(project_dir: &Path, file: &Path) -> String {
     file.strip_prefix(project_dir)
@@ -454,4 +512,47 @@ fn file_stem(p: &Path) -> String {
         .and_then(|s| s.to_str())
         .unwrap_or("Page")
         .to_string()
+}
+
+#[cfg(test)]
+mod coalesce_tests {
+    use super::coalesce_raw;
+
+    #[test]
+    fn merges_adjacent_static_raw() {
+        let src = "      b.raw(\"</div>\");\n      b.raw(\"\\n   \");\n      b.raw(\"<div>\");\n";
+        assert_eq!(coalesce_raw(src), "      b.raw(\"</div>\\n   <div>\");\n");
+    }
+
+    #[test]
+    fn dynamic_calls_break_the_run() {
+        let src = "  b.raw(\"<p>\");\n  b.text(name);\n  b.raw(\"</p>\");\n";
+        let out = coalesce_raw(src);
+        assert!(out.contains("b.raw(\"<p>\");"));
+        assert!(out.contains("b.text(name);"));
+        assert!(out.contains("b.raw(\"</p>\");"));
+    }
+
+    #[test]
+    fn does_not_merge_raw_identifier() {
+        let src = "  b.raw(\"<x>\");\n  b.raw(mvBody);\n  b.raw(\"</x>\");\n";
+        let out = coalesce_raw(src);
+        assert!(out.contains("b.raw(mvBody);"), "mvBody must stay its own call:\n{out}");
+        assert!(out.contains("b.raw(\"<x>\");"));
+    }
+
+    #[test]
+    fn preserves_escaped_quotes() {
+        let src = "  b.raw(\"<a href=\\\"/x\\\">\");\n  b.raw(\"y\");\n";
+        assert_eq!(coalesce_raw(src), "  b.raw(\"<a href=\\\"/x\\\">y\");\n");
+    }
+
+    #[test]
+    fn leaves_non_raw_lines_untouched() {
+        let src = "  // mv:src src/Pages/Home.mview\n  b.raw(\"<a>\");\n  b.raw(\"<b>\");\n  let x = 1;\n";
+        let out = coalesce_raw(src);
+        assert!(out.contains("// mv:src src/Pages/Home.mview"));
+        assert!(out.contains("let x = 1;"));
+        assert!(out.contains("b.raw(\"<a><b>\");"));
+    }
 }

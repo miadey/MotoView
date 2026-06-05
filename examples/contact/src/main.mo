@@ -7,13 +7,25 @@ import MV "mo:motoview/Types";
 import Lib "mo:motoview";
 import Nat "mo:base/Nat";
 import Nat32 "mo:base/Nat32";
+import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Float "mo:base/Float";
 import Char "mo:base/Char";
 import Text "mo:base/Text";
 import Buffer "mo:base/Buffer";
+import Principal "mo:base/Principal";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
+import Option "mo:base/Option";
+import Time "mo:base/Time";
+import Bool "mo:base/Bool";
+import Random "mo:base/Random";
 
 actor {
+  // `Context` is the friendly alias for the request context passed to
+  // `onLoad(ctx : Context)` and to any handler whose first parameter is `ctx`.
+  type Context = MV.Ctx;
+
   // ---- conversion helpers used by generated event dispatch ----
   func mvNat(t : Text) : Nat {
     var n : Nat = 0;
@@ -41,7 +53,17 @@ actor {
     for ((kk, vv) in ctx.form.vals()) { if (kk == k) { return ?vv } };
     null;
   };
+  // Read a route param (e.g. {id:Nat}) as Text; "" if absent.
+  func mvParamGet(ctx : MV.Ctx, k : Text) : Text {
+    for ((kk, vv) in ctx.params.vals()) { if (kk == k) { return vv } };
+    "";
+  };
 
+  // ---- shared service instances (stateful services) ----
+
+
+
+  // mv:src src/Pages/Contact.mview
   // ===== Page: Contact (/) =====
   let ContactPage = object {
     var name : Text = "";
@@ -67,84 +89,36 @@ actor {
     public func mvRender(ctx : MV.Ctx) : Text {
       let b = Html.Builder();
       ignore ctx;
-      b.raw("<section");
-      b.raw(" class=\"mv-container\"");
-      b.raw(">");
-      b.raw("\n    ");
-      b.raw("<h1");
-      b.raw(">");
-      b.raw("Contact us");
-      b.raw("</h1>");
-      b.raw("\n    ");
-      b.raw("<p");
-      b.raw(">");
-      b.raw("Questions about MotoView? Send us a note. This form is secure and validated entirely on the server — no client JavaScript.");
-      b.raw("</p>");
-      b.raw("\n\n    ");
+      b.raw("<section class=\"mv-container\">\n    <h1>Contact us</h1>\n    <p>Questions about MotoView? Send us a note. This form is secure and validated entirely on the server — no client JavaScript.</p>\n\n    ");
       if (sent) {
-        b.raw("\n        ");
-        b.raw("<div class=\"mv-alert mv-alert-success\">");
-        b.raw("Thanks! Your message was received.");
-        b.raw("</div>");
-        b.raw("\n    ");
+        b.raw("\n        <div class=\"mv-alert mv-alert-success\">Thanks! Your message was received.</div>\n    ");
       };
-      b.raw("\n\n    ");
-      b.raw("<form");
-      b.raw(" novalidate");
-      b.raw(" data-mv-handler=\"send\" data-mv-event=\"submit\"");
-      b.raw(" data-mv-secure=\"1\"");
+      b.raw("\n\n    <form novalidate data-mv-handler=\"send\" data-mv-event=\"submit\" data-mv-secure=\"1\"");
       b.attr("data-mv-token", ctx.mintToken("send", "email,message,name"));
-      b.raw(" data-mv-schema=\"email,message,name\"");
-      b.raw(">");
-      b.raw("\n        ");
+      b.raw(" data-mv-schema=\"email,message,name\">\n        ");
       if (mvErrors.size() > 0) {
         b.raw("<div class=\"mv-validation\"><strong>Please fix the following:</strong><ul>");
         for ((mvF, mvM) in mvErrors.vals()) { b.raw("<li>"); b.text(mvM); b.raw("</li>") };
         b.raw("</ul></div>");
       };
-      b.raw("\n\n        ");
-      b.raw("<div class=\"mv-field\">");
-      b.raw("<label>Name *</label>");
-      b.raw("<input type=\"text\" class=\"mv-input\" name=\"name\" data-mv-key=\"name\"");
-      b.raw(" required");
+      b.raw("\n\n        <div class=\"mv-field\"><label>Name *</label><input type=\"text\" class=\"mv-input\" name=\"name\" data-mv-key=\"name\" required");
       b.attr("value", name);
       b.raw(">");
       for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "name") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-      b.raw("</div>");
-      b.raw("\n        ");
-      b.raw("<div class=\"mv-field\">");
-      b.raw("<label>Email *</label>");
-      b.raw("<input type=\"email\" class=\"mv-input\" name=\"email\" data-mv-key=\"email\"");
-      b.raw(" required");
+      b.raw("</div>\n        <div class=\"mv-field\"><label>Email *</label><input type=\"email\" class=\"mv-input\" name=\"email\" data-mv-key=\"email\" required");
       b.attr("value", email);
       b.raw(">");
       for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "email") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-      b.raw("</div>");
-      b.raw("\n        ");
-      b.raw("<div class=\"mv-field\">");
-      b.raw("<label>Message *</label>");
-      b.raw("<textarea class=\"mv-textarea\" name=\"message\" data-mv-key=\"message\"");
-      b.raw(" required");
-      b.raw(">");
+      b.raw("</div>\n        <div class=\"mv-field\"><label>Message *</label><textarea class=\"mv-textarea\" name=\"message\" data-mv-key=\"message\" required>");
       b.text(message);
       b.raw("</textarea>");
       for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "message") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-      b.raw("</div>");
-      b.raw("\n\n        ");
-      b.raw("<button type=\"submit\" class=\"mv-btn mv-btn-primary\"");
-      b.raw(">");
-      b.raw("Send message");
-      b.raw("</button>");
-      b.raw("\n    ");
-      b.raw("</form>");
-      b.raw("\n");
-      b.raw("</section>");
-      b.raw("\n\n");
+      b.raw("</div>\n\n        <button type=\"submit\" class=\"mv-btn mv-btn-primary\">Send message</button>\n    </form>\n</section>\n\n");
       b.build();
     };
     public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; "Contact us" };
     public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; { title = "Contact us"; description = "Get in touch — a secure MotoView form with server-side validation."; canonical = ""; extra = "" } };
-    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx };
+    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx;  };
     public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
       ignore ctx; ignore mvArgs;
       mvErrors.clear(); // each interaction starts with a clean slate
@@ -168,6 +142,7 @@ actor {
     layout = "MainLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = ContactPage.mvOnLoad;
     render = ContactPage.mvRender;
     title = ContactPage.mvTitle;
@@ -178,77 +153,20 @@ actor {
     takeRedirect = ContactPage.mvTakeRedirect;
   };
 
+  // mv:src src/Layouts/MainLayout.mview
   // ===== Layout: MainLayout =====
   func mvLayout_MainLayout(ctx : MV.Ctx, mvHead : MV.Head, mvBody : Text) : Text {
     ignore ctx;
     let b = Html.Builder();
-    b.raw("<!DOCTYPE html>\n");
-    b.raw("<html");
-    b.raw(" lang=\"en\"");
-    b.raw(">");
-    b.raw("\n");
-    b.raw("<head");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<meta");
-    b.raw(" charset=\"utf-8\"");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<meta");
-    b.raw(" name=\"viewport\"");
-    b.raw(" content=\"width=device-width, initial-scale=1\"");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<title");
-    b.raw(">");
+    b.raw("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>");
     b.text(mvHead.title);
-    b.raw("</title>");
-    b.raw("\n    ");
+    b.raw("</title>\n    ");
     b.raw(mvHead.extra);
     if (mvHead.description != "") { b.raw("<meta name=\"description\" content=\""); b.text(mvHead.description); b.raw("\">") };
     if (mvHead.canonical != "") { b.raw("<link rel=\"canonical\" href=\""); b.text(mvHead.canonical); b.raw("\">") };
-    b.raw("\n");
-    b.raw("</head>");
-    b.raw("\n");
-    b.raw("<body");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<header");
-    b.raw(" class=\"mv-container\"");
-    b.raw(" style=\"padding-top:1rem;padding-bottom:0;display:flex;gap:1rem;align-items:center;border-bottom:1px solid var(--mv-border)\"");
-    b.raw(">");
-    b.raw("\n        ");
-    b.raw("<strong");
-    b.raw(">");
-    b.raw("▼ MotoView");
-    b.raw("</strong>");
-    b.raw("\n        ");
-    b.raw("<span");
-    b.raw(" style=\"color:var(--mv-text-soft)\"");
-    b.raw(">");
-    b.raw("contact example");
-    b.raw("</span>");
-    b.raw("\n    ");
-    b.raw("</header>");
-    b.raw("\n\n    ");
-    b.raw("<main");
-    b.raw(">");
-    b.raw("\n        ");
+    b.raw("\n</head>\n<body>\n    <header class=\"mv-container\" style=\"padding-top:1rem;padding-bottom:0;display:flex;gap:1rem;align-items:center;border-bottom:1px solid var(--mv-border)\">\n        <strong>▼ MotoView</strong>\n        <span style=\"color:var(--mv-text-soft)\">contact example</span>\n    </header>\n\n    <main>\n        ");
     b.raw(mvBody);
-    b.raw("\n    ");
-    b.raw("</main>");
-    b.raw("\n\n    ");
-    b.raw("<footer");
-    b.raw(" class=\"mv-container\"");
-    b.raw(" style=\"color:var(--mv-text-soft);font-size:.9rem\"");
-    b.raw(">");
-    b.raw("\n        Secure forms by default · powered by MotoView on the Internet Computer.\n    ");
-    b.raw("</footer>");
-    b.raw("\n");
-    b.raw("</body>");
-    b.raw("\n");
-    b.raw("</html>");
-    b.raw("\n");
+    b.raw("\n    </main>\n\n    <footer class=\"mv-container\" style=\"color:var(--mv-text-soft);font-size:.9rem\">\n        Secure forms by default · powered by MotoView on the Internet Computer.\n    </footer>\n</body>\n</html>\n");
     b.build();
   };
 
@@ -256,14 +174,39 @@ actor {
 
   let mvPages : [MV.Page] = [ContactDef];
   let mvLayouts : [MV.Layout] = [{ name = "MainLayout"; render = mvLayout_MainLayout }];
-  let mvConfig : MV.Config = { appName = "contact"; secret = "\b7\4a\f6\ff\44\66\82\c1\22\fc\1d\2b\17\91\a4\a3\fe\d3\3c\6e\7e\3e\b2\01\bb\e0\59\37\9d\d0\9f\60" : Blob; seo = true };
+  let mvConfig : MV.Config = { appName = "contact"; secret = "" : Blob; seo = true; altOrigins = [] };
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
+
+  // Session / secure-form HMAC secret: cryptographically random per canister
+  // (from the IC's raw_rand), kept in a stable var so it survives upgrades, and
+  // NEVER present in source. Installed lazily on the first update call below;
+  // restored into the app instance here after an upgrade.
+  stable var mvSecret : Blob = "" : Blob;
+  // Per-principal session epochs (logout-everywhere revocation), kept stable.
+  stable var mvEpochs : [(Text, Nat)] = [];
+  // Role store (principal -> roles), backing `@authorize role="..."`.
+  stable var mvRoles : [(Principal, [Text])] = [];
+  if (mvSecret.size() == 32) { mvApp.setSecret(mvSecret) };
+  mvApp.setEpochs(mvEpochs);
+  mvApp.setRoles(mvRoles);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {
     mvApp.httpRequest(req, msg.caller);
   };
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {
-    mvApp.httpRequestUpdate(req, msg.caller);
+    if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
+    let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
+    mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
+    mvRoles := mvApp.dumpRoles(); // persist any role grant/revoke
+    mvResp;
+  };
+
+  // Internet Identity login bridge: an authenticated update call whose caller
+  // the IC has verified. Records the principal under the client's nonce so a
+  // following GET /mv-session can mint a session token bound to it.
+  public shared (msg) func mvEstablish(nonce : Text) : async () {
+    if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
+    mvApp.establish(nonce, msg.caller);
   };
 };

@@ -7,14 +7,26 @@ import MV "mo:motoview/Types";
 import Lib "mo:motoview";
 import Nat "mo:base/Nat";
 import Nat32 "mo:base/Nat32";
+import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Float "mo:base/Float";
 import Char "mo:base/Char";
 import Text "mo:base/Text";
 import Buffer "mo:base/Buffer";
+import Principal "mo:base/Principal";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
+import Option "mo:base/Option";
+import Time "mo:base/Time";
+import Bool "mo:base/Bool";
+import Random "mo:base/Random";
 import Crm "Services/Crm";
 
 actor {
+  // `Context` is the friendly alias for the request context passed to
+  // `onLoad(ctx : Context)` and to any handler whose first parameter is `ctx`.
+  type Context = MV.Ctx;
+
   // ---- conversion helpers used by generated event dispatch ----
   func mvNat(t : Text) : Nat {
     var n : Nat = 0;
@@ -42,7 +54,17 @@ actor {
     for ((kk, vv) in ctx.form.vals()) { if (kk == k) { return ?vv } };
     null;
   };
+  // Read a route param (e.g. {id:Nat}) as Text; "" if absent.
+  func mvParamGet(ctx : MV.Ctx, k : Text) : Text {
+    for ((kk, vv) in ctx.params.vals()) { if (kk == k) { return vv } };
+    "";
+  };
 
+  // ---- shared service instances (stateful services) ----
+
+
+
+  // mv:src src/Pages/Board.mview
   // ===== Page: Board (/) =====
   let BoardPage = object {
     var deals : [Crm.Deal] = Crm.seed();
@@ -111,263 +133,76 @@ actor {
     public func mvRender(ctx : MV.Ctx) : Text {
       let b = Html.Builder();
       ignore ctx;
-      b.raw("<div");
-      b.raw(" class=\"crm-header\"");
-      b.raw(">");
-      b.raw("\n    ");
-      b.raw("<div");
-      b.raw(">");
-      b.raw("\n        ");
-      b.raw("<h1");
-      b.raw(">");
-      b.raw("Pipeline");
-      b.raw("</h1>");
-      b.raw("\n        ");
-      b.raw("<p");
-      b.raw(" class=\"crm-sub\"");
-      b.raw(">");
+      b.raw("<div class=\"crm-header\">\n    <div>\n        <h1>Pipeline</h1>\n        <p class=\"crm-sub\">");
       b.text(Nat.toText(dealCount()));
-      b.raw(" open deals · ");
-      b.raw("<strong");
-      b.raw(">");
+      b.raw(" open deals · <strong>");
       b.text(money(pipelineValue()));
-      b.raw("</strong>");
-      b.raw(" in flight");
-      b.raw("</p>");
-      b.raw("\n    ");
-      b.raw("</div>");
-      b.raw("\n    ");
-      b.raw("<button");
-      b.raw(" class=\"mv-btn mv-btn-primary mv-btn-large\"");
-      b.raw(" data-mv-handler=\"toggleCreate\" data-mv-event=\"click\"");
-      b.raw(">");
-      b.raw("+ New deal");
-      b.raw("</button>");
-      b.raw("\n");
-      b.raw("</div>");
-      b.raw("\n\n");
+      b.raw("</strong> in flight</p>\n    </div>\n    <button class=\"mv-btn mv-btn-primary mv-btn-large\" data-mv-handler=\"toggleCreate\" data-mv-event=\"click\">+ New deal</button>\n</div>\n\n");
       if (creating) {
-        b.raw("\n    ");
-        b.raw("<div");
-        b.raw(" class=\"crm-form mv-anim-fadein\"");
-        b.raw(">");
-        b.raw("\n        ");
-        b.raw("<form");
-        b.raw(" novalidate");
-        b.raw(" data-mv-handler=\"createDeal\" data-mv-event=\"submit\"");
-        b.raw(" data-mv-secure=\"1\"");
+        b.raw("\n    <div class=\"crm-form mv-anim-fadein\">\n        <form novalidate data-mv-handler=\"createDeal\" data-mv-event=\"submit\" data-mv-secure=\"1\"");
         b.attr("data-mv-token", ctx.mintToken("createDeal", "company,contact,title,value"));
-        b.raw(" data-mv-schema=\"company,contact,title,value\"");
-        b.raw(">");
-        b.raw("\n            ");
+        b.raw(" data-mv-schema=\"company,contact,title,value\">\n            ");
         if (mvErrors.size() > 0) {
           b.raw("<div class=\"mv-validation\"><strong>Please fix the following:</strong><ul>");
           for ((mvF, mvM) in mvErrors.vals()) { b.raw("<li>"); b.text(mvM); b.raw("</li>") };
           b.raw("</ul></div>");
         };
-        b.raw("\n            ");
-        b.raw("<div");
-        b.raw(" class=\"crm-form-grid\"");
-        b.raw(">");
-        b.raw("\n                ");
-        b.raw("<div class=\"mv-field\">");
-        b.raw("<label>Deal *</label>");
-        b.raw("<input type=\"text\" class=\"mv-input\" name=\"title\" data-mv-key=\"title\"");
-        b.raw(" required");
+        b.raw("\n            <div class=\"crm-form-grid\">\n                <div class=\"mv-field\"><label>Deal *</label><input type=\"text\" class=\"mv-input\" name=\"title\" data-mv-key=\"title\" required");
         b.attr("value", title);
         b.raw(">");
         for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "title") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-        b.raw("</div>");
-        b.raw("\n                ");
-        b.raw("<div class=\"mv-field\">");
-        b.raw("<label>Company *</label>");
-        b.raw("<input type=\"text\" class=\"mv-input\" name=\"company\" data-mv-key=\"company\"");
-        b.raw(" required");
+        b.raw("</div>\n                <div class=\"mv-field\"><label>Company *</label><input type=\"text\" class=\"mv-input\" name=\"company\" data-mv-key=\"company\" required");
         b.attr("value", company);
         b.raw(">");
         for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "company") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-        b.raw("</div>");
-        b.raw("\n                ");
-        b.raw("<div class=\"mv-field\">");
-        b.raw("<label>Contact</label>");
-        b.raw("<input type=\"text\" class=\"mv-input\" name=\"contact\" data-mv-key=\"contact\"");
+        b.raw("</div>\n                <div class=\"mv-field\"><label>Contact</label><input type=\"text\" class=\"mv-input\" name=\"contact\" data-mv-key=\"contact\"");
         b.attr("value", contact);
         b.raw(">");
         for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "contact") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-        b.raw("</div>");
-        b.raw("\n                ");
-        b.raw("<div class=\"mv-field\">");
-        b.raw("<label>Value ($) *</label>");
-        b.raw("<input type=\"number\" class=\"mv-input\" name=\"value\" data-mv-key=\"value\"");
-        b.raw(" required");
+        b.raw("</div>\n                <div class=\"mv-field\"><label>Value ($) *</label><input type=\"number\" class=\"mv-input\" name=\"value\" data-mv-key=\"value\" required");
         b.attr("value", Nat.toText(value));
         b.raw(">");
         for ((mvF, mvM) in mvErrors.vals()) { if (mvF == "value") { b.raw("<div class=\"mv-error\">"); b.text(mvM); b.raw("</div>") } };
-        b.raw("</div>");
-        b.raw("\n            ");
-        b.raw("</div>");
-        b.raw("\n            ");
-        b.raw("<div");
-        b.raw(" class=\"crm-form-actions\"");
-        b.raw(">");
-        b.raw("\n                ");
-        b.raw("<button type=\"submit\" class=\"mv-btn mv-btn-primary\"");
-        b.raw(">");
-        b.raw("Create deal");
-        b.raw("</button>");
-        b.raw("\n                ");
-        b.raw("<button type=\"button\" class=\"mv-btn mv-btn-secondary\"");
-        b.raw(" data-mv-handler=\"toggleCreate\" data-mv-event=\"click\"");
-        b.raw(">");
-        b.raw("Cancel");
-        b.raw("</button>");
-        b.raw("\n            ");
-        b.raw("</div>");
-        b.raw("\n        ");
-        b.raw("</form>");
-        b.raw("\n    ");
-        b.raw("</div>");
-        b.raw("\n");
+        b.raw("</div>\n            </div>\n            <div class=\"crm-form-actions\">\n                <button type=\"submit\" class=\"mv-btn mv-btn-primary\">Create deal</button>\n                <button type=\"button\" class=\"mv-btn mv-btn-secondary\" data-mv-handler=\"toggleCreate\" data-mv-event=\"click\">Cancel</button>\n            </div>\n        </form>\n    </div>\n");
       };
-      b.raw("\n\n");
-      b.raw("<div");
-      b.raw(" class=\"kanban\"");
-      b.raw(">");
-      b.raw("\n    ");
+      b.raw("\n\n<div class=\"kanban\">\n    ");
       for (stage in (stages).vals()) {
-        b.raw("\n        ");
-        b.raw("<section");
-        b.raw(" class=\"kanban-col\"");
-        b.raw(" id=\"");
-        b.raw("col-");
+        b.raw("\n        <section class=\"kanban-col\" id=\"col-");
         b.text(Html.unquote(debug_show(stage)));
-        b.raw("\"");
-        b.raw(" data-mv-drop=\"dropDeal\"");
+        b.raw("\" data-mv-drop=\"dropDeal\"");
         b.attr("data-mv-dropval", Html.unquote(debug_show(stage)));
-        b.raw(">");
-        b.raw("\n            ");
-        b.raw("<header");
-        b.raw(" class=\"kanban-col-head\"");
-        b.raw(">");
-        b.raw("\n                ");
-        b.raw("<span");
-        b.raw(" class=\"kanban-col-title\"");
-        b.raw(">");
+        b.raw(">\n            <header class=\"kanban-col-head\">\n                <span class=\"kanban-col-title\">");
         b.text(Html.unquote(debug_show(stage)));
-        b.raw("</span>");
-        b.raw("\n                ");
-        b.raw("<span");
-        b.raw(" class=\"kanban-col-count\"");
-        b.raw(">");
+        b.raw("</span>\n                <span class=\"kanban-col-count\">");
         b.text(Nat.toText(countIn(stage)));
-        b.raw("</span>");
-        b.raw("\n            ");
-        b.raw("</header>");
-        b.raw("\n            ");
-        b.raw("<div");
-        b.raw(" class=\"kanban-col-body\"");
-        b.raw(">");
-        b.raw("\n                ");
+        b.raw("</span>\n            </header>\n            <div class=\"kanban-col-body\">\n                ");
         for (deal in (dealsIn(stage)).vals()) {
-          b.raw("\n                    ");
-          b.raw("<article");
-          b.raw(" class=\"deal-card\"");
-          b.raw(" draggable=\"true\"");
+          b.raw("\n                    <article class=\"deal-card\" draggable=\"true\"");
           b.attr("data-mv-drag", Html.unquote(debug_show(deal.id)));
-          b.raw(">");
-          b.raw("\n                        ");
-          b.raw("<div");
-          b.raw(" class=\"deal-card-top\"");
-          b.raw(">");
-          b.raw("\n                            ");
-          b.raw("<span");
-          b.raw(" class=\"deal-title\"");
-          b.raw(">");
+          b.raw(">\n                        <div class=\"deal-card-top\">\n                            <span class=\"deal-title\">");
           b.text(Html.unquote(debug_show(deal.title)));
-          b.raw("</span>");
-          b.raw("\n                            ");
-          b.raw("<button");
-          b.raw(" class=\"deal-del\"");
-          b.raw(" title=\"Remove deal\"");
-          b.raw(" data-mv-handler=\"removeDeal\" data-mv-event=\"click\"");
+          b.raw("</span>\n                            <button class=\"deal-del\" title=\"Remove deal\" data-mv-handler=\"removeDeal\" data-mv-event=\"click\"");
           b.attr("data-mv-arg0", Html.unquote(debug_show(deal.id)));
-          b.raw(">");
-          b.raw("✕");
-          b.raw("</button>");
-          b.raw("\n                        ");
-          b.raw("</div>");
-          b.raw("\n                        ");
-          b.raw("<div");
-          b.raw(" class=\"deal-company\"");
-          b.raw(">");
+          b.raw(">✕</button>\n                        </div>\n                        <div class=\"deal-company\">");
           b.text(Html.unquote(debug_show(deal.company)));
-          b.raw("</div>");
-          b.raw("\n                        ");
-          b.raw("<div");
-          b.raw(" class=\"deal-meta\"");
-          b.raw(">");
-          b.raw("\n                            ");
-          b.raw("<span");
-          b.raw(" class=\"deal-value\"");
-          b.raw(">");
+          b.raw("</div>\n                        <div class=\"deal-meta\">\n                            <span class=\"deal-value\">");
           b.text(money(deal.value));
-          b.raw("</span>");
-          b.raw("\n                            ");
-          b.raw("<span");
-          b.raw(" class=\"deal-contact\"");
-          b.raw(">");
+          b.raw("</span>\n                            <span class=\"deal-contact\">");
           b.text(Html.unquote(debug_show(deal.contact)));
-          b.raw("</span>");
-          b.raw("\n                        ");
-          b.raw("</div>");
-          b.raw("\n                        ");
-          b.raw("<div");
-          b.raw(" class=\"deal-move\"");
-          b.raw(">");
-          b.raw("\n                            ");
-          b.raw("<button");
-          b.raw(" class=\"deal-move-btn\"");
-          b.raw(" title=\"Move back\"");
-          b.raw(" data-mv-handler=\"moveBack\" data-mv-event=\"click\"");
+          b.raw("</span>\n                        </div>\n                        <div class=\"deal-move\">\n                            <button class=\"deal-move-btn\" title=\"Move back\" data-mv-handler=\"moveBack\" data-mv-event=\"click\"");
           b.attr("data-mv-arg0", Html.unquote(debug_show(deal.id)));
-          b.raw(">");
-          b.raw("◀");
-          b.raw("</button>");
-          b.raw("\n                            ");
-          b.raw("<button");
-          b.raw(" class=\"deal-move-btn\"");
-          b.raw(" title=\"Move forward\"");
-          b.raw(" data-mv-handler=\"moveFwd\" data-mv-event=\"click\"");
+          b.raw(">◀</button>\n                            <button class=\"deal-move-btn\" title=\"Move forward\" data-mv-handler=\"moveFwd\" data-mv-event=\"click\"");
           b.attr("data-mv-arg0", Html.unquote(debug_show(deal.id)));
-          b.raw(">");
-          b.raw("▶");
-          b.raw("</button>");
-          b.raw("\n                        ");
-          b.raw("</div>");
-          b.raw("\n                    ");
-          b.raw("</article>");
-          b.raw("\n                ");
+          b.raw(">▶</button>\n                        </div>\n                    </article>\n                ");
         };
-        b.raw("\n            ");
-        b.raw("</div>");
-        b.raw("\n        ");
-        b.raw("</section>");
-        b.raw("\n    ");
+        b.raw("\n            </div>\n        </section>\n    ");
       };
-      b.raw("\n");
-      b.raw("</div>");
-      b.raw("\n\n");
-      b.raw("<p");
-      b.raw(" class=\"crm-hint\"");
-      b.raw(">");
-      b.raw("Drag a card between columns, or use the ◀ ▶ buttons. Everything runs on-chain — no frontend JavaScript.");
-      b.raw("</p>");
-      b.raw("\n\n");
+      b.raw("\n</div>\n\n<p class=\"crm-hint\">Drag a card between columns, or use the ◀ ▶ buttons. Everything runs on-chain — no frontend JavaScript.</p>\n\n");
       b.build();
     };
     public func mvTitle(ctx : MV.Ctx) : Text { ignore ctx; "Pipeline — MotoView CRM" };
     public func mvHead(ctx : MV.Ctx) : MV.Head { ignore ctx; { title = "Pipeline — MotoView CRM"; description = "A drag-and-drop sales pipeline built with MotoView — no frontend JavaScript."; canonical = ""; extra = "" } };
-    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx };
+    public func mvOnLoad(ctx : MV.Ctx) { ignore ctx;  };
     public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {
       ignore ctx; ignore mvArgs;
       mvErrors.clear(); // each interaction starts with a clean slate
@@ -397,6 +232,7 @@ actor {
     layout = "CrmLayout";
     authorize = false;
     role = "";
+    cacheable = false;
     onLoad = BoardPage.mvOnLoad;
     render = BoardPage.mvRender;
     title = BoardPage.mvTitle;
@@ -407,76 +243,20 @@ actor {
     takeRedirect = BoardPage.mvTakeRedirect;
   };
 
+  // mv:src src/Layouts/CrmLayout.mview
   // ===== Layout: CrmLayout =====
   func mvLayout_CrmLayout(ctx : MV.Ctx, mvHead : MV.Head, mvBody : Text) : Text {
     ignore ctx;
     let b = Html.Builder();
-    b.raw("<!DOCTYPE html>\n");
-    b.raw("<html");
-    b.raw(" lang=\"en\"");
-    b.raw(">");
-    b.raw("\n");
-    b.raw("<head");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<meta");
-    b.raw(" charset=\"utf-8\"");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<meta");
-    b.raw(" name=\"viewport\"");
-    b.raw(" content=\"width=device-width, initial-scale=1\"");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<title");
-    b.raw(">");
+    b.raw("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>");
     b.text(mvHead.title);
-    b.raw("</title>");
-    b.raw("\n    ");
+    b.raw("</title>\n    ");
     b.raw(mvHead.extra);
     if (mvHead.description != "") { b.raw("<meta name=\"description\" content=\""); b.text(mvHead.description); b.raw("\">") };
     if (mvHead.canonical != "") { b.raw("<link rel=\"canonical\" href=\""); b.text(mvHead.canonical); b.raw("\">") };
-    b.raw("\n    ");
-    b.raw("<style");
-    b.raw(">");
-    b.raw("\n        body { background: #f4f4f8; }\n        .crm-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }\n        .crm-nav { display: flex; align-items: center; gap: .75rem; padding: .6rem 0 1.1rem; }\n        .crm-logo { font-weight: 800; color: var(--mv-primary); font-size: 1.15rem; }\n        .crm-pill { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mv-text-soft); background: #eceaf6; padding: .2rem .55rem; border-radius: 999px; }\n        .crm-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }\n        .crm-header h1 { margin: 0; font-size: 1.8rem; }\n        .crm-sub { margin: .15rem 0 0; color: var(--mv-text-soft); }\n        .crm-sub strong { color: var(--mv-primary); }\n\n        .crm-form { background: #fff; border: 1px solid var(--mv-border); border-radius: 14px; padding: 1.1rem 1.3rem; box-shadow: var(--mv-shadow); margin-bottom: 1.25rem; }\n        .crm-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .25rem 1rem; }\n        .crm-form-actions { display: flex; gap: .6rem; margin-top: .6rem; }\n\n        .kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; }\n        .kanban-col { background: #ecebf3; border-radius: 14px; padding: .7rem; display: flex; flex-direction: column; gap: .6rem; min-height: 180px; border-top: 3px solid #9aa0ad; transition: background .15s ease; }\n        #col-Lead { border-top-color: #64748b; }\n        #col-Contacted { border-top-color: #2563eb; }\n        #col-Proposal { border-top-color: #d97706; }\n        #col-Won { border-top-color: #16a34a; }\n        .kanban-col-head { display: flex; align-items: center; justify-content: space-between; padding: .2rem .35rem; }\n        .kanban-col-title { font-weight: 700; font-size: .95rem; }\n        .kanban-col-count { background: #fff; color: var(--mv-text-soft); font-size: .78rem; font-weight: 700; border-radius: 999px; padding: .05rem .5rem; }\n        .kanban-col-body { display: flex; flex-direction: column; gap: .55rem; min-height: 40px; }\n\n        .deal-card { background: #fff; border: 1px solid var(--mv-border); border-radius: 11px; padding: .7rem .8rem; box-shadow: 0 1px 2px rgba(16,16,40,.05); transition: transform .12s ease, box-shadow .12s ease; }\n        .deal-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(16,16,40,.10); }\n        .deal-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }\n        .deal-title { font-weight: 700; font-size: .95rem; line-height: 1.3; }\n        .deal-del { border: none; background: transparent; color: var(--mv-text-soft); cursor: pointer; font-size: .85rem; line-height: 1; padding: .1rem .25rem; border-radius: 6px; }\n        .deal-del:hover { background: #fee2e2; color: var(--mv-danger); }\n        .deal-company { color: var(--mv-text-soft); font-size: .85rem; margin: .15rem 0 .5rem; }\n        .deal-meta { display: flex; align-items: center; justify-content: space-between; }\n        .deal-value { font-weight: 800; color: var(--mv-primary); }\n        .deal-contact { font-size: .78rem; color: var(--mv-text-soft); }\n        .deal-move { display: flex; gap: .35rem; margin-top: .6rem; }\n        .deal-move-btn { flex: 1; border: 1px solid var(--mv-border); background: #fafaff; color: var(--mv-text); border-radius: 7px; padding: .2rem 0; cursor: pointer; font-size: .8rem; }\n        .deal-move-btn:hover { background: var(--mv-primary); color: #fff; border-color: var(--mv-primary); }\n\n        .crm-hint { text-align: center; color: var(--mv-text-soft); font-size: .85rem; margin-top: 1.5rem; }\n    ");
-    b.raw("</style>");
-    b.raw("\n");
-    b.raw("</head>");
-    b.raw("\n");
-    b.raw("<body");
-    b.raw(">");
-    b.raw("\n    ");
-    b.raw("<div");
-    b.raw(" class=\"crm-shell\"");
-    b.raw(">");
-    b.raw("\n        ");
-    b.raw("<nav");
-    b.raw(" class=\"crm-nav\"");
-    b.raw(">");
-    b.raw("\n            ");
-    b.raw("<span");
-    b.raw(" class=\"crm-logo\"");
-    b.raw(">");
-    b.raw("▼ MotoView CRM");
-    b.raw("</span>");
-    b.raw("\n            ");
-    b.raw("<span");
-    b.raw(" class=\"crm-pill\"");
-    b.raw(">");
-    b.raw("Pipeline");
-    b.raw("</span>");
-    b.raw("\n        ");
-    b.raw("</nav>");
-    b.raw("\n        ");
+    b.raw("\n    <style>\n        body { background: #f4f4f8; }\n        .crm-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }\n        .crm-nav { display: flex; align-items: center; gap: .75rem; padding: .6rem 0 1.1rem; }\n        .crm-logo { font-weight: 800; color: var(--mv-primary); font-size: 1.15rem; }\n        .crm-pill { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mv-text-soft); background: #eceaf6; padding: .2rem .55rem; border-radius: 999px; }\n        .crm-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }\n        .crm-header h1 { margin: 0; font-size: 1.8rem; }\n        .crm-sub { margin: .15rem 0 0; color: var(--mv-text-soft); }\n        .crm-sub strong { color: var(--mv-primary); }\n\n        .crm-form { background: #fff; border: 1px solid var(--mv-border); border-radius: 14px; padding: 1.1rem 1.3rem; box-shadow: var(--mv-shadow); margin-bottom: 1.25rem; }\n        .crm-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .25rem 1rem; }\n        .crm-form-actions { display: flex; gap: .6rem; margin-top: .6rem; }\n\n        .kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; }\n        .kanban-col { background: #ecebf3; border-radius: 14px; padding: .7rem; display: flex; flex-direction: column; gap: .6rem; min-height: 180px; border-top: 3px solid #9aa0ad; transition: background .15s ease; }\n        #col-Lead { border-top-color: #64748b; }\n        #col-Contacted { border-top-color: #2563eb; }\n        #col-Proposal { border-top-color: #d97706; }\n        #col-Won { border-top-color: #16a34a; }\n        .kanban-col-head { display: flex; align-items: center; justify-content: space-between; padding: .2rem .35rem; }\n        .kanban-col-title { font-weight: 700; font-size: .95rem; }\n        .kanban-col-count { background: #fff; color: var(--mv-text-soft); font-size: .78rem; font-weight: 700; border-radius: 999px; padding: .05rem .5rem; }\n        .kanban-col-body { display: flex; flex-direction: column; gap: .55rem; min-height: 40px; }\n\n        .deal-card { background: #fff; border: 1px solid var(--mv-border); border-radius: 11px; padding: .7rem .8rem; box-shadow: 0 1px 2px rgba(16,16,40,.05); transition: transform .12s ease, box-shadow .12s ease; }\n        .deal-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(16,16,40,.10); }\n        .deal-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }\n        .deal-title { font-weight: 700; font-size: .95rem; line-height: 1.3; }\n        .deal-del { border: none; background: transparent; color: var(--mv-text-soft); cursor: pointer; font-size: .85rem; line-height: 1; padding: .1rem .25rem; border-radius: 6px; }\n        .deal-del:hover { background: #fee2e2; color: var(--mv-danger); }\n        .deal-company { color: var(--mv-text-soft); font-size: .85rem; margin: .15rem 0 .5rem; }\n        .deal-meta { display: flex; align-items: center; justify-content: space-between; }\n        .deal-value { font-weight: 800; color: var(--mv-primary); }\n        .deal-contact { font-size: .78rem; color: var(--mv-text-soft); }\n        .deal-move { display: flex; gap: .35rem; margin-top: .6rem; }\n        .deal-move-btn { flex: 1; border: 1px solid var(--mv-border); background: #fafaff; color: var(--mv-text); border-radius: 7px; padding: .2rem 0; cursor: pointer; font-size: .8rem; }\n        .deal-move-btn:hover { background: var(--mv-primary); color: #fff; border-color: var(--mv-primary); }\n\n        .crm-hint { text-align: center; color: var(--mv-text-soft); font-size: .85rem; margin-top: 1.5rem; }\n    </style>\n</head>\n<body>\n    <div class=\"crm-shell\">\n        <nav class=\"crm-nav\">\n            <span class=\"crm-logo\">▼ MotoView CRM</span>\n            <span class=\"crm-pill\">Pipeline</span>\n        </nav>\n        ");
     b.raw(mvBody);
-    b.raw("\n    ");
-    b.raw("</div>");
-    b.raw("\n");
-    b.raw("</body>");
-    b.raw("\n");
-    b.raw("</html>");
-    b.raw("\n");
+    b.raw("\n    </div>\n</body>\n</html>\n");
     b.build();
   };
 
@@ -484,14 +264,39 @@ actor {
 
   let mvPages : [MV.Page] = [BoardDef];
   let mvLayouts : [MV.Layout] = [{ name = "CrmLayout"; render = mvLayout_CrmLayout }];
-  let mvConfig : MV.Config = { appName = "crm"; secret = "\5e\d6\11\7f\17\71\09\03\a3\54\fa\3d\11\ff\cc\1f\2b\d7\86\ef\e4\f7\36\1a\14\b6\79\ab\66\ca\1d\db" : Blob; seo = true };
+  let mvConfig : MV.Config = { appName = "crm"; secret = "" : Blob; seo = true; altOrigins = [] };
   let mvApp = App.App(mvConfig, mvPages, mvLayouts, Lib.defaultAssets());
+
+  // Session / secure-form HMAC secret: cryptographically random per canister
+  // (from the IC's raw_rand), kept in a stable var so it survives upgrades, and
+  // NEVER present in source. Installed lazily on the first update call below;
+  // restored into the app instance here after an upgrade.
+  stable var mvSecret : Blob = "" : Blob;
+  // Per-principal session epochs (logout-everywhere revocation), kept stable.
+  stable var mvEpochs : [(Text, Nat)] = [];
+  // Role store (principal -> roles), backing `@authorize role="..."`.
+  stable var mvRoles : [(Principal, [Text])] = [];
+  if (mvSecret.size() == 32) { mvApp.setSecret(mvSecret) };
+  mvApp.setEpochs(mvEpochs);
+  mvApp.setRoles(mvRoles);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {
     mvApp.httpRequest(req, msg.caller);
   };
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {
-    mvApp.httpRequestUpdate(req, msg.caller);
+    if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
+    let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
+    mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
+    mvRoles := mvApp.dumpRoles(); // persist any role grant/revoke
+    mvResp;
+  };
+
+  // Internet Identity login bridge: an authenticated update call whose caller
+  // the IC has verified. Records the principal under the client's nonce so a
+  // following GET /mv-session can mint a session token bound to it.
+  public shared (msg) func mvEstablish(nonce : Text) : async () {
+    if (mvApp.needsSecret()) { mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) };
+    mvApp.establish(nonce, msg.caller);
   };
 };
