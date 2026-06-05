@@ -140,6 +140,17 @@ impl Parser {
                     "theme" => {
                         self.consume_keyword();
                         self.skip_spaces();
+                        // optional brand ramp: @theme brand="#0f6cbd"
+                        if self.starts_with("brand") {
+                            for _ in 0..5 { self.bump(); }
+                            self.skip_spaces();
+                            if self.peek() == '=' { self.bump(); }
+                            self.skip_spaces();
+                            if self.peek() == '"' {
+                                self.file.theme_brand = Some(self.read_quoted()?);
+                            }
+                            self.skip_spaces();
+                        }
                         // optional preset name: @theme "ocean"
                         if self.peek() == '"' {
                             self.file.theme_preset = Some(self.read_quoted()?);

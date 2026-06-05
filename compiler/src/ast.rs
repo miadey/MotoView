@@ -33,6 +33,8 @@ pub struct MviewFile {
     pub style: Option<String>,
     /// `@theme "name"` — a built-in theme preset to apply (before any overrides).
     pub theme_preset: Option<String>,
+    /// `@theme brand="#hex"` — generate a full Fluent brand ramp + aliases.
+    pub theme_brand: Option<String>,
     /// `@theme { --mv-x: y; }` — token overrides (applied on top of the preset).
     pub theme: Vec<(String, String)>,
 }
@@ -55,6 +57,7 @@ impl MviewFile {
             code: CodeBlock::default(),
             style: None,
             theme_preset: None,
+            theme_brand: None,
             theme: Vec::new(),
         }
     }

@@ -71,6 +71,23 @@ once and every page using that layout inherits it. It compiles to a single
 `<style>:root{ … }</style>` injected after the base stylesheet, so your values
 win.
 
+### Brand your whole app from one color
+
+MotoView's design foundation is the authentic **Microsoft Fluent 2** design-token
+system (the real `--colorBrandBackground`, `--colorNeutralForeground1`, type ramp,
+spacing, radii, shadows, motion). To rebrand the entire app, give `@theme` a single
+brand color and the compiler generates the full Fluent brand ramp (16 shades) and
+wires every brand alias token — for **light and dark**:
+
+```mview
+@theme brand="#d13438"
+```
+
+That one line themes every component (buttons, links, accents, focus rings) to your
+brand, in both light and dark mode, the same way Fluent's `createLightTheme` /
+`createDarkTheme` do. Dark mode is automatic via `prefers-color-scheme` (or force it
+with `<html data-theme="dark">` / `data-theme="light">`).
+
 ### Apply a built-in theme package
 
 The framework ships five ready-made, accessibility-checked themes (WCAG-AA

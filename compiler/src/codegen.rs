@@ -844,27 +844,34 @@ impl<'a> Codegen<'a> {
     /// Build the `<style>:root{…}</style>` for a file's `@theme` (a preset and/or
     /// token overrides), or None when the file declares no theme. Overrides win.
     fn theme_style_css(&self, file: &MviewFile) -> Option<String> {
-        if file.theme_preset.is_none() && file.theme.is_empty() {
-            return None;
-        }
-        let mut tokens: Vec<(String, String)> = Vec::new();
-        if let Some(p) = &file.theme_preset {
-            for (k, v) in theme_preset(p) {
-                tokens.push((k.to_string(), v.to_string()));
+        let mut out = String::new();
+        // @theme brand="#hex" generates the full Fluent brand ramp + light/dark aliases.
+        if let Some(brand) = &file.theme_brand {
+            if let Some(css) = crate::color::brand_theme_css(brand) {
+                out.push_str(&css);
             }
         }
-        for (k, v) in &file.theme {
-            if let Some(slot) = tokens.iter_mut().find(|(tk, _)| tk == k) {
-                slot.1 = v.clone();
-            } else {
-                tokens.push((k.clone(), v.clone()));
+        // @theme "preset" and/or { token overrides }.
+        if file.theme_preset.is_some() || !file.theme.is_empty() {
+            let mut tokens: Vec<(String, String)> = Vec::new();
+            if let Some(p) = &file.theme_preset {
+                for (k, v) in theme_preset(p) {
+                    tokens.push((k.to_string(), v.to_string()));
+                }
+            }
+            for (k, v) in &file.theme {
+                if let Some(slot) = tokens.iter_mut().find(|(tk, _)| tk == k) {
+                    slot.1 = v.clone();
+                } else {
+                    tokens.push((k.clone(), v.clone()));
+                }
+            }
+            if !tokens.is_empty() {
+                let body: String = tokens.iter().map(|(k, v)| format!("{}:{};", k, v)).collect();
+                out.push_str(&format!("<style>:root{{{}}}</style>", body));
             }
         }
-        if tokens.is_empty() {
-            return None;
-        }
-        let body: String = tokens.iter().map(|(k, v)| format!("{}:{};", k, v)).collect();
-        Some(format!("<style>:root{{{}}}</style>", body))
+        if out.is_empty() { None } else { Some(out) }
     }
 
     // ---- expression -> Text -----------------------------------------------

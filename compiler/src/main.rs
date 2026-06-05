@@ -8,6 +8,7 @@
 
 mod ast;
 mod codegen;
+mod color;
 mod parser;
 mod project;
 #[cfg(test)]
