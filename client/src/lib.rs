@@ -12,10 +12,12 @@
 
 mod abi;
 mod json;
+mod diff;
 
 use abi::{host, take_string};
 use json::Value;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 // ---- timing (ms) ----------------------------------------------------------
 const HOT_MS: f64 = 350.0;
@@ -46,6 +48,9 @@ struct Bridge {
     last_change: f64,
     backoff: f64,
     started: bool,
+    /// Last HTML applied per target, so the brain can diff and patch only the
+    /// keyed regions that changed (see `diff`).
+    last_html: HashMap<String, String>,
 }
 
 impl Bridge {
@@ -63,6 +68,7 @@ impl Bridge {
             last_change: 0.0,
             backoff: BACKOFF_START_MS,
             started: false,
+            last_html: HashMap::new(),
         }
     }
 
@@ -158,7 +164,20 @@ impl Bridge {
                     let t = v.str_field("target");
                     if t.is_empty() { "mv-root".to_string() } else { t }
                 };
-                host::apply_html(&target, &v.str_field("html"));
+                let html = v.str_field("html");
+                // Keyed-region patching: when the structure is stable, replace
+                // only the keyed regions that changed; otherwise full swap. All
+                // the decision logic is here in the brain — the hands just apply.
+                let old = self.last_html.get(&target).cloned().unwrap_or_default();
+                match diff::plan(&old, &html) {
+                    diff::Plan::Patch(patches) => {
+                        for (key, region_html) in &patches {
+                            host::replace_keyed(&target, key, region_html);
+                        }
+                    }
+                    diff::Plan::Full => host::apply_html(&target, &html),
+                }
+                self.last_html.insert(target.clone(), html);
                 if let Some(head) = v.get("head") {
                     let title = head.str_field("title");
                     if !title.is_empty() {
@@ -199,15 +218,23 @@ pub unsafe extern "C" fn mv_start(
     path_len: usize,
     batch_ptr: *mut u8,
     batch_len: usize,
+    seed_ptr: *mut u8,
+    seed_len: usize,
 ) {
     let path = take_string(path_ptr, path_len);
     let batch = take_string(batch_ptr, batch_len);
+    // The server-rendered root HTML — so the brain can diff the FIRST event
+    // against it and keyed-patch from the very first interaction.
+    let seed = take_string(seed_ptr, seed_len);
     let now = host::now();
     with(|b| {
         if b.started {
             return;
         }
         b.started = true;
+        if !seed.is_empty() {
+            b.last_html.insert("mv-root".to_string(), seed);
+        }
         b.path = if path.is_empty() { "/".into() } else { path };
         b.last_batch_id = batch;
         b.client_id = format!("c{}", (now as u64));

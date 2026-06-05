@@ -540,18 +540,21 @@ impl<'a> Codegen<'a> {
     }
 
     fn gen_attr(&self, a: &Attr, out: &mut String, indent: &str) {
+        // `key="..."` marks a keyed reconciliation region — emit it as the
+        // client-recognized `data-mv-key` so the DOM morph can match/preserve it.
+        let name = if a.name == "key" { "data-mv-key" } else { a.name.as_str() };
         match &a.value {
             AttrValue::Bool => {
-                out.push_str(&format!("{}b.raw(\" {}\");\n", indent, a.name));
+                out.push_str(&format!("{}b.raw(\" {}\");\n", indent, name));
             }
             AttrValue::Literal(v) => {
-                out.push_str(&format!("{}b.raw({});\n", indent, mo_str(&format!(" {}=\"{}\"", a.name, v))));
+                out.push_str(&format!("{}b.raw({});\n", indent, mo_str(&format!(" {}=\"{}\"", name, v))));
             }
             AttrValue::Expr(e) => {
-                out.push_str(&format!("{}b.attr({:?}, {});\n", indent, a.name, self.as_text(e)));
+                out.push_str(&format!("{}b.attr({:?}, {});\n", indent, name, self.as_text(e)));
             }
             AttrValue::Concat(parts) => {
-                out.push_str(&format!("{}b.raw(\" {}=\\\"\");\n", indent, a.name));
+                out.push_str(&format!("{}b.raw(\" {}=\\\"\");\n", indent, name));
                 for p in parts {
                     match p {
                         AttrPart::Lit(l) => out.push_str(&format!("{}b.raw({});\n", indent, mo_str(l))),

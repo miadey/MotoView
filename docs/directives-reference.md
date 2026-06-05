@@ -117,6 +117,28 @@ HTML (e.g. markdown you rendered yourself). The expression must already be
 `Text`. Never pass user input to `@raw` — it bypasses escaping. To print a
 literal `@`, write `@@`.
 
+## Keyed regions
+
+Give the elements of a list a `key` so the client can patch only what changed
+instead of replacing the whole region. The key should be a stable identifier —
+usually the item's id:
+
+```mview
+<ul>
+@for item in items {
+    <li key="@item.id">@item.name <input></li>
+}
+</ul>
+```
+
+`key="@item.id"` compiles to `data-mv-key`. When a re-render keeps the same keys
+in the same order and only some items' content changed, the brain (the Rust→WASM
+client) replaces *only* the changed items — every other node is left untouched,
+so its focus, selection, scroll and media state survive. Structural changes
+(adding, removing or reordering keyed items, or a change to the surrounding
+markup) safely fall back to a full re-render. All of this logic runs in WASM;
+there is no application JavaScript.
+
 ## Events
 
 Bind DOM events to typed Motoko handlers. Handler arguments are evaluated

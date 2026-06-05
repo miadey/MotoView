@@ -61,6 +61,14 @@ pub mod host {
             html_ptr: *const u8,
             html_len: usize,
         );
+        fn host_replace_keyed(
+            target_ptr: *const u8,
+            target_len: usize,
+            key_ptr: *const u8,
+            key_len: usize,
+            html_ptr: *const u8,
+            html_len: usize,
+        );
         fn host_effect(
             kind_ptr: *const u8,
             kind_len: usize,
@@ -97,6 +105,20 @@ pub mod host {
     }
     pub fn apply_html(target: &str, html: &str) {
         unsafe { host_apply_html(target.as_ptr(), target.len(), html.as_ptr(), html.len()) }
+    }
+    /// Replace just the keyed region `key` inside `target` with `html`. The
+    /// brain decides which regions changed; the hands only swap the node.
+    pub fn replace_keyed(target: &str, key: &str, html: &str) {
+        unsafe {
+            host_replace_keyed(
+                target.as_ptr(),
+                target.len(),
+                key.as_ptr(),
+                key.len(),
+                html.as_ptr(),
+                html.len(),
+            )
+        }
     }
     pub fn effect(kind: &str, target: &str, value: &str) {
         unsafe {

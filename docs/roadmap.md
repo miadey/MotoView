@@ -67,7 +67,7 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 
 **Next**
 
-- **Keyed-region / granular DOM patches** — today a changed batch swaps the whole `#mv-root`; there is no diffing or keyed update. This is the biggest remaining gap for large pages.
+- **Keyed-region DOM patches — partially shipped.** Elements with `key="..."` are now diffed in the WASM brain: when the structure is stable and only some keyed regions' content changed, just those regions are replaced (every other node keeps its live state). Still ahead: structural patches — adding, removing and reordering keyed items (today those correctly fall back to a full re-render).
 - **Role stores** backing `@authorize role="Admin"` — Internet Identity login ships, but role-based authorization stores do not yet.
 - **Certifying the root `/` and exact-vs-wildcard prefix collisions** — `@cacheable` works for most routes; the root path and an exact route that collides with a wildcard prefix (e.g. `/docs` alongside `/docs/{slug}`) are rejected by the boundary today and safely fall back to the update path.
 - **Model-type-directed `@expr` formatting** — `@expr` already renders correctly via a `debug_show` fallback; loop-var/cross-module field-type inference would refine the output.
