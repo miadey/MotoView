@@ -3,11 +3,13 @@
 @title "Your profile — Bzzz"
 @description "Set your Bzzz handle, display name and bio, see your follower and following counts, and read back everything you have posted to the feed."
 
+<Breadcrumb><BreadcrumbItem href="/">Home</BreadcrumbItem><BreadcrumbItem current="true">Your profile</BreadcrumbItem></Breadcrumb>
+
 <section class="bz-prof-head bz-card mv-anim-fadein">
     <div class="bz-prof-ava">@avatar</div>
     <div class="bz-prof-id">
         @if bound {
-            <h1>@display</h1>
+            <h1>@display <Tag>✓ Member</Tag></h1>
             <p class="bz-prof-handle">@@@handle</p>
             @if (Text.size(bio) > 0) {
                 <p class="bz-prof-bio">@bio</p>
@@ -20,6 +22,10 @@
         }
     </div>
 </section>
+
+@if (not bound) {
+    <MessageBar intent="warning">You're browsing as a guest. Claim a handle below to post, join servers and send messages.</MessageBar>
+}
 
 <div class="bz-prof-stats">
     <div class="bz-stat">
@@ -64,6 +70,27 @@
                 </form>
             </div>
         }
+
+        <div class="bz-card bz-prof-panel">
+            <h2>Profile help <Tooltip text="Everything about your Bzzz identity."><span class="bz-help-q">?</span></Tooltip></h2>
+            <p class="bz-panel-sub">How handles, bios and your public profile work.</p>
+            <MessageBar intent="info">Your handle is public — it appears on every post, topic and message you send.</MessageBar>
+            <Accordion>
+                <AccordionItem header="How do handles work?" open="true">Your handle is unique across Bzzz. Pick it once; it links all your posts, forum topics and direct messages. Choose 2 or more characters.</AccordionItem>
+                <AccordionItem header="Who can see my bio?">Your bio shows on your public profile to anyone on Bzzz. Leave it blank to hide it.</AccordionItem>
+                <AccordionItem header="Can I change my display name?">Yes — your display name can change any time. Your @@handle is your stable identity.</AccordionItem>
+            </Accordion>
+            <div class="bz-form-actions">
+                <Dialog id="handle-tips" trigger="Handle tips" title="Pick a great handle">
+                    <ul class="bz-tips">
+                        <li>Short and memorable (2–15 characters).</li>
+                        <li>Letters and numbers — no spaces.</li>
+                        <li>It is permanent-ish, so choose something you like.</li>
+                    </ul>
+                    <div class="mv-dialog-actions"><label for="handle-tips" class="mv-btn mv-btn-primary mv-btn-small">Got it</label></div>
+                </Dialog>
+            </div>
+        </div>
     </div>
 
     <div class="bz-prof-col">
@@ -139,6 +166,12 @@
     .bz-empty-ico { font-size: 2rem; margin-bottom: .4rem; }
     .bz-link { color: var(--bz-accent); font-weight: 600; text-decoration: none; }
     .bz-link:hover { text-decoration: underline; }
+
+    .bz-prof-id h1 { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .bz-help-q { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+        border-radius: 50%; background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground3);
+        font-size: .72rem; font-weight: 700; cursor: help; vertical-align: middle; }
+    .bz-tips { margin: .4rem 0 0; padding-left: 1.1rem; line-height: 1.7; color: var(--colorNeutralForeground2); }
 
     @media (max-width: 820px) {
         .bz-prof-grid { grid-template-columns: 1fr; }
