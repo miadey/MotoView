@@ -148,7 +148,7 @@ Components nest arbitrarily — a component can use another, which uses another 
 
 MotoView ships ~50 server-rendered, **CSS-only** built-ins (no JavaScript) — an authentic port of the Microsoft **Fluent UI 2** design system. Reach for meaning, not utility-class soup: `<Button appearance="primary">Save</Button>`. See them all live, with copy-paste snippets, in the **[/components gallery](https://github.com/miadey/MotoView)** (it's itself a MotoView page). Theme them with [`@theme` / `<ThemePicker/>`](styling-and-themes.md).
 
-> Coverage note: these match each Fluent component's **look + main variants**, not the full Fluent React prop API. The exact props for any one are its `gen_builtin` arm in `compiler/src/codegen.rs`.
+> Coverage: every component carries its **complete Fluent variant matrix** — each appearance, size, shape, color and state (hover/checked/disabled/selected) is implemented in CSS and wired through the codegen. See them all, side by side, on the live **`/variants`** page. (What isn't replicated are React-only *behaviours* — controlled state, virtualization, keyboard-driven widgets — since MotoView is server-rendered + CSS-only.) The exact props for any one component are its `gen_builtin` arm in `compiler/src/codegen.rs`.
 
 **Buttons & actions** — `Button` (`appearance` primary/secondary/outline/subtle/transparent/danger, `size`, `shape` rounded/circular/square, `icon`, `iconPosition`, `disabled`, `type`), `CompoundButton` (`appearance`, `icon`, `secondary`), `ToggleButton` (`appearance`, `name`, `checked`), `SplitButton`, `MenuButton`, `Menu` + `MenuItem` / `MenuItemCheckbox` / `MenuItemRadio`.
 

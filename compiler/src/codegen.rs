@@ -814,6 +814,9 @@ impl<'a> Codegen<'a> {
             "CompoundButton" => {
                 let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "secondary".into());
                 let mut cls = format!("mv-btn mv-compound-btn mv-btn-{}", kind);
+                match lit("shape").as_deref() { Some("circular")=>cls.push_str(" mv-btn-circular"), Some("square")=>cls.push_str(" mv-btn-square"), Some("rounded")=>cls.push_str(" mv-btn-rounded"), _=>{} }
+                if prop("danger").is_some() { cls.push_str(" mv-btn-danger"); }
+                if prop("iconOnly").is_some() { cls.push_str(" mv-btn-icon"); }
                 if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-btn-{}", sz)); }
                 let disabled = prop("disabled").is_some();
                 if disabled { cls.push_str(" mv-btn-disabled"); }
@@ -851,6 +854,9 @@ impl<'a> Codegen<'a> {
             "ToggleButton" => {
                 let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "secondary".into());
                 let mut cls = format!("mv-btn mv-toggle-btn mv-btn-{}", kind);
+                match lit("shape").as_deref() { Some("circular")=>cls.push_str(" mv-btn-circular"), Some("square")=>cls.push_str(" mv-btn-square"), Some("rounded")=>cls.push_str(" mv-btn-rounded"), _=>{} }
+                if prop("danger").is_some() { cls.push_str(" mv-btn-danger"); }
+                if prop("iconOnly").is_some() { cls.push_str(" mv-btn-icon"); }
                 if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-btn-{}", sz)); }
                 match lit("shape").as_deref() {
                     Some("circular") => cls.push_str(" mv-btn-circular"),
@@ -892,9 +898,12 @@ impl<'a> Codegen<'a> {
             // primary half is a real <button> carrying any click handler.
             "SplitButton" => {
                 let kind = lit("appearance").or_else(|| lit("kind")).unwrap_or_else(|| "primary".into());
-                let cls = format!("mv-split mv-split-{}", kind);
-                let btncls = format!("mv-btn mv-split-action mv-btn-{}", kind);
-                let trigcls = format!("mv-menu-trigger mv-btn mv-split-trigger mv-btn-{}", kind);
+                let szc = lit("size").map(|s| format!(" mv-btn-{}", s)).unwrap_or_default();
+                let mut cls = format!("mv-split mv-split-{}", kind);
+                if let Some(sh) = lit("shape") { cls.push_str(&format!(" mv-split-{}", sh)); }
+                if prop("disabled").is_some() { cls.push_str(" mv-split-disabled"); }
+                let btncls = format!("mv-btn mv-split-action mv-btn-{}{}", kind, szc);
+                let trigcls = format!("mv-menu-trigger mv-btn mv-split-trigger mv-btn-{}{}", kind, szc);
                 out.push_str(&format!("{}b.raw(\"<span class=\\\"{}\\\"><button type=\\\"button\\\" class=\\\"{}\\\"\");\n", indent, cls, btncls));
                 for ev in &c.events {
                     out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"{}\\\"\");\n", indent, ev.handler, ev.event));
@@ -943,6 +952,9 @@ impl<'a> Codegen<'a> {
             }
             "Badge" => {
                 let mut cls = "mv-badge".to_string();
+                if prop("disabled").is_some() { cls.push_str(" mv-badge-disabled"); }
+                if prop("selected").is_some() { cls.push_str(" mv-badge-selected"); }
+                if prop("clickable").is_some() { cls.push_str(" mv-badge-clickable"); }
                 // appearance: filled (default) | ghost | outline | tint
                 if let Some(ap) = lit("appearance") {
                     if ap != "filled" { cls.push_str(&format!(" mv-badge-{}", ap)); }
@@ -1039,7 +1051,8 @@ impl<'a> Codegen<'a> {
             "Avatar" => {
                 let size = lit("size").unwrap_or_else(|| "32".into());
                 let mut cls = format!("mv-avatar mv-avatar-{}", size);
-                if lit("shape").as_deref() == Some("square") { cls.push_str(" mv-avatar-square"); }
+                if let Some(sh) = lit("shape") { cls.push_str(&format!(" mv-avatar-{}", sh)); }
+                if let Some(aa) = lit("activeAppearance") { cls.push_str(&format!(" mv-avatar-{}", aa)); }
                 // presence: online/busy/away — ring + dot (existing).
                 if let Some(p) = lit("presence") { cls.push_str(&format!(" mv-avatar-{}", p)); }
                 // color: named/colorful palette (neutral/brand/red/green/blue/...) → tinted bg + ring.
@@ -1063,7 +1076,10 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "Persona" => {
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-persona\\\">\");\n", indent));
+                let mut pcls = "mv-persona".to_string();
+                if let Some(sz) = lit("size") { pcls.push_str(&format!(" mv-persona-{}", sz)); }
+                if let Some(ly) = lit("layout") { pcls.push_str(&format!(" mv-persona-{}", ly)); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, pcls));
                 let asize = lit("size").unwrap_or_else(|| "40".into());
                 let mut acls = format!("mv-avatar mv-avatar-{}", asize);
                 if let Some(p) = lit("presence") { acls.push_str(&format!(" mv-avatar-{}", p)); }
@@ -1315,6 +1331,8 @@ impl<'a> Codegen<'a> {
             // ---- Fluent: data display ----
             "Tag" => {
                 let mut cls = "mv-tag".to_string();
+                if prop("disabled").is_some() { cls.push_str(" mv-tag-disabled"); }
+                if prop("selected").is_some() { cls.push_str(" mv-tag-selected"); }
                 if prop("interactive").is_some() { cls.push_str(" mv-tag-interactive"); }
                 // appearance: outline (default) | filled | brand
                 if let Some(ap) = lit("appearance") { cls.push_str(&format!(" mv-tag-{}", ap)); }
@@ -1333,7 +1351,10 @@ impl<'a> Codegen<'a> {
                 Some(())
             }
             "AvatarGroup" => {
-                out.push_str(&format!("{}b.raw(\"<div class=\\\"mv-avatar-group\\\">\");\n", indent));
+                let mut agcls = "mv-avatar-group".to_string();
+                if let Some(ly) = lit("layout") { agcls.push_str(&format!(" mv-avatar-group-{}", ly)); }
+                if let Some(sz) = lit("size") { agcls.push_str(&format!(" mv-avatar-group-{}", sz)); }
+                out.push_str(&format!("{}b.raw(\"<div class=\\\"{}\\\">\");\n", indent, agcls));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</div>\");\n", indent));
                 Some(())
@@ -1450,11 +1471,19 @@ impl<'a> Codegen<'a> {
                 let is_drawer = c.name == "Drawer";
                 let id = esc_lit(&lit("id").unwrap_or_else(|| if is_drawer { "mvdrawer".into() } else { "mvdlg".into() }));
                 let trigger = esc_lit(&lit("trigger").unwrap_or_else(|| "Open".into()));
+                let dlgmods = {
+                    let p = if is_drawer { "mv-drawer" } else { "mv-dialog" };
+                    let mut m = String::new();
+                    if let Some(sz) = lit("size") { m.push_str(&format!(" {}-{}", p, sz)); }
+                    if let Some(ty2) = lit("type") { m.push_str(&format!(" {}-{}", p, ty2)); }
+                    if let Some(po) = lit("position") { m.push_str(&format!(" {}-{}", p, po)); }
+                    m
+                };
                 if is_drawer {
                     let side = if lit("side").as_deref() == Some("end") { "mv-drawer-end" } else { "mv-drawer-start" };
-                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-drawer-root\\\"><input type=\\\"checkbox\\\" id=\\\"{}\\\" class=\\\"mv-drawer-toggle\\\" hidden><label for=\\\"{}\\\" class=\\\"mv-drawer-trigger\\\">{}</label><div class=\\\"mv-drawer-overlay\\\"><label for=\\\"{}\\\" class=\\\"mv-drawer-backdrop\\\"></label><aside class=\\\"mv-drawer-surface {}\\\">\");\n", indent, id, id, trigger, id, side));
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-drawer-root{}\\\"><input type=\\\"checkbox\\\" id=\\\"{}\\\" class=\\\"mv-drawer-toggle\\\" hidden><label for=\\\"{}\\\" class=\\\"mv-drawer-trigger\\\">{}</label><div class=\\\"mv-drawer-overlay\\\"><label for=\\\"{}\\\" class=\\\"mv-drawer-backdrop\\\"></label><aside class=\\\"mv-drawer-surface {}\\\">\");\n", indent, dlgmods, id, id, trigger, id, side));
                 } else {
-                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-dialog-root\\\"><input type=\\\"checkbox\\\" id=\\\"{}\\\" class=\\\"mv-dialog-toggle\\\" hidden><label for=\\\"{}\\\" class=\\\"mv-dialog-trigger mv-btn mv-btn-primary mv-btn-small\\\">{}</label><div class=\\\"mv-dialog-overlay\\\"><label for=\\\"{}\\\" class=\\\"mv-dialog-backdrop\\\"></label><div class=\\\"mv-dialog-surface\\\" role=\\\"dialog\\\">\");\n", indent, id, id, trigger, id));
+                    out.push_str(&format!("{}b.raw(\"<span class=\\\"mv-dialog-root{}\\\"><input type=\\\"checkbox\\\" id=\\\"{}\\\" class=\\\"mv-dialog-toggle\\\" hidden><label for=\\\"{}\\\" class=\\\"mv-dialog-trigger mv-btn mv-btn-primary mv-btn-small\\\">{}</label><div class=\\\"mv-dialog-overlay\\\"><label for=\\\"{}\\\" class=\\\"mv-dialog-backdrop\\\"></label><div class=\\\"mv-dialog-surface\\\" role=\\\"dialog\\\">\");\n", indent, dlgmods, id, id, trigger, id));
                 }
                 let pfx = if is_drawer { "mv-drawer" } else { "mv-dialog" };
                 if let Some(t) = prop("title") {
@@ -1602,6 +1631,8 @@ impl<'a> Codegen<'a> {
                 let color = lit("color").unwrap_or_else(|| "brand".into());
                 let mut cls = format!("mv-cbadge mv-cbadge-{} mv-cbadge-{}", appearance, color);
                 if let Some(sz) = lit("size") { cls.push_str(&format!(" mv-cbadge-{}", sz)); }
+                if let Some(sh) = lit("shape") { cls.push_str(&format!(" mv-cbadge-{}", sh)); }
+                if prop("disabled").is_some() { cls.push_str(" mv-cbadge-disabled"); }
                 let is_dot = prop("dot").is_some();
                 if is_dot { cls.push_str(" mv-cbadge-dot"); }
                 // A literal count of 0 is hidden unless showZero is present (Fluent default).
@@ -1699,6 +1730,12 @@ impl<'a> Codegen<'a> {
             }
             "Display" => {
                 out.push_str(&format!("{}b.raw(\"<h1 class=\\\"mv-type-display\\\">\");\n", indent));
+                self.gen_nodes(&c.children, out, indent);
+                out.push_str(&format!("{}b.raw(\"</h1>\");\n", indent));
+                Some(())
+            }
+            "LargeTitle" => {
+                out.push_str(&format!("{}b.raw(\"<h1 class=\\\"mv-type-largetitle\\\">\");\n", indent));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</h1>\");\n", indent));
                 Some(())
