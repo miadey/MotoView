@@ -24,12 +24,26 @@ cp glue/motoview.js dist/motoview.js
 cp glue/motoview.css dist/motoview.css
 echo "    wasm: $(wc -c < dist/motoview.wasm) bytes"
 
+# Build + embed the optional vetKeys/IBE crypto module (served at
+# /motoview-crypto.wasm, fetched only by apps that use mvCrypto). cc-rs deps need
+# the host CC/CFLAGS cleared for the wasm32 cross-build.
+echo "==> building crypto module (release, wasm32)"
+( cd "$ROOT/client-crypto" && env -u CC -u CFLAGS cargo build --release --target wasm32-unknown-unknown )
+wasm-opt -Oz \
+  --enable-bulk-memory \
+  --enable-nontrapping-float-to-int \
+  --enable-sign-ext \
+  --enable-mutable-globals \
+  "$ROOT/client-crypto/target/wasm32-unknown-unknown/release/motoview_crypto.wasm" -o dist/motoview-crypto.wasm
+echo "    crypto wasm: $(wc -c < dist/motoview-crypto.wasm) bytes"
+
 # escape a file's contents into a single-line Motoko text literal body
 escape_mo() {
   perl -0pe 's/\\/\\\\/g; s/"/\\"/g; s/\r//g; s/\n/\\n/g; s/\t/\\t/g' "$1"
 }
 
 WASM_B64="$(base64 < dist/motoview.wasm | tr -d '\n')"
+CRYPTO_B64="$(base64 < dist/motoview-crypto.wasm | tr -d '\n')"
 JS_ESC="$(escape_mo glue/motoview.js)"
 AUTH_ESC="$(escape_mo glue/mv-auth.js)"
 CSS_ESC="$(escape_mo glue/motoview.css)"
@@ -48,6 +62,7 @@ import Base64 "Base64";
 module {
 HEADER
   printf '  let wasmB64 : Text = "%s";\n\n' "$WASM_B64"
+  printf '  let cryptoWasmB64 : Text = "%s";\n\n' "$CRYPTO_B64"
   printf '  let clientJs : Text = "%s";\n\n' "$JS_ESC"
   printf '  let authJs : Text = "%s";\n\n' "$AUTH_ESC"
   printf '  let css : Text = "%s";\n\n' "$CSS_ESC"
@@ -59,6 +74,7 @@ HEADER
       clientJs;
       authJs;
       clientWasm = Base64.decode(wasmB64);
+      cryptoWasm = Base64.decode(cryptoWasmB64);
       css;
       favicon;
     };

@@ -337,11 +337,31 @@ actor {{
   mvApp.setRoles(mvRoles);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {{
+    // vetKeys endpoints must run as updates (they await the management canister).
+    if (Text.startsWith(req.url, #text "/_motoview/vetkd/")) {{
+      return {{ status_code = 200; headers = []; body = "" : Blob; upgrade = ?true }};
+    }};
     mvApp.httpRequest(req, msg.caller);
   }};
 
   public shared (msg) func http_request_update(req : MV.HttpRequest) : async MV.HttpResponse {{
     if (mvApp.needsSecret()) {{ mvSecret := await Random.blob(); mvApp.setSecret(mvSecret) }};
+    // vetKeys: authorized decryption capability for the SESSION caller. The key
+    // is bound to the caller's principal, so only they can unwrap it. Runs here
+    // (the async actor context) since the App request handler is synchronous.
+    if (Text.startsWith(req.url, #text "/_motoview/vetkd/")) {{
+      let mvVetCaller = mvApp.effectiveCaller(req, msg.caller);
+      let mvVetCtx = Text.encodeUtf8("motoview");
+      let mvVetHdrs = [("content-type", "application/octet-stream"), ("cache-control", "no-store")];
+      if (Text.startsWith(req.url, #text "/_motoview/vetkd/public-key")) {{
+        let pk = await VetKeys.publicKey("dfx_test_key", mvVetCtx);
+        return {{ status_code = 200; headers = mvVetHdrs; body = pk; upgrade = null }};
+      }};
+      if (Text.startsWith(req.url, #text "/_motoview/vetkd/derive")) {{
+        let ek = await VetKeys.deriveKey("dfx_test_key", mvVetCtx, Principal.toBlob(mvVetCaller), req.body);
+        return {{ status_code = 200; headers = mvVetHdrs; body = ek; upgrade = null }};
+      }};
+    }};
     let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
     mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
     mvRoles := mvApp.dumpRoles(); // persist any role grant/revoke

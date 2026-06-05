@@ -1,0 +1,46 @@
+[package]
+name = "motoview-crypto"
+version = "0.1.0"
+edition = "2021"
+description = "In-browser vetKeys crypto for MotoView: BLS12-381 transport keys, vetKey unwrap, and IBE encrypt/decrypt, compiled to wasm32-unknown-unknown with a C-ABI byte-buffer interface."
+license = "MIT"
+
+[lib]
+# cdylib: the wasm32-unknown-unknown artifact the JS glue loads.
+# rlib: lets the native round-trip #[test] link against the same code.
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+# The exact crypto used by the verified canister foundation and the
+# tools/vetkeys-roundtrip check. Same crate on both sides => identical wire format.
+ic-vetkeys = "0.7"
+
+# getrandom is pulled in transitively (rand_core via aes-gcm). It has no default
+# backend for `wasm32-unknown-unknown`. We deliberately do NOT use the "js"
+# backend: that drags in wasm-bindgen (forbidden — the JS glue must stay dumb).
+# Instead we select the "custom" backend and register our own RNG hook (see
+# `getrandom_custom` in lib.rs). All four operations take an explicit caller
+# seed and never invoke the RNG, so the hook is unreachable on every real path;
+# it exists only to satisfy the linker with zero wasm-bindgen surface.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["custom"] }
+
+# Dev-only: the native round-trip #[test] reconstructs a real vetKD-encrypted
+# vetKey (the way the IC management canister does) using the SAME BLS12-381
+# primitives ic-vetkeys uses, so it can drive this crate's real `mvc_unwrap_vetkey`
+# path with no replica. Same versions as ic-vetkeys 0.7's own lockfile.
+[dev-dependencies]
+ic_bls12_381 = { version = "0.10", default-features = false, features = ["groups", "pairings", "alloc", "experimental"] }
+ff = "0.13"
+rand = "0.8"
+rand_chacha = "0.3"
+sha2 = "0.10"
+
+[profile.release]
+# Match the brain: smallest possible wasm.
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -152,6 +152,7 @@ module {
     clientJs : Text; // JS bootstrap/glue that loads the wasm bridge
     authJs : Text; // hand-written Internet Identity login (served at /mv-auth.js)
     clientWasm : Blob; // the compiled Rust→WASM client ("the brain")
+    cryptoWasm : Blob; // optional vetKeys/IBE crypto module (served at /motoview-crypto.wasm)
     css : Text; // bridge + base theme CSS
     favicon : Text; // SVG favicon markup
   };

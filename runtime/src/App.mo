@@ -85,7 +85,7 @@ module {
     // data is set on the first update (ensureCert); until then assets serve via
     // the update path (consensus-valid), so it self-bootstraps.
     let certAssets : [Text] = [
-      "/motoview.js", "/motoview.css", "/motoview.wasm", "/mv-auth.js",
+      "/motoview.js", "/motoview.css", "/motoview.wasm", "/motoview-crypto.wasm", "/mv-auth.js",
       "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
       "/manifest.webmanifest", "/sw.js",
     ];
@@ -254,7 +254,7 @@ module {
 
     /// The effective caller: the principal from a valid mv_session cookie, else
     /// the (anonymous) gateway caller.
-    func effectiveCaller(req : HttpRequest, fallback : Principal) : Principal {
+    public func effectiveCaller(req : HttpRequest, fallback : Principal) : Principal {
       for ((k, v) in req.headers.vals()) {
         if (lower(k) == "cookie") {
           switch (cookieValue(v, "mv_session")) {
@@ -784,6 +784,7 @@ module {
       if (path == "/motoview.js") { return ?textResp(assets.clientJs, "text/javascript") };
       if (path == "/mv-auth.js") { return ?textResp(assets.authJs, "text/javascript") };
       if (path == "/motoview.wasm") { return ?blobResp(assets.clientWasm, "application/wasm") };
+      if (path == "/motoview-crypto.wasm") { return ?blobResp(assets.cryptoWasm, "application/wasm") };
       if (path == "/motoview.css") { return ?textResp(assets.css, "text/css") };
       if (path == "/favicon.svg" or path == "/favicon.ico") { return ?textResp(assets.favicon, "image/svg+xml") };
       if (path == "/robots.txt") { return ?textResp(robots(), "text/plain") };

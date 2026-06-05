@@ -450,6 +450,79 @@
     }
   }
 
+  // ---- mvCrypto: opt-in client-side vetKeys/IBE. Loads /motoview-crypto.wasm
+  // (the Rust crypto module — all BLS/IBE lives there); the glue only marshals
+  // bytes and fetches the canister's session-bound key. No crypto in JS. ----
+  var mvCrypto = (function () {
+    var C = null, session = null;
+    var enc = new TextEncoder(), dec = new TextDecoder();
+    function memv() { return new Uint8Array(C.memory.buffer); }
+    function rand(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
+    function call(op, inputs) {
+      var allocd = [], args = [], i;
+      for (i = 0; i < inputs.length; i++) {
+        var arr = inputs[i], p = C.mvc_alloc(arr.length);
+        memv().set(arr, p);
+        allocd.push([p, arr.length]); args.push(p, arr.length);
+      }
+      var status = C[op].apply(null, args);
+      for (i = 0; i < allocd.length; i++) C.mvc_dealloc(allocd[i][0], allocd[i][1]);
+      if (status !== 0) throw new Error(op + " failed (status " + status + ")");
+      var o = C.mvc_out_ptr(), l = C.mvc_out_len();
+      return memv().slice(o, o + l);
+    }
+    function load() {
+      if (C) return Promise.resolve();
+      return fetch("/motoview-crypto.wasm", { cache: "force-cache" })
+        .then(function (r) { return r.arrayBuffer(); })
+        .then(function (buf) { return WebAssembly.instantiate(buf, {}); })
+        .then(function (res) { C = res.instance.exports; });
+    }
+    function getBytes(path, opts) {
+      return fetch(path, opts).then(function (r) { return r.arrayBuffer(); }).then(function (b) { return new Uint8Array(b); });
+    }
+    // principal text -> raw bytes (base32 decode, drop the 4-byte CRC) = the
+    // IBE identity / derivation input, matching the canister's Principal.toBlob.
+    function principalBytes(text) {
+      var B32 = "abcdefghijklmnopqrstuvwxyz234567", s = (text || "").replace(/-/g, ""), bits = 0, val = 0, out = [], i;
+      for (i = 0; i < s.length; i++) { val = (val << 5) | B32.indexOf(s[i]); bits += 5; if (bits >= 8) { out.push((val >> (bits - 8)) & 255); bits -= 8; } }
+      return new Uint8Array(out).slice(4);
+    }
+    // Establish the session vetKey for the current (session-authenticated) caller.
+    function establish() {
+      if (session) return Promise.resolve(session);
+      return load().then(function () {
+        return window.mvAuth ? mvAuth.whoami() : Promise.resolve("2vxsx-fae");
+      }).then(function (who) {
+        var id = principalBytes(who || "2vxsx-fae");
+        var sk = call("mvc_transport_secret_from_seed", [rand(32)]);
+        var pk = call("mvc_transport_public", [sk]);
+        return Promise.all([
+          getBytes("/_motoview/vetkd/derive", { method: "POST", credentials: "same-origin", body: pk }),
+          getBytes("/_motoview/vetkd/public-key", { credentials: "same-origin" })
+        ]).then(function (res) {
+          var vetkey = call("mvc_unwrap_vetkey", [res[1], res[0], id, sk]);
+          session = { vetkey: vetkey, master: res[1], id: id };
+          return session;
+        });
+      });
+    }
+    function toB64(u8) { var s = "", i; for (i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); }
+    function fromB64(b64) { var s = atob(b64), u = new Uint8Array(s.length), i; for (i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+    return {
+      reset: function () { session = null; },
+      encrypt: function (text) { return establish().then(function (s) { return toB64(call("mvc_ibe_encrypt", [s.master, s.id, enc.encode(text), rand(32)])); }); },
+      decrypt: function (b64) { return establish().then(function (s) { return dec.decode(call("mvc_ibe_decrypt", [s.vetkey, fromB64(b64)])); }); },
+      selfTest: function (msg) {
+        msg = msg || "hello zero-trust";
+        return this.encrypt(msg).then(function (ct) {
+          return mvCrypto.decrypt(ct).then(function (pt) { return { plaintext: msg, ciphertextB64Len: ct.length, decrypted: pt, ok: pt === msg }; });
+        });
+      }
+    };
+  })();
+  window.mvCrypto = mvCrypto;
+
   function boot() {
     fetch("/motoview.wasm", { cache: "no-store" })
       .then(function (r) { return r.arrayBuffer(); })
