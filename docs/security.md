@@ -81,15 +81,43 @@ Pages and handlers can require authorization with `@authorize`, optionally scope
 @authorize role="Admin"
 ```
 
-Today `@authorize` gates on the caller principal. Full role stores are on the roadmap.
+`@authorize` (no role) requires an authenticated caller — a principal resolved
+from the [Internet Identity session](security.md). `@authorize role="Admin"`
+additionally requires the caller to **hold that role** in the runtime's role
+store; otherwise the page redirects to `/` and its content never renders.
+
+### The role store
+
+Roles are assigned per principal and persist across upgrades. Manage them from
+any handler through the request context:
+
+```razor
+@code {
+  // First-come bootstrap: grant "Admin" to the caller iff nobody holds it yet.
+  func claimAdmin(ctx : Context) : async () {
+    ignore ctx.claimRole("Admin");
+  };
+
+  // An existing admin grants/revokes others.
+  func makeEditor(ctx : Context) : async () {
+    if (ctx.hasRole(ctx.caller, "Admin")) {
+      ctx.grantRole(somePrincipal, "Editor");
+    };
+  };
+}
+```
+
+The context exposes `hasRole(who, role)`, `callerRoles()`, `grantRole(who, role)`,
+`revokeRole(who, role)`, and `claimRole(role)` (claims for the caller, first-come).
+Reads are safe anywhere; mutations should run in event handlers (updates). The
+store is backed by a `stable var` in the generated actor, so role assignments
+survive `dfx deploy --mode upgrade`.
 
 ## Roadmap
 
 These are planned and **not yet implemented**:
 
-- **Internet Identity login over HTTP** — full II authentication flow so handlers can identify users, not just principals.
-- **Role stores** — durable role assignment backing `@authorize role="..."`.
 - **vetKeys encrypted state** — encrypting per-user state at rest using IC vetKeys.
-- **Certified query rendering** — response certification for cacheable public pages (today every request upgrades to `http_request_update`).
+- **Role hierarchies / wildcard scopes** — today roles are flat string grants.
 
 Until those land, build on what is verified: secure forms, HMAC token binding, replay and principal protection, and server-side validation.

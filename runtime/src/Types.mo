@@ -47,6 +47,15 @@ module {
     // Generated render code calls this for `<form secure>`. No-op ("") outside
     // a render that needs it.
     mintToken : (handler : Text, schema : Text) -> Text;
+    // Role store, backing `@authorize role="..."`. Reads (hasRole/callerRoles)
+    // are safe anywhere; mutations (grant/revoke/claim) should be called from
+    // event handlers (updates). `claimRole` grants the role to the caller only
+    // if no principal holds it yet — a safe first-come bootstrap.
+    hasRole : (who : Principal, role : Text) -> Bool;
+    callerRoles : () -> [Text];
+    grantRole : (who : Principal, role : Text) -> ();
+    revokeRole : (who : Principal, role : Text) -> ();
+    claimRole : (role : Text) -> Bool;
   };
 
   // ---- View model returned by generated render code ----------------------

@@ -25,6 +25,7 @@ import Security "Security";
 import Html "Html";
 import Sha256 "Sha256";
 import Hex "Hex";
+import Roles "Roles";
 import CertV2 "CertV2";
 import CertifiedData "mo:base/CertifiedData";
 
@@ -172,6 +173,16 @@ module {
     public func bumpEpoch(pt : Text) { epochs.put(pt, epochOf(pt) + 1) };
     public func dumpEpochs() : [(Text, Nat)] { Iter.toArray(epochs.entries()) };
     public func setEpochs(es : [(Text, Nat)]) { for ((k, v) in es.vals()) { epochs.put(k, v) } };
+
+    // ---- role store: principal -> roles. Backs `@authorize role="..."` and the
+    // ctx role API. Persisted by the generated actor (stable var mvRoles).
+    let roleStore = Roles.Store();
+    func hasRole(p : Principal, role : Text) : Bool { roleStore.has(p, role) };
+    func grantRole(p : Principal, role : Text) { roleStore.grant(p, role) };
+    func revokeRole(p : Principal, role : Text) { roleStore.revoke(p, role) };
+    func claimRole(p : Principal, role : Text) : Bool { roleStore.claim(p, role) };
+    public func dumpRoles() : [(Principal, [Text])] { roleStore.dump() };
+    public func setRoles(rs : [(Principal, [Text])]) { roleStore.load(rs) };
 
     func sessionMac(body : Text) : Text {
       Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8(body)));
@@ -716,12 +727,20 @@ module {
         isAuthenticated = not Principal.isAnonymous(caller);
         lastBatchId = last;
         mintToken = mint;
+        hasRole = hasRole;
+        callerRoles = func() : [Text] { roleStore.rolesOf(caller) };
+        grantRole = grantRole;
+        revokeRole = revokeRole;
+        claimRole = func(role : Text) : Bool { claimRole(caller, role) };
       };
     };
 
     func authorized(page : Page, caller : Principal) : Bool {
       if (not page.authorize) { return true };
-      not Principal.isAnonymous(caller);
+      if (Principal.isAnonymous(caller)) { return false };
+      // `@authorize role="X"` additionally requires the caller to hold role X.
+      if (page.role == "") { return true };
+      hasRole(caller, page.role);
     };
 
     func collectArgs(form : [(Text, Text)]) : [Text] {

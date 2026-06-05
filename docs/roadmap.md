@@ -55,6 +55,7 @@ Built and verified end to end — locally and, where it matters, against the IC 
 
 - **Upgrade-stable persistence** — a service exposing `mvStableSave()`/`mvStableLoad(Blob)` (a Candid round-trip) gets an auto-generated `stable var` plus `preupgrade`/`postupgrade` hooks, so its state survives `dfx deploy --mode upgrade`. See [Persistence](persistence.md).
 - **Internet Identity login** — hand-rolled, no npm and no agent-js: a browser IC agent makes one authenticated call, the runtime mints an httpOnly session cookie, and `ctx.caller` resolves from it. Served at `/mv-auth.js`; add `<button data-mv-signin>`. Includes per-principal session revocation.
+- **Role stores** — `@authorize role="Admin"` is enforced against a persisted, per-principal role store. Manage roles from any handler via `ctx.hasRole / grantRole / revokeRole / claimRole / callerRoles`; `claimRole` is a first-come bootstrap for the first admin. Survives `--mode upgrade`. See [Security](security.md).
 - **Certified query rendering** — static framework assets and pages marked `@cacheable` are served as fast **certified queries** (HTTP response-certification v2) instead of upgrading to an update call. Parameterized cacheable routes are covered by a single wildcard certificate (`/u/{handle}` → `/u/<*>`). Dynamic pages keep the consensus-validated update path.
 - **Keyed-region DOM patches** — give list items a `key="..."` and the WASM brain diffs the keyed regions, patching precisely: content changes replace just those items; added/removed/reordered items are inserted/removed/moved (reorder moves the minimum number of nodes). Untouched and merely-moved nodes keep their live state (focus, selection, scroll, media). All the diffing runs in WASM — no application JavaScript. See [Keyed regions](directives-reference.md).
 
@@ -68,7 +69,6 @@ Not yet built. Do not design around these — they are labeled honestly as plann
 
 **Next**
 
-- **Role stores** backing `@authorize role="Admin"` — Internet Identity login ships, but role-based authorization stores do not yet.
 - **Certifying the root `/` and exact-vs-wildcard prefix collisions** — `@cacheable` works for most routes; the root path and an exact route that collides with a wildcard prefix (e.g. `/docs` alongside `/docs/{slug}`) are rejected by the boundary today and safely fall back to the update path.
 - **Model-type-directed `@expr` formatting** — `@expr` already renders correctly via a `debug_show` fallback; loop-var/cross-module field-type inference would refine the output.
 

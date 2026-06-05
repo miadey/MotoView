@@ -34,6 +34,8 @@ check:
 
 test:
 	cargo test --manifest-path compiler/Cargo.toml
+	cargo test --manifest-path client/Cargo.toml
+	$(MOC) -r --package base $(BASE) runtime/test/RolesTest.mo
 
 clean:
 	cargo clean --manifest-path compiler/Cargo.toml || true
