@@ -629,6 +629,23 @@ module {
       if (not Text.contains(d, #text "href=\"/motoview.css\"")) {
         d := Text.replace(d, #text "<head>", "<head><link rel=\"stylesheet\" href=\"/motoview.css\">");
       };
+      // PWA: actually LINK the web manifest (it is served at /manifest.webmanifest
+      // but a page must reference it for the browser to offer "Install") plus the
+      // iOS/standalone meta. Without this the app is not installable.
+      if (not Text.contains(d, #text "rel=\"manifest\"")) {
+        d := Text.replace(
+          d,
+          #text "<head>",
+          "<head><link rel=\"manifest\" href=\"/manifest.webmanifest\">"
+          # "<link rel=\"apple-touch-icon\" href=\"/favicon.svg\">"
+          # "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">"
+          # "<meta name=\"mobile-web-app-capable\" content=\"yes\">"
+          # "<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"default\">",
+        );
+      };
+      if (not Text.contains(d, #text "name=\"theme-color\"")) {
+        d := Text.replace(d, #text "<head>", "<head><meta name=\"theme-color\" content=\"#6d28d9\">");
+      };
       if (not Text.contains(d, #text "src=\"/motoview.js\"")) {
         d := Text.replace(d, #text "</body>", "<script src=\"/motoview.js\" defer></script></body>");
       };

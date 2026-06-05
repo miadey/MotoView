@@ -57,6 +57,18 @@ motoview dev
 
 This is your day-to-day loop. It runs `motoview build`, hands the generated Motoko to `dfx` for a local deploy, and then watches your `.mview` files. Edit a page, save, and the project recompiles and redeploys so you can refresh the browser. The adaptive polling client (hot ~350ms after an interaction, warm ~2.5s while visible) means external state changes show up without a manual reload — see [Protocol](protocol.md) for the cadence details.
 
+## motoview shell
+
+Scaffold native desktop + mobile wrappers around your deployed app.
+
+```bash
+motoview shell --url https://<canister-id>.icp0.io --name "My App"
+```
+
+This writes `clients/desktop-tauri/` (a [Tauri](https://tauri.app) v2 config whose window loads your canister URL) and `clients/mobile-capacitor/` (a [Capacitor](https://capacitorjs.com) config whose `server.url` is your canister), plus a README. Your app's logic stays on-chain; the shells are just native windows pointed at it.
+
+`motoview shell` generates the **configs** — building the actual binaries needs the platform toolchains you supply (`cargo tauri build` for desktop; `npx cap add ios|android` + Xcode/Android Studio for mobile). Before reaching for a native binary, remember every MotoView app is already an **installable PWA** (offline-capable, standalone window) with no build step.
+
 ## motoview compile
 
 Compile a single file. Useful for debugging the compiler or inspecting one template's output.

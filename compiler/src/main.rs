@@ -33,6 +33,7 @@ fn run(args: &[String]) -> i32 {
         "compile" => cmd_compile(&args[1..]),
         "new" => cmd_new(&args[1..]),
         "dev" => cmd_dev(&args[1..]),
+        "shell" => cmd_shell(&args[1..]),
         "version" | "--version" | "-v" => {
             println!("motoview {}", VERSION);
             0
@@ -58,6 +59,7 @@ fn print_help() {
          \x20 motoview check [dir]           Build, then type-check; errors point at your .mview\n\
          \x20 motoview compile <file.mview>  Compile a single file and print the Motoko\n\
          \x20 motoview dev [dir]             Build, then `dfx deploy` to the local replica\n\
+         \x20 motoview shell --url <url>     Scaffold desktop (Tauri) + mobile (Capacitor) shells\n\
          \x20 motoview version               Print the version\n\n\
          Rendering is a query. Events are updates. Write Motoko, ship to ICP.\n"
     );
@@ -355,6 +357,70 @@ fn cmd_new(args: &[String]) -> i32 {
     }
 }
 
+/// `motoview shell [dir] --url <canister-url>` — scaffold native desktop (Tauri)
+/// and mobile (Capacitor) shells that load the app from its canister URL. This
+/// emits CONFIGS; building the actual binaries needs the native toolchains
+/// (Tauri CLI, Xcode, Android SDK) the developer supplies.
+fn cmd_shell(args: &[String]) -> i32 {
+    let dir = PathBuf::from(positional(args).unwrap_or("."));
+    let url = match opt(args, "--url") {
+        Some(u) => u.trim_end_matches('/').to_string(),
+        None => {
+            eprintln!("usage: motoview shell [dir] --url <canister-url> [--name <AppName>] [--id <bundle.id>]\n  e.g. motoview shell --url https://<canister-id>.icp0.io");
+            return 1;
+        }
+    };
+    let name = opt(args, "--name").map(|s| s.to_string()).unwrap_or_else(|| {
+        let n = app_name_for(&dir, None);
+        let mut c = n.chars();
+        match c.next() {
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            None => n,
+        }
+    });
+    let id = opt(args, "--id")
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("app.motoview.{}", name.to_lowercase()));
+    let root = dir.join("clients");
+    let mk = |rel: &str, contents: &str| -> std::io::Result<()> {
+        let p = root.join(rel);
+        if let Some(parent) = p.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(p, contents)
+    };
+    let res = (|| -> std::io::Result<()> {
+        mk("desktop-tauri/src-tauri/tauri.conf.json", &scaffold::tauri_conf(&name, &id, &url))?;
+        mk("desktop-tauri/src-tauri/Cargo.toml", &scaffold::tauri_cargo(&name))?;
+        mk("desktop-tauri/src-tauri/build.rs", "fn main() {\n    tauri_build::build()\n}\n")?;
+        mk("desktop-tauri/src-tauri/src/main.rs", scaffold::TAURI_MAIN_RS)?;
+        mk("desktop-tauri/src-tauri/capabilities/default.json", scaffold::TAURI_CAPABILITIES)?;
+        mk("desktop-tauri/dist/index.html", &scaffold::shell_redirect_html(&url))?;
+        mk("mobile-capacitor/capacitor.config.json", &scaffold::capacitor_conf(&name, &id, &url))?;
+        mk("mobile-capacitor/package.json", &scaffold::capacitor_package(&id))?;
+        mk("mobile-capacitor/www/index.html", &scaffold::shell_redirect_html(&url))?;
+        mk("README.md", &scaffold::shell_readme(&name, &url))?;
+        Ok(())
+    })();
+    match res {
+        Ok(()) => {
+            println!(
+                "scaffolded native shells under {}/clients  (url: {})\n\n\
+                 Desktop (Tauri):   cd clients/desktop-tauri  &&  cargo tauri build   # needs the Tauri CLI\n\
+                 Mobile (Capacitor): cd clients/mobile-capacitor && npm i && npx cap add ios|android && npx cap open ios|android   # needs Xcode / Android SDK\n\n\
+                 These wrap your live canister — the app itself stays on-chain; the shells are just native windows.\n",
+                dir.display(),
+                url
+            );
+            0
+        }
+        Err(e) => {
+            eprintln!("could not scaffold shells: {}", e);
+            1
+        }
+    }
+}
+
 mod scaffold {
     pub const HOME: &str = r#"@page "/"
 @layout MainLayout
@@ -405,5 +471,168 @@ mod scaffold {
             "{{\n  \"name\": \"{}\",\n  \"pages\": \"src/Pages\",\n  \"components\": \"src/Components\",\n  \"layouts\": \"src/Layouts\",\n  \"output\": \".mvbuild/main.mo\",\n  \"seo\": true\n}}\n",
             name
         )
+    }
+
+    // ---- native shell scaffolds (motoview shell) --------------------------
+    pub fn tauri_conf(name: &str, id: &str, url: &str) -> String {
+        format!(
+            r#"{{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "{name}",
+  "version": "0.1.0",
+  "identifier": "{id}.desktop",
+  "build": {{ "frontendDist": "../dist" }},
+  "app": {{
+    "windows": [
+      {{ "title": "{name}", "label": "main", "width": 1200, "height": 820,
+        "minWidth": 380, "minHeight": 600, "resizable": true, "url": "{url}/" }}
+    ],
+    "security": {{ "csp": null }}
+  }},
+  "bundle": {{ "active": true, "targets": "all" }}
+}}
+"#
+        )
+    }
+
+    pub fn tauri_cargo(name: &str) -> String {
+        let c = name.to_lowercase();
+        format!(
+            r#"[package]
+name = "{c}-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = {{ version = "2", features = [] }}
+
+[dependencies]
+tauri = {{ version = "2", features = [] }}
+
+[[bin]]
+name = "{c}-desktop"
+path = "src/main.rs"
+"#
+        )
+    }
+
+    pub const TAURI_MAIN_RS: &str = r#"// The window loads the live canister URL (see tauri.conf.json). The app's logic
+// stays on-chain; this is only a native window. No application code here.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+fn main() {
+    tauri::Builder::default()
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+"#;
+
+    pub const TAURI_CAPABILITIES: &str = r#"{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the main window",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
+"#;
+
+    pub fn capacitor_conf(name: &str, id: &str, url: &str) -> String {
+        format!(
+            r##"{{
+  "appId": "{id}",
+  "appName": "{name}",
+  "webDir": "www",
+  "server": {{ "url": "{url}", "cleartext": false, "androidScheme": "https", "iosScheme": "https" }},
+  "backgroundColor": "#6d28d9ff",
+  "ios": {{ "contentInset": "always" }},
+  "android": {{ "allowMixedContent": false }}
+}}
+"##
+        )
+    }
+
+    pub fn capacitor_package(id: &str) -> String {
+        format!(
+            r#"{{
+  "name": "{id}",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {{ "@capacitor/core": "^6", "@capacitor/ios": "^6", "@capacitor/android": "^6" }},
+  "devDependencies": {{ "@capacitor/cli": "^6" }}
+}}
+"#
+        )
+    }
+
+    pub fn shell_redirect_html(url: &str) -> String {
+        // A declarative meta-refresh fallback (no JavaScript) for the bundled
+        // frontendDist/www; the real app loads from the canister URL.
+        format!(
+            r#"<!doctype html>
+<html><head><meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url={url}/">
+<title>Loading…</title></head>
+<body><p>Loading the app… <a href="{url}/">{url}</a></p></body></html>
+"#
+        )
+    }
+
+    pub fn shell_readme(name: &str, url: &str) -> String {
+        format!(
+            r#"# {name} — native shells
+
+Thin native wrappers around your MotoView app, served from its canister at
+`{url}`. The app's logic stays on-chain; these shells just open a native window
+pointed at it. **No application code lives here.**
+
+## Simplest "native app": install the PWA (no build)
+
+Your MotoView app is already an installable PWA (web manifest + offline service
+worker). Desktop Chrome/Edge: the install icon in the address bar. Android:
+"Add to Home screen". iOS Safari: Share → Add to Home Screen. You get a
+standalone, offline-capable app with zero build steps.
+
+## Desktop (Tauri) — needs the Tauri CLI
+
+```
+cd desktop-tauri
+cargo tauri build      # -> .app / .dmg / .exe / .AppImage
+```
+
+The window loads `{url}` (see `src-tauri/tauri.conf.json`). Install the CLI with
+`cargo install tauri-cli`; add icons under `src-tauri/icons/`.
+
+## Mobile (Capacitor) — needs Xcode (iOS) / Android SDK
+
+```
+cd mobile-capacitor
+npm install
+npx cap add ios            # or: android
+npx cap open ios           # build & run in Xcode / Android Studio
+```
+
+`capacitor.config.json` points `server.url` at `{url}`.
+
+> `motoview shell` generates these configs; building the native binaries needs
+> the platform toolchains (Tauri CLI, Xcode, Android SDK) on your machine.
+"#
+        )
+    }
+}
+
+#[cfg(test)]
+mod shell_tests {
+    use super::scaffold;
+    #[test]
+    fn shell_configs_embed_the_canister_url() {
+        let url = "https://abcde-cai.icp0.io";
+        let t = scaffold::tauri_conf("MyApp", "app.x", url);
+        assert!(t.contains(&format!("\"url\": \"{}/\"", url)), "tauri window url missing:\n{t}");
+        assert!(t.contains("schema.tauri.app"), "not a tauri v2 config:\n{t}");
+        let c = scaffold::capacitor_conf("MyApp", "app.x", url);
+        assert!(c.contains(&format!("\"url\": \"{}\"", url)), "capacitor server url missing:\n{c}");
+        assert!(c.contains("\"appName\": \"MyApp\""), "capacitor appName missing:\n{c}");
+        let r = scaffold::shell_readme("MyApp", url);
+        assert!(r.contains("Xcode") && r.contains("Tauri"), "readme must be honest about native toolchains:\n{r}");
     }
 }
