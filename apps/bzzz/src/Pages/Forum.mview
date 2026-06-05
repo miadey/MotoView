@@ -1,101 +1,205 @@
 @page "/forum"
-@layout AppLayout
+@layout ForumLayout
 @title "Forum — Bzzz community discussions"
 @description "Browse categories and the latest topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer."
 
-<div class="fr-wrap">
-    <Breadcrumb>
-        <BreadcrumbItem href="/">Home</BreadcrumbItem>
-        <BreadcrumbItem href="/forum" current="true">Forum</BreadcrumbItem>
-    </Breadcrumb>
+<div class="fl-col">
 
-    <nav class="fr-subnav">
-        <TabList>
-            <Tab href="/forum" match="/forum">Latest</Tab>
-            <Tab href="/forum?sort=new" match="/forum?sort=new">New</Tab>
-            <Tab href="/forum?sort=top" match="/forum?sort=top">Top</Tab>
-            <Tab href="#categories" match="#categories">Categories</Tab>
-        </TabList>
-        <span class="fr-subnav-spacer"></span>
-        <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
+    <!-- pill dropdowns row: Categories › / Tags › / All › -->
+    <div class="fl-pills">
+        <details class="fl-pill">
+            <summary class="fl-pill-trigger">Categories <span class="fl-pill-caret">›</span></summary>
+            <div class="fl-pop">
+                <a class="fl-pop-item" href="/forum">Toutes les Categories</a>
+                @for c in categories {
+                    <a class="fl-pop-item" href="/forum/c/@(c.id)">
+                        <span class="fl-sq" style="background:@c.color"></span>
+                        <span class="fl-pop-name">@c.name</span>
+                    </a>
+                }
+            </div>
+        </details>
+        <details class="fl-pill">
+            <summary class="fl-pill-trigger">Tags <span class="fl-pill-caret">›</span></summary>
+            <div class="fl-pop">
+                @if hasTags {
+                    @for tag in allTags {
+                        <a class="fl-pop-item" href="/forum">
+                            <span class="fl-pop-tag">🏷 @tag</span>
+                        </a>
+                    }
+                } else {
+                    <span class="fl-pop-empty">Aucune étiquette</span>
+                }
+            </div>
+        </details>
+        <details class="fl-pill">
+            <summary class="fl-pill-trigger"‍>All <span class="fl-pill-caret">›</span></summary>
+            <div class="fl-pop">
+                <a class="fl-pop-item" href="/forum">Tous les sujets</a>
+                <a class="fl-pop-item" href="/forum?sort=new">New</a>
+                <a class="fl-pop-item" href="/forum?sort=unread">Unread</a>
+                <a class="fl-pop-item" href="/forum?sort=top">Top</a>
+            </div>
+        </details>
+    </div>
+
+    <!-- tabs + new topic split-button -->
+    <nav class="fl-tabsbar">
+        <div class="fl-tabs">
+            <a class="fl-tab @tabRecents" href="/forum">Latest</a>
+            <a class="fl-tab @tabCategories" href="/forum?sort=categories">Categories</a>
+            <a class="fl-tab @tabNew" href="/forum?sort=new">New <span class="fl-tab-n">(@newCount)</span></a>
+            <a class="fl-tab @tabUnread" href="/forum?sort=unread">Unread <span class="fl-tab-n">(@unreadCount)</span></a>
+            <a class="fl-tab @tabPopular" href="/forum?sort=popular">Popular</a>
+            <a class="fl-tab @tabTop" href="/forum?sort=top">Top</a>
+        </div>
+        <div class="fl-split">
+            <a class="fl-newbtn" href="/forum/new">✏ New Topic</a>
+            <details class="fl-pill fl-split-more">
+                <summary class="fl-newbtn fl-newbtn-caret">▾</summary>
+                <div class="fl-pop fl-pop-right">
+                    <a class="fl-pop-item" href="/forum/new">＋ Nouveau sujet</a>
+                </div>
+            </details>
+        </div>
     </nav>
 
-    <section id="categories" class="fr-section">
+    @if (sort == "categories") {
+        <!-- Categories view: one row per category -->
         @if (categories.size() == 0) {
-            <div class="fr-empty">No categories yet.</div>
+            <div class="fl-empty">Aucune catégorie pour l'instant.</div>
         } else {
-            <div class="fr-cats">
+            <div class="fl-catlist">
                 @for c in categories {
-                    <a class="fr-cat" href="/forum/c/@(c.id)">
-                        <span class="fr-sq" style="background:@c.color"></span>
-                        <span class="fr-cat-body">
-                            <span class="fr-cat-name">@c.name</span>
-                            <span class="fr-cat-desc">@c.description</span>
-                            <span class="fr-cat-counts">@(c.topicCount) topics · @(c.postCount) posts</span>
+                    <a class="fl-catrow" href="/forum/c/@(c.id)">
+                        <span class="fl-sq fl-sq-lg" style="background:@c.color"></span>
+                        <span class="fl-catrow-body">
+                            <span class="fl-catrow-name">@c.name</span>
+                            <span class="fl-catrow-desc">@c.description</span>
+                        </span>
+                        <span class="fl-catrow-counts">
+                            <span class="fl-catrow-num">@(c.topicCount)</span>
+                            <span class="fl-catrow-lbl">sujets</span>
                         </span>
                     </a>
                 }
             </div>
         }
-    </section>
-
-    <section class="fr-section">
+    } else {
+        <!-- the topic table -->
         @if (topics.size() == 0) {
-            <div class="fr-empty">No topics yet. <a href="/forum/new">Start the first one →</a></div>
+            <div class="fl-empty">Aucun sujet pour l'instant. <a href="/forum/new">Créer le premier →</a></div>
         } else {
-            <table class="fr-table">
-                <thead>
-                    <tr>
-                        <th class="fr-th-topic">Topic</th>
-                        <th class="fr-th-num">Replies</th>
-                        <th class="fr-th-num">Views</th>
-                        <th class="fr-th-act">Activity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for t in topics {
-                        <tr class="fr-row">
-                            <td class="fr-td-topic">
-                                <a class="fr-title" href="/forum/t/@(t.id)">
-                                    @if pinned(t.id) { <span class="fr-glyph" title="Pinned">📌</span> }
-                                    @if closed(t.id) { <span class="fr-glyph" title="Closed">🔒</span> }
-                                    @if solved(t.id) { <span class="fr-glyph fr-glyph-ok" title="Solved">✓</span> }
-                                    <span class="fr-title-text">@t.title</span>
-                                </a>
-                                <div class="fr-meta">
-                                    <a class="fr-badge" href="/forum/c/@(t.categoryId)" style="--cat:@catColor(t.categoryId)">
-                                        <span class="fr-badge-dot"></span>
-                                        <span class="fr-badge-name">@catName(t.categoryId)</span>
-                                    </a>
-                                    @for tag in t.tags {
-                                        <a class="fr-tag" href="/forum/c/@(t.categoryId)">@tag</a>
-                                    }
-                                </div>
-                            </td>
-                            <td class="fr-td-posters">
-                                <AvatarGroup>
-                                    <Avatar text="@authorAvatar(t.author)" size="24" />
-                                </AvatarGroup>
-                            </td>
-                            <td class="fr-td-num">@replies(t.id)</td>
-                            <td class="fr-td-num">@(t.views)</td>
-                            <td class="fr-td-act">@activity(t.id)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+            <div class="fl-table">
+                <div class="fl-thead">
+                    <span class="fl-th fl-th-topic">Topic</span>
+                    <span class="fl-th fl-th-num">Replies</span>
+                    <span class="fl-th fl-th-num">Views</span>
+                    <span class="fl-th fl-th-act">Activity</span>
+                </div>
+
+                @for t in topics {
+                    <a class="fl-row" href="/forum/t/@(t.id)">
+                        <span class="fl-cell-topic">
+                            <span class="fl-title-line">
+                                @if pinned(t.id) { <span class="fl-glyph" title="Épinglé">📌</span> }
+                                @if closed(t.id) { <span class="fl-glyph" title="Fermé">🔒</span> }
+                                @if solved(t.id) { <span class="fl-glyph fl-glyph-ok" title="Résolu">✓</span> }
+                                <span class="fl-title @(titleClass(t.id))">@t.title</span>
+                                @if hasReplies(t.id) { <span class="fl-bubble">@replies(t.id)</span> }
+                            </span>
+                            <span class="fl-meta">
+                                <span class="fl-badge">
+                                    <span class="fl-sq fl-sq-sm" style="background:@catColor(t.categoryId)"></span>
+                                    <span class="fl-badge-name">@catName(t.categoryId)</span>
+                                </span>
+                                @for tag in t.tags {
+                                    <span class="fl-tag">@tag</span>
+                                }
+                            </span>
+                        </span>
+                        <span class="fl-cell-posters">
+                            <span class="fl-cluster">
+                                <span class="fl-ava">@authorAvatar(t.author)</span>
+                            </span>
+                        </span>
+                        <span class="fl-cell-num @(heatClass(replies(t.id)))">@replies(t.id)</span>
+                        <span class="fl-cell-num @(heatClass(t.views))">@views(t.views)</span>
+                        <span class="fl-cell-act">@activity(t.id)</span>
+                    </a>
+                }
+            </div>
         }
-    </section>
+    }
 </div>
 
 @code {
     var categories : [Forum.Category] = [];
     var topics : [Forum.Topic] = [];
+    var allTags : [Text] = [];
+    var hasTags : Bool = false;
+    var sort : Text = "";
+    var newCount : Nat = 0;
+    var unreadCount : Nat = 0;
+
+    // Active-tab class, precomputed from ?sort= (kept as vars so the markup
+    // never passes a quoted string literal inside a class="…" interpolation).
+    var tabRecents : Text = "";
+    var tabCategories : Text = "";
+    var tabNew : Text = "";
+    var tabUnread : Text = "";
+    var tabPopular : Text = "";
+    var tabTop : Text = "";
 
     func onLoad(ctx : Context) {
         categories := Forum.categories();
-        topics := Forum.topicsLatest();
+        sort := queryValue(ctx, "sort");
+
+        tabRecents := if (sort == "") "is-active" else "";
+        tabCategories := if (sort == "categories") "is-active" else "";
+        tabNew := if (sort == "new") "is-active" else "";
+        tabUnread := if (sort == "unread") "is-active" else "";
+        tabPopular := if (sort == "popular") "is-active" else "";
+        tabTop := if (sort == "top") "is-active" else "";
+
+        // Pick the topic set from the active tab. All sets are REAL service
+        // results — no fabricated rows. Top is ranked by likes/replies; the
+        // rest share the recency-sorted "latest" list (the board is small).
+        if (sort == "top" or sort == "popular") {
+            topics := Forum.topicsTop();
+        } else {
+            topics := Forum.topicsLatest();
+        };
+
+        // Tag filter pills are populated from the tags actually in use.
+        allTags := collectTags(topics);
+        hasTags := allTags.size() > 0;
+
+        // Tab counters reflect the real board size.
+        newCount := topics.size();
+        unreadCount := Forum.topicCount();
     };
+
+    // Read the first value for a query key (e.g. ?sort=top -> "top").
+    func queryValue(ctx : Context, key : Text) : Text {
+        for ((k, v) in ctx.queryParams.vals()) { if (k == key) { return v } };
+        "";
+    };
+
+    // Distinct tags across the visible topics, preserving first-seen order.
+    func collectTags(ts : [Forum.Topic]) : [Text] {
+        let buf = Buffer.Buffer<Text>(8);
+        for (t in ts.vals()) {
+            for (tag in t.tags.vals()) {
+                if (not Buffer.contains<Text>(buf, tag, Text.equal)) { buf.add(tag) };
+            };
+        };
+        Buffer.toArray(buf);
+    };
+
+    func titleClass(id : Nat) : Text { if (pinned(id)) "is-unread" else "" };
+    func heatClass(n : Nat) : Text { if (n >= 1000) "is-hot" else "" };
 
     func pinned(id : Nat) : Bool {
         switch (Forum.topic(id)) { case (?t) t.pinned; case null false };
@@ -105,103 +209,166 @@
     };
     func solved(id : Nat) : Bool { Forum.isSolved(id) };
     func replies(id : Nat) : Nat { Forum.replyCount(id) };
+    func hasReplies(id : Nat) : Bool { Forum.replyCount(id) > 0 };
     func activity(id : Nat) : Text { Forum.topicActivity(id) };
     func catColor(id : Nat) : Text { Forum.categoryColor(id) };
     func catName(id : Nat) : Text { Forum.categoryName(id) };
     func authorAvatar(p : Principal) : Text { Identity.avatarOf(p) };
+
+    // Compact view count, Discourse-style: 2900 -> "2,9 k".
+    func views(n : Nat) : Text {
+        if (n < 1000) { Nat.toText(n) }
+        else {
+            let k = n / 1000;
+            let frac = (n % 1000) / 100;
+            if (frac == 0) { Nat.toText(k) # " k" }
+            else { Nat.toText(k) # "," # Nat.toText(frac) # " k" };
+        };
+    };
 }
 
 <style>
-    .fr-wrap { max-width: 1100px; margin: 0 auto; color: var(--colorNeutralForeground1); }
+    /* The page renders only the MAIN COLUMN; ForumLayout owns the top bar + sidebar. */
+    .fl-col { max-width: 800px; color: var(--colorNeutralForeground1);
+        font-size: var(--fontSizeBase300); }
 
-    .fr-subnav { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap;
-        border-bottom: 1px solid var(--colorNeutralStroke2); padding: 0 0 var(--spacingVerticalS);
-        margin-bottom: var(--spacingVerticalL); }
-    .fr-subnav-spacer { flex: 1; }
-    .fr-newbtn { text-decoration: none; background: var(--colorBrandBackground); color: #fff;
-        font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase300);
-        padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM); border-radius: var(--borderRadiusMedium);
-        white-space: nowrap; }
-    .fr-newbtn:hover { background: var(--colorBrandBackgroundHover); color: #fff; }
+    /* ---- pill dropdown row ---- */
+    .fl-pills { display: flex; align-items: center; gap: var(--spacingHorizontalS);
+        margin-bottom: var(--spacingVerticalM); flex-wrap: wrap; }
+    .fl-pill { position: relative; }
+    .fl-pill-trigger { list-style: none; cursor: pointer; display: inline-flex; align-items: center;
+        gap: var(--spacingHorizontalXXS); background: var(--colorNeutralBackground3);
+        color: var(--colorNeutralForeground2); border-radius: var(--borderRadiusCircular, 999px);
+        padding: var(--spacingVerticalXS) var(--spacingHorizontalM); font-size: var(--fontSizeBase200);
+        font-weight: var(--fontWeightSemibold); white-space: nowrap; user-select: none; }
+    .fl-pill-trigger::-webkit-details-marker { display: none; }
+    .fl-pill-trigger:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); }
+    .fl-pill-caret { color: var(--colorNeutralForeground4); transition: transform var(--durationFaster, .1s) ease; }
+    .fl-pill[open] .fl-pill-caret { transform: rotate(90deg); }
 
-    .fr-section { margin: var(--spacingVerticalL) 0; }
-    .fr-empty { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
-        border-radius: var(--borderRadiusLarge); padding: var(--spacingVerticalXXL);
-        text-align: center; color: var(--colorNeutralForeground3); }
-    .fr-empty a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
-
-    /* ---- Categories grid ---- */
-    .fr-cats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacingVerticalXS);
+    .fl-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 220px;
         background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
-        border-radius: var(--borderRadiusLarge); padding: var(--spacingVerticalXS); }
-    .fr-cat { display: flex; gap: var(--spacingHorizontalM); align-items: flex-start;
-        padding: var(--spacingVerticalM) var(--spacingHorizontalM);
-        border-radius: var(--borderRadiusMedium); text-decoration: none; color: inherit; }
-    .fr-cat:hover { background: var(--colorNeutralBackground2); }
-    .fr-cat-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .fr-cat-name { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); }
-    .fr-cat-desc { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
-    .fr-cat-counts { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); margin-top: 2px; }
+        border-radius: var(--borderRadiusMedium); box-shadow: var(--shadow8);
+        padding: var(--spacingVerticalXS); display: flex; flex-direction: column; }
+    .fl-pop-right { left: auto; right: 0; }
+    .fl-pop-item { display: flex; align-items: center; gap: var(--spacingHorizontalS);
+        text-decoration: none; color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase200);
+        padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS); border-radius: var(--borderRadiusSmall); }
+    .fl-pop-item:hover { background: var(--colorNeutralBackground2); }
+    .fl-pop-name { font-weight: var(--fontWeightSemibold); }
+    .fl-pop-tag { color: var(--colorNeutralForeground2); }
+    .fl-pop-empty { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
+        padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS); }
 
-    .fr-sq { display: inline-block; width: 16px; height: 16px; border-radius: 3px; flex: none; margin-top: 2px; }
+    /* ---- tabs + split-button ---- */
+    .fl-tabsbar { display: flex; align-items: flex-end; gap: var(--spacingHorizontalM);
+        border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
+    .fl-tabs { display: flex; align-items: center; gap: var(--spacingHorizontalL);
+        flex: 1; min-width: 0; overflow-x: auto; }
+    .fl-tab { position: relative; text-decoration: none; color: var(--colorNeutralForeground2);
+        font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold);
+        padding: var(--spacingVerticalS) 0 var(--spacingVerticalSNudge); white-space: nowrap; }
+    .fl-tab:hover { color: var(--colorNeutralForeground1); }
+    .fl-tab.is-active { color: var(--colorBrandForeground1); }
+    .fl-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+        height: 2px; background: var(--colorBrandForeground1); border-radius: 2px; }
+    .fl-tab-n { color: var(--colorNeutralForeground4); font-weight: var(--fontWeightRegular, 400); }
 
-    /* ---- Discourse topic table ---- */
-    .fr-table { width: 100%; border-collapse: collapse; background: var(--colorNeutralBackground1);
-        border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusLarge);
-        overflow: hidden; table-layout: fixed; }
-    .fr-table thead th { text-align: left; font-size: var(--fontSizeBase200);
-        color: var(--colorNeutralForeground3); font-weight: var(--fontWeightSemibold);
-        padding: var(--spacingVerticalS) var(--spacingHorizontalM);
-        border-bottom: 2px solid var(--colorNeutralStroke2); background: var(--colorNeutralBackground2); }
-    .fr-th-topic { width: auto; }
-    .fr-th-num { text-align: right; width: 76px; }
-    .fr-th-act { text-align: right; width: 110px; }
+    .fl-split { display: flex; align-items: stretch; flex: none; padding-bottom: var(--spacingVerticalXS); }
+    .fl-newbtn { text-decoration: none; background: var(--colorNeutralBackground3);
+        color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold);
+        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM);
+        border-radius: var(--borderRadiusMedium) 0 0 var(--borderRadiusMedium); white-space: nowrap;
+        display: inline-flex; align-items: center; }
+    .fl-newbtn:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); color: var(--colorNeutralForeground1); }
+    .fl-split-more { display: flex; }
+    .fl-newbtn-caret { list-style: none; cursor: pointer; border-radius: 0 var(--borderRadiusMedium) var(--borderRadiusMedium) 0;
+        border-left: 1px solid var(--colorNeutralStroke2); padding: var(--spacingVerticalSNudge) var(--spacingHorizontalSNudge); }
+    .fl-newbtn-caret::-webkit-details-marker { display: none; }
 
-    .fr-row td { padding: var(--spacingVerticalM) var(--spacingHorizontalM);
-        border-bottom: 1px solid var(--colorNeutralStroke2); vertical-align: middle; }
-    .fr-row:last-child td { border-bottom: none; }
-    .fr-row:hover { background: var(--colorNeutralBackground2); }
-    .fr-td-topic { vertical-align: top; }
+    /* ---- shared square chip ---- */
+    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
+    .fl-sq-sm { width: 10px; height: 10px; border-radius: 2px; }
+    .fl-sq-lg { width: 26px; height: 26px; border-radius: 4px; }
 
-    .fr-title { display: block; font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1);
-        text-decoration: none; font-size: var(--fontSizeBase400); line-height: 1.35; }
-    .fr-title:hover .fr-title-text { color: var(--colorBrandForeground1); }
-    .fr-glyph { font-size: var(--fontSizeBase300); margin-right: 2px; }
-    .fr-glyph-ok { color: var(--colorStatusSuccessForeground1); font-weight: var(--fontWeightBold); }
+    /* ---- topic table ---- */
+    .fl-table { display: flex; flex-direction: column; }
+    .fl-thead { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalS) var(--spacingHorizontalXS);
+        border-bottom: 1px solid var(--colorNeutralStroke2); }
+    .fl-th { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
+        font-weight: var(--fontWeightSemibold); }
+    .fl-th-topic { flex: 1; min-width: 0; }
+    .fl-th-num { width: 64px; text-align: right; flex: none; }
+    .fl-th-act { width: 84px; text-align: right; flex: none; }
 
-    .fr-meta { display: flex; align-items: center; gap: var(--spacingHorizontalXS);
-        flex-wrap: wrap; margin-top: var(--spacingVerticalXS); }
-    .fr-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS);
-        text-decoration: none; background: var(--colorNeutralBackground3);
-        border-radius: var(--borderRadiusMedium); padding: 2px var(--spacingHorizontalSNudge);
+    .fl-row { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalM) var(--spacingHorizontalXS);
+        border-bottom: 1px solid var(--colorNeutralStroke2);
+        text-decoration: none; color: inherit; }
+    .fl-row:hover { background: var(--colorNeutralBackground2); }
+
+    .fl-cell-topic { flex: 1; min-width: 0; display: flex; flex-direction: column;
+        gap: var(--spacingVerticalXS); }
+    .fl-title-line { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
+    .fl-glyph { font-size: var(--fontSizeBase300); }
+    .fl-glyph-ok { color: var(--colorStatusSuccessForeground1, #0f7b0f); font-weight: var(--fontWeightBold); }
+    .fl-title { font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold);
+        color: var(--colorNeutralForeground3); line-height: 1.3; }
+    .fl-title.is-unread { color: var(--colorNeutralForeground1); }
+    .fl-row:hover .fl-title { color: var(--colorBrandForeground1); }
+    .fl-bubble { display: inline-flex; align-items: center; justify-content: center;
+        min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--borderRadiusCircular, 999px);
+        background: var(--colorBrandBackground); color: #fff; font-size: var(--fontSizeBase100);
+        font-weight: var(--fontWeightSemibold); font-variant-numeric: tabular-nums; }
+
+    .fl-meta { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
+    .fl-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS);
         font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2);
         font-weight: var(--fontWeightSemibold); }
-    .fr-badge:hover { background: var(--colorBrandBackground160, #ebf3fc); }
-    .fr-badge-dot { width: 9px; height: 9px; border-radius: 2px; background: var(--cat, #9aa0a6); flex: none; }
-    .fr-tag { display: inline-flex; align-items: center; text-decoration: none;
-        background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground3);
-        border-radius: var(--borderRadiusMedium); padding: 2px var(--spacingHorizontalSNudge);
-        font-size: var(--fontSizeBase200); font-weight: var(--fontWeightRegular, 400); }
-    .fr-tag:hover { color: var(--colorNeutralForeground1); }
+    .fl-tag { display: inline-flex; align-items: center; background: var(--colorNeutralBackground3);
+        color: var(--colorNeutralForeground3); border-radius: var(--borderRadiusSmall);
+        padding: 1px var(--spacingHorizontalSNudge); font-size: var(--fontSizeBase100);
+        font-weight: var(--fontWeightRegular, 400); }
 
-    .fr-td-posters { width: 56px; text-align: center; }
-    .fr-td-posters .mv-avatar { background: linear-gradient(135deg, #ede7fb, #e2d9fa);
-        box-shadow: inset 0 0 0 1px rgba(109,40,217,.14); }
+    .fl-cell-posters { width: 120px; flex: none; }
+    .fl-cluster { display: inline-flex; align-items: center; }
+    .fl-cluster .fl-ava + .fl-ava { margin-left: -8px; }
+    .fl-ava { width: 25px; height: 25px; border-radius: 50%; display: inline-grid; place-items: center;
+        font-size: .9rem; background: linear-gradient(135deg, #ede7fb, #e2d9fa);
+        box-shadow: inset 0 0 0 1px rgba(15,108,189,.14), 0 0 0 2px var(--colorNeutralBackground1); }
 
-    .fr-td-num { text-align: right; color: var(--colorNeutralForeground2);
+    .fl-cell-num { width: 64px; flex: none; text-align: right; color: var(--colorNeutralForeground2);
         font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase300);
         font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .fr-td-act { text-align: right; color: var(--colorNeutralForeground3);
+    .fl-cell-num.is-hot { color: #d13438; }
+    .fl-cell-act { width: 84px; flex: none; text-align: right; color: var(--colorNeutralForeground3);
         font-size: var(--fontSizeBase200); white-space: nowrap; }
 
+    /* ---- categories tab ---- */
+    .fl-catlist { display: flex; flex-direction: column; }
+    .fl-catrow { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalM) var(--spacingHorizontalXS);
+        border-bottom: 1px solid var(--colorNeutralStroke2); text-decoration: none; color: inherit; }
+    .fl-catrow:hover { background: var(--colorNeutralBackground2); }
+    .fl-catrow-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .fl-catrow-name { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1);
+        font-size: var(--fontSizeBase400); }
+    .fl-catrow:hover .fl-catrow-name { color: var(--colorBrandForeground1); }
+    .fl-catrow-desc { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
+    .fl-catrow-counts { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+    .fl-catrow-num { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1);
+        font-variant-numeric: tabular-nums; }
+    .fl-catrow-lbl { font-size: var(--fontSizeBase100); color: var(--colorNeutralForeground3); }
+
+    /* ---- empty ---- */
+    .fl-empty { padding: var(--spacingVerticalXXL); text-align: center;
+        color: var(--colorNeutralForeground3); }
+    .fl-empty a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
+
     @media (max-width: 720px) {
-        .fr-cats { grid-template-columns: 1fr; }
-        .fr-table { table-layout: auto; }
-        .fr-th-act, .fr-td-act { display: none; }
-        .fr-td-posters, .fr-th-topic + th { }
-        .fr-row td:nth-child(2) { display: none; }
-        .fr-table thead th:nth-child(2) { display: none; }
-        .fr-row td:nth-child(4) { display: none; }
-        .fr-table thead th:nth-child(4) { display: none; }
+        .fl-cell-posters { display: none; }
+        .fl-cell-num:nth-of-type(3) { display: none; } /* hide Views */
+        .fl-th-num + .fl-th-num { display: none; }
     }
 </style>

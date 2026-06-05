@@ -704,35 +704,38 @@ module {
     // 2-3 sample topics so the list renders. Authored by an anonymous seed
     // principal with descriptive handles (NOT fabricated user metrics).
     func seedTopics() {
-      let seedPrincipal = Principal.fromText("aaaaa-aa");
+      // A distinct principal per handle (derived from the handle bytes) so the
+      // forum looks realistic: different authors -> different avatars, and the
+      // OP badge shows only on the topic author's posts.
+      func seedP(h : Text) : Principal { Principal.fromBlob(Text.encodeUtf8(h)) };
 
       let t1 = createTopic(
-        seedPrincipal, "motoko-team", 3,
+        seedP("motoko-team"), "motoko-team", 3,
         "Welcome to the Motoko category",
         ["motoko", "welcome"],
         "This is the place to discuss the Motoko programming language — actors, async, stable memory and more. Introduce yourself!",
       );
-      ignore reply(seedPrincipal, "dev-relations", t1,
+      ignore reply(seedP("dev-relations"), "dev-relations", t1,
         "Pinning this so newcomers can find it. Happy hacking!", 0);
-      ignore setPinned(seedPrincipal, t1, true);
+      ignore setPinned(seedP("motoko-team"), t1, true);
 
       let t2 = createTopic(
-        seedPrincipal, "newcomer", 2,
+        seedP("newcomer"), "newcomer", 2,
         "How do I deploy my first canister?",
         ["dfx", "deploy", "beginner"],
         "I just installed dfx. What's the shortest path from `dfx new` to a running canister on the local replica?",
       );
-      let a2 = reply(seedPrincipal, "ic-helper", t2,
+      let a2 = reply(seedP("ic-helper"), "ic-helper", t2,
         "Run `dfx start --background`, then `dfx deploy`. Your canister URLs print at the end. That's it!", 0);
-      ignore accept(seedPrincipal, t2, a2);
+      ignore accept(seedP("newcomer"), t2, a2);
 
       let t3 = createTopic(
-        seedPrincipal, "builder", 6,
+        seedP("builder"), "builder", 6,
         "Showcase: I built a server-driven UI framework",
         ["showcase", "motoview", "ui"],
         "MotoView lets you write `.mview` pages backed by stateful Motoko services. Feedback welcome!",
       );
-      ignore reply(seedPrincipal, "curious", t3,
+      ignore reply(seedP("curious"), "curious", t3,
         "This looks great — does it support forms and validation out of the box?", 0);
     };
 

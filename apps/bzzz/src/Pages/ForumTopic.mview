@@ -1,5 +1,5 @@
 @page "/forum/t/{id:Nat}"
-@layout AppLayout
+@layout ForumLayout
 @title (topicTitle # " — Bzzz Forum")
 @description topicDescription
 
@@ -7,123 +7,150 @@
 
 @if exists {
 
-    <header class="ft-head">
-        <Breadcrumb>
-            <BreadcrumbItem href="/">Home</BreadcrumbItem>
-            <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
-            <BreadcrumbItem href="/forum/c/@categoryId" current="true">@catName</BreadcrumbItem>
-        </Breadcrumb>
-        <div class="ft-cat">
-            <span class="ft-cat-sq" style="--c:@catColor"></span>
-            <a class="ft-cat-name" href="/forum/c/@categoryId">@catName</a>
-        </div>
-        <h1 class="ft-title">
-            @if pinned { <span class="ft-glyph" title="Pinned">📌</span> }
-            @if closed { <span class="ft-glyph" title="Closed">🔒</span> }
-            @if solved { <span class="ft-glyph" title="Solved">✅</span> }
-            @topicTitle
-        </h1>
-        @if hasTags {
-            <div class="ft-tags">
-                @for t in tags {
-                    <Tag>@t</Tag>
+    <div class="ft-cols">
+
+        <main class="ft-main">
+
+            <header class="ft-head">
+                <h1 class="ft-title">
+                    @if pinned { <span class="ft-glyph" title="Pinned">📌</span> }
+                    @if closed { <span class="ft-glyph" title="Closed">🔒</span> }
+                    @if solved { <span class="ft-glyph" title="Solved">✅</span> }
+                    @topicTitle
+                </h1>
+                <div class="ft-cat">
+                    <a class="ft-cat-badge" href="/forum/c/@categoryId" style="--c:@catColor">
+                        <span class="ft-cat-sq"></span>
+                        <span class="ft-cat-name">@catName</span>
+                    </a>
+                    @for t in tags {
+                        <a class="ft-tag" href="/forum/c/@categoryId">@t</a>
+                    }
+                </div>
+            </header>
+
+            @if isAuthor {
+                <div class="ft-mod">
+                    <span class="ft-mod-label">Topic controls</span>
+                    @if pinned {
+                        <button class="ft-mod-btn" @click="togglePin">Unpin</button>
+                    } else {
+                        <button class="ft-mod-btn" @click="togglePin">Pin</button>
+                    }
+                    @if closed {
+                        <button class="ft-mod-btn" @click="toggleClose">Reopen</button>
+                    } else {
+                        <button class="ft-mod-btn" @click="toggleClose">Close</button>
+                    }
+                    @if solved {
+                        <button class="ft-mod-btn" @click="clearSolution">Clear solution</button>
+                    }
+                </div>
+            }
+
+            <div class="ft-stream">
+                @for p in posts {
+                    <article class="ft-post @(postClass(p.id))" id="post-@p.id">
+                        @if isAccepted(p.id) {
+                            <div class="ft-solution-tag">✓ Solution</div>
+                        }
+                        <div class="ft-post-row">
+                            <div class="ft-avatar">@(avatarFor(p.author))</div>
+                            <div class="ft-post-main">
+                                <div class="ft-post-head">
+                                    <span class="ft-name">@p.authorHandle</span>
+                                    @if isOp(p.author) {
+                                        <span class="ft-op-badge" title="Original poster">OP</span>
+                                    }
+                                    <span class="ft-when">@(when(p.at))</span>
+                                </div>
+                                <div class="ft-body">@p.body</div>
+                                <div class="ft-actions">
+                                    <span class="ft-actions-left">
+                                        @if likedBy(p.id) {
+                                            <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Unlike">
+                                                <span class="ft-heart">♥</span>
+                                                <span class="ft-count">@p.likeCount</span>
+                                            </button>
+                                        } else {
+                                            <button class="ft-act" @click="toggleLike(p.id)" title="Like">
+                                                <span class="ft-heart">♡</span>
+                                                @if hasLikes(p.likeCount) {
+                                                    <span class="ft-count">@p.likeCount</span>
+                                                }
+                                            </button>
+                                        }
+                                    </span>
+                                    <span class="ft-actions-right">
+                                        @if isAccepted(p.id) {
+                                            @if isAuthor {
+                                                <button class="ft-act ft-act-accepted" @click="unaccept" title="Unmark solution">✓ Solution</button>
+                                            }
+                                        } else if canAccept(p.author) {
+                                            <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title="Mark as solution">Accept answer</button>
+                                        }
+                                        <a class="ft-act" href="#reply" title="Reply">↩ Reply</a>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        @if isOp(p.author) {
+                            <div class="ft-summary">
+                                <span class="ft-sum-stat">@views views</span>
+                                <span class="ft-sum-dot">·</span>
+                                <span class="ft-sum-stat">@likeTotal likes</span>
+                                <span class="ft-sum-dot">·</span>
+                                <span class="ft-sum-stat">@participants participants</span>
+                                <span class="ft-sum-dot">·</span>
+                                <span class="ft-sum-stat">@readTime min read</span>
+                            </div>
+                        }
+                    </article>
                 }
             </div>
-        }
-        <div class="ft-sub">
-            <span>@replyCount replies</span>
-            <span class="ft-dot">·</span>
-            <span>@views views</span>
-            <span class="ft-dot">·</span>
-            <span>last activity @activity</span>
-        </div>
-    </header>
 
-    @if isAuthor {
-        <div class="ft-mod">
-            <span class="ft-mod-label">Topic controls</span>
-            @if pinned {
-                <button class="ft-mod-btn" @click="togglePin">Unpin</button>
-            } else {
-                <button class="ft-mod-btn" @click="togglePin">Pin</button>
-            }
             @if closed {
-                <button class="ft-mod-btn" @click="toggleClose">Reopen</button>
-            } else {
-                <button class="ft-mod-btn" @click="toggleClose">Close</button>
-            }
-            @if solved {
-                <button class="ft-mod-btn" @click="clearSolution">Clear solution</button>
-            }
-        </div>
-    }
-
-    <div class="ft-stream">
-        @for p in posts {
-            <article class="ft-post @(postClass(p.id))" id="post-@p.id">
-                @if isAccepted(p.id) {
-                    <div class="ft-solution-tag">✅ Solution</div>
-                }
-                <div class="ft-post-row">
-                    <div class="ft-avatar">@avatarFor(p.author)</div>
-                    <div class="ft-post-main">
-                        <div class="ft-post-head">
-                            <span class="ft-handle">@p.authorHandle</span>
-                            @if isOp(p.replyToPost) {
-                                <span class="ft-op-badge">OP</span>
-                            }
-                            <span class="ft-when">@when(p.at)</span>
-                        </div>
-                        <div class="ft-body">@p.body</div>
-                        <div class="ft-actions">
-                            @if likedBy(p.id) {
-                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Unlike">
-                                    <span class="ft-heart">♥</span>
-                                    <span class="ft-count">@p.likeCount</span>
-                                </button>
-                            } else {
-                                <button class="ft-act" @click="toggleLike(p.id)" title="Like">
-                                    <span class="ft-heart">♡</span>
-                                    @if hasLikes(p.likeCount) {
-                                        <span class="ft-count">@p.likeCount</span>
-                                    }
-                                </button>
-                            }
-                            <a class="ft-act" href="#reply" title="Reply">↩ Reply</a>
-                            @if isAccepted(p.id) {
-                                @if isAuthor {
-                                    <button class="ft-act ft-act-accepted" @click="unaccept" title="Unmark solution">✓ Solution</button>
-                                }
-                            } else if canAccept(p.replyToPost) {
-                                <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title="Mark as solution">Accept answer</button>
-                            }
-                        </div>
-                    </div>
+                <div class="ft-closed-note">
+                    🔒 This topic is closed. New replies are disabled.
                 </div>
-            </article>
-        }
-    </div>
-
-    @if closed {
-        <div class="ft-closed-note">
-            🔒 This topic is closed. New replies are disabled.
-        </div>
-    } else {
-        <div class="ft-composer bz-card" id="reply">
-            <h3 class="ft-composer-title">Reply</h3>
-            @if signedIn {
-                <form @submit="submitReply" secure>
-                    <ValidationSummary />
-                    <TextArea name="body" label="Your reply" bind="@body" required />
-                    <div class="ft-composer-actions">
-                        <Button kind="primary" type="submit">Reply</Button>
-                    </div>
-                </form>
             } else {
-                <p class="ft-signin-note">Pick a handle on <a href="/me">your profile</a> to join the discussion.</p>
+                <div class="ft-composer bz-card" id="reply">
+                    <h3 class="ft-composer-title">Reply</h3>
+                    @if signedIn {
+                        <form @submit="submitReply" secure>
+                            <ValidationSummary />
+                            <TextArea name="body" label="Your reply" bind="@body" required />
+                            <div class="ft-composer-actions">
+                                <Button kind="primary" type="submit">Reply</Button>
+                            </div>
+                        </form>
+                    } else {
+                        <p class="ft-signin-note">Pick a handle on <a href="/me">your profile</a> to join the discussion.</p>
+                    }
+                </div>
             }
-        </div>
-    }
+
+        </main>
+
+        <aside class="ft-timeline" aria-label="Topic timeline">
+            <div class="ft-tl-date">@lastActivity</div>
+            <div class="ft-tl-count">
+                <span class="ft-tl-now">@postTotal</span>
+                <span class="ft-tl-sep">/</span>
+                <span class="ft-tl-total">@postTotal</span>
+            </div>
+            <div class="ft-tl-track">
+                <span class="ft-tl-thumb"></span>
+            </div>
+            <div class="ft-tl-date ft-tl-start">@firstActivity</div>
+            <div class="ft-tl-read">@readTime min read</div>
+            <div class="ft-tl-btns">
+                <a class="ft-tl-btn" href="#reply" title="Reply">↩</a>
+                <span class="ft-tl-btn ft-tl-bell" title="Notifications">🔔</span>
+            </div>
+        </aside>
+
+    </div>
 
 } else {
 
@@ -140,17 +167,25 @@
 <style>
     .ft-wrap { max-width: 1100px; margin: 0 auto; color: var(--colorNeutralForeground1); }
 
-    .ft-head { padding: 0 0 var(--spacingVerticalL); border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalL); }
-    .ft-cat { display: flex; align-items: center; gap: var(--spacingHorizontalXS); margin-bottom: var(--spacingVerticalSNudge); }
-    .ft-cat-sq { width: 13px; height: 13px; border-radius: 3px; background: var(--c, #9aa0a6); display: inline-block; }
-    .ft-cat-name { color: var(--colorNeutralForeground3); text-decoration: none; font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold); }
-    .ft-cat-name:hover { color: var(--colorBrandForeground1); }
-    .ft-title { margin: 0; font-size: var(--fontSizeBase600, 1.7rem); line-height: 1.25; letter-spacing: -.01em; font-weight: var(--fontWeightBold); }
+    /* Two-column shell: flat post stream + the iconic Discourse timeline scrubber. */
+    .ft-cols { display: flex; align-items: flex-start; gap: var(--spacingHorizontalXL); }
+    .ft-main { flex: 1; min-width: 0; }
+
+    .ft-head { padding: 0 0 var(--spacingVerticalM); border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
+    .ft-title { margin: 0 0 var(--spacingVerticalS); font-size: var(--fontSizeBase600, 1.7rem); line-height: 1.25; letter-spacing: -.01em; font-weight: var(--fontWeightBold); }
     .ft-glyph { font-size: 1.15rem; margin-right: .2rem; }
-    .ft-tags { display: flex; flex-wrap: wrap; gap: var(--spacingHorizontalXS); margin-top: var(--spacingVerticalS); }
-    .ft-tag { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); padding: 2px var(--spacingHorizontalSNudge); border-radius: var(--borderRadiusMedium); border: 1px solid var(--colorNeutralStroke2); }
-    .ft-sub { margin-top: var(--spacingVerticalS); color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); display: flex; flex-wrap: wrap; gap: var(--spacingHorizontalXS); align-items: center; }
-    .ft-dot { color: var(--colorNeutralStroke2); }
+    .ft-cat { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalXS); }
+    .ft-cat-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS); text-decoration: none;
+        background: var(--colorNeutralBackground3); border-radius: var(--borderRadiusMedium);
+        padding: 2px var(--spacingHorizontalSNudge); font-size: var(--fontSizeBase200);
+        color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); }
+    .ft-cat-badge:hover { background: var(--colorBrandBackground160, #ebf3fc); }
+    .ft-cat-sq { width: 11px; height: 11px; border-radius: 2px; background: var(--c, #9aa0a6); flex: none; }
+    .ft-tag { display: inline-flex; align-items: center; text-decoration: none;
+        background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground3);
+        border-radius: var(--borderRadiusMedium); padding: 2px var(--spacingHorizontalSNudge);
+        font-size: var(--fontSizeBase200); font-weight: var(--fontWeightRegular, 400); }
+    .ft-tag:hover { color: var(--colorNeutralForeground1); }
 
     .ft-mod { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1.1rem;
         background: #fff8f0; border: 1px solid #ffe2c2; border-radius: 10px; padding: .55rem .8rem; }
@@ -159,15 +194,17 @@
         padding: .32rem .7rem; font-size: .82rem; font-weight: 600; cursor: pointer; }
     .ft-mod-btn:hover { background: #F15A24; border-color: #F15A24; color: #fff; }
 
+    /* Flat vertical stream — hairline separators, NOT boxed cards. */
     .ft-stream { display: flex; flex-direction: column; gap: 0; }
-    .ft-post { background: var(--colorNeutralBackground1); border-bottom: 1px solid var(--colorNeutralStroke2);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalXS) var(--spacingVerticalL); position: relative; }
-    .ft-post:first-child { padding-top: var(--spacingVerticalXS); }
-    .ft-post.is-accepted { background: #f3fbf3; border: 1px solid #b7e3b7; border-radius: var(--borderRadiusLarge);
-        margin: var(--spacingVerticalXS) 0; padding: var(--spacingVerticalM) var(--spacingHorizontalL) var(--spacingVerticalL); }
+    .ft-post { background: transparent; border-bottom: 1px solid var(--colorNeutralStroke2);
+        padding: var(--spacingVerticalL) 0; position: relative; }
+    .ft-post:first-child { padding-top: var(--spacingVerticalS); }
+    .ft-post.is-accepted { position: relative; }
+    .ft-post.is-accepted::before { content: ""; position: absolute; left: -.85rem; top: var(--spacingVerticalL); bottom: var(--spacingVerticalL);
+        width: 3px; border-radius: 3px; background: var(--colorStatusSuccessForeground1, #2e8b3d); }
 
     .ft-solution-tag { display: inline-flex; align-items: center; gap: .3rem; color: #fff;
-        background: var(--colorStatusSuccessForeground1, #009900); font-size: var(--fontSizeBase200);
+        background: var(--colorStatusSuccessForeground1, #2e8b3d); font-size: var(--fontSizeBase200);
         font-weight: var(--fontWeightBold); padding: 2px var(--spacingHorizontalS);
         border-radius: var(--borderRadiusCircular, 999px); margin-bottom: var(--spacingVerticalS); letter-spacing: .02em; }
 
@@ -176,25 +213,36 @@
         display: grid; place-items: center; font-size: 1.35rem;
         background: linear-gradient(135deg, #ede7fb, #e2d9fa); box-shadow: inset 0 0 0 1px rgba(109,40,217,.12); }
     .ft-post-main { flex: 1; min-width: 0; }
-    .ft-post-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--spacingHorizontalS); margin-bottom: var(--spacingVerticalXS); }
-    .ft-handle { font-weight: var(--fontWeightBold); color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); }
+    .ft-post-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--spacingHorizontalXS); margin-bottom: var(--spacingVerticalXS); }
+    .ft-name { font-weight: var(--fontWeightBold); color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); }
+    .ft-handle { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
     .ft-op-badge { font-size: .66rem; font-weight: var(--fontWeightBold); color: #6d28d9; background: #ede7fb;
         border-radius: var(--borderRadiusSmall, 4px); padding: .08rem .35rem; text-transform: uppercase; letter-spacing: .04em; }
-    .ft-when { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .ft-body { color: var(--colorNeutralForeground1); line-height: 1.62; font-size: var(--fontSizeBase300); white-space: pre-wrap; word-wrap: break-word; }
+    .ft-when { margin-left: auto; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); white-space: nowrap; }
+    .ft-body { color: var(--colorNeutralForeground1); line-height: 1.62; font-size: var(--fontSizeBase300); white-space: pre-wrap; word-wrap: break-word; max-width: 70ch; }
 
-    .ft-actions { display: flex; align-items: center; gap: .3rem; margin-top: .8rem; flex-wrap: wrap; }
+    .ft-actions { display: flex; align-items: center; justify-content: space-between; gap: .3rem; margin-top: .7rem; flex-wrap: wrap; }
+    .ft-actions-left, .ft-actions-right { display: inline-flex; align-items: center; gap: .15rem; }
     .ft-act { display: inline-flex; align-items: center; gap: .28rem; background: transparent; border: none;
         color: #8a9097; font-size: .84rem; font-weight: 600; padding: .3rem .55rem; border-radius: 7px;
         cursor: pointer; text-decoration: none; }
-    .ft-act:hover { background: #f1f3f5; color: #5c6166; }
+    .ft-act:hover { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground2); }
     .ft-heart { font-size: 1rem; line-height: 1; }
     .ft-act.ft-liked { color: #fa6c8d; }
     .ft-act.ft-liked:hover { background: #fff0f3; }
     .ft-count { font-variant-numeric: tabular-nums; }
-    .ft-act-accept { color: #009900; }
-    .ft-act-accept:hover { background: #eafaea; color: #007a00; }
-    .ft-act-accepted { color: #009900; }
+    .ft-act-accept { color: #2e8b3d; }
+    .ft-act-accept:hover { background: #eafaea; color: #1f6e2c; }
+    .ft-act-accepted { color: #2e8b3d; }
+
+    /* Topic summary bar after the OP. */
+    .ft-summary { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalXS);
+        margin: var(--spacingVerticalM) 0 0 calc(45px + var(--spacingHorizontalM));
+        padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+        background: var(--colorNeutralBackground2); border: 1px solid var(--colorNeutralStroke2);
+        border-radius: var(--borderRadiusMedium); color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .ft-sum-stat { font-weight: var(--fontWeightSemibold); }
+    .ft-sum-dot { color: var(--colorNeutralStroke2); }
 
     .ft-closed-note { margin-top: 1.5rem; background: #fbf3f3; border: 1px solid #f0d6d6; color: #9a4040;
         border-radius: 12px; padding: 1rem 1.2rem; font-weight: 600; text-align: center; }
@@ -202,18 +250,41 @@
     .ft-composer { margin-top: 1.75rem; padding: 1.2rem 1.3rem 1.4rem; }
     .ft-composer-title { margin: 0 0 .7rem; font-size: 1.1rem; }
     .ft-composer-actions { margin-top: .7rem; }
-    .ft-signin-note { color: #6b7177; margin: 0; }
-    .ft-signin-note a { color: #0088CC; }
+    .ft-signin-note { color: var(--colorNeutralForeground3); margin: 0; }
+    .ft-signin-note a { color: var(--colorBrandForeground1); }
+
+    /* Right-side timeline scrubber (the iconic Discourse element). */
+    .ft-timeline { position: sticky; top: 64px; width: 150px; flex: 0 0 150px; align-self: flex-start;
+        display: flex; flex-direction: column; align-items: center; gap: var(--spacingVerticalS);
+        padding: var(--spacingVerticalM) 0; color: var(--colorNeutralForeground3); }
+    .ft-tl-date { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); white-space: nowrap; }
+    .ft-tl-count { font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground2);
+        display: flex; align-items: baseline; gap: .15rem; font-variant-numeric: tabular-nums; }
+    .ft-tl-sep, .ft-tl-total { color: var(--colorNeutralForeground3); font-weight: var(--fontWeightRegular, 400); }
+    .ft-tl-track { width: 2px; height: 120px; background: var(--colorNeutralStroke2); border-radius: 2px; position: relative; }
+    .ft-tl-thumb { position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+        width: 12px; height: 12px; border-radius: 50%; background: var(--colorBrandBackground); box-shadow: 0 0 0 3px var(--colorNeutralBackground1); }
+    .ft-tl-start { margin-top: 0; }
+    .ft-tl-read { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
+    .ft-tl-btns { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); margin-top: var(--spacingVerticalXS); }
+    .ft-tl-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+        background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground2); text-decoration: none;
+        font-size: 1rem; cursor: pointer; border: 1px solid var(--colorNeutralStroke2); }
+    .ft-tl-btn:hover { background: var(--colorNeutralBackground3Hover, #e8e8e8); }
 
     .ft-empty { padding: 2.5rem 2rem; text-align: center; }
     .ft-empty h2 { margin: 0 0 .5rem; }
-    .ft-empty p { color: #6b7177; margin: 0 0 1rem; }
-    .ft-back { color: #0088CC; text-decoration: none; font-weight: 600; }
+    .ft-empty p { color: var(--colorNeutralForeground3); margin: 0 0 1rem; }
+    .ft-back { color: var(--colorBrandForeground1); text-decoration: none; font-weight: 600; }
 
+    @media (max-width: 920px) {
+        .ft-timeline { display: none; }
+    }
     @media (max-width: 640px) {
         .ft-title { font-size: 1.35rem; }
         .ft-avatar { width: 38px; height: 38px; flex-basis: 38px; font-size: 1.1rem; }
         .ft-post-row { gap: .65rem; }
+        .ft-summary { margin-left: 0; }
     }
 </style>
 
@@ -225,18 +296,28 @@
     var catName : Text = "";
     var catColor : Text = "#9aa0a6";
     var tags : [Text] = [];
-    var hasTags : Bool = false;
     var pinned : Bool = false;
     var closed : Bool = false;
     var solved : Bool = false;
     var acceptedId : Nat = 0;
     var views : Nat = 0;
     var replyCount : Nat = 0;
-    var activity : Text = "";
     var isAuthor : Bool = false;
     var signedIn : Bool = false;
     var posts : [Forum.Post] = [];
     var me : Principal = Principal.fromText("2vxsx-fae");
+
+    // The topic's author principal — used to flag the OP badge ONLY on posts
+    // authored by the topic's author (NOT replyToPost == 0).
+    var opAuthor : Principal = Principal.fromText("2vxsx-fae");
+
+    // Topic summary + timeline (all derived from real service results).
+    var likeTotal : Nat = 0;
+    var participants : Nat = 0;
+    var readTime : Nat = 1;
+    var postTotal : Nat = 0;
+    var firstActivity : Text = "";
+    var lastActivity : Text = "";
 
     var body : Text = "";
 
@@ -261,16 +342,16 @@
                 catName := Forum.categoryName(t.categoryId);
                 catColor := Forum.categoryColor(t.categoryId);
                 tags := t.tags;
-                hasTags := t.tags.size() > 0;
                 pinned := t.pinned;
                 closed := t.closed;
                 acceptedId := t.acceptedPostId;
                 solved := t.acceptedPostId != 0;
                 views := t.views;
+                opAuthor := t.author;
                 isAuthor := t.author == ctx.caller;
-                activity := Forum.topicActivity(id);
                 replyCount := Forum.replyCount(id);
                 posts := Forum.posts(id);
+                computeSummary();
             };
             case null {
                 exists := false;
@@ -278,10 +359,52 @@
         };
     };
 
+    // Derive the topic summary + timeline figures from the loaded posts.
+    func computeSummary() {
+        postTotal := posts.size();
+        // total likes across every post
+        var likes : Nat = 0;
+        for (p in posts.vals()) { likes += p.likeCount };
+        likeTotal := likes;
+        // distinct participants
+        let seen = Buffer.Buffer<Principal>(8);
+        for (p in posts.vals()) {
+            var found = false;
+            for (s in seen.vals()) { if (s == p.author) { found := true } };
+            if (not found) { seen.add(p.author) };
+        };
+        participants := seen.size();
+        // read time estimate: ~200 words/min over all post bodies (min 1)
+        var words : Nat = 0;
+        for (p in posts.vals()) { words += wordCount(p.body) };
+        let mins = words / 200;
+        readTime := if (mins < 1) 1 else mins;
+        // timeline endpoints (oldest = OP first, newest = last reply)
+        if (posts.size() > 0) {
+            firstActivity := Forum.relativeTime(posts[0].at);
+            lastActivity := Forum.relativeTime(posts[posts.size() - 1].at);
+        } else {
+            firstActivity := "";
+            lastActivity := "";
+        };
+    };
+
+    func wordCount(t : Text) : Nat {
+        var n : Nat = 0;
+        var inWord = false;
+        for (c in t.chars()) {
+            if (c == ' ' or c == '\n' or c == '\t') { inWord := false }
+            else if (not inWord) { inWord := true; n += 1 };
+        };
+        n;
+    };
+
     func avatarFor(p : Principal) : Text { Identity.avatarOf(p) };
+    func displayFor(p : Principal) : Text { Identity.displayOf(p) };
     func when(at : Int) : Text { Forum.relativeTime(at) };
-    func isOp(replyToPost : Nat) : Bool { replyToPost == 0 };
-    func canAccept(replyToPost : Nat) : Bool { isAuthor and replyToPost != 0 };
+    // OP badge: ONLY on posts whose author == the topic's author principal.
+    func isOp(author : Principal) : Bool { author == opAuthor };
+    func canAccept(author : Principal) : Bool { isAuthor and author != opAuthor };
     func isAccepted(postId : Nat) : Bool { postId != 0 and postId == acceptedId };
     func hasLikes(n : Nat) : Bool { n > 0 };
     func postClass(postId : Nat) : Text { if (isAccepted(postId)) "is-accepted" else "" };

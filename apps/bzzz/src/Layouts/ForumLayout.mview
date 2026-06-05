@@ -1,0 +1,268 @@
+@theme brand="#0f6cbd"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <meta name="apple-mobile-web-app-title" content="Bzzz Forum">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase); }
+
+        /* ===================================================================
+           ForumLayout — a faithful Discourse shell (forum.dfinity.org):
+           thin sticky top bar + persistent left sidebar + content + right rail.
+           Forum-specific chrome is namespaced `fl-*` so it never collides with
+           the bzzz app-rail (`mv-nav*`) used by AppLayout.
+           =================================================================== */
+
+        /* ---- Top bar ---- */
+        .fl-topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center;
+            gap: var(--spacingHorizontalM); height: 52px; box-sizing: border-box;
+            padding: 0 var(--spacingHorizontalL);
+            background: var(--colorNeutralBackground1); border-bottom: 1px solid var(--colorNeutralStroke2);
+            backdrop-filter: saturate(1.4) blur(2px); }
+        .fl-burger { display: none; }
+        .fl-burger-btn { display: none; align-items: center; justify-content: center;
+            width: 34px; height: 34px; border-radius: var(--borderRadiusMedium); cursor: pointer;
+            color: var(--colorNeutralForeground2); font-size: 1.15rem; user-select: none; }
+        .fl-burger-btn:hover { background: var(--colorNeutralBackground3); }
+        .fl-brand { display: inline-flex; align-items: center; gap: var(--spacingHorizontalSNudge);
+            text-decoration: none; color: var(--colorNeutralForeground1); font-weight: var(--fontWeightBold);
+            font-size: var(--fontSizeBase400); letter-spacing: -.01em; white-space: nowrap; }
+        .fl-brand-logo { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+            background: var(--colorBrandBackground); color: #fff; font-size: 1rem; }
+        .fl-search { flex: 1; max-width: 520px; display: flex; align-items: center; gap: var(--spacingHorizontalXS);
+            background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke2);
+            border-radius: var(--borderRadiusCircular, 999px); padding: 0 var(--spacingHorizontalM);
+            height: 34px; box-sizing: border-box; }
+        .fl-search:focus-within { border-color: var(--colorBrandStroke1); background: var(--colorNeutralBackground1); }
+        .fl-search-ico { color: var(--colorNeutralForeground4); font-size: .95rem; }
+        .fl-search input { flex: 1; border: none; outline: none; background: transparent; min-width: 0;
+            color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); font-family: inherit; }
+        .fl-search input::placeholder { color: var(--colorNeutralForeground4); }
+        .fl-topbar-spacer { flex: 0 1 auto; }
+        .fl-topbar-actions { display: flex; align-items: center; gap: var(--spacingHorizontalS); white-space: nowrap; }
+
+        /* ---- Shell layout: sidebar | content | (optional) right rail ---- */
+        .fl-shell { display: flex; align-items: flex-start; }
+
+        .fl-sidebar { position: sticky; top: 52px; height: calc(100vh - 52px); width: 250px;
+            flex: 0 0 250px; box-sizing: border-box; overflow-y: auto; padding: var(--spacingVerticalM) 0 var(--spacingVerticalXXL);
+            background: var(--colorNeutralBackground1); border-right: 1px solid var(--colorNeutralStroke2); }
+
+        .fl-sb-section { padding: var(--spacingVerticalXS) var(--spacingHorizontalS); }
+        .fl-sb-head { display: flex; align-items: center; gap: 4px; padding: var(--spacingVerticalS) var(--spacingHorizontalM) var(--spacingVerticalXS);
+            font-size: var(--fontSizeBase100); font-weight: var(--fontWeightSemibold); letter-spacing: .06em;
+            text-transform: uppercase; color: var(--colorNeutralForeground4); }
+        .fl-sb-head-caret { font-size: .6rem; opacity: .7; }
+
+        .fl-item { display: flex; align-items: center; gap: var(--spacingHorizontalS);
+            padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM); margin: 1px var(--spacingHorizontalXS);
+            border-radius: var(--borderRadiusMedium); text-decoration: none;
+            color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); line-height: 1.2; }
+        .fl-item:hover { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground1); }
+        .fl-item.is-active { background: var(--colorBrandBackground2, #ebf3fc); color: var(--colorNeutralForeground1);
+            font-weight: var(--fontWeightSemibold); }
+        .fl-item-ico { width: 18px; text-align: center; flex: none; font-size: .95rem; color: var(--colorNeutralForeground3); }
+        .fl-item.is-active .fl-item-ico { color: var(--colorBrandForeground1); }
+        .fl-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .fl-item-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--colorBrandBackground); flex: none; }
+        .fl-item.is-active .fl-item-dot { background: var(--colorBrandForeground1); }
+
+        /* category colored square + tag icon */
+        .fl-sq { width: 14px; height: 14px; border-radius: 3px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+        .fl-tag-ico { width: 18px; text-align: center; flex: none; color: var(--colorNeutralForeground4); font-size: .9rem; }
+
+        .fl-sb-divider { height: 1px; background: var(--colorNeutralStroke2); margin: var(--spacingVerticalS) var(--spacingHorizontalM); }
+
+        /* Bzzz app-switcher (keeps the super-app reachable from the forum shell) */
+        .fl-apps { display: flex; align-items: center; gap: 2px; padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
+        .fl-app { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--borderRadiusMedium);
+            text-decoration: none; font-size: 1.1rem; color: var(--colorNeutralForeground2); }
+        .fl-app:hover { background: var(--colorNeutralBackground3); }
+        .fl-apps-label { font-size: var(--fontSizeBase100); color: var(--colorNeutralForeground4);
+            text-transform: uppercase; letter-spacing: .06em; padding: 0 var(--spacingHorizontalM); }
+
+        .fl-sb-foot { display: flex; align-items: center; gap: var(--spacingHorizontalS);
+            padding: var(--spacingVerticalS) var(--spacingHorizontalL); color: var(--colorNeutralForeground4); }
+        .fl-sb-foot button { background: transparent; border: none; cursor: pointer; color: inherit;
+            font-size: 1.05rem; width: 30px; height: 30px; border-radius: var(--borderRadiusMedium); }
+        .fl-sb-foot button:hover { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground1); }
+
+        /* ---- Content + right rail ---- */
+        .fl-content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
+        .fl-body { flex: 1; display: flex; align-items: flex-start; gap: 0; width: 100%; }
+        .fl-main { flex: 1; min-width: 0; box-sizing: border-box; max-width: 920px;
+            padding: var(--spacingVerticalXL) var(--spacingHorizontalXXL); margin: 0 auto; width: 100%; }
+        .fl-rail { flex: 0 0 160px; box-sizing: border-box; position: sticky; top: 52px;
+            height: calc(100vh - 52px); padding: var(--spacingVerticalL) var(--spacingHorizontalM); }
+        .fl-rail:empty { display: none; }
+        .fl-foot { text-align: center; color: var(--colorNeutralForeground4); font-size: var(--fontSizeBase200);
+            padding: var(--spacingVerticalL) var(--spacingHorizontalL) var(--spacingVerticalXXL); }
+
+        /* Re-skin the shared bz-* card classes (so forum pages keep Fluent cards) */
+        .bz-card { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke1);
+            border-radius: var(--borderRadiusXLarge); box-shadow: var(--shadow2); }
+
+        /* ---- CSS-only responsive: collapse sidebar under 900px via the hamburger checkbox ---- */
+        @media (max-width: 900px) {
+            .fl-burger-btn { display: inline-flex; }
+            .fl-sidebar { position: fixed; top: 52px; left: 0; z-index: 35; transform: translateX(-100%);
+                transition: transform var(--durationNormal, .2s) var(--curveEasyEase, ease);
+                box-shadow: var(--shadow16); }
+            .fl-burger:checked ~ .fl-shell .fl-sidebar { transform: translateX(0); }
+            .fl-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
+            .fl-rail { display: none; }
+            .fl-search { max-width: none; }
+        }
+        @media (max-width: 560px) {
+            .fl-brand-text { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- CSS-only off-canvas toggle: the burger checkbox controls the sidebar under 900px -->
+    <input type="checkbox" id="fl-burger" class="fl-burger" hidden>
+
+    <header class="fl-topbar">
+        <label class="fl-burger-btn" for="fl-burger" aria-label="Toggle menu">☰</label>
+        <a class="fl-brand" href="/">
+            <span class="fl-brand-logo">🐝</span>
+            <span class="fl-brand-text">Bzzz Forum</span>
+        </a>
+        <form class="fl-search" action="/forum" method="get" role="search">
+            <span class="fl-search-ico" aria-hidden="true">🔍</span>
+            <input type="search" name="q" placeholder="Search topics, categories, tags…" aria-label="Search the forum">
+        </form>
+        <span class="fl-topbar-spacer"></span>
+        <div class="fl-topbar-actions">
+            <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
+        </div>
+    </header>
+
+    <div class="fl-shell">
+        <aside class="fl-sidebar">
+            <!-- Primary navigation -->
+            <nav class="fl-sb-section" aria-label="Forum">
+                @if (Text.startsWith(ctx.path, #text "/forum") and not Text.startsWith(ctx.path, #text "/forum/c/")) {
+                    <a class="fl-item is-active" href="/forum">
+                        <span class="fl-item-ico">≡</span>
+                        <span class="fl-item-label">Topics</span>
+                    </a>
+                } else {
+                    <a class="fl-item" href="/forum">
+                        <span class="fl-item-ico">≡</span>
+                        <span class="fl-item-label">Topics</span>
+                    </a>
+                }
+                <a class="fl-item" href="/forum?view=mine">
+                    <span class="fl-item-ico">👤</span>
+                    <span class="fl-item-label">My posts</span>
+                </a>
+                <a class="fl-item" href="/messages">
+                    <span class="fl-item-ico">✉</span>
+                    <span class="fl-item-label">My messages</span>
+                </a>
+                <a class="fl-item" href="/forum?view=more">
+                    <span class="fl-item-ico">⋯</span>
+                    <span class="fl-item-label">More</span>
+                </a>
+            </nav>
+
+            <!-- Resources -->
+            <div class="fl-sb-section">
+                <div class="fl-sb-head">Resources <span class="fl-sb-head-caret">▾</span></div>
+                <a class="fl-item" href="/about">
+                    <span class="fl-item-ico">📘</span>
+                    <span class="fl-item-label">Developer Docs</span>
+                </a>
+                <a class="fl-item" href="/feed">
+                    <span class="fl-item-ico">&lt;/&gt;</span>
+                    <span class="fl-item-label">Learn Hub</span>
+                </a>
+            </div>
+
+            <!-- Categories (real data: Forum.categories()) -->
+            <div class="fl-sb-section">
+                <div class="fl-sb-head">Categories <span class="fl-sb-head-caret">▾</span></div>
+                @for c in Forum.categories() {
+                    @if (ctx.path == "/forum/c/" # Nat.toText(c.id)) {
+                        <a class="fl-item is-active" href="/forum/c/@(c.id)">
+                            <span class="fl-sq" style="background:@c.color"></span>
+                            <span class="fl-item-label">@c.name</span>
+                            @if (c.topicCount > 0) { <span class="fl-item-dot"></span> }
+                        </a>
+                    } else {
+                        <a class="fl-item" href="/forum/c/@(c.id)">
+                            <span class="fl-sq" style="background:@c.color"></span>
+                            <span class="fl-item-label">@c.name</span>
+                            @if (c.topicCount > 0) { <span class="fl-item-dot"></span> }
+                        </a>
+                    }
+                }
+                <a class="fl-item" href="/forum#categories">
+                    <span class="fl-item-ico">≡</span>
+                    <span class="fl-item-label">All categories</span>
+                </a>
+            </div>
+
+            <!-- Tags (real data: tags pulled from the latest topics) -->
+            <div class="fl-sb-section">
+                <div class="fl-sb-head">Tags <span class="fl-sb-head-caret">▾</span></div>
+                @for t in Forum.topicsLatest() {
+                    @for tg in t.tags {
+                        <a class="fl-item" href="/forum/c/@(t.categoryId)">
+                            <span class="fl-tag-ico">🏷</span>
+                            <span class="fl-item-label">@tg</span>
+                            <span class="fl-item-dot"></span>
+                        </a>
+                    }
+                }
+            </div>
+
+            <div class="fl-sb-divider"></div>
+
+            <!-- Bzzz app-switcher: keep the super-app reachable from the forum -->
+            <div class="fl-apps-label">Bzzz apps</div>
+            <div class="fl-apps">
+                <a class="fl-app" href="/feed" title="Feed">📰</a>
+                <a class="fl-app" href="/servers" title="Servers">💬</a>
+                <a class="fl-app" href="/messages" title="Messages">✉️</a>
+                <a class="fl-app" href="/status" title="Status">🟢</a>
+            </div>
+
+            <div class="fl-sb-foot">
+                <a class="fl-app" href="/forum/new" title="Create a topic" style="margin-left:-6px">＋</a>
+                <button type="button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">⌨</button>
+            </div>
+        </aside>
+
+        <div class="fl-content">
+            <div class="fl-body">
+                <main class="fl-main">
+                    @yield
+                </main>
+                <!-- Optional right rail (the iconic Discourse timeline scrubber).
+                     A page opts in by rendering `<aside class="fl-rail">…</aside>`
+                     as the LAST element of its content; this CSS column reserves
+                     the space and the page's aside positions itself here. The
+                     empty placeholder collapses (`.fl-rail:empty{display:none}`). -->
+                <div class="fl-rail" aria-hidden="true"></div>
+            </div>
+            <footer class="fl-foot">
+                Bzzz Forum — a Discourse-style board built on MotoView, running entirely on the Internet Computer. No frontend JavaScript framework.
+            </footer>
+        </div>
+    </div>
+</body>
+</html>
+
+@code {
+    // The forum shell pulls its sidebar from the real Forum service inline in
+    // the template (Forum.categories(), Forum.topicsLatest()): layouts render
+    // synchronously with `ctx`, `Forum`, `Identity`, `Text` and `Nat` in scope,
+    // so no onLoad is required (and layout @code is not emitted as runnable code).
+}

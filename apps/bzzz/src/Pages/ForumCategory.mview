@@ -1,76 +1,82 @@
 @page "/forum/c/{id:Nat}"
-@layout AppLayout
-@title "@catName — Bzzz forum category"
-@description "@catDescription"
+@layout ForumLayout
+@title (catName # " — Bzzz forum category")
+@description catDescription
 
-<div class="fr-wrap">
-    <nav class="fr-subnav">
-        <a class="fr-tab" href="/forum">Latest</a>
-        <a class="fr-tab" href="/forum?sort=new">New</a>
-        <a class="fr-tab" href="/forum?sort=top">Top</a>
-        <a class="fr-tab" href="/forum#categories">Categories</a>
-        <span class="fr-subnav-spacer"></span>
-        <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
-    </nav>
+<div class="fl-col">
 
     @if found {
-        <Breadcrumb>
-            <BreadcrumbItem href="/">Home</BreadcrumbItem>
-            <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
-            <BreadcrumbItem current="true">@catName</BreadcrumbItem>
-        </Breadcrumb>
 
-        <header class="fr-cat-head">
-            <span class="fr-sq fr-sq-lg" style="background:@catColor"></span>
-            <div class="fr-cat-head-body">
-                <h1 class="fr-cat-head-name">@catName</h1>
-                <p class="fr-cat-head-desc">@catDesc</p>
-                <p class="fr-cat-head-counts">@topicCount topics · @postCount posts</p>
+        <!-- category header: colored square + name + description + counts -->
+        <header class="fc-head">
+            <span class="fl-sq fl-sq-lg" style="background:@catColor"></span>
+            <div class="fc-head-body">
+                <h1 class="fc-head-name">@catName</h1>
+                <p class="fc-head-desc">@catDesc</p>
+                <p class="fc-head-counts">@(topicCount) sujets · @(postCount) messages</p>
             </div>
-            <a class="fr-newbtn" href="/forum/new">+ New Topic</a>
+            <a class="fl-newbtn fc-head-btn" href="/forum/new">✏ New Topic</a>
         </header>
 
-        <section class="fr-section">
-            @if (topics.size() == 0) {
-                <div class="fr-empty">No topics in this category yet. <a href="/forum/new">Start the first one →</a></div>
-            } else {
-                <table class="fr-table">
-                    <thead>
-                        <tr>
-                            <th class="fr-th-topic">Topic</th>
-                            <th class="fr-th-num">Replies</th>
-                            <th class="fr-th-num">Views</th>
-                            <th class="fr-th-act">Activity</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for t in topics {
-                            <tr class="fr-row">
-                                <td class="fr-td-topic">
-                                    <a class="fr-title" href="/forum/t/@(t.id)">@glyphs(t.id)@t.title</a>
-                                    <div class="fr-meta">
-                                        <a class="fr-badge" href="/forum/c/@(t.categoryId)">
-                                            <span class="fr-sq fr-sq-sm" style="background:@catColorOf(t.categoryId)"></span>
-                                            <span class="fr-badge-name">@catNameOf(t.categoryId)</span>
-                                        </a>
-                                        @for tag in t.tags {
-                                            <Tag>@tag</Tag>
-                                        }
-                                    </div>
-                                </td>
-                                <td class="fr-td-num">@replies(t.id)</td>
-                                <td class="fr-td-num">@(t.views)</td>
-                                <td class="fr-td-act">@activity(t.id)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
-        </section>
+        <!-- tabs (Latest active for this category) -->
+        <nav class="fl-tabsbar">
+            <div class="fl-tabs">
+                <a class="fl-tab is-active" href="/forum/c/@(id)">Latest</a>
+                <a class="fl-tab" href="/forum?sort=categories">Categories</a>
+                <a class="fl-tab" href="/forum?sort=new">New</a>
+                <a class="fl-tab" href="/forum?sort=top">Top</a>
+            </div>
+        </nav>
+
+        <!-- the topic table, scoped to this category -->
+        @if (topics.size() == 0) {
+            <div class="fl-empty">Aucun sujet dans cette catégorie pour l'instant. <a href="/forum/new">Créer le premier →</a></div>
+        } else {
+            <div class="fl-table">
+                <div class="fl-thead">
+                    <span class="fl-th fl-th-topic">Topic</span>
+                    <span class="fl-th fl-th-num">Replies</span>
+                    <span class="fl-th fl-th-num">Views</span>
+                    <span class="fl-th fl-th-act">Activity</span>
+                </div>
+
+                @for t in topics {
+                    <a class="fl-row" href="/forum/t/@(t.id)">
+                        <span class="fl-cell-topic">
+                            <span class="fl-title-line">
+                                @if pinned(t.id) { <span class="fl-glyph" title="Épinglé">📌</span> }
+                                @if closed(t.id) { <span class="fl-glyph" title="Fermé">🔒</span> }
+                                @if solved(t.id) { <span class="fl-glyph fl-glyph-ok" title="Résolu">✓</span> }
+                                <span class="fl-title @(titleClass(t.id))">@t.title</span>
+                                @if hasReplies(t.id) { <span class="fl-bubble">@replies(t.id)</span> }
+                            </span>
+                            <span class="fl-meta">
+                                <span class="fl-badge">
+                                    <span class="fl-sq fl-sq-sm" style="background:@catColorOf(t.categoryId)"></span>
+                                    <span class="fl-badge-name">@catNameOf(t.categoryId)</span>
+                                </span>
+                                @for tag in t.tags {
+                                    <span class="fl-tag">@tag</span>
+                                }
+                            </span>
+                        </span>
+                        <span class="fl-cell-posters">
+                            <span class="fl-cluster">
+                                <span class="fl-ava">@authorAvatar(t.author)</span>
+                            </span>
+                        </span>
+                        <span class="fl-cell-num @(heatClass(replies(t.id)))">@replies(t.id)</span>
+                        <span class="fl-cell-num @(heatClass(t.views))">@views(t.views)</span>
+                        <span class="fl-cell-act">@activity(t.id)</span>
+                    </a>
+                }
+            </div>
+        }
+
     } else {
-        <div class="fr-empty">
-            <p>That category doesn't exist.</p>
-            <a href="/forum">← Back to the forum</a>
+        <div class="fl-empty">
+            <p>Cette catégorie n'existe pas.</p>
+            <a href="/forum">← Retour au forum</a>
         </div>
     }
 </div>
@@ -104,73 +110,143 @@
         topics := Forum.topics(id);
     };
 
-    func glyphs(tid : Nat) : Text { Forum.statusGlyphs(tid) };
+    func titleClass(tid : Nat) : Text { if (pinned(tid)) "is-unread" else "" };
+    func heatClass(n : Nat) : Text { if (n >= 1000) "is-hot" else "" };
+
+    func pinned(tid : Nat) : Bool {
+        switch (Forum.topic(tid)) { case (?t) t.pinned; case null false };
+    };
+    func closed(tid : Nat) : Bool {
+        switch (Forum.topic(tid)) { case (?t) t.closed; case null false };
+    };
+    func solved(tid : Nat) : Bool { Forum.isSolved(tid) };
     func replies(tid : Nat) : Nat { Forum.replyCount(tid) };
+    func hasReplies(tid : Nat) : Bool { Forum.replyCount(tid) > 0 };
     func activity(tid : Nat) : Text { Forum.topicActivity(tid) };
     func catColorOf(cid : Nat) : Text { Forum.categoryColor(cid) };
     func catNameOf(cid : Nat) : Text { Forum.categoryName(cid) };
+    func authorAvatar(p : Principal) : Text { Identity.avatarOf(p) };
+
+    // Compact view count, Discourse-style: 2900 -> "2,9 k".
+    func views(n : Nat) : Text {
+        if (n < 1000) { Nat.toText(n) }
+        else {
+            let k = n / 1000;
+            let frac = (n % 1000) / 100;
+            if (frac == 0) { Nat.toText(k) # " k" }
+            else { Nat.toText(k) # "," # Nat.toText(frac) # " k" };
+        };
+    };
 }
 
 <style>
-    .fr-wrap { max-width: 1100px; margin: 0 auto; color: #1a1a1a; }
+    /* The page renders only the MAIN COLUMN; ForumLayout owns the top bar + sidebar. */
+    .fl-col { max-width: 800px; color: var(--colorNeutralForeground1);
+        font-size: var(--fontSizeBase300); }
 
-    .fr-subnav { display: flex; align-items: center; gap: .25rem; flex-wrap: wrap;
-        border-bottom: 1px solid #e3e5e8; padding: .25rem 0 .5rem; margin-bottom: 1rem; }
-    .fr-tab { text-decoration: none; color: #555; font-weight: 600; font-size: .95rem;
-        padding: .45rem .7rem; border-radius: 8px; }
-    .fr-tab:hover { background: #eef0f2; color: #1a1a1a; }
-    .fr-tab.active { color: #1a1a1a; background: #e7eef5; }
-    .fr-subnav-spacer { flex: 1; }
-    .fr-newbtn { text-decoration: none; background: #0088CC; color: #fff; font-weight: 700;
-        font-size: .9rem; padding: .5rem .9rem; border-radius: 8px; white-space: nowrap; }
-    .fr-newbtn:hover { background: #0077b3; color: #fff; }
+    /* ---- category header ---- */
+    .fc-head { display: flex; align-items: flex-start; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalM) 0 var(--spacingVerticalL);
+        border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
+    .fc-head-body { flex: 1; min-width: 0; }
+    .fc-head-name { margin: 0; font-size: var(--fontSizeHero700, 1.6rem); line-height: 1.2;
+        font-weight: var(--fontWeightBold); letter-spacing: -.01em; color: var(--colorNeutralForeground1); }
+    .fc-head-desc { margin: var(--spacingVerticalXS) 0 0; color: var(--colorNeutralForeground3);
+        font-size: var(--fontSizeBase300); }
+    .fc-head-counts { margin: var(--spacingVerticalSNudge) 0 0; color: var(--colorNeutralForeground4);
+        font-size: var(--fontSizeBase200); }
+    .fc-head-btn { flex: none; align-self: center;
+        border-radius: var(--borderRadiusMedium); }
 
-    .fr-cat-head { display: flex; align-items: flex-start; gap: 1rem; background: #fff;
-        border: 1px solid #e3e5e8; border-radius: 10px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
-    .fr-cat-head-body { flex: 1; min-width: 0; }
-    .fr-cat-head-name { margin: 0; font-size: 1.4rem; color: #1a1a1a; font-weight: 800; }
-    .fr-cat-head-desc { margin: .25rem 0 0; color: #6c757d; font-size: .95rem; }
-    .fr-cat-head-counts { margin: .4rem 0 0; color: #9aa0a6; font-size: .82rem; }
+    /* ---- shared square chip ---- */
+    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
+    .fl-sq-sm { width: 10px; height: 10px; border-radius: 2px; }
+    .fl-sq-lg { width: 26px; height: 26px; border-radius: 4px; margin-top: 2px; }
 
-    .fr-sq { display: inline-block; width: 16px; height: 16px; border-radius: 3px; flex: none; }
-    .fr-sq-sm { width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; }
-    .fr-sq-lg { width: 32px; height: 32px; border-radius: 5px; margin-top: .2rem; }
+    /* ---- tabs ---- */
+    .fl-tabsbar { display: flex; align-items: flex-end; gap: var(--spacingHorizontalM);
+        border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
+    .fl-tabs { display: flex; align-items: center; gap: var(--spacingHorizontalL);
+        flex: 1; min-width: 0; overflow-x: auto; }
+    .fl-tab { position: relative; text-decoration: none; color: var(--colorNeutralForeground2);
+        font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold);
+        padding: var(--spacingVerticalS) 0 var(--spacingVerticalSNudge); white-space: nowrap; }
+    .fl-tab:hover { color: var(--colorNeutralForeground1); }
+    .fl-tab.is-active { color: var(--colorBrandForeground1); }
+    .fl-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+        height: 2px; background: var(--colorBrandForeground1); border-radius: 2px; }
 
-    .fr-section { margin: 1.5rem 0; }
-    .fr-empty { background: #fff; border: 1px solid #e3e5e8; border-radius: 10px;
-        padding: 1.5rem; text-align: center; color: #6c757d; }
-    .fr-empty a { color: #0088CC; text-decoration: none; font-weight: 600; }
+    .fl-newbtn { text-decoration: none; background: var(--colorNeutralBackground3);
+        color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold);
+        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM);
+        white-space: nowrap; display: inline-flex; align-items: center; }
+    .fl-newbtn:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); color: var(--colorNeutralForeground1); }
 
-    .fr-table { width: 100%; border-collapse: collapse; background: #fff;
-        border: 1px solid #e3e5e8; border-radius: 10px; overflow: hidden; }
-    .fr-table thead th { text-align: left; font-size: .78rem; text-transform: uppercase;
-        letter-spacing: .03em; color: #9aa0a6; font-weight: 700; padding: .6rem .8rem;
-        border-bottom: 1px solid #e3e5e8; background: #f8f9fa; }
-    .fr-th-num { text-align: right; width: 80px; }
-    .fr-th-act { text-align: right; width: 120px; }
-    .fr-row td { padding: .8rem; border-bottom: 1px solid #f0f1f2; vertical-align: top; }
-    .fr-row:last-child td { border-bottom: none; }
-    .fr-row:hover { background: #fafbfc; }
+    /* ---- topic table (matches the latest list) ---- */
+    .fl-table { display: flex; flex-direction: column; }
+    .fl-thead { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalS) var(--spacingHorizontalXS);
+        border-bottom: 1px solid var(--colorNeutralStroke2); }
+    .fl-th { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
+        font-weight: var(--fontWeightSemibold); }
+    .fl-th-topic { flex: 1; min-width: 0; }
+    .fl-th-num { width: 64px; text-align: right; flex: none; }
+    .fl-th-act { width: 84px; text-align: right; flex: none; }
 
-    .fr-title { font-weight: 700; color: #1a1a1a; text-decoration: none; font-size: 1rem;
-        line-height: 1.35; }
-    .fr-title:hover { color: #0088CC; }
-    .fr-meta { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
-    .fr-badge { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none;
-        background: #f1f3f4; border-radius: 6px; padding: .15rem .45rem; font-size: .8rem;
-        color: #444; font-weight: 600; }
-    .fr-badge:hover { background: #e7eef5; }
-    .fr-pill { display: inline-block; background: #f1f3f4; color: #6c757d; border-radius: 999px;
-        padding: .1rem .55rem; font-size: .76rem; font-weight: 600; }
+    /* The WHOLE row is a single link into the topic. */
+    .fl-row { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalM) var(--spacingHorizontalXS);
+        border-bottom: 1px solid var(--colorNeutralStroke2);
+        text-decoration: none; color: inherit; }
+    .fl-row:hover { background: var(--colorNeutralBackground2); }
 
-    .fr-td-num { text-align: right; color: #6c757d; font-weight: 600; font-size: .92rem;
-        white-space: nowrap; }
-    .fr-td-act { text-align: right; color: #9aa0a6; font-size: .85rem; white-space: nowrap; }
+    .fl-cell-topic { flex: 1; min-width: 0; display: flex; flex-direction: column;
+        gap: var(--spacingVerticalXS); }
+    .fl-title-line { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
+    .fl-glyph { font-size: var(--fontSizeBase300); }
+    .fl-glyph-ok { color: var(--colorStatusSuccessForeground1, #0f7b0f); font-weight: var(--fontWeightBold); }
+    .fl-title { font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold);
+        color: var(--colorNeutralForeground3); line-height: 1.3; }
+    .fl-title.is-unread { color: var(--colorNeutralForeground1); }
+    .fl-row:hover .fl-title { color: var(--colorBrandForeground1); }
+    .fl-bubble { display: inline-flex; align-items: center; justify-content: center;
+        min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--borderRadiusCircular, 999px);
+        background: var(--colorBrandBackground); color: #fff; font-size: var(--fontSizeBase100);
+        font-weight: var(--fontWeightSemibold); font-variant-numeric: tabular-nums; }
+
+    .fl-meta { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
+    .fl-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS);
+        font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2);
+        font-weight: var(--fontWeightSemibold); }
+    .fl-tag { display: inline-flex; align-items: center; background: var(--colorNeutralBackground3);
+        color: var(--colorNeutralForeground3); border-radius: var(--borderRadiusSmall);
+        padding: 1px var(--spacingHorizontalSNudge); font-size: var(--fontSizeBase100);
+        font-weight: var(--fontWeightRegular, 400); }
+
+    .fl-cell-posters { width: 120px; flex: none; }
+    .fl-cluster { display: inline-flex; align-items: center; }
+    .fl-cluster .fl-ava + .fl-ava { margin-left: -8px; }
+    .fl-ava { width: 25px; height: 25px; border-radius: 50%; display: inline-grid; place-items: center;
+        font-size: .9rem; background: linear-gradient(135deg, #ede7fb, #e2d9fa);
+        box-shadow: inset 0 0 0 1px rgba(15,108,189,.14), 0 0 0 2px var(--colorNeutralBackground1); }
+
+    .fl-cell-num { width: 64px; flex: none; text-align: right; color: var(--colorNeutralForeground2);
+        font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase300);
+        font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .fl-cell-num.is-hot { color: #d13438; }
+    .fl-cell-act { width: 84px; flex: none; text-align: right; color: var(--colorNeutralForeground3);
+        font-size: var(--fontSizeBase200); white-space: nowrap; }
+
+    /* ---- empty ---- */
+    .fl-empty { padding: var(--spacingVerticalXXL); text-align: center;
+        color: var(--colorNeutralForeground3); }
+    .fl-empty a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
 
     @media (max-width: 720px) {
-        .fr-th-act, .fr-td-act { display: none; }
-        .fr-row td:nth-child(3) { display: none; }
-        .fr-table thead th:nth-child(3) { display: none; }
-        .fr-cat-head { flex-wrap: wrap; }
+        .fc-head { flex-wrap: wrap; }
+        .fc-head-btn { align-self: flex-start; }
+        .fl-cell-posters { display: none; }
+        .fl-cell-num:nth-of-type(3) { display: none; } /* hide Views */
+        .fl-th-num + .fl-th-num { display: none; }
     }
 </style>
