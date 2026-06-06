@@ -25,7 +25,7 @@ NAV = [
     ("Getting Started", ["installation", "quickstart", "project-structure"]),
     ("The .mview Format", ["mview-files", "pages-and-routing", "layouts", "components", "control-flow"]),
     ("Interactivity", ["events", "forms", "validation", "state", "persistence", "drag-drop-and-effects"]),
-    ("Styling", ["styling-and-themes", "svg"]),
+    ("Styling", ["styling-and-themes", "svg", "charts"]),
     ("Security", ["security", "zero-trust"]),
     ("Architecture", ["protocol", "client-bridge", "runtime"]),
     ("Deployment", ["deployment", "cli"]),
