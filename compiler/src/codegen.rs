@@ -2096,6 +2096,291 @@ impl<'a> Codegen<'a> {
                 out.push_str(&format!("{}b.raw(Charts.sparkline({}, {}));\n", indent, values, opts));
                 Some(())
             }
+            "LollipopChart" => {
+                // Stem+dot per (label,value). Same data as ColumnChart.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.lollipop({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "BulletChart" => {
+                // rows="name:value:target:b1,b2,b3;..." — measure vs target over bands.
+                let rows = str_expr("rows");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.bullet({}, {}));\n", indent, rows, opts));
+                Some(())
+            }
+            "DotPlot" => {
+                // One dot per category along a shared value axis. Same data as BarChart.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.dotPlot({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "DumbbellChart" => {
+                // rows="label:start,end;..." + named endpoints for the legend.
+                let rows = str_expr("rows");
+                let start_name = str_expr("startName");
+                let end_name = str_expr("endName");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.dumbbell({}, {}, {}, {}));\n", indent, rows, start_name, end_name, opts));
+                Some(())
+            }
+            "RangePlot" => {
+                // rows="label:low,high;..." — floating low..high bars.
+                let rows = str_expr("rows");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.rangePlot({}, {}));\n", indent, rows, opts));
+                Some(())
+            }
+            "SlopeChart" => {
+                // rows="label:before,after;..." + named columns.
+                let rows = str_expr("rows");
+                let before_name = str_expr("beforeName");
+                let after_name = str_expr("afterName");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.slope({}, {}, {}, {}));\n", indent, rows, before_name, after_name, opts));
+                Some(())
+            }
+            "DivergingBarChart" => {
+                // Signed bars L/R of zero. Same data as BarChart (negatives allowed).
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.divergingBar({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "WaterfallChart" => {
+                // deltas="v,v,.." applied to a running total; labels per step.
+                let deltas = str_expr("deltas");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.waterfall({}, {}, {}));\n", indent, deltas, labels, opts));
+                Some(())
+            }
+            "PictogramChart" => {
+                // value/total drawn as a grid of repeated glyphs; cols per row optional.
+                let value = str_expr("value");
+                let total = str_expr("total");
+                let cols = str_expr("cols");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.pictogram({}, {}, {}, {}));\n", indent, value, total, cols, opts));
+                Some(())
+            }
+            "WaffleChart" => {
+                // 100-cell share grid: values + parallel labels.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.waffle({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "TreemapChart" => {
+                // Flat "label:value" semicolon list -> squarified tiles.
+                let data = str_expr("data");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.treemap({}, {}));\n", indent, data, opts));
+                Some(())
+            }
+            "FunnelChart" => {
+                // Descending stage values (widest first) + stage labels.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.funnel({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "PyramidChart" => {
+                // Ascending stage values (apex first, base last) + labels.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.pyramid({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "MarimekkoChart" => {
+                // Variable-width 100% stacked columns: one series = one column.
+                let series = str_expr("series");
+                let labels = str_expr("labels");
+                let segments = str_expr("segments");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.marimekko({}, {}, {}, {}));\n", indent, series, labels, segments, opts));
+                Some(())
+            }
+            "PopulationPyramid" => {
+                // Two opposing horizontal bar series (left/right) by age band.
+                // `left` = a 2-series spec "Male:..;Female:.."; `labels` = bands.
+                let pair = str_expr("left");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.populationPyramid({}, {}, {}));\n", indent, pair, labels, opts));
+                Some(())
+            }
+            "SunburstChart" => {
+                // "l1/l2:value" semicolon paths -> concentric rings (1-2 levels).
+                let paths = str_expr("paths");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.sunburst({}, {}));\n", indent, paths, opts));
+                Some(())
+            }
+            "Histogram" => {
+                // Raw values CSV + optional bin COUNT ("" / "0" = auto Sturges).
+                let values = str_expr("values");
+                let bins = str_expr("bins");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.histogram({}, {}, {}));\n", indent, values, bins, opts));
+                Some(())
+            }
+            "BoxPlot" => {
+                // Labelled groups of RAW values: "A:4,7,9;B:3,5,8".
+                let series = str_expr("series");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.boxPlot({}, {}));\n", indent, series, opts));
+                Some(())
+            }
+            "ViolinPlot" => {
+                // Labelled groups of RAW values -> mirrored KDE silhouettes.
+                let series = str_expr("series");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.violinPlot({}, {}));\n", indent, series, opts));
+                Some(())
+            }
+            "StripPlot" => {
+                // Labelled groups of RAW values; one jittered dot per datum.
+                let series = str_expr("series");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.stripPlot({}, {}));\n", indent, series, opts));
+                Some(())
+            }
+            "BeeswarmChart" => {
+                // Labelled groups of RAW values; non-overlapping packed dots.
+                let series = str_expr("series");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.beeswarm({}, {}));\n", indent, series, opts));
+                Some(())
+            }
+            "DensityPlot" => {
+                // Single raw-values CSV -> one smoothed KDE curve.
+                let values = str_expr("values");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.densityPlot({}, {}));\n", indent, values, opts));
+                Some(())
+            }
+            "RidgelinePlot" => {
+                // Labelled groups of RAW values -> stacked overlapping KDE ridges.
+                let series = str_expr("series");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.ridgelinePlot({}, {}));\n", indent, series, opts));
+                Some(())
+            }
+            "CandlestickChart" => {
+                let ohlc = if c.props.iter().any(|a| a.name == "ohlc") { str_expr("ohlc") } else { str_expr("data") };
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.candlestick({}, {}));\n", indent, ohlc, opts));
+                Some(())
+            }
+            "OHLCChart" => {
+                let ohlc = if c.props.iter().any(|a| a.name == "ohlc") { str_expr("ohlc") } else { str_expr("data") };
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.ohlc({}, {}));\n", indent, ohlc, opts));
+                Some(())
+            }
+            "GanttChart" => {
+                let tasks = if c.props.iter().any(|a| a.name == "tasks") { str_expr("tasks") } else { str_expr("data") };
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.gantt({}, {}));\n", indent, tasks, opts));
+                Some(())
+            }
+            "StreamGraph" => {
+                let series = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("data") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.streamGraph({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "BumpChart" => {
+                let series = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("data") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.bump({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "BarcodeChart" => {
+                let events = if c.props.iter().any(|a| a.name == "events") { str_expr("events") } else { str_expr("values") };
+                let categories = str_expr("categories");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.barcode({}, {}, {}));\n", indent, events, categories, opts));
+                Some(())
+            }
+            "Heatmap" => {
+                let matrix = str_expr("matrix");
+                let row_labels = str_expr("rowLabels");
+                let col_labels = str_expr("colLabels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.heatmap({}, {}, {}, {}));\n", indent, matrix, row_labels, col_labels, opts));
+                Some(())
+            }
+            "HexbinChart" => {
+                let points = str_expr("points");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.hexbin({}, {}));\n", indent, points, opts));
+                Some(())
+            }
+            "ConnectedScatterChart" => {
+                let points = str_expr("points");
+                let point_labels = str_expr("pointLabels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.connectedScatter({}, {}, {}));\n", indent, points, point_labels, opts));
+                Some(())
+            }
+            "QuadrantChart" => {
+                let data = str_expr("data");
+                let axis_labels = str_expr("axisLabels");
+                let quad_labels = str_expr("quadLabels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.quadrant({}, {}, {}, {}));\n", indent, data, axis_labels, quad_labels, opts));
+                Some(())
+            }
+            "SankeyDiagram" => {
+                // Flow links: one "Source>Target:value" per ';' segment.
+                let links = str_expr("links");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.sankey({}, {}));\n", indent, links, opts));
+                Some(())
+            }
+            "ChordDiagram" => {
+                // Square weight matrix: rows by ';', cells by ','. Optional labels CSV.
+                let matrix = str_expr("matrix");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.chord({}, {}, {}));\n", indent, matrix, labels, opts));
+                Some(())
+            }
+            "ArcDiagram" => {
+                // Edges "A>B" (optional ":weight") per ';' segment; optional node-order CSV.
+                let edges = str_expr("edges");
+                let nodes = str_expr("nodes");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.arc({}, {}, {}));\n", indent, edges, nodes, opts));
+                Some(())
+            }
+            "Dendrogram" => {
+                // "parent>child" hierarchy edges per ';' segment; root = never-a-child.
+                let edges = str_expr("edges");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.dendrogram({}, {}));\n", indent, edges, opts));
+                Some(())
+            }
+            "VennDiagram" => {
+                // "Key:size" pairs by ';'; Key in {A,B,C,AB,AC,BC,ABC}. Optional labels CSV.
+                let sets = str_expr("sets");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.venn({}, {}, {}));\n", indent, sets, labels, opts));
+                Some(())
+            }
             _ => None,
         }
     }
