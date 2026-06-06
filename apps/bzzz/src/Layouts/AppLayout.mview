@@ -19,6 +19,9 @@
             backdrop-filter: saturate(1.6) blur(10px); -webkit-backdrop-filter: saturate(1.6) blur(10px);
             border-bottom: 1px solid var(--colorNeutralStroke2); }
         .bz-brand-logo { font-size: 1.15rem; }
+        .bz-gate-redirect { min-height: 70vh; display: flex; align-items: center; justify-content: center;
+            gap: .4rem; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
+        .bz-gate-redirect a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
         .mv-appbar .mv-menu-list { right: 0; left: auto; }
 
         /* Shell: app bar on top, Nav rail + content below */
@@ -113,8 +116,14 @@
             .bz-banner { padding: var(--spacingVerticalXL) var(--spacingHorizontalL); }
         }
     </style>
+    <!-- Auth + onboarding gate: anyone who isn't signed in AND handle-bound is
+         sent to /welcome (no-JS meta redirect). /about and /greet stay public. -->
+    @if (not ((ctx.isAuthenticated and Identity.isBound(ctx.caller)) or (ctx.path == "/about") or Text.startsWith(ctx.path, #text "/greet"))) {
+        <meta http-equiv="refresh" content="0; url=/welcome">
+    }
 </head>
 <body>
+@if ((ctx.isAuthenticated and Identity.isBound(ctx.caller)) or (ctx.path == "/about") or Text.startsWith(ctx.path, #text "/greet")) {
     <AppBar>
         <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
         <span class="mv-appbar-spacer"></span>
@@ -154,5 +163,8 @@
             </footer>
         </div>
     </div>
+} else {
+    <div class="bz-gate-redirect">Taking you to sign in… <a href="/welcome">Continue →</a></div>
+}
 </body>
 </html>

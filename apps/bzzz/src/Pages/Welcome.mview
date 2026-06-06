@@ -1,0 +1,79 @@
+@page "/welcome"
+@layout WelcomeLayout
+@title "Welcome to Bzzz"
+@description "Sign in with Internet Identity and pick your handle to join Bzzz."
+
+@if (not authed) {
+    <p class="wl-sub">Your account is your <strong>Internet Identity</strong> — no email, no password. Sign in to join the conversation.</p>
+    <button data-mv-signin class="mv-btn mv-btn-primary wl-cta" type="button">Sign in with Internet Identity</button>
+    <p class="wl-fine">New to the Internet Computer? You can create an Internet Identity during sign-in.</p>
+} else if (not bound) {
+    <h1 class="wl-h">Pick your handle</h1>
+    <p class="wl-sub">One last step. This is your name everywhere in Bzzz — feed, forum, servers and messages — and it's linked to your Internet Identity.</p>
+    <form @submit="useII" secure>
+        <button class="mv-btn mv-btn-primary wl-cta" type="submit">⚡ Use my Internet Identity (@@@suggested)</button>
+    </form>
+    <div class="wl-or"><span>or choose your own</span></div>
+    <form @submit="claim" secure class="wl-form">
+        <ValidationSummary />
+        <InputText name="handle" label="Handle" bind="@handle" required />
+        <p class="wl-hint">2–20 characters · lowercase letters, numbers and underscores · starts with a letter.</p>
+        <button class="mv-btn mv-btn-primary wl-cta" type="submit">Create my handle</button>
+    </form>
+} else {
+    <h1 class="wl-h">You're all set, @@@boundHandle</h1>
+    <p class="wl-sub">Taking you into Bzzz…</p>
+    <a class="mv-btn mv-btn-primary wl-cta" href="/feed">Enter Bzzz →</a>
+}
+
+@code {
+    var authed : Bool = false;
+    var bound : Bool = false;
+    var suggested : Text = "";
+    var boundHandle : Text = "";
+    var handle : Text = "";
+
+    func onLoad(ctx : Context) { load(ctx); };
+
+    func load(ctx : Context) {
+        authed := ctx.isAuthenticated;
+        bound := Identity.isBound(ctx.caller);
+        suggested := Identity.suggestHandle(ctx.caller);
+        boundHandle := Identity.handleOf(ctx.caller);
+    };
+
+    // Manual handle — format + uniqueness validated by Identity.bindChecked.
+    func claim(ctx : Context) : async () {
+        validate { handle required "Choose a handle."; };
+        switch (Identity.bindChecked(ctx.caller, handle, "")) {
+            case (#ok h) { toast("Welcome to Bzzz, @" # h # "!"); };
+            case (#taken) { toast("That handle is already taken — try another."); };
+            case (#invalid m) { toast(m); };
+        };
+        load(ctx);
+    };
+
+    // One-click: a valid, unique handle derived from the II principal.
+    func useII(ctx : Context) : async () {
+        let pick = Identity.suggestHandle(ctx.caller);
+        switch (Identity.bindChecked(ctx.caller, pick, "")) {
+            case (#ok h) { toast("Welcome to Bzzz, @" # h # "!"); };
+            case (#taken) { toast("Couldn't auto-pick a free handle — choose one below."); };
+            case (#invalid m) { toast(m); };
+        };
+        load(ctx);
+    };
+}
+
+<style>
+    .wl-h { margin: .4rem 0 .3rem; font-size: 1.4rem; letter-spacing: -.02em; }
+    .wl-sub { color: var(--colorNeutralForeground3); margin: .2rem 0 1.2rem; font-size: .95rem; line-height: 1.5; }
+    .wl-cta { width: 100%; justify-content: center; font-size: 1rem; padding: .7rem 1rem; }
+    .wl-fine { color: var(--colorNeutralForeground4); font-size: .8rem; margin: 1.1rem 0 0; }
+    .wl-form { text-align: left; margin: 0; }
+    .wl-form .wl-cta { margin-top: .6rem; }
+    .wl-hint { color: var(--colorNeutralForeground3); font-size: .8rem; margin: .35rem 0 0; }
+    .wl-or { display: flex; align-items: center; gap: .6rem; margin: 1rem 0; color: var(--colorNeutralForeground4); font-size: .8rem; }
+    .wl-or::before, .wl-or::after { content: ""; flex: 1; height: 1px; background: var(--colorNeutralStroke2); }
+    form { margin: 0; }
+</style>

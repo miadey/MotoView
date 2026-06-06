@@ -134,8 +134,13 @@
             .fl-main { padding: 16px; }
         }
     </style>
+    <!-- Auth + onboarding gate: not signed-in-and-handle-bound -> /welcome (no-JS). -->
+    @if (not (ctx.isAuthenticated and Identity.isBound(ctx.caller))) {
+        <meta http-equiv="refresh" content="0; url=/welcome">
+    }
 </head>
 <body>
+@if (ctx.isAuthenticated and Identity.isBound(ctx.caller)) {
     <!-- CSS-only off-canvas toggle: the burger checkbox controls the sidebar under 900px -->
     <input type="checkbox" id="fl-burger" class="fl-burger" hidden>
 
@@ -281,6 +286,9 @@
             </footer>
         </div>
     </div>
+} else {
+    <div class="bz-gate-redirect" style="min-height:70vh;display:flex;align-items:center;justify-content:center;gap:.4rem;color:var(--colorNeutralForeground3);font-family:var(--fontFamilyBase)">Taking you to sign in… <a href="/welcome" style="color:var(--colorBrandForeground1);font-weight:600">Continue →</a></div>
+}
 </body>
 </html>
 
