@@ -2381,6 +2381,87 @@ impl<'a> Codegen<'a> {
                 out.push_str(&format!("{}b.raw(Charts.venn({}, {}, {}));\n", indent, sets, labels, opts));
                 Some(())
             }
+                        "NightingaleChart" => {
+                // Rose / polar-area: equal-angle wedges, radius proportional to value.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.nightingale({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "RadialHistogram" => {
+                // Raw observations binned into polar bars; bins<=0 => Sturges.
+                let values = str_expr("values");
+                let bins = str_expr("bins");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.radialHistogram({}, {}, {}));\n", indent, values, bins, opts));
+                Some(())
+            }
+            "ParallelCoordinates" => {
+                // One vertical axis per dimension (labels); one polyline per series.
+                let series = str_expr("series");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.parallelCoords({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "SmallMultiples" => {
+                // Trellis grid of mini charts (one per series); kind = "bar" | "line".
+                let series = str_expr("series");
+                let labels = str_expr("labels");
+                let kind = str_expr("kind");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.smallMultiples({}, {}, {}, {}));\n", indent, series, labels, kind, opts));
+                Some(())
+            }
+            "CircularTreemap" => {
+                // Flat "label:value" semicolon list -> area-packed circles.
+                let data = str_expr("data");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.circularTreemap({}, {}));\n", indent, data, opts));
+                Some(())
+            }
+            "HorizonChart" => {
+                // Single value series + optional parallel labels -> folded bands.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.horizon({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "BumpAreaChart" => {
+                // Stacked ranking areas; accepts series=".." or data="..".
+                let series = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("data") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.bumpArea({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "WordCloud" => {
+                // "word:weight" semicolon list -> font-size-weighted text rows.
+                let words = if c.props.iter().any(|a| a.name == "words") { str_expr("words") } else { str_expr("data") };
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.wordCloud({}, {}));\n", indent, words, opts));
+                Some(())
+            }
+            "MatrixChart" => {
+                // Row-major numeric matrix -> size+shade square glyphs.
+                let matrix = str_expr("matrix");
+                let row_labels = str_expr("rowLabels");
+                let col_labels = str_expr("colLabels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.matrix({}, {}, {}, {}));\n", indent, matrix, row_labels, col_labels, opts));
+                Some(())
+            }
+            "TableChart" => {
+                // Row-major matrix -> styled HTML <table> (NOT svg).
+                let values = if c.props.iter().any(|a| a.name == "values") { str_expr("values") } else { str_expr("data") };
+                let row_labels = str_expr("rowLabels");
+                let col_labels = str_expr("colLabels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.table({}, {}, {}, {}));\n", indent, values, row_labels, col_labels, opts));
+                Some(())
+            }
             _ => None,
         }
     }

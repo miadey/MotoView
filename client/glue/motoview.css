@@ -7671,3 +7671,130 @@ Bases EXISTED (.mv-card-header + -media/-text/-title/-desc, .mv-card-preview + -
   .mv-chart-venn-circle { forced-color-adjust: none; mix-blend-mode: normal;
     fill: none; stroke: CanvasText; stroke-width: 1.5; }
 }
+
+
+/* ===== Charts wave 3 ===== */
+/* NightingaleChart */
+/* --- nightingale / rose (polar area) ----------------------------- */
+.mv-chart-rose-grid .mv-chart-grid { fill: none; }
+.mv-chart-rose-slice {
+  stroke: var(--colorNeutralBackground1); stroke-width: 1.5;
+  transition: opacity .12s ease, filter .12s ease; }
+.mv-chart-rose-slices:hover .mv-chart-rose-slice { opacity: .45; }
+.mv-chart-rose-slices .mv-chart-rose-slice:hover {
+  opacity: 1; stroke-width: 2.5; filter: brightness(1.06);
+  stroke: var(--colorNeutralForeground1); }
+@media (forced-colors: active) {
+  .mv-chart-rose-slice { forced-color-adjust: none; stroke: CanvasText; }
+}
+/* RadialHistogram */
+/* --- radial histogram (binned polar bars) ------------------------ */
+.mv-chart-radhist-grid .mv-chart-grid { fill: none; }
+.mv-chart-radhist-edge { fill: var(--colorNeutralForeground3); }
+.mv-chart-radhist-bar {
+  stroke: var(--colorNeutralBackground1); stroke-width: 1;
+  transition: opacity .12s ease, filter .12s ease; }
+.mv-chart-radhist-bars:hover .mv-chart-radhist-bar { opacity: .5; }
+.mv-chart-radhist-bars .mv-chart-radhist-bar:hover {
+  opacity: 1; filter: brightness(1.08);
+  stroke: var(--colorNeutralForeground1); stroke-width: 1.5; }
+@media (forced-colors: active) {
+  .mv-chart-radhist-bar { forced-color-adjust: none; stroke: CanvasText; }
+}
+/* ParallelCoordinates */
+/* --- parallel coordinates ---------------------------------------- */
+.mv-chart-parcoord-dim { fill: var(--colorNeutralForeground2); }
+.mv-chart-parcoord-line {
+  fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+  transition: stroke-width .12s ease, opacity .12s ease; }
+.mv-chart-parcoord-lines:hover .mv-chart-parcoord-line { opacity: .35; }
+.mv-chart-parcoord-lines .mv-chart-parcoord-line:hover { opacity: 1; stroke-width: 3; }
+.mv-chart-parcoord-dot { transition: r .12s ease; }
+.mv-chart-parcoord-dot:hover { r: 4.5; }
+@media (forced-colors: active) {
+  .mv-chart-parcoord-line { forced-color-adjust: none; stroke: CanvasText; }
+  .mv-chart-parcoord-dot { forced-color-adjust: none; stroke: CanvasText; }
+}
+/* SmallMultiples */
+/* --- small multiples (trellis grid of mini charts) --------------- */
+.mv-chart-smallmult-name { font-size: var(--fontSizeBase200, 12px);
+  font-weight: var(--fontWeightSemibold, 600); fill: var(--colorNeutralForeground2); }
+.mv-chart-smallmult-base { stroke: var(--colorNeutralStroke2); stroke-width: 1; }
+.mv-chart-smallmult-area { fill-opacity: .15; }
+.mv-chart-smallmult-line { stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.mv-chart-smallmult-bar { transition: opacity .12s ease, filter .12s ease; }
+.mv-chart-smallmult-cell:hover .mv-chart-smallmult-bar { opacity: 1; filter: brightness(1.08); }
+.mv-chart-smallmult-dot { transition: r .12s ease; }
+.mv-chart-smallmult-dot:hover { r: 3.5; }
+@media (forced-colors: active) {
+  .mv-chart-smallmult-bar, .mv-chart-smallmult-area { forced-color-adjust: none; stroke: CanvasText; }
+  .mv-chart-smallmult-line { forced-color-adjust: none; stroke: CanvasText; }
+}
+/* CircularTreemap */
+/* --- circular treemap (circle packing) --------------------------- */
+.mv-chart-circpack-node circle { stroke: var(--colorNeutralBackground1); stroke-width: 1.5;
+  transition: opacity .12s ease; }
+.mv-chart-circpack-circles:hover .mv-chart-circpack-node circle { opacity: .5; }
+.mv-chart-circpack-circles .mv-chart-circpack-node:hover circle { opacity: 1; }
+.mv-chart-circpack-label { font-size: var(--fontSizeBase200, 12px);
+  font-weight: var(--fontWeightSemibold, 600); fill: #fff; pointer-events: none; }
+.mv-chart-circpack-val { font-size: var(--fontSizeBase200, 12px); fill: #fff; opacity: .85;
+  pointer-events: none; }
+@media (forced-colors: active) {
+  .mv-chart-circpack-node circle { forced-color-adjust: none; stroke: CanvasText; }
+  .mv-chart-circpack-label, .mv-chart-circpack-val { fill: CanvasText; }
+}
+/* HorizonChart */
+/* --- horizon chart (banded folded area) -------------------------- */
+.mv-chart-horizon-band { stroke: none; transition: fill-opacity .12s ease; }
+.mv-chart-horizon-pt { cursor: default; }
+.mv-chart-horizon:hover .mv-chart-horizon-band { fill-opacity: .35; }
+.mv-chart-horizon-neg { /* contrasting fold for negatives */ }
+@media (forced-colors: active) {
+  .mv-chart-horizon-band { forced-color-adjust: none; stroke: CanvasText; stroke-width: .5; }
+}
+/* BumpAreaChart */
+/* --- bump area (stacked ranking areas) --------------------------- */
+.mv-chart-bumparea-band { stroke: none; fill-opacity: .82; transition: fill-opacity .12s ease; }
+.mv-chart-bumparea:hover .mv-chart-bumparea-band { fill-opacity: .38; }
+.mv-chart-bumparea .mv-chart-bumparea-band:hover { fill-opacity: 1; }
+@media (forced-colors: active) {
+  .mv-chart-bumparea-band { forced-color-adjust: none; stroke: CanvasText; stroke-width: .5; }
+}
+/* WordCloud */
+/* --- word cloud (weighted text rows) ----------------------------- */
+.mv-chart-wordcloud-word { font-weight: var(--fontWeightSemibold, 600);
+  cursor: default; transition: opacity .12s ease; }
+.mv-chart-wordcloud-words:hover .mv-chart-wordcloud-word { opacity: .4; }
+.mv-chart-wordcloud-words .mv-chart-wordcloud-word:hover { opacity: 1; }
+@media (forced-colors: active) { .mv-chart-wordcloud-word { forced-color-adjust: none; fill: CanvasText; } }
+/* MatrixChart */
+/* --- matrix chart (sized + shaded square glyphs) ----------------- */
+.mv-chart-matrix-cell { stroke: none; transition: opacity .12s ease; }
+.mv-chart-matrix-cells:hover .mv-chart-matrix-cell { opacity: .5; }
+.mv-chart-matrix-cells .mv-chart-matrix-cell:hover { opacity: 1;
+  stroke: var(--colorNeutralForeground1); stroke-width: 1.5; }
+.mv-chart-matrix-swatch { stroke: none; }
+@media (forced-colors: active) {
+  .mv-chart-matrix-cell { forced-color-adjust: none; stroke: CanvasText; }
+}
+/* TableChart */
+/* --- table chart (HTML data table, NOT svg) ---------------------- */
+.mv-chart-table { border-collapse: collapse; width: 100%; font-size: var(--fontSizeBase300, 14px);
+  color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase, inherit); }
+.mv-chart-table-caption { caption-side: top; text-align: left; padding: 0 0 8px;
+  font-size: var(--fontSizeBase400, 16px); font-weight: var(--fontWeightSemibold, 600);
+  color: var(--colorNeutralForeground1); }
+.mv-chart-table th, .mv-chart-table td { padding: 6px 12px; text-align: right;
+  border-bottom: 1px solid var(--colorNeutralStroke2); }
+.mv-chart-table-colhead, .mv-chart-table-rowhead, .mv-chart-table-corner {
+  font-weight: var(--fontWeightSemibold, 600); color: var(--colorNeutralForeground2);
+  background: var(--colorNeutralBackground2); }
+.mv-chart-table-rowhead { text-align: left; }
+.mv-chart-table thead th { border-bottom: 2px solid var(--colorNeutralStroke1); }
+.mv-chart-table tbody tr:hover td, .mv-chart-table tbody tr:hover th {
+  background: var(--colorNeutralBackground1Hover, var(--colorNeutralBackground2)); }
+.mv-chart-table-empty { text-align: center; color: var(--colorNeutralForeground3); padding: 16px; }
+@media (forced-colors: active) {
+  .mv-chart-table th, .mv-chart-table td { border-color: CanvasText; }
+}

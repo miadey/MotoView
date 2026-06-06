@@ -343,6 +343,66 @@
         <VennDiagram sets="A:620;B:430;AB:180" labels="Signed up,Purchased" title="Signup vs purchase" width=400 height=320 />
       </div>
     </section>
+    <section class="ch-card">
+      <h3 class="ch-name">NightingaleChart</h3>
+      <div class="ch-canvas">
+        <NightingaleChart values="42,30,55,20,38,47,33,28,51,44,36,49" labels="Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec" title="Deaths by month" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">RadialHistogram</h3>
+      <div class="ch-canvas">
+        <RadialHistogram values="2,3,3,4,4,4,5,5,5,5,6,6,6,7,7,8,8,9,10,11,3,4,5,6,5,4,7,8,6,5" bins="8" title="Response time distribution" unit="ms" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">ParallelCoordinates</h3>
+      <div class="ch-canvas">
+        <ParallelCoordinates series="Roadster:420,3.5,1300,15;Sedan:280,5.8,1650,32;SUV:300,6.9,2100,26;Compact:130,9.2,1250,48" labels="HP,0-60s,Weight,MPG" title="Vehicle profiles" width=520 height=320 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">SmallMultiples</h3>
+      <div class="ch-canvas">
+        <SmallMultiples series="North:10,14,9,16,12;South:6,8,7,11,9;East:12,15,13,18,16;West:8,9,11,10,13;Central:14,12,16,15,18;Coast:5,7,6,9,8" labels="Q1,Q2,Q3,Q4,Q5" kind="line" title="Sales by region" unit="k" width=560 height=340 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">CircularTreemap</h3>
+      <div class="ch-canvas">
+        <CircularTreemap data="Search:42;Direct:30;Social:18;Email:10;Referral:8" title="Acquisition by channel" unit="%" width=480 height=300 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">HorizonChart</h3>
+      <div class="ch-canvas">
+        <HorizonChart values="3,7,5,9,4,8,12,6,10,2,5,11" labels="J,F,M,A,M,J,J,A,S,O,N,D" title="Throughput (folded)" width=480 height=200 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">BumpAreaChart</h3>
+      <div class="ch-canvas">
+        <BumpAreaChart series="Alice:30,40,38,50,55;Bob:20,25,35,30,28;Carol:10,15,12,22,30;Dan:8,6,14,18,12" labels="W1,W2,W3,W4,W5" title="Share of votes by week" width=480 height=300 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">WordCloud</h3>
+      <div class="ch-canvas">
+        <WordCloud words="motoko:40;canister:32;icp:28;native:24;wasm:20;server:16;ui:12;wasm32:10;ssr:8" title="Stack keywords" width=480 height=300 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">MatrixChart</h3>
+      <div class="ch-canvas">
+        <MatrixChart matrix="12,30,5,18;8,22,40,11;3,9,18,27" rowLabels="Team A,Team B,Team C" colLabels="Q1,Q2,Q3,Q4" title="Tickets by team / quarter" width=480 height=300 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">TableChart</h3>
+      <div class="ch-canvas">
+        <TableChart values="1240,980,260;1530,1120,410;1810,1340,470" rowLabels="Q1,Q2,Q3" colLabels="Revenue,Costs,Profit" title="Quarterly P&L" unit="k" width=480 height=300 />
+      </div>
+    </section>
   </div>
 </section>
 

@@ -5155,4 +5155,1070 @@ public func radialBar(values : Text, labels : Text, opts : O) : Text {
     Text.join("", b.vals());
   };
 
+  // ===== NightingaleChart =====
+// ---- NightingaleChart (rose / polar-area) -------------------------------
+/// Florence Nightingale's polar-area / rose diagram: every wedge spans the
+/// SAME angle (a full circle / n), and the wedge RADIUS is proportional to its
+/// value (radius = outerR * value / niceCeil(max)). A value's visual weight is
+/// thus its radius (per the brief), unlike a pie where it is the angle. Faint
+/// value rings when showGrid; native <title> tooltip per wedge.
+/// `<NightingaleChart values="42,30,55,20,38" labels="Jan,Feb,Mar,Apr,May" />`.
+public func nightingale(values : Text, labels : Text, opts : O) : Text {
+  let vs = parseFloats(values);
+  let labs = parseLabels(labels);
+  let b = Buffer.Buffer<Text>(vs.size() * 2 + 8);
+  b.add(svgOpen(opts, "mv-chart-rose"));
+  let (cx, cy) = centerXY(opts);
+  let maxR0 = minF(cx, cy) - 16.0;
+  let outerR = if (maxR0 < 8.0) { 8.0 } else { maxR0 };
+  let n = vs.size();
+  if (n == 0) {
+    b.add("<text class=\"mv-chart-empty\" x=\"" # fmtNum(cx) # "\" y=\"" # fmtNum(cy) # "\" text-anchor=\"middle\">No data</text>");
+    b.add(svgClose());
+    return Text.join("", b.vals());
+  };
+  let rawMax = arrMax(vs);
+  let hi = switch (opts.yMax) { case (?m) { m }; case null { if (rawMax <= 0.0) { 1.0 } else { niceCeil(rawMax) } } };
+  let denom = if (hi == 0.0) { 1.0 } else { hi };
+  // faint concentric value rings + outer guide
+  if (opts.showGrid) {
+    b.add("<g class=\"mv-chart-rose-grid\">");
+    let rings : Nat = 4;
+    var r : Nat = 1;
+    while (r <= rings) {
+      let rr = outerR * Float.fromInt(r) / Float.fromInt(rings);
+      b.add("<circle class=\"mv-chart-grid\" cx=\"" # fmtNum(cx) # "\" cy=\"" # fmtNum(cy) # "\" r=\"" # fmtNum(rr) # "\"/>");
+      r += 1;
+    };
+    b.add("</g>");
+  };
+  b.add("<g class=\"mv-chart-rose-slices\">");
+  let legendEntries = Buffer.Buffer<(Text, Text)>(n);
+  var i : Nat = 0;
+  while (i < n) {
+    let v = vs[i];
+    let startFrac = Float.fromInt(i) / Float.fromInt(n);
+    let endFrac = Float.fromInt(i + 1) / Float.fromInt(n);
+    let rr = roseRadius(v, denom, outerR);
+    let color = palette(opts, i);
+    let name = labelAt(labs, i);
+    let tip = (if (name != "") { name # ": " } else { "" }) # fmtNum(v) # opts.unit;
+    if (rr > 0.0) {
+      b.add("<path class=\"mv-chart-rose-slice\" fill=\"" # esc(color)
+        # "\" d=\"" # arcPath(cx, cy, rr, 0.0, startFrac, endFrac) # "\"><title>" # esc(tip) # "</title></path>");
+    };
+    legendEntries.add((if (name != "") { name } else { fmtNum(v) # opts.unit }, color));
+    i += 1;
+  };
+  b.add("</g>");
+  b.add(legend(opts, Buffer.toArray(legendEntries)));
+  b.add(svgClose());
+  Text.join("", b.vals());
+};
+// rose wedge radius: linear in value, clamped to [0, outerR].
+func roseRadius(v : Float, denom : Float, outerR : Float) : Float {
+  var fr = v / denom;
+  if (fr < 0.0) { fr := 0.0 };
+  if (fr > 1.0) { fr := 1.0 };
+  outerR * fr;
+};
+
+  // ===== RadialHistogram =====
+// ---- RadialHistogram (binned counts as polar bars) ----------------------
+/// Bins raw observations into `bins` equal-width buckets (Sturges if bins<=0,
+/// same model as Histogram) and draws each bucket as a polar bar: equal angular
+/// width, radius proportional to the bucket COUNT. A circular axis of bin-edge
+/// values when showAxes. Native <title> tooltip per bar with the [lo,hi) range
+/// and count.
+/// `<RadialHistogram values="1,2,2,3,3,3,4,4,5,6,6,7,8,9,9,10" bins="6" />`.
+public func radialHistogram(values : Text, bins : Text, opts : O) : Text {
+  let raw = parseFloats(values);
+  let b = Buffer.Buffer<Text>(16);
+  b.add(svgOpen(opts, "mv-chart-radhist"));
+  let (cx, cy) = centerXY(opts);
+  let maxR0 = minF(cx, cy) - 18.0;
+  let outerMost = if (maxR0 < 8.0) { 8.0 } else { maxR0 };
+  let n = raw.size();
+  if (n == 0) {
+    b.add("<text class=\"mv-chart-empty\" x=\"" # fmtNum(cx) # "\" y=\"" # fmtNum(cy) # "\" text-anchor=\"middle\">No data</text>");
+    b.add(svgClose());
+    return Text.join("", b.vals());
+  };
+  let dataMin = arrMin(raw);
+  let dataMax = arrMax(raw);
+  let requested = switch (toFloat(bins)) { case (?f) { Int.abs(Float.toInt(f)) }; case null { 0 } };
+  var nbins : Nat = if (requested > 0) { requested } else {
+    let s = Float.log(Float.fromInt(n)) / Float.log(2.0);
+    let c = Int.abs(Float.toInt(Float.ceil(s))) + 1;
+    if (c < 1) { 1 } else { c };
+  };
+  if (nbins > 36) { nbins := 36 };
+  if (nbins < 1) { nbins := 1 };
+  let span = if (dataMax - dataMin <= 0.0) { 1.0 } else { dataMax - dataMin };
+  let binW = span / Float.fromInt(nbins);
+  let counts = radhCount(raw, dataMin, binW, nbins);
+  var cmax : Nat = 0;
+  for (c in counts.vals()) { if (c > cmax) { cmax := c } };
+  let hi = switch (opts.yMax) { case (?m) { m }; case null { if (cmax == 0) { 1.0 } else { niceCeil(Float.fromInt(cmax)) } } };
+  let denom = if (hi == 0.0) { 1.0 } else { hi };
+  let innerHole = outerMost * 0.18;
+  let radSpan = outerMost - innerHole;
+  // faint count rings + circular outer guide
+  if (opts.showGrid) {
+    b.add("<g class=\"mv-chart-radhist-grid\">");
+    let rings : Nat = 4;
+    var r : Nat = 1;
+    while (r <= rings) {
+      let rr = innerHole + radSpan * Float.fromInt(r) / Float.fromInt(rings);
+      b.add("<circle class=\"mv-chart-grid\" cx=\"" # fmtNum(cx) # "\" cy=\"" # fmtNum(cy) # "\" r=\"" # fmtNum(rr) # "\"/>");
+      r += 1;
+    };
+    b.add("</g>");
+  };
+  b.add("<g class=\"mv-chart-radhist-bars\">");
+  let color = palette(opts, 0);
+  var i : Nat = 0;
+  while (i < nbins) {
+    let startFrac = Float.fromInt(i) / Float.fromInt(nbins);
+    let endFrac = (Float.fromInt(i) + 0.86) / Float.fromInt(nbins); // small angular gap
+    let cnt = counts[i];
+    var fr = Float.fromInt(cnt) / denom;
+    if (fr < 0.0) { fr := 0.0 };
+    if (fr > 1.0) { fr := 1.0 };
+    let rOuter = innerHole + radSpan * fr;
+    let lo = dataMin + binW * Float.fromInt(i);
+    let bhi = lo + binW;
+    let tip = "[" # fmtNum(lo) # opts.unit # ", " # fmtNum(bhi) # opts.unit # "): " # Nat.toText(cnt);
+    if (cnt > 0) {
+      b.add("<path class=\"mv-chart-radhist-bar\" fill=\"" # esc(color)
+        # "\" d=\"" # arcPath(cx, cy, rOuter, innerHole, startFrac, endFrac) # "\"><title>" # esc(tip) # "</title></path>");
+    };
+    // bin-edge labels around the rim
+    if (opts.showAxes) {
+      let ang = startFrac * 6.283185307179586;
+      let lx = polarX(cx, outerMost + 10.0, ang);
+      let ly = polarY(cy, outerMost + 10.0, ang);
+      let anchor = if (lx > cx + 1.0) { "start" } else if (lx < cx - 1.0) { "end" } else { "middle" };
+      b.add("<text class=\"mv-chart-tick mv-chart-radhist-edge\" x=\"" # fmtNum(lx) # "\" y=\"" # fmtNum(ly + 3.0)
+        # "\" text-anchor=\"" # anchor # "\">" # esc(fmtNum(lo) # opts.unit) # "</text>");
+    };
+    i += 1;
+  };
+  b.add("</g>");
+  b.add(svgClose());
+  Text.join("", b.vals());
+};
+// count observations into nbins equal-width buckets (last bucket inclusive).
+func radhCount(raw : [Float], dataMin : Float, binW : Float, nbins : Nat) : [var Nat] {
+  let counts = Array.init<Nat>(nbins, 0);
+  for (v in raw.vals()) {
+    var idx = Int.abs(Float.toInt(Float.floor((v - dataMin) / binW)));
+    if (idx >= nbins) { idx := nbins - 1 };
+    counts[idx] += 1;
+  };
+  counts;
+};
+
+  // ===== ParallelCoordinates =====
+// ---- ParallelCoordinates -------------------------------------------------
+/// One vertical axis per dimension; each series becomes a polyline crossing
+/// every axis at its value (each axis independently scaled to its own data
+/// min..max). `labels` names the dimensions (= the axes, left to right);
+/// `series` gives one named row of values per dimension.
+/// `<ParallelCoordinates series="Car A:130,8.5,1450,42;Car B:90,12,1100,55"
+///                       labels="HP,0-60s,Weight,MPG" />`.
+public func parallelCoords(series : Text, labels : Text, opts : O) : Text {
+  let rows = parseSeries(series);
+  let dims = parseLabels(labels);
+  let b = Buffer.Buffer<Text>(rows.size() * 2 + 12);
+  b.add(svgOpen(opts, "mv-chart-parcoord"));
+  // number of axes = max(label count, widest row)
+  var nAxes : Nat = dims.size();
+  for ((_, vals) in rows.vals()) { if (vals.size() > nAxes) { nAxes := vals.size() } };
+  if (nAxes == 0 or rows.size() == 0) {
+    let cx = Float.fromInt(Int.abs(opts.width)) / 2.0;
+    let cy = Float.fromInt(Int.abs(opts.height)) / 2.0;
+    b.add("<text class=\"mv-chart-empty\" x=\"" # fmtNum(cx) # "\" y=\"" # fmtNum(cy) # "\" text-anchor=\"middle\">No data</text>");
+    b.add(svgClose());
+    return Text.join("", b.vals());
+  };
+  let left = plotLeft();
+  let right = plotRight(opts);
+  let top = plotTop();
+  let bot = plotBottom(opts);
+  // x position of each axis
+  let axX = Array.tabulate<Float>(nAxes, func(d) {
+    if (nAxes == 1) { (left + right) / 2.0 }
+    else { left + (right - left) * Float.fromInt(d) / Float.fromInt(nAxes - 1) };
+  });
+  // per-axis (independent) min/max -> a y scale that maps value -> pixel
+  let axLo = Array.init<Float>(nAxes, 0.0);
+  let axHi = Array.init<Float>(nAxes, 1.0);
+  var d : Nat = 0;
+  while (d < nAxes) {
+    let col = pcoordColumn(rows, d);
+    var lo = if (col.size() > 0) { arrMin(col) } else { 0.0 };
+    var hi = if (col.size() > 0) { arrMax(col) } else { 1.0 };
+    if (hi <= lo) { hi := lo + 1.0 };
+    axLo[d] := lo; axHi[d] := hi;
+    d += 1;
+  };
+  // draw axes + per-axis min/max ticks + dimension labels
+  if (opts.showAxes) {
+    b.add("<g class=\"mv-chart-parcoord-axes\">");
+    var a : Nat = 0;
+    while (a < nAxes) {
+      let x = axX[a];
+      b.add("<line class=\"mv-chart-axis\" x1=\"" # fmtNum(x) # "\" y1=\"" # fmtNum(top)
+        # "\" x2=\"" # fmtNum(x) # "\" y2=\"" # fmtNum(bot) # "\"/>");
+      // top = axis max, bottom = axis min
+      b.add("<text class=\"mv-chart-tick\" x=\"" # fmtNum(x + 4.0) # "\" y=\"" # fmtNum(top + 8.0)
+        # "\" text-anchor=\"start\">" # esc(fmtNum(axHi[a]) # opts.unit) # "</text>");
+      b.add("<text class=\"mv-chart-tick\" x=\"" # fmtNum(x + 4.0) # "\" y=\"" # fmtNum(bot - 2.0)
+        # "\" text-anchor=\"start\">" # esc(fmtNum(axLo[a]) # opts.unit) # "</text>");
+      let anchor = if (a == 0) { "start" } else if (a == nAxes - 1) { "end" } else { "middle" };
+      b.add("<text class=\"mv-chart-tick mv-chart-xtick mv-chart-parcoord-dim\" x=\"" # fmtNum(x)
+        # "\" y=\"" # fmtNum(bot + 16.0) # "\" text-anchor=\"" # anchor # "\">" # esc(labelAt(dims, a)) # "</text>");
+      a += 1;
+    };
+    b.add("</g>");
+  };
+  // one polyline per series, crossing each axis at its scaled value
+  b.add("<g class=\"mv-chart-parcoord-lines\">");
+  let legendEntries = Buffer.Buffer<(Text, Text)>(rows.size());
+  var si : Nat = 0;
+  for ((name, vals) in rows.vals()) {
+    let color = palette(opts, si);
+    let pts = Buffer.Buffer<(Float, Float)>(nAxes);
+    var a : Nat = 0;
+    while (a < nAxes) {
+      if (a < vals.size()) {
+        let ySc = linScale(axLo[a], axHi[a], bot, top); // min at bottom, max at top
+        pts.add((axX[a], ySc(vals[a])));
+      };
+      a += 1;
+    };
+    let ptsArr = Buffer.toArray(pts);
+    let dispName = if (name != "") { name } else { "Series " # Nat.toText(si + 1) };
+    b.add("<polyline class=\"mv-chart-parcoord-line\" fill=\"none\" stroke=\"" # esc(color)
+      # "\" points=\"" # polyPoints(ptsArr) # "\"><title>" # esc(dispName) # "</title></polyline>");
+    // vertex dots with per-dimension tooltips
+    var k : Nat = 0;
+    while (k < ptsArr.size()) {
+      let (px, py) = ptsArr[k];
+      let v = if (k < vals.size()) { vals[k] } else { 0.0 };
+      let tip = dispName # " \u{b7} " # labelAt(dims, k) # ": " # fmtNum(v) # opts.unit;
+      b.add("<circle class=\"mv-chart-parcoord-dot\" cx=\"" # fmtNum(px) # "\" cy=\"" # fmtNum(py)
+        # "\" r=\"2.5\" fill=\"" # esc(color) # "\"><title>" # esc(tip) # "</title></circle>");
+      k += 1;
+    };
+    legendEntries.add((dispName, color));
+    si += 1;
+  };
+  b.add("</g>");
+  b.add(legend(opts, Buffer.toArray(legendEntries)));
+  b.add(svgClose());
+  Text.join("", b.vals());
+};
+// gather every series' value at dimension index d (skipping rows too short).
+func pcoordColumn(rows : [Series], d : Nat) : [Float] {
+  let out = Buffer.Buffer<Float>(rows.size());
+  for ((_, vals) in rows.vals()) { if (d < vals.size()) { out.add(vals[d]) } };
+  Buffer.toArray(out);
+};
+
+  // ===== SmallMultiples =====
+// ---- SmallMultiples (trellis grid of mini charts) -----------------------
+/// A responsive grid of tiny charts, one cell per series, sharing a common y
+/// scale (so cells are visually comparable). `kind` chooses the mark: "bar"
+/// (default) draws mini columns, "line" draws a mini sparkline+area. `labels`
+/// is the shared x category list (used only for tooltips). Each cell shows the
+/// series name and has per-point native <title> tooltips.
+/// `<SmallMultiples series="North:10,14,9,16;South:6,8,7,11;East:12,15,13,18"
+///                  labels="Q1,Q2,Q3,Q4" kind="line" />`.
+public func smallMultiples(series : Text, labels : Text, kind : Text, opts : O) : Text {
+  let rows = parseSeries(series);
+  let xlabs = parseLabels(labels);
+  let ns = rows.size();
+  let b = Buffer.Buffer<Text>(ns * 4 + 8);
+  b.add(svgOpen(opts, "mv-chart-smallmult"));
+  if (ns == 0) {
+    let cx = Float.fromInt(Int.abs(opts.width)) / 2.0;
+    let cy = Float.fromInt(Int.abs(opts.height)) / 2.0;
+    b.add("<text class=\"mv-chart-empty\" x=\"" # fmtNum(cx) # "\" y=\"" # fmtNum(cy) # "\" text-anchor=\"middle\">No data</text>");
+    b.add(svgClose());
+    return Text.join("", b.vals());
+  };
+  let isLine = kind == "line" or kind == "Line" or kind == "spark";
+  // shared y range across every series (comparable cells)
+  let allVals = Buffer.Buffer<Float>(ns * 4);
+  for ((_, vals) in rows.vals()) { for (v in vals.vals()) { allVals.add(v) } };
+  let (ylo, yhi) = yDomain(opts, arrMin(Buffer.toArray(allVals)), arrMax(Buffer.toArray(allVals)), true);
+  // grid geometry: pick a near-square column count
+  let cols = smultCols(ns);
+  let rowsN = (ns + cols - 1) / cols;
+  let gridL = plotLeft() - 36.0; // mini charts need less left padding
+  let gridR = plotRight(opts);
+  let gridT = plotTop();
+  let gridB = plotBottom(opts);
+  let cellW = (gridR - gridL) / Float.fromInt(cols);
+  let cellH = (gridB - gridT) / Float.fromInt(rowsN);
+  let padIn : Float = 6.0;
+  let labelH : Float = 14.0;
+  var i : Nat = 0;
+  for ((name, vals) in rows.vals()) {
+    let cc = i % cols;
+    let cr = i / cols;
+    let cx0 = gridL + cellW * Float.fromInt(cc);
+    let cy0 = gridT + cellH * Float.fromInt(cr);
+    let innerL = cx0 + padIn;
+    let innerR = cx0 + cellW - padIn;
+    let innerT = cy0 + labelH;
+    let innerB = cy0 + cellH - padIn;
+    let color = palette(opts, i);
+    b.add("<g class=\"mv-chart-smallmult-cell\">");
+    // cell title
+    let dispName = if (name != "") { name } else { "Series " # Nat.toText(i + 1) };
+    b.add("<text class=\"mv-chart-smallmult-name\" x=\"" # fmtNum(cx0 + 2.0) # "\" y=\"" # fmtNum(cy0 + 10.0)
+      # "\" text-anchor=\"start\">" # esc(dispName) # "</text>");
+    let m = vals.size();
+    if (m > 0) {
+      let ySc = linScale(ylo, yhi, innerB, innerT);
+      let baseY = ySc(if (ylo < 0.0) { 0.0 } else { ylo });
+      if (isLine) {
+        // mini area + line
+        let pts = Array.tabulate<(Float, Float)>(m, func(j) {
+          let x = if (m == 1) { (innerL + innerR) / 2.0 }
+                  else { innerL + (innerR - innerL) * Float.fromInt(j) / Float.fromInt(m - 1) };
+          (x, ySc(vals[j]));
+        });
+        b.add("<path class=\"mv-chart-smallmult-area\" fill=\"" # esc(color) # "\" d=\"" # areaPath(pts, baseY) # "\"/>");
+        b.add("<polyline class=\"mv-chart-smallmult-line\" fill=\"none\" stroke=\"" # esc(color)
+          # "\" points=\"" # polyPoints(pts) # "\"/>");
+        var j : Nat = 0;
+        while (j < m) {
+          let (px, py) = pts[j];
+          let tip = dispName # " \u{b7} " # labelAt(xlabs, j) # ": " # fmtNum(vals[j]) # opts.unit;
+          b.add("<circle class=\"mv-chart-smallmult-dot\" cx=\"" # fmtNum(px) # "\" cy=\"" # fmtNum(py)
+            # "\" r=\"2\" fill=\"" # esc(color) # "\"><title>" # esc(tip) # "</title></circle>");
+          j += 1;
+        };
+      } else {
+        // mini columns
+        let band = (innerR - innerL) / Float.fromInt(m);
+        let colW = band * 0.66;
+        var j : Nat = 0;
+        while (j < m) {
+          let v = vals[j];
+          let yv = ySc(v);
+          let y0 = minF(baseY, yv);
+          let h = Float.abs(yv - baseY);
+          let bx = innerL + band * Float.fromInt(j) + (band - colW) / 2.0;
+          let tip = dispName # " \u{b7} " # labelAt(xlabs, j) # ": " # fmtNum(v) # opts.unit;
+          b.add("<rect class=\"mv-chart-smallmult-bar\" x=\"" # fmtNum(bx) # "\" y=\"" # fmtNum(y0)
+            # "\" width=\"" # fmtNum(colW) # "\" height=\"" # fmtNum(h)
+            # "\" rx=\"1\" fill=\"" # esc(color) # "\"><title>" # esc(tip) # "</title></rect>");
+          j += 1;
+        };
+      };
+      // faint baseline per cell
+      b.add("<line class=\"mv-chart-smallmult-base\" x1=\"" # fmtNum(innerL) # "\" y1=\"" # fmtNum(baseY)
+        # "\" x2=\"" # fmtNum(innerR) # "\" y2=\"" # fmtNum(baseY) # "\"/>");
+    };
+    b.add("</g>");
+    i += 1;
+  };
+  b.add(svgClose());
+  Text.join("", b.vals());
+};
+// near-square column count for n cells (ceil(sqrt(n))).
+func smultCols(n : Nat) : Nat {
+  if (n <= 1) { return 1 };
+  let r = sqrt_(Float.fromInt(n));
+  var c = Int.abs(Float.toInt(Float.ceil(r)));
+  if (c < 1) { c := 1 };
+  Int.abs(c);
+};
+
+  // ===== CircularTreemap =====
+  // ---- CircularTreemap: circle-packing of "label:value" items ---------------
+  /// `<CircularTreemap data="Search:42;Direct:30;Social:18;Email:10" />`.
+  /// Each item is a circle whose AREA is proportional to its value; circles are
+  /// packed left-to-right / top-to-bottom into rows that fit the plot, biggest
+  /// first. A simple, deterministic row-pack (no physics) keeps it pure & stable.
+  public func circularTreemap(data : Text, opts : O) : Text {
+    let pairs = parseSeries(data);
+    let cpItems = Buffer.Buffer<(Text, Float)>(pairs.size());
+    var cpTotal : Float = 0.0;
+    for ((nm, vs) in pairs.vals()) {
+      let v = if (vs.size() > 0 and vs[0] > 0.0) { vs[0] } else { 0.0 };
+      if (v > 0.0) { cpItems.add((nm, v)); cpTotal += v };
+    };
+    let b = Buffer.Buffer<Text>(cpItems.size() * 2 + 6);
+    b.add(svgOpen(opts, "mv-chart-circpack"));
+    let arr = Buffer.toArray(cpItems);
+    if (arr.size() == 0 or cpTotal <= 0.0) {
+      let (ecx, ecy) = centerXY(opts);
+      b.add("<text class=\"mv-chart-empty\" x=\"" # fmtNum(ecx) # "\" y=\"" # fmtNum(ecy) # "\" text-anchor=\"middle\">No data</text>");
+      b.add(svgClose());
+      return Text.join("", b.vals());
+    };
+    // sort descending by value (insertion sort over an index array; small N).
+    let order = Array.init<Nat>(arr.size(), 0);
+    var z : Nat = 0; while (z < arr.size()) { order[z] := z; z += 1 };
+    var a0 : Nat = 1;
+    while (a0 < arr.size()) {
+      let key = order[a0];
+      var jj : Int = a0 - 1;
+      while (jj >= 0 and arr[order[Int.abs(jj)]].1 < arr[key].1) {
+        order[Int.abs(jj) + 1] := order[Int.abs(jj)];
+        jj -= 1;
+      };
+      order[Int.abs(jj) + 1] := key;
+      a0 += 1;
+    };
+    // plot rect.
+    let x0 = plotLeft() - 28.0;
+    let y0 = plotTop();
+    let x1 = plotRight(opts);
+    let y1 = if (opts.showLegend) { plotBottom(opts) + 6.0 } else { plotBottom(opts) + 14.0 };
+    let plotW = x1 - x0;
+    let plotH = y1 - y0;
+    // Choose a radius scale so the largest circle is a sensible fraction of the
+    // plot and total circle area ~ fills it. r = k * sqrt(value). Pick k by
+    // matching the biggest item's diameter to a cap of the short side.
+    let vmax = arr[order[0]].1;
+    let shortSide = minF(plotW, plotH);
+    let kCap = (shortSide * 0.44) / sqrt_(vmax);   // biggest circle ~ 0.44*short
+    // area-fit k: sum(pi r^2) = packing*plotArea  =>  k = sqrt(pack*W*H/(pi*sumV))
+    let pack : Float = 0.62;
+    let kArea = sqrt_(pack * plotW * plotH / (3.141592653589793 * cpTotal));
+    let cpGap : Float = 4.0;
+    // shrink k until the row-pack fits the plot HEIGHT (pure, bounded loop).
+    var k = minF(kCap, kArea);
+    var guard : Nat = 0;
+    while (guard < 40 and cpPackedHeight(arr, order, k, x0, x1, cpGap) > plotH) {
+      k := k * 0.9;
+      guard += 1;
+    };
+    // greedy row packing: walk items biggest-first, place along a row until the
+    // next circle would overflow plotW, then drop to a new row.
+    var penX = x0;
+    var rowTop = y0;
+    var rowMaxD : Float = 0.0;
+    b.add("<g class=\"mv-chart-circpack-circles\">");
+    var i : Nat = 0;
+    while (i < arr.size()) {
+      let oi = order[i];
+      let (nm, v) = arr[oi];
+      let r = maxF(cpCircleR(v, k), 3.0);
+      let d = r * 2.0;
+      // wrap to a new row if this circle would exceed the right edge.
+      if (penX + d > x1 + 0.5 and penX > x0 + 0.5) {
+        rowTop += rowMaxD + cpGap;
+        penX := x0;
+        rowMaxD := 0.0;
+      };
+      let cx = penX + r;
+      let cy = rowTop + r;
+      let color = palette(opts, oi);
+      let pct = v / cpTotal * 100.0;
+      let tip = (if (nm != "") { nm # ": " } else { "" }) # fmtNum(v) # opts.unit # " (" # fmtNum(pct) # "%)";
+      b.add("<g class=\"mv-chart-circpack-node\">");
+      b.add("<circle cx=\"" # fmtNum(cx) # "\" cy=\"" # fmtNum(cy)
+        # "\" r=\"" # fmtNum(r) # "\" fill=\"" # esc(color) # "\"><title>" # esc(tip) # "</title></circle>");
+      // inline label when the circle is large enough.
+      if (r > 18.0 and nm != "") {
+        b.add("<text class=\"mv-chart-circpack-label\" x=\"" # fmtNum(cx) # "\" y=\"" # fmtNum(cy + 1.0) # "\" text-anchor=\"middle\">" # esc(nm) # "</text>");
+        if (r > 30.0) {
+          b.add("<text class=\"mv-chart-circpack-val\" x=\"" # fmtNum(cx) # "\" y=\"" # fmtNum(cy + 14.0) # "\" text-anchor=\"middle\">" # esc(fmtNum(v) # opts.unit) # "</text>");
+        };
+      };
+      b.add("</g>");
+      penX += d + cpGap;
+      if (d > rowMaxD) { rowMaxD := d };
+      i += 1;
+    };
+    b.add("</g>");
+    let entries = Array.tabulate<(Text, Text)>(arr.size(), func(j) {
+      let (nm, _) = arr[j]; (if (nm != "") { nm } else { "Item " # Nat.toText(j + 1) }, palette(opts, j));
+    });
+    b.add(legend(opts, entries));
+    b.add(svgClose());
+    Text.join("", b.vals());
+  };
+  // area-proportional radius for a value (r = k*sqrt(v)).
+  func cpCircleR(v : Float, k : Float) : Float { if (v <= 0.0) { 0.0 } else { k * sqrt_(v) } };
+  // Simulate the greedy row pack at scale k; return total stacked height so the
+  // caller can shrink k until everything fits vertically.
+  func cpPackedHeight(arr : [(Text, Float)], order : [var Nat], k : Float, x0 : Float, x1 : Float, gap : Float) : Float {
+    var penX = x0;
+    var rowTop : Float = 0.0;
+    var rowMaxD : Float = 0.0;
+    var i : Nat = 0;
+    while (i < arr.size()) {
+      let v = arr[order[i]].1;
+      let r = maxF(cpCircleR(v, k), 3.0);
+      let d = r * 2.0;
+      if (penX + d > x1 + 0.5 and penX > x0 + 0.5) {
+        rowTop += rowMaxD + gap;
+        penX := x0;
+        rowMaxD := 0.0;
+      };
+      penX += d + gap;
+      if (d > rowMaxD) { rowMaxD := d };
+      i += 1;
+    };
+    rowTop + rowMaxD; // last row's height included
+  };
+
+  // ===== HorizonChart =====
+  // ---- HorizonChart: banded folded area (compact time series) ---------------
+  /// `<HorizonChart values="3,7,5,9,4,8,12,6,10,2" labels=".." />`.
+  /// The series is sliced into `bands` equal value-bands; each band is drawn as
+  /// a filled area in an increasingly saturated tint, all collapsed onto one
+  /// short lane so the silhouette reads like a folded area chart. Negative
+  /// values fold UP in a contrasting hue. Fixed at 3 bands for readability.
+  public func horizon(valuesCsv : Text, labelsCsv : Text, opts : O) : Text {
+    let vals = parseFloats(valuesCsv);
+    let n = vals.size();
+    if (n == 0) { return svgOpen(opts, "mv-chart-horizon") # svgClose() };
+    let labels = parseLabels(labelsCsv);
+
+    let dmax = maxF(arrMax(vals), 0.0);
+    let dmin = minF(arrMin(vals), 0.0);
+    let posPeak = maxF(dmax, 0.0001);
+    let negPeak = maxF(-dmin, 0.0);
+    let bands : Nat = 3;                      // fixed, readable banding
+    let bandStep = posPeak / Float.fromInt(bands);
+
+    // one short lane occupying the plot height.
+    let laneTop = plotTop() + 4.0;
+    let laneBot = plotBottom(opts);
+    let centers = horizonCenters(opts, n);
+    let baseColor = palette(opts, 0);
+    let negColor = palette(opts, 2);
+
+    let b = Buffer.Buffer<Text>(n + bands + 8);
+    b.add(svgOpen(opts, "mv-chart-horizon"));
+    // baseline + bottom labels.
+    if (opts.showAxes) {
+      b.add("<line class=\"mv-chart-axis\" x1=\"" # fmtNum(plotLeft()) # "\" y1=\"" # fmtNum(laneBot)
+        # "\" x2=\"" # fmtNum(plotRight(opts)) # "\" y2=\"" # fmtNum(laneBot) # "\"/>");
+    };
+    if (labels.size() > 0) { b.add(axisBottom(opts, labels, centers)) };
+
+    // POSITIVE bands: band j shows the portion of the value above j*step, each
+    // mapped to the FULL lane height and stacked by opacity (classic horizon).
+    var j : Nat = 0;
+    while (j < bands) {
+      let lo = bandStep * Float.fromInt(j);
+      // a per-band scale: value `lo`..`lo+step` -> laneBot..laneTop.
+      let ySc = linScale(lo, lo + bandStep, laneBot, laneTop);
+      let pts = Buffer.Buffer<(Float, Float)>(n);
+      var i : Nat = 0;
+      while (i < n) {
+        let raw = if (vals[i] > 0.0) { vals[i] } else { 0.0 };
+        let clamped = if (raw < lo) { lo } else if (raw > lo + bandStep) { lo + bandStep } else { raw };
+        pts.add((centers[i], ySc(clamped)));
+        i += 1;
+      };
+      let ptsArr = Buffer.toArray(pts);
+      let d = areaPath(ptsArr, laneBot);
+      // deepest band = strongest opacity.
+      let op = horizonOpacity(j, bands);
+      b.add("<path class=\"mv-chart-horizon-band\" d=\"" # d # "\" fill=\"" # esc(baseColor)
+        # "\" fill-opacity=\"" # fmtNum(op) # "\"/>");
+      j += 1;
+    };
+    // NEGATIVE fold (single contrasting band) if there is any negative data.
+    if (negPeak > 0.0) {
+      let ySc = linScale(0.0, negPeak, laneBot, laneTop);
+      let pts = Buffer.Buffer<(Float, Float)>(n);
+      var i : Nat = 0;
+      while (i < n) {
+        let mag = if (vals[i] < 0.0) { -vals[i] } else { 0.0 };
+        pts.add((centers[i], ySc(mag)));
+        i += 1;
+      };
+      let d = areaPath(Buffer.toArray(pts), laneBot);
+      b.add("<path class=\"mv-chart-horizon-band mv-chart-horizon-neg\" d=\"" # d # "\" fill=\"" # esc(negColor)
+        # "\" fill-opacity=\"0.85\"/>");
+    };
+    // hover points carrying the true value (geometry is otherwise lossy).
+    var hi : Nat = 0;
+    while (hi < n) {
+      let lbl = labelAt(labels, hi);
+      let tip = (if (lbl != "") { lbl # ": " } else { "" }) # fmtNum(vals[hi]) # opts.unit;
+      b.add("<circle class=\"mv-chart-horizon-pt\" cx=\"" # fmtNum(centers[hi]) # "\" cy=\"" # fmtNum(laneBot - 4.0)
+        # "\" r=\"6\" fill=\"transparent\"><title>" # esc(tip) # "</title></circle>");
+      hi += 1;
+    };
+    b.add(svgClose());
+    Text.join("", b.vals());
+  };
+  // even x centers across the plot (single point centered).
+  func horizonCenters(opts : O, n : Nat) : [Float] {
+    let x0 = plotLeft(); let x1 = plotRight(opts);
+    if (n == 0) { return [] };
+    if (n == 1) { return [(x0 + x1) / 2.0] };
+    let step = (x1 - x0) / Float.fromInt(n - 1);
+    Array.tabulate<Float>(n, func(i) { x0 + step * Float.fromInt(i) });
+  };
+  // opacity ramp: band 0 faintest .. last band fullest.
+  func horizonOpacity(j : Nat, bands : Nat) : Float {
+    let denom = if (bands == 0) { 1.0 } else { Float.fromInt(bands) };
+    0.30 + 0.70 * (Float.fromInt(j + 1) / denom);
+  };
+
+  // ===== BumpAreaChart =====
+  // ---- BumpAreaChart: stacked ranking areas (streamgraph-style) -------------
+  /// `<BumpAreaChart series="Alice:30,40,38,50;Bob:20,25,35,30;Carol:10,15,12,22"
+  ///                 labels="W1,W2,W3,W4" />`. Each series' VALUE (a magnitude,
+  /// e.g. votes/score) is stacked into a smooth band; band order is re-sorted at
+  /// the first time slot so the largest sits at the bottom — a "bump"-flavoured
+  /// stacked area that emphasises shifting share over time.
+  public func bumpArea(spec : Text, labelsCsv : Text, opts : O) : Text {
+    let ss = parseSeries(spec);
+    let ns = ss.size();
+    if (ns == 0) { return svgOpen(opts, "mv-chart-bumparea") # svgClose() };
+    var n : Nat = 0;
+    for ((_, vs) in ss.vals()) { if (vs.size() > n) { n := vs.size() } };
+    if (n == 0) { return svgOpen(opts, "mv-chart-bumparea") # svgClose() };
+    let labels = parseLabels(labelsCsv);
+
+    // per-x stacked total -> y domain (0..max total).
+    let totals = Array.init<Float>(n, 0.0);
+    var s0 : Nat = 0;
+    while (s0 < ns) {
+      let (_, vs) = ss[s0];
+      var i : Nat = 0;
+      while (i < n) { let v = if (i < vs.size() and vs[i] > 0.0) { vs[i] } else { 0.0 }; totals[i] += v; i += 1 };
+      s0 += 1;
+    };
+    var maxTotal : Float = 0.0;
+    for (t in totals.vals()) { if (t > maxTotal) { maxTotal := t } };
+    if (maxTotal <= 0.0) { maxTotal := 1.0 };
+    let ySc = linScale(0.0, maxTotal, plotBottom(opts), plotTop());
+    let centers = baCenters(opts, n);
+
+    // draw order: sort series by their FIRST-slot value descending so the
+    // biggest band anchors the bottom of the stack (bump emphasis).
+    let baOrder = Array.init<Nat>(ns, 0);
+    var z : Nat = 0; while (z < ns) { baOrder[z] := z; z += 1 };
+    var a0 : Nat = 1;
+    while (a0 < ns) {
+      let key = baOrder[a0];
+      var jj : Int = a0 - 1;
+      while (jj >= 0 and baFirst(ss[baOrder[Int.abs(jj)]]) < baFirst(ss[key])) {
+        baOrder[Int.abs(jj) + 1] := baOrder[Int.abs(jj)];
+        jj -= 1;
+      };
+      baOrder[Int.abs(jj) + 1] := key;
+      a0 += 1;
+    };
+
+    let b = Buffer.Buffer<Text>(ns * 2 + 8);
+    b.add(svgOpen(opts, "mv-chart-bumparea"));
+    if (labels.size() > 0) { b.add(axisBottom(opts, labels, centers)) };
+
+    // running stacked baseline per x (value units, from 0 up).
+    let running = Array.init<Float>(n, 0.0);
+    var oi : Nat = 0;
+    while (oi < ns) {
+      let si = baOrder[oi];
+      let (name0, vs) = ss[si];
+      let color = palette(opts, si);
+      let top = Buffer.Buffer<(Float, Float)>(n);
+      let bot = Buffer.Buffer<(Float, Float)>(n);
+      var i : Nat = 0;
+      while (i < n) {
+        let v = if (i < vs.size() and vs[i] > 0.0) { vs[i] } else { 0.0 };
+        let base0 = running[i];
+        let base1 = base0 + v;
+        bot.add((centers[i], ySc(base0)));
+        top.add((centers[i], ySc(base1)));
+        running[i] := base1;
+        i += 1;
+      };
+      let topArr = Buffer.toArray(top);
+      let botArr = Buffer.toArray(bot);
+      if (topArr.size() > 0) {
+        // smooth top forward, smooth bottom backward, close into one band.
+        let topD = baSmooth(topArr, true);
+        let revB = Buffer.Buffer<(Float, Float)>(botArr.size());
+        var jr : Int = botArr.size() - 1;
+        while (jr >= 0) { revB.add(botArr[Int.abs(jr)]); jr -= 1 };
+        let botD = baSmooth(Buffer.toArray(revB), false);
+        let d = topD # " " # botD # " Z";
+        let nm = if (name0 == "") { "Series " # Nat.toText(si + 1) } else { name0 };
+        // tooltip reports first->last for a quick trend read.
+        let firstV = if (vs.size() > 0) { vs[0] } else { 0.0 };
+        let lastV = if (vs.size() > 0) { vs[vs.size() - 1] } else { 0.0 };
+        let tip = nm # ": " # fmtNum(firstV) # opts.unit # " \u{2192} " # fmtNum(lastV) # opts.unit;
+        b.add("<path class=\"mv-chart-bumparea-band\" d=\"" # d # "\" fill=\"" # esc(color)
+          # "\"><title>" # esc(tip) # "</title></path>");
+      };
+      oi += 1;
+    };
+    let entries = Array.tabulate<(Text, Text)>(ns, func(i) {
+      ((if (ss[i].0 == "") { "Series " # Nat.toText(i + 1) } else { ss[i].0 }), palette(opts, i));
+    });
+    b.add(legend(opts, entries));
+    b.add(svgClose());
+    Text.join("", b.vals());
+  };
+  func baCenters(opts : O, n : Nat) : [Float] {
+    let x0 = plotLeft(); let x1 = plotRight(opts);
+    if (n == 0) { return [] };
+    if (n == 1) { return [(x0 + x1) / 2.0] };
+    let step = (x1 - x0) / Float.fromInt(n - 1);
+    Array.tabulate<Float>(n, func(i) { x0 + step * Float.fromInt(i) });
+  };
+  func baFirst(s : Series) : Float { let (_, vs) = s; if (vs.size() > 0) { vs[0] } else { 0.0 } };
+  // Catmull-Rom smoothing; lead=true starts with M (top edge), false with L
+  // (continues into the reversed bottom edge so the band stays one shape).
+  func baSmooth(pts : [(Float, Float)], lead : Bool) : Text {
+    let n = pts.size();
+    if (n == 0) { return "" };
+    let (x0, y0) = pts[0];
+    let head = if (lead) { "M " } else { "L " };
+    if (n < 3) {
+      let b = Buffer.Buffer<Text>(n + 1);
+      b.add(head # fmtNum(x0) # "," # fmtNum(y0));
+      var i : Nat = 1;
+      while (i < n) { let (x, y) = pts[i]; b.add("L " # fmtNum(x) # "," # fmtNum(y)); i += 1 };
+      return Text.join(" ", b.vals());
+    };
+    let b = Buffer.Buffer<Text>(n + 1);
+    b.add(head # fmtNum(x0) # "," # fmtNum(y0));
+    var i : Nat = 0;
+    while (i + 1 < n) {
+      let p0 = if (i == 0) { pts[0] } else { pts[i - 1] };
+      let p1 = pts[i]; let p2 = pts[i + 1];
+      let p3 = if (i + 2 < n) { pts[i + 2] } else { pts[i + 1] };
+      let (p0x, p0y) = p0; let (p1x, p1y) = p1;
+      let (p2x, p2y) = p2; let (p3x, p3y) = p3;
+      let c1x = p1x + (p2x - p0x) / 6.0; let c1y = p1y + (p2y - p0y) / 6.0;
+      let c2x = p2x - (p3x - p1x) / 6.0; let c2y = p2y - (p3y - p1y) / 6.0;
+      b.add("C " # fmtNum(c1x) # "," # fmtNum(c1y) # " "
+        # fmtNum(c2x) # "," # fmtNum(c2y) # " " # fmtNum(p2x) # "," # fmtNum(p2y));
+      i += 1;
+    };
+    Text.join(" ", b.vals());
+  };
+
+  // ===== WordCloud =====
+  // ---- WordCloud: weighted words laid out in rows -------------------------
+  /// `<WordCloud words="motoko:40;canister:32;icp:28;wasm:20;ui:12" />`.
+  /// Each "word:weight" becomes a <text> whose font-size is proportional to its
+  /// weight; words are flowed into centered rows (greedy line-wrap) and colored
+  /// from the categorical palette. Heaviest words first.
+  public func wordCloud(words : Text, opts : O) : Text {
+    let pairs = parseSeries(words);
+    let wcItems = Buffer.Buffer<(Text, Float)>(pairs.size());
+    for ((nm, vs) in pairs.vals()) {
+      let w = if (vs.size() > 0 and vs[0] > 0.0) { vs[0] } else { 0.0 };
+      if (nm != "" and w > 0.0) { wcItems.add((nm, w)) };
+    };
+    let b = Buffer.Buffer<Text>(wcItems.size() + 6);
+    b.add(svgOpen(opts, "mv-chart-wordcloud"));
+    let arr = Buffer.toArray(wcItems);
+    if (arr.size() == 0) {
+      let (ecx, ecy) = centerXY(opts);
+      b.add("<text class=\"mv-chart-empty\" x=\"" # fmtNum(ecx) # "\" y=\"" # fmtNum(ecy) # "\" text-anchor=\"middle\">No data</text>");
+      b.add(svgClose());
+      return Text.join("", b.vals());
+    };
+    // sort descending by weight.
+    let order = Array.init<Nat>(arr.size(), 0);
+    var z : Nat = 0; while (z < arr.size()) { order[z] := z; z += 1 };
+    var a0 : Nat = 1;
+    while (a0 < arr.size()) {
+      let key = order[a0];
+      var jj : Int = a0 - 1;
+      while (jj >= 0 and arr[order[Int.abs(jj)]].1 < arr[key].1) {
+        order[Int.abs(jj) + 1] := order[Int.abs(jj)];
+        jj -= 1;
+      };
+      order[Int.abs(jj) + 1] := key;
+      a0 += 1;
+    };
+    let wmax = arr[order[0]].1;
+    var wmin = wmax;
+    for ((_, w) in arr.vals()) { if (w < wmin) { wmin := w } };
+    let x0 = plotLeft() - 28.0;
+    let x1 = plotRight(opts);
+    let plotW = x1 - x0;
+    let yTop = plotTop() + 6.0;
+    let yBot = plotBottom(opts) + 14.0;
+    // font-size range scaled to the plot.
+    let fsMin : Float = 12.0;
+    let fsMax : Float = maxF(20.0, minF(48.0, (yBot - yTop) * 0.30));
+    func wcFont(w : Float) : Float {
+      if (wmax <= wmin) { (fsMin + fsMax) / 2.0 }
+      else { fsMin + (w - wmin) / (wmax - wmin) * (fsMax - fsMin) };
+    };
+    // estimate a word's rendered width (~0.58em per char + padding).
+    func wcWidth(word : Text, fs : Float) : Float { Float.fromInt(word.size()) * fs * 0.58 + fs * 0.5 };
+
+    // greedy line-wrap into rows, centering each row; gap of 10px between words.
+    let wcWordGap : Float = 10.0;
+    let rowGap : Float = 8.0;
+    var rowY = yTop;
+    var i : Nat = 0;
+    b.add("<g class=\"mv-chart-wordcloud-words\">");
+    while (i < arr.size()) {
+      // 1) find rowEnd: grow the row while the next word still fits in plotW.
+      var rowEnd = i;          // exclusive end of this row [i, rowEnd)
+      var rowW : Float = 0.0;  // accumulated width of placed words + gaps
+      var rowMaxFs : Float = 0.0;
+      var fitting = true;
+      while (rowEnd < arr.size() and fitting) {
+        let (word, w) = arr[order[rowEnd]];
+        let fs = wcFont(w);
+        let ww = wcWidth(word, fs);
+        let add = ww + (if (rowEnd > i) { wcWordGap } else { 0.0 });
+        if (rowEnd > i and rowW + add > plotW) {
+          fitting := false;      // next word overflows -> close the row
+        } else {
+          rowW += add;
+          if (fs > rowMaxFs) { rowMaxFs := fs };
+          rowEnd += 1;
+        };
+      };
+      // 2) place this row centered on the lane.
+      var penX = x0 + maxF(plotW - rowW, 0.0) / 2.0;
+      let baseY = rowY + rowMaxFs * 0.8;
+      var r = i;
+      while (r < rowEnd) {
+        let oi = order[r];
+        let (word, w) = arr[oi];
+        let fs = wcFont(w);
+        let color = palette(opts, oi);
+        let ww = wcWidth(word, fs);
+        b.add("<text class=\"mv-chart-wordcloud-word\" x=\"" # fmtNum(penX + ww / 2.0) # "\" y=\"" # fmtNum(baseY)
+          # "\" text-anchor=\"middle\" font-size=\"" # fmtNum(fs) # "\" fill=\"" # esc(color) # "\">"
+          # esc(word) # "<title>" # esc(word # ": " # fmtNum(w) # opts.unit) # "</title></text>");
+        penX += ww + wcWordGap;
+        r += 1;
+      };
+      rowY += rowMaxFs + rowGap;
+      i := rowEnd;
+    };
+    b.add("</g>");
+    b.add(svgClose());
+    Text.join("", b.vals());
+  };
+
+  // ===== MatrixChart =====
+  // ---- MatrixChart: square value glyphs sized + shaded by magnitude --------
+  /// A row-major numeric matrix (same data convention as Heatmap) drawn as a
+  /// grid of SQUARE glyphs whose SIZE and SHADE both encode magnitude.
+  ///   matrix="12,30,5;8,22,40;3,9,18"  rowLabels="A,B,C"  colLabels="Q1,Q2,Q3"
+  /// Larger/darker square = bigger value. Each glyph carries a <title> tooltip.
+  public func matrix(matrixSpec : Text, rowLabels : Text, colLabels : Text, opts : O) : Text {
+    let rows = mxRows(matrixSpec);
+    let nr = rows.size();
+    if (nr == 0) { return svgOpen(opts, "mv-chart-matrix") # svgClose() };
+    var nc : Nat = 0;
+    for (r in rows.vals()) { if (r.size() > nc) { nc := r.size() } };
+    if (nc == 0) { return svgOpen(opts, "mv-chart-matrix") # svgClose() };
+
+    let rLabs = parseLabels(rowLabels);
+    let cLabs = parseLabels(colLabels);
+
+    let flat = Buffer.Buffer<Float>(nr * nc);
+    for (r in rows.vals()) { for (v in r.vals()) { flat.add(v) } };
+    let allv = Buffer.toArray(flat);
+    let vlo = switch (opts.yMin) { case (?m) { m }; case null { minF(arrMin(allv), 0.0) } };
+    let vhiRaw = switch (opts.yMax) { case (?m) { m }; case null { arrMax(allv) } };
+    let vhi = if (vhiRaw <= vlo) { vlo + 1.0 } else { vhiRaw };
+
+    let left = if (rLabs.size() > 0) { plotLeft() } else { plotLeft() - 28.0 };
+    let right = plotRight(opts);
+    let top = plotTop() + (if (cLabs.size() > 0) { 8.0 } else { 0.0 });
+    let bot = plotBottom(opts) + 16.0;
+    let cw = (right - left) / Float.fromInt(nc);
+    let ch = (bot - top) / Float.fromInt(nr);
+    let cell = minF(cw, ch);
+    let baseColor = palette(opts, 0);
+
+    let b = Buffer.Buffer<Text>(nr * nc + nr + nc + 8);
+    b.add(svgOpen(opts, "mv-chart-matrix"));
+
+    // column labels along the top.
+    if (cLabs.size() > 0) {
+      var c : Nat = 0;
+      while (c < nc) {
+        let cx = left + cw * (Float.fromInt(c) + 0.5);
+        b.add("<text class=\"mv-chart-tick mv-chart-xtick\" x=\"" # fmtNum(cx)
+          # "\" y=\"" # fmtNum(top - 4.0) # "\" text-anchor=\"middle\">"
+          # esc(labelAt(cLabs, c)) # "</text>");
+        c += 1;
+      };
+    };
+
+    b.add("<g class=\"mv-chart-matrix-cells\">");
+    var ri : Nat = 0;
+    while (ri < nr) {
+      let row = rows[ri];
+      let cyCell = top + ch * Float.fromInt(ri);
+      if (rLabs.size() > 0) {
+        b.add("<text class=\"mv-chart-tick mv-chart-ytick\" x=\"" # fmtNum(left - 6.0)
+          # "\" y=\"" # fmtNum(cyCell + ch / 2.0 + 4.0) # "\" text-anchor=\"end\">"
+          # esc(labelAt(rLabs, ri)) # "</text>");
+      };
+      var ci : Nat = 0;
+      while (ci < nc) {
+        let cxCell = left + cw * Float.fromInt(ci);
+        if (ci < row.size()) {
+          let v = row[ci];
+          var frac = (v - vlo) / (vhi - vlo);
+          if (frac < 0.0) { frac := 0.0 };
+          if (frac > 1.0) { frac := 1.0 };
+          // glyph size: 30%..96% of the cell square, area-ish via sqrt(frac).
+          let sz = cell * (0.30 + 0.66 * sqrt_(frac));
+          let gx = cxCell + (cw - sz) / 2.0;
+          let gy = cyCell + (ch - sz) / 2.0;
+          let fill = mxBlend(baseColor, frac);
+          let rl = labelAt(rLabs, ri);
+          let cl = labelAt(cLabs, ci);
+          let where = if (rl != "" or cl != "") {
+            (if (rl != "") { rl } else { "r" # Nat.toText(ri + 1) }) # " / "
+              # (if (cl != "") { cl } else { "c" # Nat.toText(ci + 1) }) # ": "
+          } else { "" };
+          b.add("<rect class=\"mv-chart-matrix-cell\" x=\"" # fmtNum(gx) # "\" y=\"" # fmtNum(gy)
+            # "\" width=\"" # fmtNum(maxF(sz, 1.0)) # "\" height=\"" # fmtNum(maxF(sz, 1.0))
+            # "\" rx=\"2\" fill=\"" # esc(fill) # "\">"
+            # "<title>" # esc(where # fmtNum(v) # opts.unit) # "</title></rect>");
+        };
+        ci += 1;
+      };
+      ri += 1;
+    };
+    b.add("</g>");
+
+    // min..max color legend bar (mirrors Heatmap).
+    if (opts.showLegend) {
+      let lw : Float = 120.0; let lh : Float = 8.0;
+      let lx = left; let ly = Float.fromInt(Int.abs(opts.height)) - 12.0;
+      let steps : Nat = 12;
+      var k : Nat = 0;
+      b.add("<g class=\"mv-chart-legend mv-chart-matrix-legend\">");
+      while (k < steps) {
+        let frac = Float.fromInt(k) / Float.fromInt(steps - 1);
+        let sx = lx + lw * Float.fromInt(k) / Float.fromInt(steps);
+        b.add("<rect class=\"mv-chart-matrix-swatch\" x=\"" # fmtNum(sx) # "\" y=\"" # fmtNum(ly - lh)
+          # "\" width=\"" # fmtNum(lw / Float.fromInt(steps) + 0.5) # "\" height=\"" # fmtNum(lh)
+          # "\" fill=\"" # esc(mxBlend(baseColor, frac)) # "\"/>");
+        k += 1;
+      };
+      b.add("<text class=\"mv-chart-legend-label\" x=\"" # fmtNum(lx - 4.0) # "\" y=\"" # fmtNum(ly)
+        # "\" text-anchor=\"end\">" # esc(fmtNum(vlo) # opts.unit) # "</text>");
+      b.add("<text class=\"mv-chart-legend-label\" x=\"" # fmtNum(lx + lw + 4.0) # "\" y=\"" # fmtNum(ly)
+        # "\" text-anchor=\"start\">" # esc(fmtNum(vhi) # opts.unit) # "</text>");
+      b.add("</g>");
+    };
+    b.add(svgClose());
+    Text.join("", b.vals());
+  };
+  // Parse a ';'-rowed, ','-celled numeric matrix.
+  func mxRows(spec : Text) : [[Float]] {
+    let out = Buffer.Buffer<[Float]>(8);
+    for (seg in Text.split(spec, #char ';')) {
+      let s = Text.trimStart(Text.trimEnd(seg, #char ' '), #char ' ');
+      if (s != "") { out.add(parseFloats(s)) };
+    };
+    Buffer.toArray(out);
+  };
+  // white -> baseColor blend by frac (own copy; namespaced to avoid collision
+  // with heatBlend/heatHex which are private to the Heatmap section).
+  func mxBlend(baseColor : Text, frac : Float) : Text {
+    let cs = Text.toArray(baseColor);
+    var r : Float = 15.0; var g : Float = 108.0; var bl : Float = 189.0;
+    if (cs.size() >= 7 and cs[0] == '#') {
+      let hv = func(c : Char) : Float {
+        let nn : Nat32 = Char.toNat32(c);
+        if (nn >= 48 and nn <= 57) { Float.fromInt(Nat32.toNat(nn - 48)) }
+        else if (nn >= 97 and nn <= 102) { Float.fromInt(Nat32.toNat(nn - 87)) }
+        else if (nn >= 65 and nn <= 70) { Float.fromInt(Nat32.toNat(nn - 55)) }
+        else { 0.0 };
+      };
+      r := hv(cs[1]) * 16.0 + hv(cs[2]);
+      g := hv(cs[3]) * 16.0 + hv(cs[4]);
+      bl := hv(cs[5]) * 16.0 + hv(cs[6]);
+    };
+    let t = 0.15 + frac * 0.85;
+    let mix = func(ch : Float) : Nat {
+      let v = 255.0 + (ch - 255.0) * t;
+      let iv = Float.toInt(v + 0.5);
+      if (iv < 0) { 0 } else if (iv > 255) { 255 } else { Int.abs(iv) };
+    };
+    "rgb(" # Nat.toText(mix(r)) # "," # Nat.toText(mix(g)) # "," # Nat.toText(mix(bl)) # ")";
+  };
+
+  // ===== TableChart =====
+  // ---- TableChart: a clean HTML data table (NOT svg) -----------------------
+  /// `<TableChart values="10,20;5,8;3,9" rowLabels="Q1,Q2,Q3" colLabels="Sales,Costs" />`.
+  /// `values` is a ';'-rowed, ','-celled matrix; each row gets a rowLabel (left
+  /// header column) and each column a colLabel (top header row). Returns styled
+  /// HTML `<table class="mv-chart-table">` (NOT an SVG) so it flows as normal
+  /// document content. opts.title -> <caption>; opts.unit suffixes each value.
+  public func table(values : Text, rowLabels : Text, colLabels : Text, opts : O) : Text {
+    let rows = mxRows(values);  // shares MatrixChart's row parser
+    let nr = rows.size();
+    let rLabs = parseLabels(rowLabels);
+    let cLabs = parseLabels(colLabels);
+    var nc : Nat = 0;
+    for (r in rows.vals()) { if (r.size() > nc) { nc := r.size() } };
+    if (nc < cLabs.size()) { nc := cLabs.size() };
+
+    let b = Buffer.Buffer<Text>(nr * nc + nr + 8);
+    b.add("<table class=\"mv-chart-table\">");
+    if (opts.title != "") {
+      b.add("<caption class=\"mv-chart-table-caption\">" # esc(opts.title) # "</caption>");
+    };
+    if (nr == 0 and nc == 0) {
+      b.add("<tbody><tr><td class=\"mv-chart-table-empty\">No data</td></tr></tbody>");
+      b.add("</table>");
+      return Text.join("", b.vals());
+    };
+    // header row: a corner cell (if there are row labels) + column labels.
+    let hasRowHead = rLabs.size() > 0;
+    if (cLabs.size() > 0) {
+      b.add("<thead><tr>");
+      if (hasRowHead) { b.add("<th class=\"mv-chart-table-corner\" scope=\"col\"></th>") };
+      var c : Nat = 0;
+      while (c < nc) {
+        b.add("<th class=\"mv-chart-table-colhead\" scope=\"col\">" # esc(labelAt(cLabs, c)) # "</th>");
+        c += 1;
+      };
+      b.add("</tr></thead>");
+    };
+    b.add("<tbody>");
+    var ri : Nat = 0;
+    while (ri < nr) {
+      let row = rows[ri];
+      b.add("<tr>");
+      if (hasRowHead) {
+        b.add("<th class=\"mv-chart-table-rowhead\" scope=\"row\">" # esc(labelAt(rLabs, ri)) # "</th>");
+      };
+      var ci : Nat = 0;
+      while (ci < nc) {
+        let cellTxt = if (ci < row.size()) { fmtNum(row[ci]) # opts.unit } else { "" };
+        b.add("<td class=\"mv-chart-table-cell\">" # esc(cellTxt) # "</td>");
+        ci += 1;
+      };
+      b.add("</tr>");
+      ri += 1;
+    };
+    b.add("</tbody>");
+    b.add("</table>");
+    Text.join("", b.vals());
+  };
+  // NOTE: TableChart reuses mxRows (defined in the MatrixChart section). Keep
+  // the two sections adjacent so mxRows is in scope, or move mxRows up to the
+  // shared-helper area if MatrixChart is dropped.
+
 };
