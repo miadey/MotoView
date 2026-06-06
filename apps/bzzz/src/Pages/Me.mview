@@ -24,7 +24,11 @@
 </section>
 
 @if (not bound) {
-    <MessageBar intent="warning">You're browsing as a guest. Claim a handle below to post, join servers and send messages.</MessageBar>
+    @if isAnon {
+        <MessageBar intent="warning">You're browsing as a guest. Sign in (top right), then claim a handle below to post, join servers and send messages.</MessageBar>
+    } else {
+        <MessageBar intent="success">You're signed in — just pick a handle below to finish your profile. Then you can post, join servers and send messages. (Your handle and your roles are separate: you can already administer Bzzz.)</MessageBar>
+    }
 }
 
 <div class="bz-prof-stats">
@@ -184,6 +188,7 @@
 
 @code {
     var bound : Bool = false;
+    var isAnon : Bool = true;
     var handle : Text = "";
     var display : Text = "";
     var bio : Text = "";
@@ -199,6 +204,7 @@
 
     func load(ctx : Context) {
         bound := Identity.isBound(ctx.caller);
+        isAnon := Principal.isAnonymous(ctx.caller);
         avatar := Identity.avatarOf(ctx.caller);
         followers := Feed.followerCount(ctx.caller);
         followingN := Feed.followingCount(ctx.caller);
