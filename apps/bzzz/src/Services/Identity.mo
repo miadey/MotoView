@@ -12,6 +12,7 @@ import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Char "mo:base/Char";
 import Nat32 "mo:base/Nat32";
+import Nat "mo:base/Nat";
 
 module {
   
@@ -28,13 +29,41 @@ module {
     let byPrincipal = HashMap.HashMap<Principal, Profile>(64, Principal.equal, Principal.hash);
     let byHandle = HashMap.HashMap<Text, Principal>(64, Text.equal, Text.hash);
 
-    /// Bind (or update) the caller's handle + display name. Returns false if the
-    /// handle is already taken by a different principal.
-    public func bind(caller : Principal, handle : Text, display : Text) : Bool {
+    /// Outcome of creating/changing a handle: ok (with the normalized handle),
+    /// already taken by someone else, or invalid format (with a message).
+    public type BindResult = { #ok : Text; #taken; #invalid : Text };
+
+    /// Validate a handle's FORMAT only (independent of availability). Returns
+    /// ?message when invalid, null when acceptable. This — together with the
+    /// uniqueness check in bindChecked — is the single rule every part of the
+    /// app goes through to create a handle.
+    public func validateHandle(handle : Text) : ?Text {
+      let chars = Text.toArray(normalize(handle));
+      let n = chars.size();
+      if (n < 2) { return ?"Handle must be at least 2 characters." };
+      if (n > 20) { return ?"Handle must be 20 characters or fewer." };
+      if (not isLetter(chars[0])) { return ?"Handle must start with a letter (a–z)." };
+      for (c in chars.vals()) {
+        if (not (isLetter(c) or isDigit(c) or c == '_')) {
+          return ?"Use only lowercase letters, numbers and underscores.";
+        };
+      };
+      null;
+    };
+
+    /// True if the (normalized) handle is free, or already owned by `forCaller`.
+    public func isAvailable(handle : Text, forCaller : Principal) : Bool {
+      switch (byHandle.get(normalize(handle))) { case (?owner) { owner == forCaller }; case null { true } };
+    };
+
+    /// Bind (or update) the caller's handle + display name — the single
+    /// chokepoint for handle creation. Validates FORMAT, then UNIQUENESS, then
+    /// links the handle to the caller's principal (bidirectional index).
+    public func bindChecked(caller : Principal, handle : Text, display : Text) : BindResult {
+      switch (validateHandle(handle)) { case (?msg) { return #invalid(msg) }; case null {} };
       let h = normalize(handle);
-      if (h == "") { return false };
       switch (byHandle.get(h)) {
-        case (?owner) { if (owner != caller) { return false } };
+        case (?owner) { if (owner != caller) { return #taken } };
         case null {};
       };
       // free the caller's previous handle if changing it
@@ -53,7 +82,35 @@ module {
       };
       byPrincipal.put(caller, prof);
       byHandle.put(h, caller);
-      true
+      #ok(h);
+    };
+
+    /// Back-compat boolean bind (true on success).
+    public func bind(caller : Principal, handle : Text, display : Text) : Bool {
+      switch (bindChecked(caller, handle, display)) { case (#ok _) { true }; case _ { false } };
+    };
+
+    /// Derive a valid, UNIQUE handle from the caller's Internet Identity
+    /// principal — for the one-click "use my II as my handle". Keeps the leading
+    /// alphanumerics of the principal, ensures it starts with a letter, and
+    /// appends a number until it is free for this caller.
+    public func suggestHandle(caller : Principal) : Text {
+      let raw = Principal.toText(caller);
+      var base = "";
+      var k : Nat = 0;
+      for (c in raw.chars()) {
+        if (k < 14) {
+          let lc = if (c >= 'A' and c <= 'Z') { Char.fromNat32(Char.toNat32(c) + 32) } else { c };
+          if (isLetter(lc) or isDigit(lc)) { base := base # Text.fromChar(lc); k += 1 };
+        };
+      };
+      if (base == "") { base := "user" };
+      if (not isLetter(Text.toArray(base)[0])) { base := "u" # base };
+      if (isAvailable(base, caller)) { return base };
+      var i : Nat = 2;
+      var cand = base # Nat.toText(i);
+      while (not isAvailable(cand, caller)) { i += 1; cand := base # Nat.toText(i) };
+      cand;
     };
 
     public func setBio(caller : Principal, bio : Text) : Bool {
@@ -134,6 +191,9 @@ module {
         if (c >= 'A' and c <= 'Z') { Char.fromNat32(Char.toNat32(c) + 32) } else { c }
       });
     };
+
+    func isLetter(c : Char) : Bool { c >= 'a' and c <= 'z' };
+    func isDigit(c : Char) : Bool { c >= '0' and c <= '9' };
 
     func shortId(p : Principal) : Text {
       let t = Principal.toText(p);
