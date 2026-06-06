@@ -20,6 +20,7 @@
         <p class="wl-hint">2–20 characters · lowercase letters, numbers and underscores · starts with a letter.</p>
         <button class="mv-btn mv-btn-primary wl-cta" type="submit">Create my handle</button>
     </form>
+    <p class="wl-fine">Signed in as <code class="wl-pid">@principalText</code></p>
 } else {
     <h1 class="wl-h">You're all set, @@@boundHandle</h1>
     <p class="wl-sub">Taking you into Bzzz…</p>
@@ -32,6 +33,7 @@
     var suggested : Text = "";
     var boundHandle : Text = "";
     var handle : Text = "";
+    var principalText : Text = "";
 
     func onLoad(ctx : Context) { load(ctx); };
 
@@ -40,6 +42,7 @@
         bound := Identity.isBound(ctx.caller);
         suggested := Identity.suggestHandle(ctx.caller);
         boundHandle := Identity.handleOf(ctx.caller);
+        principalText := Principal.toText(ctx.caller);
     };
 
     // Manual handle — format + uniqueness validated by Identity.bindChecked.
@@ -76,6 +79,7 @@
     .wl-or { display: flex; align-items: center; gap: .6rem; margin: 1rem 0; color: var(--colorNeutralForeground4); font-size: .8rem; }
     .wl-or::before, .wl-or::after { content: ""; flex: 1; height: 1px; background: var(--colorNeutralStroke2); }
     form { margin: 0; }
+    .wl-pid { font-family: var(--fontFamilyMonospace, ui-monospace, Menlo, monospace); font-size: .72rem; background: var(--colorNeutralBackground3); padding: .12rem .4rem; border-radius: 4px; overflow-wrap: anywhere; }
 </style>
 
 
