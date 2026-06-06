@@ -351,26 +351,31 @@ module {
           (k, Iter.toArray(set.entries()));
         },
       );
-      to_candid ((
-        nextId,
-        Iter.toArray(postsById.entries()),
-        followingEntries,
-        likesEntries,
-        repostsEntries,
-      ));
+      to_candid ({
+        nextId = nextId;
+        postsById = Iter.toArray(postsById.entries());
+        following = followingEntries;
+        likes = likesEntries;
+        reposts = repostsEntries;
+      });
     };
 
     public func mvStableLoad(b : Blob) {
       switch (
-        from_candid (b) : ?(
-          Nat,
-          [(Nat, FeedPost)],
-          [(Principal, [(Principal, Bool)])],
-          [(Nat, [(Principal, Bool)])],
-          [(Nat, [(Principal, Bool)])],
-        )
+        from_candid (b) : ?{
+          nextId : Nat;
+          postsById : [(Nat, FeedPost)];
+          following : [(Principal, [(Principal, Bool)])];
+          likes : [(Nat, [(Principal, Bool)])];
+          reposts : [(Nat, [(Principal, Bool)])];
+        }
       ) {
-        case (?(savedNextId, savedPosts, savedFollowing, savedLikes, savedReposts)) {
+        case (?saved) {
+          let savedNextId = saved.nextId;
+          let savedPosts = saved.postsById;
+          let savedFollowing = saved.following;
+          let savedLikes = saved.likes;
+          let savedReposts = saved.reposts;
           // scalar
           nextId := savedNextId;
           // postsById

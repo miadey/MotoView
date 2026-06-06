@@ -38,15 +38,18 @@ module {
     public func all() : [Note] { Iter.toArray(notes.vals()) };
 
     // ---- upgrade-stable persistence ----
+    // Snapshot to a RECORD (named fields), never a tuple: Motoko's
+    // to_candid/from_candid does NOT round-trip tuples — from_candid returns
+    // null and your state is silently wiped on every upgrade.
     public func mvStableSave() : Blob {
-      to_candid ((nextId, Iter.toArray(notes.entries())));
+      to_candid ({ nextId = nextId; notes = Iter.toArray(notes.entries()) });
     };
     public func mvStableLoad(b : Blob) {
-      switch (from_candid (b) : ?(Nat, [(Nat, Note)])) {
-        case (?(n, entries)) {
-          nextId := n;
+      switch (from_candid (b) : ?{ nextId : Nat; notes : [(Nat, Note)] }) {
+        case (?saved) {
+          nextId := saved.nextId;
           for (k in Iter.toArray(notes.keys()).vals()) { notes.delete(k) };
-          for ((k, v) in entries.vals()) { notes.put(k, v) };
+          for ((k, v) in saved.notes.vals()) { notes.put(k, v) };
         };
         case null {};
       };
@@ -70,11 +73,14 @@ upgrade; `postupgrade` restores it into the fresh instance just after.
 
 ## The three rules
 
-1. **Snapshot every mutable field.** Put each `var` scalar and each collection
-   into the `to_candid` tuple. Maps → `Iter.toArray(map.entries())`, Buffers →
-   `Buffer.toArray(buf)`. Immutable `let`s never need saving.
-2. **Save and load must match exactly.** The `from_candid` type annotation must
-   list the same fields in the same order as the `to_candid` tuple. Everything
+1. **Snapshot every mutable field into a RECORD.** Put each `var` scalar and each
+   collection into the `to_candid` **record** as a named field — never a tuple.
+   `to_candid`/`from_candid` cannot round-trip a tuple (it decodes to `null`,
+   silently wiping your state on upgrade); a named record round-trips correctly.
+   Maps → `Iter.toArray(map.entries())`, Buffers → `Buffer.toArray(buf)`.
+   Immutable `let`s never need saving.
+2. **Save and load must match exactly.** The `from_candid` record annotation must
+   have the same field names and types as the `to_candid` record. Everything
    must be a *shared* type (records, variants, arrays, primitives, `Principal` —
    no functions or objects). If a record holds a `var` field or a `Buffer`,
    define a flat *snapshot* record for it and convert on save/load.

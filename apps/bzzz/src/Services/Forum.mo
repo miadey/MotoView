@@ -607,26 +607,31 @@ module {
           );
         },
       );
-      to_candid ((
-        nextTopicId,
-        nextPostId,
-        Buffer.toArray(categories_),
-        topicSnaps,
-        postSnaps,
-      ));
+      to_candid ({
+        nextTopicId = nextTopicId;
+        nextPostId = nextPostId;
+        categories = Buffer.toArray(categories_);
+        topics = topicSnaps;
+        posts = postSnaps;
+      });
     };
 
     public func mvStableLoad(b : Blob) {
       switch (
-        from_candid (b) : ?(
-          Nat,
-          Nat,
-          [CategoryRec],
-          [(Nat, TopicSnap)],
-          [(Nat, PostSnap)],
-        )
+        from_candid (b) : ?{
+          nextTopicId : Nat;
+          nextPostId : Nat;
+          categories : [CategoryRec];
+          topics : [(Nat, TopicSnap)];
+          posts : [(Nat, PostSnap)];
+        }
       ) {
-        case (?(savedNextTopicId, savedNextPostId, savedCategories, savedTopics, savedPosts)) {
+        case (?saved) {
+          let savedNextTopicId = saved.nextTopicId;
+          let savedNextPostId = saved.nextPostId;
+          let savedCategories = saved.categories;
+          let savedTopics = saved.topics;
+          let savedPosts = saved.posts;
           // scalars
           nextTopicId := savedNextTopicId;
           nextPostId := savedNextPostId;

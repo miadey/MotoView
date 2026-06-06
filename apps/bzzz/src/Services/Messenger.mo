@@ -428,47 +428,45 @@ module {
     //   5: typingState   : [(Nat, [TypingEntry])]          (Buffer values -> arrays)
 
     public func mvStableSave() : Blob {
-      to_candid ((
-        nextConvoId,
-        nextMsgId,
-        Iter.toArray(convos.entries()),
-        Array.map<(Nat, Buffer.Buffer<DmMessage>), (Nat, [DmMessage])>(
+      to_candid ({
+        nextConvoId = nextConvoId;
+        nextMsgId = nextMsgId;
+        convos = Iter.toArray(convos.entries());
+        msgs = Array.map<(Nat, Buffer.Buffer<DmMessage>), (Nat, [DmMessage])>(
           Iter.toArray(msgs.entries()),
           func((k, b) : (Nat, Buffer.Buffer<DmMessage>)) : (Nat, [DmMessage]) {
             (k, Buffer.toArray(b));
           },
-        ),
-        Iter.toArray(directIndex.entries()),
-        Array.map<(Nat, Buffer.Buffer<TypingEntry>), (Nat, [TypingEntry])>(
+        );
+        directIndex = Iter.toArray(directIndex.entries());
+        typingState = Array.map<(Nat, Buffer.Buffer<TypingEntry>), (Nat, [TypingEntry])>(
           Iter.toArray(typingState.entries()),
           func((k, b) : (Nat, Buffer.Buffer<TypingEntry>)) : (Nat, [TypingEntry]) {
             (k, Buffer.toArray(b));
           },
-        ),
-      ));
+        );
+      });
     };
 
     public func mvStableLoad(b : Blob) {
       switch (
-        from_candid (b) : ?(
-          Nat,
-          Nat,
-          [(Nat, Conversation)],
-          [(Nat, [DmMessage])],
-          [(Text, Nat)],
-          [(Nat, [TypingEntry])],
-        )
+        from_candid (b) : ?{
+          nextConvoId : Nat;
+          nextMsgId : Nat;
+          convos : [(Nat, Conversation)];
+          msgs : [(Nat, [DmMessage])];
+          directIndex : [(Text, Nat)];
+          typingState : [(Nat, [TypingEntry])];
+        }
       ) {
-        case (
-          ?(
-            savedNextConvoId,
-            savedNextMsgId,
-            savedConvos,
-            savedMsgs,
-            savedDirectIndex,
-            savedTypingState,
-          )
-        ) {
+        case (?saved) {
+          let savedNextConvoId = saved.nextConvoId;
+          let savedNextMsgId = saved.nextMsgId;
+          let savedConvos = saved.convos;
+          let savedMsgs = saved.msgs;
+          let savedDirectIndex = saved.directIndex;
+          let savedTypingState = saved.typingState;
+
           // scalars: replace
           nextConvoId := savedNextConvoId;
           nextMsgId := savedNextMsgId;

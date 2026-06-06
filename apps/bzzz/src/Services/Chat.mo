@@ -453,63 +453,60 @@ module {
     // Nested Buffers are flattened to arrays; nested HashMaps to [(key, value)]
     // arrays, in a fixed order matched exactly by the from_candid annotation.
     public func mvStableSave() : Blob {
-      to_candid ((
-        nextRoomId,
-        nextMsgId,
-        Iter.toArray(rooms.entries()),
-        Array.map<(Nat, Buffer.Buffer<Message>), (Nat, [Message])>(
+      to_candid ({
+        nextRoomId = nextRoomId;
+        nextMsgId = nextMsgId;
+        rooms = Iter.toArray(rooms.entries());
+        roomMsgs = Array.map<(Nat, Buffer.Buffer<Message>), (Nat, [Message])>(
           Iter.toArray(roomMsgs.entries()),
           func((k, b)) { (k, Buffer.toArray(b)) },
-        ),
-        Iter.toArray(msgIndex.entries()),
-        Array.map<(Nat, Buffer.Buffer<(Text, Nat)>), (Nat, [(Text, Nat)])>(
+        );
+        msgIndex = Iter.toArray(msgIndex.entries());
+        reacts = Array.map<(Nat, Buffer.Buffer<(Text, Nat)>), (Nat, [(Text, Nat)])>(
           Iter.toArray(reacts.entries()),
           func((k, b)) { (k, Buffer.toArray(b)) },
-        ),
-        Array.map<(Nat, Buffer.Buffer<ThreadMsg>), (Nat, [ThreadMsg])>(
+        );
+        threads = Array.map<(Nat, Buffer.Buffer<ThreadMsg>), (Nat, [ThreadMsg])>(
           Iter.toArray(threads.entries()),
           func((k, b)) { (k, Buffer.toArray(b)) },
-        ),
-        Iter.toArray(lastSeen.entries()),
-        Array.map<(Nat, HashMap.HashMap<Text, Int>), (Nat, [(Text, Int)])>(
+        );
+        lastSeen = Iter.toArray(lastSeen.entries());
+        typingByRoom = Array.map<(Nat, HashMap.HashMap<Text, Int>), (Nat, [(Text, Int)])>(
           Iter.toArray(typingByRoom.entries()),
           func((k, m)) { (k, Iter.toArray(m.entries())) },
-        ),
-        Array.map<(Nat, HashMap.HashMap<Text, Int>), (Nat, [(Text, Int)])>(
+        );
+        membersByRoom = Array.map<(Nat, HashMap.HashMap<Text, Int>), (Nat, [(Text, Int)])>(
           Iter.toArray(membersByRoom.entries()),
           func((k, m)) { (k, Iter.toArray(m.entries())) },
-        ),
-      ));
+        );
+      });
     };
     public func mvStableLoad(b : Blob) {
       switch (
-        from_candid (b) : ?(
-          Nat,
-          Nat,
-          [(Nat, Room)],
-          [(Nat, [Message])],
-          [(Nat, Message)],
-          [(Nat, [(Text, Nat)])],
-          [(Nat, [ThreadMsg])],
-          [(Principal, Int)],
-          [(Nat, [(Text, Int)])],
-          [(Nat, [(Text, Int)])],
-        )
+        from_candid (b) : ?{
+          nextRoomId : Nat;
+          nextMsgId : Nat;
+          rooms : [(Nat, Room)];
+          roomMsgs : [(Nat, [Message])];
+          msgIndex : [(Nat, Message)];
+          reacts : [(Nat, [(Text, Nat)])];
+          threads : [(Nat, [ThreadMsg])];
+          lastSeen : [(Principal, Int)];
+          typingByRoom : [(Nat, [(Text, Int)])];
+          membersByRoom : [(Nat, [(Text, Int)])];
+        }
       ) {
-        case (
-          ?(
-            savedNextRoomId,
-            savedNextMsgId,
-            savedRooms,
-            savedRoomMsgs,
-            savedMsgIndex,
-            savedReacts,
-            savedThreads,
-            savedLastSeen,
-            savedTypingByRoom,
-            savedMembersByRoom,
-          )
-        ) {
+        case (?saved) {
+          let savedNextRoomId = saved.nextRoomId;
+          let savedNextMsgId = saved.nextMsgId;
+          let savedRooms = saved.rooms;
+          let savedRoomMsgs = saved.roomMsgs;
+          let savedMsgIndex = saved.msgIndex;
+          let savedReacts = saved.reacts;
+          let savedThreads = saved.threads;
+          let savedLastSeen = saved.lastSeen;
+          let savedTypingByRoom = saved.typingByRoom;
+          let savedMembersByRoom = saved.membersByRoom;
           // scalars
           nextRoomId := savedNextRoomId;
           nextMsgId := savedNextMsgId;

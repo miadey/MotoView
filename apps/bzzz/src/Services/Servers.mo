@@ -646,38 +646,37 @@ module {
           Iter.toArray(mutes.entries()),
           func((sid, m)) { (sid, Iter.toArray(m.entries())) }
         );
-      to_candid ((
-        nextId,
-        serversArr,
-        rolesArr,
-        membershipsArr,
-        pinsArr,
-        locksArr,
-        mutesArr,
-      ));
+      to_candid ({
+        nextId = nextId;
+        serversArr = serversArr;
+        rolesArr = rolesArr;
+        membershipsArr = membershipsArr;
+        pinsArr = pinsArr;
+        locksArr = locksArr;
+        mutesArr = mutesArr;
+      });
     };
 
     public func mvStableLoad(b : Blob) {
       switch (
-        from_candid (b) : ?(
-          Nat,
-          [(Nat, Server)],
-          [(Nat, [(Principal, Role)])],
-          [(Nat, [(Principal, Member)])],
-          [(Nat, [(Nat, Bool)])],
-          [(Nat, Bool)],
-          [(Nat, [(Principal, Int)])],
-        )
+        from_candid (b) : ?{
+          nextId : Nat;
+          serversArr : [(Nat, Server)];
+          rolesArr : [(Nat, [(Principal, Role)])];
+          membershipsArr : [(Nat, [(Principal, Member)])];
+          pinsArr : [(Nat, [(Nat, Bool)])];
+          locksArr : [(Nat, Bool)];
+          mutesArr : [(Nat, [(Principal, Int)])];
+        }
       ) {
-        case (?(
-          savedNextId,
-          serversArr,
-          rolesArr,
-          membershipsArr,
-          pinsArr,
-          locksArr,
-          mutesArr,
-        )) {
+        case (?saved) {
+          let savedNextId = saved.nextId;
+          let serversArr = saved.serversArr;
+          let rolesArr = saved.rolesArr;
+          let membershipsArr = saved.membershipsArr;
+          let pinsArr = saved.pinsArr;
+          let locksArr = saved.locksArr;
+          let mutesArr = saved.mutesArr;
           // scalar
           nextId := savedNextId;
 

@@ -150,16 +150,17 @@ module {
     // ---- Upgrade-stable persistence (MotoView framework hooks) ----
 
     public func mvStableSave() : Blob {
-      to_candid ((
-        Iter.toArray(entries.entries()),
-      ));
+      to_candid ({
+        entries = Iter.toArray(entries.entries());
+      });
     };
 
     public func mvStableLoad(b : Blob) {
-      switch (from_candid (b) : ?([(Text, Entry)])) {
+      switch (from_candid (b) : ?{ entries : [(Text, Entry)] }) {
         case (?saved) {
+          let savedEntries = saved.entries;
           for (k in Iter.toArray(entries.keys()).vals()) { entries.delete(k) };
-          for ((k, v) in saved.vals()) { entries.put(k, v) };
+          for ((k, v) in savedEntries.vals()) { entries.put(k, v) };
         };
         case null {};
       };

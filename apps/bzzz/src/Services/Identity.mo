@@ -164,21 +164,26 @@ module {
     };
 
     // ---- upgrade-stable persistence (MotoView hooks) ----
+    // NOTE: persist as a RECORD, not a tuple — Motoko's to_candid/from_candid
+    // does NOT round-trip tuples (from_candid returns null), which silently wipes
+    // state on every classic-persistence upgrade. Records round-trip correctly.
     public func mvStableSave() : Blob {
-      to_candid ((
-        Iter.toArray(byPrincipal.entries()),
-        Iter.toArray(byHandle.entries()),
-      ));
+      to_candid ({
+        byPrincipal = Iter.toArray(byPrincipal.entries());
+        byHandle = Iter.toArray(byHandle.entries());
+      });
     };
 
     public func mvStableLoad(b : Blob) {
       switch (
-        from_candid (b) : ?(
-          [(Principal, Profile)],
-          [(Text, Principal)],
-        )
+        from_candid (b) : ?{
+          byPrincipal : [(Principal, Profile)];
+          byHandle : [(Text, Principal)];
+        }
       ) {
-        case (?(savedByPrincipal, savedByHandle)) {
+        case (?saved) {
+          let savedByPrincipal = saved.byPrincipal;
+          let savedByHandle = saved.byHandle;
           for (k in Iter.toArray(byPrincipal.keys()).vals()) { byPrincipal.delete(k) };
           for ((k, v) in savedByPrincipal.vals()) { byPrincipal.put(k, v) };
           for (k in Iter.toArray(byHandle.keys()).vals()) { byHandle.delete(k) };
