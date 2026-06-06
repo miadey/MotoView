@@ -7205,3 +7205,111 @@ Bases EXISTED (.mv-card-header + -media/-text/-title/-desc, .mv-card-preview + -
 .mv-acct-item:hover { background: var(--colorNeutralBackground1Hover); }
 .mv-acct-out { color: var(--colorPaletteRedForeground1, #c4314b); }
 .mv-acct-sep { height: 1px; background: var(--colorNeutralStroke2); margin: 4px 6px; }
+
+/* ==================================================================
+   Charts — server-rendered SVG (runtime/src/Charts.mo). Fluent-token
+   themed, CSS-only interactivity (:hover highlight + native <title>
+   tooltips). The categorical palette (--mv-cat-1..10) mirrors the hex
+   baked into the SVG by Charts.palette, so charts look identical before
+   and after this stylesheet loads.
+   ================================================================== */
+:root {
+  --mv-cat-1: #0f6cbd;  --mv-cat-2: #107c10;  --mv-cat-3: #d13438;
+  --mv-cat-4: #ca5010;  --mv-cat-5: #8764b8;  --mv-cat-6: #038387;
+  --mv-cat-7: #c239b3;  --mv-cat-8: #986f0b;  --mv-cat-9: #005b70;
+  --mv-cat-10: #a4262c;
+}
+
+.mv-chart { display: block; width: 100%; max-width: 100%; height: auto;
+  font-family: var(--mv-font, var(--fontFamilyBase)); color: var(--colorNeutralForeground1);
+  overflow: visible; }
+.mv-chart text { fill: currentColor; }
+.mv-chart-title { font-size: var(--fontSizeBase400, 16px); font-weight: var(--fontWeightSemibold, 600);
+  fill: var(--colorNeutralForeground1); }
+.mv-chart-tick { font-size: var(--fontSizeBase200, 12px); fill: var(--colorNeutralForeground3); }
+.mv-chart-axis { stroke: var(--colorNeutralStroke1); stroke-width: 1; }
+.mv-chart-grid { stroke: var(--colorNeutralStroke2); stroke-width: 1; fill: none; }
+.mv-chart-empty { font-size: var(--fontSizeBase300, 14px); fill: var(--colorNeutralForeground3); }
+.mv-chart-center { font-size: var(--fontSizeBase500, 20px); font-weight: var(--fontWeightSemibold, 600);
+  fill: var(--colorNeutralForeground1); }
+
+/* legend */
+.mv-chart-legend-label { font-size: var(--fontSizeBase200, 12px); fill: var(--colorNeutralForeground2); }
+.mv-chart-swatch { stroke: var(--colorNeutralBackground1); stroke-width: .5; }
+
+/* --- pie / donut / semi-donut: slices ---------------------------- */
+.mv-chart-slice { stroke: var(--colorNeutralBackground1); stroke-width: 1.5;
+  transition: opacity .12s ease, transform .12s ease; transform-origin: center;
+  transform-box: fill-box; }
+.mv-chart-slices:hover .mv-chart-slice { opacity: .45; }
+.mv-chart-slices .mv-chart-slice:hover { opacity: 1; stroke-width: 2.5;
+  stroke: var(--colorNeutralForeground1); }
+.mv-chart-donut .mv-chart-center, .mv-chart-semidonut .mv-chart-center { fill: var(--colorNeutralForeground1); }
+
+/* --- gauge ------------------------------------------------------- */
+.mv-chart-gauge-track { fill: var(--colorNeutralBackground3); }
+.mv-chart-gauge-value { transition: opacity .12s ease; }
+.mv-chart-gauge-value:hover { opacity: .8; }
+.mv-chart-gauge-num { font-size: var(--fontSizeHero700, 28px); font-weight: var(--fontWeightBold, 700);
+  fill: var(--colorBrandForeground1, currentColor); }
+
+/* --- radar ------------------------------------------------------- */
+.mv-chart-radar-grid .mv-chart-grid { fill: none; }
+.mv-chart-radar-area { fill-opacity: .18; stroke-width: 2; stroke-linejoin: round;
+  transition: fill-opacity .12s ease; }
+.mv-chart-radar:hover .mv-chart-radar-area { fill-opacity: .06; }
+.mv-chart-radar .mv-chart-radar-area:hover { fill-opacity: .32; stroke-width: 3; }
+.mv-chart-radar-dot { transition: r .12s ease; }
+.mv-chart-radar-dot:hover { r: 4; }
+.mv-chart-radar-axis { fill: var(--colorNeutralForeground2); }
+
+/* --- radial bar (concentric rings) ------------------------------- */
+.mv-chart-radialbar-track { fill: var(--colorNeutralBackground3); }
+.mv-chart-radialbar-value { transition: opacity .12s ease; }
+.mv-chart-radialbar:hover .mv-chart-radialbar-value { opacity: .5; }
+.mv-chart-radialbar .mv-chart-radialbar-value:hover { opacity: 1; }
+
+/* --- bar / column (rectangular) ---------------------------------- */
+/* category label on the left of horizontal bars */
+.mv-chart-ytick { fill: var(--colorNeutralForeground2); }
+/* bars & columns: subtle lift on hover; dim siblings for focus */
+.mv-chart-bar-rect, .mv-chart-col-rect {
+  transition: opacity .12s ease, filter .12s ease; }
+.mv-chart-bar:hover .mv-chart-bar-rect,
+.mv-chart-column:hover .mv-chart-col-rect,
+.mv-chart-grouped:hover .mv-chart-col-rect,
+.mv-chart-stacked:hover .mv-chart-col-rect { opacity: .55; }
+.mv-chart-bar .mv-chart-bar-rect:hover,
+.mv-chart-column .mv-chart-col-rect:hover,
+.mv-chart-grouped .mv-chart-col-rect:hover,
+.mv-chart-stacked .mv-chart-col-rect:hover {
+  opacity: 1; filter: brightness(1.08); }
+
+/* --- scatter / bubble (xy points) -------------------------------- */
+.mv-chart-point {
+  fill-opacity: .9; stroke: var(--colorNeutralBackground1); stroke-width: 1;
+  transition: r .12s ease, fill-opacity .12s ease; }
+.mv-chart-point:hover { r: 6; fill-opacity: 1; }
+.mv-chart-bubble-pt {
+  fill-opacity: .55; stroke: var(--colorNeutralBackground1); stroke-width: 1;
+  transition: fill-opacity .12s ease; }
+.mv-chart-bubble:hover .mv-chart-bubble-pt { fill-opacity: .3; }
+.mv-chart-bubble .mv-chart-bubble-pt:hover {
+  fill-opacity: .85; stroke: var(--colorNeutralForeground1); stroke-width: 1.5; }
+
+/* dark theme: thinner separators read better on dark slices/rings */
+@media (prefers-color-scheme: dark) {
+  .mv-chart-slice { stroke: var(--colorNeutralBackground1); }
+}
+[data-theme="dark"] .mv-chart-slice,
+[data-theme="web-dark"] .mv-chart-slice,
+[data-theme="teams-dark"] .mv-chart-slice { stroke: var(--colorNeutralBackground1); }
+
+/* high-contrast / forced-colors: keep shapes legible by their outlines */
+@media (forced-colors: active) {
+  .mv-chart-slice, .mv-chart-radar-area, .mv-chart-gauge-value,
+  .mv-chart-radialbar-value, .mv-chart-bar-rect, .mv-chart-col-rect,
+  .mv-chart-point, .mv-chart-bubble-pt { forced-color-adjust: none; }
+  .mv-chart-slice, .mv-chart-bar-rect, .mv-chart-col-rect,
+  .mv-chart-point, .mv-chart-bubble-pt { stroke: CanvasText; }
+}

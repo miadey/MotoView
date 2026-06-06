@@ -1,0 +1,131 @@
+@page "/charts"
+@layout HomeLayout
+@title "Charts — MotoView"
+@description "A complete set of server-rendered SVG chart components for MotoView — no JavaScript."
+
+<section class="ch-wrap">
+  <h1>Chart components</h1>
+  <p class="ch-lead">Server-rendered SVG, driven by CSV-style data props. No application JavaScript — hover for native tooltips. Themed with Fluent tokens (try the theme picker).</p>
+  <div class="ch-grid">
+    <section class="ch-card">
+      <h3 class="ch-name">BarChart</h3>
+      <div class="ch-canvas">
+        <BarChart values="42,30,55,20" labels="Q1,Q2,Q3,Q4" title="Revenue by Quarter" unit="$" width=480 height=300 />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">ColumnChart</h3>
+      <div class="ch-canvas">
+        <ColumnChart values="120,98,145,160,132,178" labels="Jan,Feb,Mar,Apr,May,Jun" title="Monthly Signups" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">GroupedColumnChart</h3>
+      <div class="ch-canvas">
+        <GroupedColumnChart series="Sales:120,140,160,150;Costs:80,90,100,95" labels="Q1,Q2,Q3,Q4" title="Sales vs Costs" unit="k" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">StackedColumnChart</h3>
+      <div class="ch-canvas">
+        <StackedColumnChart series="Direct:30,35,40;Search:20,25,22;Social:10,12,15" labels="Jan,Feb,Mar" title="Traffic Sources" unit="%" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">LineChart</h3>
+      <div class="ch-canvas">
+        <LineChart series="Revenue:120,180,150,210,260;Costs:80,90,85,110,140" labels="Jan,Feb,Mar,Apr,May" title="Revenue vs Costs" unit="k" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">SplineChart</h3>
+      <div class="ch-canvas">
+        <SplineChart values="42,38,55,30,48,33" labels="Mon,Tue,Wed,Thu,Fri,Sat" title="p95 Latency" unit="ms" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">StepLineChart</h3>
+      <div class="ch-canvas">
+        <StepLineChart values="1,1,2,2,3,3,4" labels="W1,W2,W3,W4,W5,W6,W7" title="Plan Tier" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">AreaChart</h3>
+      <div class="ch-canvas">
+        <AreaChart values="12,19,15,27,34,30" labels="W1,W2,W3,W4,W5,W6" title="Weekly Signups" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">StackedAreaChart</h3>
+      <div class="ch-canvas">
+        <StackedAreaChart series="Mobile:20,30,45,50;Desktop:35,38,40,42;Tablet:5,7,9,11" labels="Q1,Q2,Q3,Q4" title="Traffic by Device" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">Sparkline</h3>
+      <div class="ch-canvas">
+        <Sparkline values="4,8,5,9,7,12,10,14,11,16" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">ScatterChart</h3>
+      <div class="ch-canvas">
+        <ScatterChart points="12,140;18,165;24,180;30,210;36,205;42,240;48,260" title="Ad Spend vs Conversions" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">BubbleChart</h3>
+      <div class="ch-canvas">
+        <BubbleChart points="10,200,5;25,320,18;40,280,9;55,410,30;70,360,14" title="Region: spend vs revenue (size = users)" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">PieChart</h3>
+      <div class="ch-canvas">
+        <PieChart values="42,30,55,20" labels="Q1,Q2,Q3,Q4" title="Revenue by quarter" unit="$" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">DonutChart</h3>
+      <div class="ch-canvas">
+        <DonutChart values="60,30,10" labels="Direct,Search,Social" title="Traffic sources" unit="%" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">SemiDonutChart</h3>
+      <div class="ch-canvas">
+        <SemiDonutChart values="54,28,18" labels="Desktop,Mobile,Tablet" title="Sessions by device" unit="%" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">GaugeChart</h3>
+      <div class="ch-canvas">
+        <GaugeChart values="72" yMax=100 unit="%" title="CPU load" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">RadarChart</h3>
+      <div class="ch-canvas">
+        <RadarChart series="Team A:80,70,90,60,75;Team B:60,85,70,80,65" labels="Speed,Power,Range,Agility,Defense" title="Team skills" />
+      </div>
+    </section>
+    <section class="ch-card">
+      <h3 class="ch-name">RadialBarChart</h3>
+      <div class="ch-canvas">
+        <RadialBarChart values="80,55,30" labels="Sales,Marketing,Support" unit="%" title="Quarterly goal progress" />
+      </div>
+    </section>
+  </div>
+</section>
+
+<style>
+  .ch-wrap { max-width: 1180px; margin: 0; padding: 2rem 1.5rem 4rem; }
+  .ch-lead { color: var(--colorNeutralForeground3); margin: 0 0 1.5rem; max-width: 70ch; }
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem; }
+  .ch-card { border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusXLarge);
+    background: var(--colorNeutralBackground1); padding: 1rem 1.1rem 1.2rem; box-shadow: var(--shadow2); }
+  .ch-name { margin: 0 0 .6rem; font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold);
+    color: var(--colorNeutralForeground2); }
+  .ch-canvas { width: 100%; }
+  .ch-canvas .mv-chart { width: 100%; height: auto; display: block; }
+</style>

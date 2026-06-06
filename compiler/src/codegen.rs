@@ -761,6 +761,68 @@ impl<'a> Codegen<'a> {
                 _ => None,
             })
         };
+        // Resolve a string prop to a Motoko Text EXPRESSION (literal -> "…",
+        // @(expr) -> the expr). Mirrors gen_attr / prop_to_arg. Default "" if
+        // absent. Used by the chart arms to accept both literal data and a
+        // dynamic @(expr) interpolation.
+        let str_expr = |name: &str| -> String {
+            match c.props.iter().find(|a| a.name == name).map(|a| &a.value) {
+                Some(AttrValue::Literal(v)) => mo_str(v),
+                Some(AttrValue::Expr(e)) => self.as_text(e),
+                Some(AttrValue::Concat(parts)) => {
+                    let mut pieces = Vec::new();
+                    for p in parts {
+                        match p {
+                            AttrPart::Lit(l) => pieces.push(mo_str(l)),
+                            AttrPart::Expr(e) => pieces.push(self.as_text(e)),
+                        }
+                    }
+                    format!("({})", pieces.join(" # "))
+                }
+                Some(AttrValue::Bool) | None => "\"\"".to_string(),
+            }
+        };
+        // Build the chart options record-update on `Charts.def`, including only
+        // the props the author actually set (so defaults hold otherwise).
+        // `extra` lets a chart inject options it derives itself (e.g. yMax).
+        let chart_opts = |extra: &[String]| -> String {
+            let mut o: Vec<String> = Vec::new();
+            if c.props.iter().any(|a| a.name == "title") {
+                o.push(format!("title = {}", str_expr("title")));
+            }
+            if let Some(w) = lit("width") {
+                o.push(format!("width = {}", w));
+            }
+            if let Some(h) = lit("height") {
+                o.push(format!("height = {}", h));
+            }
+            if let Some(u) = lit("unit") {
+                o.push(format!("unit = {}", mo_str(&u)));
+            }
+            if let Some(m) = lit("yMin") {
+                o.push(format!("yMin = ?({} : Float)", m));
+            }
+            if let Some(m) = lit("yMax") {
+                o.push(format!("yMax = ?({} : Float)", m));
+            }
+            if prop("hideAxes").is_some() {
+                o.push("showAxes = false".into());
+            }
+            if prop("hideGrid").is_some() {
+                o.push("showGrid = false".into());
+            }
+            if prop("hideLegend").is_some() {
+                o.push("showLegend = false".into());
+            }
+            for e in extra {
+                o.push(e.clone());
+            }
+            if o.is_empty() {
+                "Charts.def".to_string()
+            } else {
+                format!("{{ Charts.def with {} }}", o.join("; "))
+            }
+        };
         match c.name.as_str() {
             "Button" => {
                 // Fluent uses `appearance`; `kind` kept as an alias.
@@ -1897,6 +1959,141 @@ impl<'a> Codegen<'a> {
                 out.push_str(&format!("{}b.raw(\"><span class=\\\"mv-menu-radio\\\"></span><span class=\\\"mv-menu-itemlabel\\\">\");\n", indent));
                 self.gen_nodes(&c.children, out, indent);
                 out.push_str(&format!("{}b.raw(\"</span></label>\");\n", indent));
+                Some(())
+            }
+            // ---- Radial / arc chart family -----------------------------------
+            // All render as server-side SVG via runtime/src/Charts.mo. Data is
+            // passed as CSV-style STRING props (literal OR a single @(expr)).
+            "PieChart" => {
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.pie({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "DonutChart" => {
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.donut({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "SemiDonutChart" => {
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.semiDonut({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "GaugeChart" => {
+                // Single value (only the first is used). yMin/yMax bound the arc.
+                let values = str_expr("values");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.gauge({}, {}));\n", indent, values, opts));
+                Some(())
+            }
+            "RadarChart" => {
+                // Multi-series spec ("A:1,2,3;B:4,5,6") + shared axis labels.
+                let series = str_expr("series");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.radar({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "RadialBarChart" => {
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.radialBar({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            // ---- Axis / rectangular chart family -----------------------------
+            // Same string-prop convention (literal OR a single @(expr)).
+            "BarChart" => {
+                // Horizontal bars: values + labels.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.bar({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "ColumnChart" => {
+                // Vertical columns: values + labels.
+                let values = str_expr("values");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.column({}, {}, {}));\n", indent, values, labels, opts));
+                Some(())
+            }
+            "GroupedColumnChart" => {
+                // Multi-series spec ("A:1,2,3;B:4,5,6") + shared category labels.
+                let series = str_expr("series");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.groupedColumn({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "StackedColumnChart" => {
+                // Multi-series spec stacked per category + shared category labels.
+                let series = str_expr("series");
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.stackedColumn({}, {}, {}));\n", indent, series, labels, opts));
+                Some(())
+            }
+            "ScatterChart" => {
+                // XY points ("1,2;3,5;4,4").
+                let points = str_expr("points");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.scatter({}, {}));\n", indent, points, opts));
+                Some(())
+            }
+            "BubbleChart" => {
+                // XYZ points ("x,y,size"): the 3rd value is the bubble magnitude.
+                let points = str_expr("points");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.bubble({}, {}));\n", indent, points, opts));
+                Some(())
+            }
+            "LineChart" => {
+                let data = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("values") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.line({}, {}, {}));\n", indent, data, labels, opts));
+                Some(())
+            }
+            "SplineChart" => {
+                let data = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("values") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.spline({}, {}, {}));\n", indent, data, labels, opts));
+                Some(())
+            }
+            "StepLineChart" => {
+                let data = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("values") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.stepLine({}, {}, {}));\n", indent, data, labels, opts));
+                Some(())
+            }
+            "AreaChart" => {
+                let data = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("values") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.area({}, {}, {}));\n", indent, data, labels, opts));
+                Some(())
+            }
+            "StackedAreaChart" => {
+                let data = if c.props.iter().any(|a| a.name == "series") { str_expr("series") } else { str_expr("values") };
+                let labels = str_expr("labels");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.stackedArea({}, {}, {}));\n", indent, data, labels, opts));
+                Some(())
+            }
+            "Sparkline" => {
+                let values = str_expr("values");
+                let opts = chart_opts(&[]);
+                out.push_str(&format!("{}b.raw(Charts.sparkline({}, {}));\n", indent, values, opts));
                 Some(())
             }
             _ => None,

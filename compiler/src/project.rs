@@ -254,6 +254,7 @@ fn assemble(
 import App "mo:motoview/App";
 import Html "mo:motoview/Html";
 import MV "mo:motoview/Types";
+import Charts "mo:motoview/Charts";
 import VetKeys "mo:motoview/VetKeys";
 import Lib "mo:motoview";
 import Nat "mo:base/Nat";
