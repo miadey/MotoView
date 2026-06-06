@@ -1,6 +1,5 @@
 @page "/greet/{name}"
 @layout AppLayout
-@cacheable
 @title "Hello"
 @description "A public, parameterized page served as a certified query via a wildcard."
 <section class="bz-hero"><h1>Hello, @name 👋</h1>

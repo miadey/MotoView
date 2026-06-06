@@ -137,6 +137,9 @@ module {
       };
     };
 
+    /// The handle prefixed with "@" (for chips/mentions), e.g. "@madey".
+    public func atHandleOf(caller : Principal) : Text { "@" # handleOf(caller) };
+
     public func displayOf(caller : Principal) : Text {
       switch (byPrincipal.get(caller)) {
         case (?p) p.display;

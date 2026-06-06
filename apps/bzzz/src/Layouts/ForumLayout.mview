@@ -159,7 +159,7 @@
             <ThemePicker />
             <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
             <details class="mv-acct" data-mv-authed style="display:none">
-                <summary title="Account"><span class="mv-acct-ava">👤</span><span class="mv-acct-id" data-mv-principal>account</span></summary>
+                <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
                 <div class="mv-acct-menu">
                     <a class="mv-acct-item" href="/me">👤 My profile</a>
                     <a class="mv-acct-item" href="/forum">🗨️ Forum home</a>
