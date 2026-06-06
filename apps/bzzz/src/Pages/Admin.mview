@@ -74,6 +74,26 @@
         </div>
     </div>
 
+    <h2 class="ac-section-title">Analytics</h2>
+    <div class="ac-charts">
+        <div class="bz-card ac-chart-card">
+            <ColumnChart values=@(contentValues) labels="Users,Servers,Topics,Posts" title="Platform content" hideLegend />
+        </div>
+        @if (staffCount > 0) {
+            <div class="bz-card ac-chart-card">
+                <DonutChart values=@(roleValues) labels="Super Admin,Admin,Moderator" title="Staff by role" />
+            </div>
+        }
+        @if hasServers {
+            <div class="bz-card ac-chart-card">
+                <PieChart values=@(serverKindValues) labels="Discussion,Forum,Feed" title="Servers by type" />
+            </div>
+            <div class="bz-card ac-chart-card">
+                <BarChart values=@(srvMemberValues) labels=@(srvMemberLabels) title="Members per server" hideLegend />
+            </div>
+        }
+    </div>
+
     <h2 class="ac-section-title">Global staff</h2>
     <div class="bz-card ac-table-card">
         <table class="ac-table">
@@ -219,6 +239,11 @@
     .ac-stat-num { font-size: 1.9rem; font-weight: var(--fontWeightBold); line-height: 1; letter-spacing: -.02em; }
     .ac-stat-label { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 
+    .ac-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: var(--spacingHorizontalM); margin-bottom: var(--spacingVerticalXXL); }
+    .ac-chart-card { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
+    .ac-chart-card .mv-chart { width: 100%; height: auto; display: block; }
+
     .ac-section-title { font-size: 1.2rem; margin: 0 0 var(--spacingVerticalM); }
 
     .ac-table-card { padding: 0; overflow-x: auto; margin-bottom: var(--spacingVerticalXXL); }
@@ -294,6 +319,15 @@
     var serverList = Servers.servers();
     var now : Int = 0;
 
+    // Analytics chart data — CSV strings derived from the REAL service data in
+    // reload() (no fabricated values). Fed to the SVG chart components via @(…).
+    var contentValues : Text = "";
+    var roleValues : Text = "";
+    var serverKindValues : Text = "";
+    var srvMemberValues : Text = "";
+    var srvMemberLabels : Text = "";
+    var hasServers : Bool = false;
+
     // grant-role form field (auto-bound from the secure form)
     var grantHandle : Text = "";
 
@@ -328,6 +362,37 @@
         topicCount := Forum.topicCount();
         feedCount := Feed.postCount();
         now := Time.now();
+
+        // ---- analytics: derive chart CSVs from the real data above ----
+        contentValues := Nat.toText(userCount) # "," # Nat.toText(serverCount)
+            # "," # Nat.toText(topicCount) # "," # Nat.toText(feedCount);
+
+        var sa = 0; var ad = 0; var mo = 0;
+        for (e in staff.vals()) {
+            switch (e.role) {
+                case (#SuperAdmin) { sa += 1 }; case (#Admin) { ad += 1 };
+                case (#Moderator) { mo += 1 }; case (#None) {};
+            };
+        };
+        roleValues := Nat.toText(sa) # "," # Nat.toText(ad) # "," # Nat.toText(mo);
+
+        var dk = 0; var fk = 0; var ek = 0;
+        for (s in serverList.vals()) {
+            switch (s.kind) {
+                case (#Discussion) { dk += 1 }; case (#Forum) { fk += 1 }; case (#Feed) { ek += 1 };
+            };
+        };
+        serverKindValues := Nat.toText(dk) # "," # Nat.toText(fk) # "," # Nat.toText(ek);
+
+        hasServers := serverList.size() > 0;
+        let mv = Buffer.Buffer<Text>(serverList.size());
+        let ml = Buffer.Buffer<Text>(serverList.size());
+        for (s in serverList.vals()) {
+            mv.add(Nat.toText(Servers.memberCount(s.id)));
+            ml.add(Text.replace(s.name, #char ',', " ")); // keep CSV labels valid
+        };
+        srvMemberValues := Text.join(",", mv.vals());
+        srvMemberLabels := Text.join(",", ml.vals());
     };
 
     // ---- display helpers ----
