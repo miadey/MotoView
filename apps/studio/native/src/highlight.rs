@@ -62,6 +62,19 @@ pub fn classify_line(line: &str) -> Vec<Span> {
     while i < n {
         let c = bytes[i];
 
+        // A non-ASCII byte begins (or continues) a multi-byte UTF-8 char. None
+        // of the token rules below start on such a byte, and slicing `line[i..]`
+        // off a non-char-boundary would PANIC — so consume the whole char as
+        // plain and continue. (Pages can contain glyphs like `▼`/`✕`.)
+        if c >= 0x80 {
+            // Advance to the next char boundary so `i` stays valid for slicing.
+            i += 1;
+            while i < n && !line.is_char_boundary(i) {
+                i += 1;
+            }
+            continue;
+        }
+
         // HTML comment <!-- ... --> (to EOL if unterminated on this line)
         if line[i..].starts_with("<!--") {
             flush_plain(&mut spans, plain_start, i);

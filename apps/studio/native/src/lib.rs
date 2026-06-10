@@ -10,8 +10,10 @@
 //! The GUI (`app`) is only compiled into the binary; it is a thin shell over
 //! these tested functions.
 
+pub mod app;
 pub mod backend;
 pub mod highlight;
+pub mod theme;
 
 pub use backend::{
     expand_path, home_dir, list_mview_files, node_text, open_project, parse_forest, read_file,

@@ -18,12 +18,10 @@
 // standalone — that avoids dead-code noise for backend functions the GUI
 // doesn't call but the tests do, and guarantees the binary links the exact code
 // that is unit-tested.
-mod app;
-
 use std::io::Write;
 use std::path::PathBuf;
 
-use app::StudioApp;
+use motokostudio::app::StudioApp;
 
 /// Where the panic hook appends crash reports. Prefers the standard macOS
 /// per-user log dir (`~/Library/Logs/MotokoStudio/crash.log`), falling back to

@@ -2,7 +2,7 @@
 name = "motokostudio-native"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.91"
+rust-version = "1.92"
 description = "Webview-free native MotokoStudio — an egui/eframe desktop IDE for MotoView (.mview) projects."
 license = "MIT"
 publish = false
@@ -33,8 +33,8 @@ path = "src/lib.rs"
 # `accesskit`/`web`/`glow` bits; we re-enable exactly: wgpu (Metal renderer) +
 # default_fonts (bundled font). wgpu pulls a heavier dep graph (naga shader
 # compiler, the wgpu/wgpu-hal/metal stack) and yields a larger binary than glow.
-eframe = { version = "0.29", default-features = false, features = ["wgpu", "default_fonts"] }
-egui = "0.29"
+eframe = { version = "0.34", default-features = false, features = ["wgpu", "default_fonts"] }
+egui = "0.34"
 # Parse the `motoview ... --json` output (diagnostics + preview IR forest).
 serde_json = "1"
 
@@ -47,4 +47,7 @@ serde_json = "1"
 # machinery and so cannot re-enter the event loop.
 
 [dev-dependencies]
-# nothing extra — tests use only std + serde_json + the crate's own backend.
+# egui_kittest renders egui UIs to an image with NO window (offscreen wgpu/Metal),
+# so the visual design can be snapshot-tested + reviewed headlessly.
+egui_kittest = { version = "0.34", features = ["wgpu", "snapshot"] }
+image = "0.25"
