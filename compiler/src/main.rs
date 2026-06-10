@@ -9,6 +9,8 @@
 mod ast;
 mod codegen;
 mod color;
+mod color_native;
+mod lint;
 mod parser;
 mod project;
 #[cfg(test)]
@@ -31,6 +33,7 @@ fn run(args: &[String]) -> i32 {
     match cmd {
         "build" => cmd_build(&args[1..]),
         "check" => cmd_check(&args[1..]),
+        "lint" => cmd_lint(&args[1..]),
         "compile" => cmd_compile(&args[1..]),
         "new" => cmd_new(&args[1..]),
         "dev" => cmd_dev(&args[1..]),
@@ -57,7 +60,10 @@ fn print_help() {
          USAGE:\n\
          \x20 motoview new <name>            Scaffold a new MotoView project\n\
          \x20 motoview build [dir]           Compile .mview files into Motoko (.mvbuild/main.mo)\n\
+         \x20                                  --network <local|ic>  vetKD key gate (default local)\n\
          \x20 motoview check [dir]           Build, then type-check; errors point at your .mview\n\
+         \x20                                  --network <local|ic>  vetKD key gate (default local)\n\
+         \x20 motoview lint [dir]            Run the security lint pass; print diagnostics\n\
          \x20 motoview compile <file.mview>  Compile a single file and print the Motoko\n\
          \x20 motoview dev [dir]             Build, then `dfx deploy` to the local replica\n\
          \x20 motoview shell --url <url>     Scaffold desktop (Tauri) + mobile (Capacitor) shells\n\
@@ -79,8 +85,27 @@ fn opt<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
     None
 }
 
+/// Flags that take a following value (`--flag value`). `positional` must skip
+/// the value token after any of these, or e.g. `build --network ic` would pick
+/// `ic` as the project directory (the documented space form was broken before).
+const VALUE_FLAGS: &[&str] = &["--name", "--out", "--network", "--url", "--id"];
+
 fn positional(args: &[String]) -> Option<&str> {
-    args.iter().find(|a| !a.starts_with('-')).map(|s| s.as_str())
+    let mut i = 0;
+    while i < args.len() {
+        let a = &args[i];
+        if a.starts_with('-') {
+            // `--flag=value` carries its own value; only `--flag value` (no `=`)
+            // consumes the following token, so skip it for known value flags.
+            if !a.contains('=') && VALUE_FLAGS.contains(&a.as_str()) {
+                i += 1; // skip the value token belonging to this flag
+            }
+            i += 1;
+            continue;
+        }
+        return Some(a.as_str());
+    }
+    None
 }
 
 fn app_name_for(dir: &PathBuf, override_name: Option<&str>) -> String {
@@ -121,10 +146,12 @@ fn cmd_build(args: &[String]) -> i32 {
     let out = opt(args, "--out")
         .map(PathBuf::from)
         .unwrap_or_else(|| dir.join(".mvbuild").join("main.mo"));
+    let network = opt(args, "--network").unwrap_or("local").to_string();
     let opts = project::BuildOptions {
         project_dir: dir,
         app_name: name,
         out,
+        network,
     };
     match project::build(&opts) {
         Ok(summary) => {
@@ -189,16 +216,48 @@ fn cmd_compile(args: &[String]) -> i32 {
     }
 }
 
+/// `motoview lint [dir]` — run the security lint pass over every .mview and
+/// print all diagnostics (`error:` / `warning:`). Exits 1 if any Error, else 0.
+fn cmd_lint(args: &[String]) -> i32 {
+    let dir = PathBuf::from(positional(args).unwrap_or("."));
+    let diags = match project::lint_project(&dir) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("motoview lint error: {}", e);
+            return 1;
+        }
+    };
+    if diags.is_empty() {
+        println!("\u{2713} no lint findings");
+        return 0;
+    }
+    let report = project::format_lint(&diags);
+    print!("{}", report);
+    let errors = diags
+        .iter()
+        .filter(|(_, d)| d.severity == lint::Severity::Error)
+        .count();
+    let warnings = diags.len() - errors;
+    eprintln!("\n{} error(s), {} warning(s)", errors, warnings);
+    if errors > 0 {
+        1
+    } else {
+        0
+    }
+}
+
 /// Build, then type-check the generated actor with `moc`, rewriting any errors
 /// to name the originating .mview source instead of the generated main.mo.
 fn cmd_check(args: &[String]) -> i32 {
     let dir = PathBuf::from(positional(args).unwrap_or("."));
     let name = app_name_for(&dir, opt(args, "--name"));
     let out = dir.join(".mvbuild").join("main.mo");
+    let network = opt(args, "--network").unwrap_or("local").to_string();
     let opts = project::BuildOptions {
         project_dir: dir.clone(),
         app_name: name,
         out: out.clone(),
+        network,
     };
     match project::build(&opts) {
         Ok(summary) => print!("{}", summary),
@@ -618,6 +677,52 @@ npx cap open ios           # build & run in Xcode / Android Studio
 > the platform toolchains (Tauri CLI, Xcode, Android SDK) on your machine.
 "#
         )
+    }
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::{opt, positional};
+
+    fn argv(a: &[&str]) -> Vec<String> {
+        a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn space_form_network_flag_does_not_eat_the_positional_dir() {
+        // REGRESSION: `build --network ic` must NOT pick `ic` as the project dir.
+        let a = argv(&["--network", "ic"]);
+        assert_eq!(positional(&a), None, "no explicit dir -> default `.`");
+        assert_eq!(opt(&a, "--network"), Some("ic"));
+
+        // With an explicit dir before the flag, the dir is still found.
+        let a = argv(&["myproj", "--network", "ic"]);
+        assert_eq!(positional(&a), Some("myproj"));
+        assert_eq!(opt(&a, "--network"), Some("ic"));
+
+        // And after the flag.
+        let a = argv(&["--network", "ic", "myproj"]);
+        assert_eq!(positional(&a), Some("myproj"));
+        assert_eq!(opt(&a, "--network"), Some("ic"));
+    }
+
+    #[test]
+    fn equals_form_network_flag_is_unaffected() {
+        let a = argv(&["--network=ic", "myproj"]);
+        assert_eq!(positional(&a), Some("myproj"));
+        assert_eq!(opt(&a, "--network"), Some("ic"));
+        // `--network=ic` alone -> no positional, value still read.
+        let a = argv(&["--network=ic"]);
+        assert_eq!(positional(&a), None);
+        assert_eq!(opt(&a, "--network"), Some("ic"));
+    }
+
+    #[test]
+    fn other_value_flags_also_skip_their_value() {
+        let a = argv(&["--name", "Cool", "--out", "out/main.mo", "dir"]);
+        assert_eq!(positional(&a), Some("dir"));
+        assert_eq!(opt(&a, "--name"), Some("Cool"));
+        assert_eq!(opt(&a, "--out"), Some("out/main.mo"));
     }
 }
 

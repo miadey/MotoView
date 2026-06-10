@@ -1,0 +1,24 @@
+# ============================================================================
+# MotoView iOS — Fastlane Appfile (Slice 11)
+# ============================================================================
+# Identifies the app + the Apple developer account. NO secrets here: the
+# App Store Connect API key (key id / issuer / .p8) is passed via environment
+# variables / CI secrets in the Fastfile (ASC_KEY_ID / ASC_ISSUER_ID /
+# ASC_KEY_CONTENT), never committed.
+#
+# EXTERNAL PREREQUISITE: the user must register this bundle id in their Apple
+# Developer account and create the matching App Store Connect app record. The
+# Team IDs below are read from the environment so this repo carries no real
+# account identifiers.
+# ============================================================================
+
+app_identifier(ENV["APP_IDENTIFIER"] || "dev.motoview.app")
+
+# The App Store Connect / Developer Portal team ids. Supplied by the user via
+# CI secrets — these placeholders only document the shape.
+team_id(ENV["FASTLANE_TEAM_ID"])               # Developer Portal team id (10 chars)
+itc_team_id(ENV["FASTLANE_ITC_TEAM_ID"])       # App Store Connect team id
+
+# Apple ID is intentionally NOT set: CI authenticates with an App Store Connect
+# API key (see Fastfile `app_store_connect_api_key`), not an Apple ID + 2FA.
+# apple_id(ENV["FASTLANE_APPLE_ID"])           # only for local, interactive use

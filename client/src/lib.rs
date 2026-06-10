@@ -13,6 +13,21 @@
 mod abi;
 mod json;
 mod diff;
+mod ir;
+
+/// Slice 4 — the chain-key certificate verifier. Compiled only with the
+/// `cert-verify` feature so the default web brain stays dependency-free.
+/// A native MotoView client links this and verifies every consequential IC
+/// response against the PINNED NNS root key before acting on it.
+#[cfg(feature = "cert-verify")]
+pub mod cert_verify;
+
+/// Slice 8 — the native FFI surface (C-ABI) the iOS/Android clients call into.
+/// Compiled ONLY under the default-off `ffi` feature, which also turns on
+/// `cert-verify`. The default web build never references it, so the shipped web
+/// wasm stays byte-identical (84634 bytes). See `src/ffi.rs`.
+#[cfg(feature = "ffi")]
+pub mod ffi;
 
 use abi::{host, take_string};
 use json::Value;
@@ -51,6 +66,11 @@ struct Bridge {
     /// Last HTML applied per target, so the brain can diff and patch only the
     /// keyed regions that changed (see `diff`).
     last_html: HashMap<String, String>,
+    /// Last UI-IR forest applied per target (Slice 5). Populated only when a
+    /// batch carries a `ui` IR payload; the default web brain ships HTML and
+    /// never touches this. Lets the IR path diff against the prior tree.
+    #[cfg(feature = "ui-ir")]
+    last_ui: HashMap<String, Vec<ir::UINode>>,
 }
 
 impl Bridge {
@@ -69,6 +89,8 @@ impl Bridge {
             backoff: BACKOFF_START_MS,
             started: false,
             last_html: HashMap::new(),
+            #[cfg(feature = "ui-ir")]
+            last_ui: HashMap::new(),
         }
     }
 
@@ -164,29 +186,29 @@ impl Bridge {
                     let t = v.str_field("target");
                     if t.is_empty() { "mv-root".to_string() } else { t }
                 };
-                let html = v.str_field("html");
-                // Keyed-region patching: when the structure is stable, replace
-                // only the keyed regions that changed; otherwise full swap. All
-                // the decision logic is here in the brain — the hands just apply.
-                let old = self.last_html.get(&target).cloned().unwrap_or_default();
-                match diff::plan(&old, &html) {
-                    diff::Plan::Patch(ops) => {
-                        for op in &ops {
-                            match op {
-                                diff::Op::Replace { key, html } => host::replace_keyed(&target, key, html),
-                                diff::Op::Remove { key } => host::remove_keyed(&target, key),
-                                diff::Op::Insert { html, after } => {
-                                    host::insert_keyed(&target, html, after.as_deref().unwrap_or(""))
-                                }
-                                diff::Op::Move { key, after } => {
-                                    host::move_keyed(&target, key, after.as_deref().unwrap_or(""))
-                                }
-                            }
-                        }
+                // Two render encodings can flow through the SAME keyed-op ABI:
+                //   * `ui`   — the Slice 6 portable IR forest (JSON). Diffed as a
+                //              UINode tree, rendered to HTML for the hands. Only
+                //              wired with the `ui-ir` feature (native clients);
+                //              the default web brain ships HTML and LTO drops the
+                //              unreachable IR code, so the web wasm is unchanged.
+                //   * `html` — the original HTML render the web brain ships today.
+                // When IR is wired and a non-empty `ui` field is present, take the
+                // IR path; otherwise the HTML path runs exactly as before.
+                let took_ui = self.apply_maybe_ui(&target, v);
+                if !took_ui {
+                    let html = v.str_field("html");
+                    // Keyed-region patching: when the structure is stable,
+                    // replace only the keyed regions that changed; otherwise full
+                    // swap. All the decision logic is here in the brain — the
+                    // hands just apply.
+                    let old = self.last_html.get(&target).cloned().unwrap_or_default();
+                    match diff::plan(&old, &html) {
+                        diff::Plan::Patch(ops) => emit_ops(&target, &ops),
+                        diff::Plan::Full => host::apply_html(&target, &html),
                     }
-                    diff::Plan::Full => host::apply_html(&target, &html),
+                    self.last_html.insert(target.clone(), html);
                 }
-                self.last_html.insert(target.clone(), html);
                 if let Some(head) = v.get("head") {
                     let title = head.str_field("title");
                     if !title.is_empty() {
@@ -202,6 +224,67 @@ impl Bridge {
                 true
             }
             _ => false,
+        }
+    }
+
+    /// If this batch carries a UI-IR (`ui`) render payload AND the `ui-ir`
+    /// feature is wired, apply it to `target` and return `true`; otherwise return
+    /// `false` so the caller runs the HTML path. With the feature off this is a
+    /// const-`false` stub that references no IR code, so the default web build's
+    /// apply path is byte-identical to before and LTO drops the `ir` module.
+    ///
+    /// IR apply parses the JSON forest, diffs it against the forest last applied
+    /// to this target with the SAME keyed-reconcile the HTML path uses, and emits
+    /// the SAME keyed ops — so the hands need no new ABI. A parse failure
+    /// (malformed IR) degrades safely to leaving the DOM untouched.
+    #[cfg(feature = "ui-ir")]
+    fn apply_maybe_ui(&mut self, target: &str, v: &Value) -> bool {
+        let ui = v.str_field("ui");
+        if ui.is_empty() {
+            return false;
+        }
+        let new_forest = match ir::parse_forest(&ui) {
+            Ok(f) => f,
+            Err(_) => return true, // malformed IR: handled (do not touch the DOM)
+        };
+        let old_forest = self.last_ui.get(target).cloned().unwrap_or_default();
+        let plan = if old_forest.is_empty() {
+            // First IR render for this target (or prior was empty): nothing to
+            // diff against — render the whole forest once.
+            diff::Plan::Full
+        } else {
+            ir::ir_diff(&old_forest, &new_forest)
+        };
+        match plan {
+            diff::Plan::Full => host::apply_html(target, &ir::render_forest(&new_forest)),
+            diff::Plan::Patch(ops) => emit_ops(target, &ops),
+        }
+        self.last_ui.insert(target.to_string(), new_forest);
+        true
+    }
+
+    /// Stub when the IR path is not wired (default web brain): never handles a
+    /// `ui` payload, so the caller always runs the HTML path.
+    #[cfg(not(feature = "ui-ir"))]
+    #[inline]
+    fn apply_maybe_ui(&mut self, _target: &str, _v: &Value) -> bool {
+        false
+    }
+}
+
+/// Execute keyed ops via the host ABI — shared by the HTML and IR apply paths.
+/// Both produce identical `diff::Op` values; the hands only ever swap nodes.
+fn emit_ops(target: &str, ops: &[diff::Op]) {
+    for op in ops {
+        match op {
+            diff::Op::Replace { key, html } => host::replace_keyed(target, key, html),
+            diff::Op::Remove { key } => host::remove_keyed(target, key),
+            diff::Op::Insert { html, after } => {
+                host::insert_keyed(target, html, after.as_deref().unwrap_or(""))
+            }
+            diff::Op::Move { key, after } => {
+                host::move_keyed(target, key, after.as_deref().unwrap_or(""))
+            }
         }
     }
 }

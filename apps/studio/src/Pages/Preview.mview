@@ -1,0 +1,85 @@
+@page "/preview"
+@layout StudioLayout
+@title "Live preview — MotokoStudio"
+@description "Live-preview a MotoView app against a real local canister: the previewed app runs on a dfx replica and is embedded here. No mock — preview requires a deployed replica."
+
+<header class="pv-head">
+    <div>
+        <h1 class="st-h1">Live preview</h1>
+        <p class="st-lede">
+            The app you design runs on a <strong>real canister</strong> — a local <code>dfx</code> replica — and is
+            embedded below. There is no mock preview: if the replica is not running, the frame shows nothing,
+            on purpose. Deploy first, then preview.
+        </p>
+    </div>
+    <span class="st-flag" title="Live preview needs a running dfx replica.">⚑ needs dfx replica</span>
+</header>
+
+<section class="st-card">
+    <div class="pv-bar">
+        <label class="pv-label" for="pv-url">Preview target</label>
+        <code class="pv-url" id="pv-url">@previewUrl</code>
+        <Badge type="brand">local replica</Badge>
+    </div>
+    <div class="pv-frame-wrap">
+        <iframe class="pv-frame" src="@previewUrl" title="Live preview of the deployed MotoView canister"
+                sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+        <div class="pv-empty">
+            <p>If this frame is blank, the previewed canister is not deployed/running.</p>
+            <p class="pv-empty-cmd"><code>dfx start --clean</code> &nbsp;then&nbsp; <code>dfx deploy</code></p>
+        </div>
+    </div>
+</section>
+
+<section class="st-card">
+    <h2 class="pv-h2">How preview is wired (honest)</h2>
+    <ul class="pv-steps">
+        <li>The studio gate (<code>tools/studio/validate.sh</code>) must pass first — only a check+lint-clean artifact is deployable.</li>
+        <li><code>dfx deploy</code> builds the generated Motoko actor and installs it on the local replica.</li>
+        <li>The replica serves the canister's own HTTP UI; this page embeds that URL in an <code>&lt;iframe&gt;</code>.</li>
+        <li>There is <strong>no simulated</strong> preview and <strong>no on-canister LLM</strong>: what you see is the actual running canister.</li>
+    </ul>
+    <p class="st-note">
+        Default target is <code>@previewUrl</code> (the dfx local web server, candid-style canister URL).
+        Point it at your project's canister id once deployed.
+    </p>
+</section>
+
+<style>
+    .pv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+        margin-bottom: var(--spacingVerticalL); }
+    .pv-bar { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        margin-bottom: var(--spacingVerticalM); flex-wrap: wrap; }
+    .pv-label { font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase300); }
+    .pv-url { background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke3);
+        border-radius: var(--borderRadiusSmall, 4px); padding: .15rem .5rem; font-size: var(--fontSizeBase200);
+        color: var(--colorNeutralForeground2); }
+    .pv-frame-wrap { position: relative; border: 1px solid var(--colorNeutralStroke2);
+        border-radius: var(--borderRadiusMedium); overflow: hidden; background: var(--colorNeutralBackground3);
+        min-height: 360px; }
+    .pv-frame { position: relative; z-index: 2; width: 100%; height: 480px; border: 0;
+        background: var(--colorNeutralBackground1); }
+    .pv-empty { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: .4rem; text-align: center;
+        color: var(--colorNeutralForeground4); font-size: var(--fontSizeBase200); padding: 1rem; }
+    .pv-empty-cmd code { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke3);
+        border-radius: 4px; padding: .1rem .4rem; }
+    .pv-h2 { margin: 0 0 var(--spacingVerticalM); font-size: var(--fontSizeBase500); }
+    .pv-steps { margin: 0 0 var(--spacingVerticalM); padding-left: 1.2rem; color: var(--colorNeutralForeground2);
+        font-size: var(--fontSizeBase300); line-height: 1.9; }
+</style>
+
+@code {
+    // The local dfx web server URL for the previewed canister. This is a real
+    // address the replica serves once `dfx deploy` runs; if nothing is deployed,
+    // the iframe is simply empty (no mock). Adjust the canister id per project.
+    var previewUrl : Text = "http://127.0.0.1:4943/?canisterId=__PREVIEW_CANISTER_ID__";
+
+    func onLoad(ctx : Context) {
+        // Allow a ?target=<url> override so an embedder can point the frame at a
+        // specific deployed canister without recompiling. Falls back to default.
+        for ((k, v) in ctx.queryParams.vals()) {
+            if (k == "target" and Text.size(v) > 0) { previewUrl := v };
+        };
+    };
+}

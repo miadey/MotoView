@@ -40,6 +40,52 @@ pub unsafe fn take_string(ptr: *mut u8, len: usize) -> String {
     String::from_utf8_lossy(&v).into_owned()
 }
 
+/// Native stubs for the `host_*` symbols.
+///
+/// On `wasm32` these symbols are IMPORTS resolved by the JS glue at instantiate
+/// time, so no Rust-side definition exists (or should). But a native build of
+/// this crate (the Slice 8 `ffi` feature, `--target aarch64-apple-ios` or the
+/// host) also produces a `cdylib`, and a cdylib is fully LINKED — so the
+/// `host_*` references in the brain's polling loop would be unresolved symbols
+/// and the link would fail (it did, before this shim).
+///
+/// The native MotoView client does NOT use the brain's HTML polling loop at all
+/// — it drives the pure `ir`/`diff`/`cert_verify` functions through `ffi.rs` and
+/// renders natively (SwiftUI/Compose). So these host primitives are never CALLED
+/// natively; they exist only to satisfy the linker. Each is a no-op (or returns
+/// a neutral value) so that even if some native caller reached them, nothing
+/// undefined happens.
+///
+/// These are plain (non-weak) definitions — `#[linkage="weak"]` is nightly-only
+/// and we stay on stable. A real native host shell that wants the polling loop
+/// would compile this crate WITHOUT this shim (e.g. a dedicated feature); the
+/// Slice 8 native client never needs the loop, so the no-op stubs are correct.
+///
+/// Compiled only off-wasm; the wasm artifact is completely unaffected.
+#[cfg(not(target_arch = "wasm32"))]
+mod native_host_stubs {
+    macro_rules! stub {
+        ($name:ident ( $($arg:ident : $ty:ty),* ) $(-> $ret:ty)?) => {
+            #[no_mangle]
+            pub extern "C" fn $name($(#[allow(unused_variables)] $arg : $ty),*) $(-> $ret)? {
+                $( <$ret as Default>::default() )?
+            }
+        };
+    }
+    stub!(host_log(arg0: *const u8, arg1: usize));
+    stub!(host_now() -> f64);
+    stub!(host_fetch(arg0: u32, arg1: *const u8, arg2: usize, arg3: *const u8, arg4: usize, arg5: *const u8, arg6: usize));
+    stub!(host_set_timer(arg0: u32, arg1: f64));
+    stub!(host_apply_html(arg0: *const u8, arg1: usize, arg2: *const u8, arg3: usize));
+    stub!(host_replace_keyed(arg0: *const u8, arg1: usize, arg2: *const u8, arg3: usize, arg4: *const u8, arg5: usize));
+    stub!(host_remove_keyed(arg0: *const u8, arg1: usize, arg2: *const u8, arg3: usize));
+    stub!(host_insert_keyed(arg0: *const u8, arg1: usize, arg2: *const u8, arg3: usize, arg4: *const u8, arg5: usize));
+    stub!(host_move_keyed(arg0: *const u8, arg1: usize, arg2: *const u8, arg3: usize, arg4: *const u8, arg5: usize));
+    stub!(host_effect(arg0: *const u8, arg1: usize, arg2: *const u8, arg3: usize, arg4: *const u8, arg5: usize));
+    stub!(host_navigate(arg0: *const u8, arg1: usize));
+    stub!(host_set_title(arg0: *const u8, arg1: usize));
+}
+
 /// Host functions implemented by the JS glue.
 pub mod host {
     extern "C" {

@@ -1,0 +1,35 @@
+@theme brand="#6d28d9"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#6d28d9">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1);
+            font-family: var(--fontFamilyBase); -webkit-font-smoothing: antialiased; }
+        a { color: var(--colorBrandForeground1); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { font-family: var(--fontFamilyMonospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); }
+        .tpl-shell { max-width: 720px; margin: 0 auto; padding: var(--spacingVerticalXXL) var(--spacingHorizontalL); }
+        .tpl-bar { display: flex; align-items: center; gap: .5rem; margin-bottom: var(--spacingVerticalL);
+            font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
+        .tpl-bar .tpl-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--colorBrandBackground); }
+        .st-h1 { margin: 0 0 var(--spacingVerticalXS); font-size: var(--fontSizeHero700, 1.6rem);
+            font-weight: var(--fontWeightBold); letter-spacing: -.015em; }
+        .st-lede { margin: 0 0 var(--spacingVerticalL); color: var(--colorNeutralForeground3); }
+        .st-note { background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke3);
+            border-radius: var(--borderRadiusMedium); padding: var(--spacingVerticalM) var(--spacingHorizontalM);
+            color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300);
+            margin-bottom: var(--spacingVerticalL); }
+    </style>
+</head>
+<body>
+    <div class="tpl-shell">
+        <div class="tpl-bar"><span class="tpl-dot"></span> MotokoStudio template — verified, lint-clean pattern</div>
+        @yield
+    </div>
+</body>
+</html>

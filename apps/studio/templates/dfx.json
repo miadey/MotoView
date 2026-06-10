@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "canisters": {
+    "studio_templates": {
+      "type": "motoko",
+      "main": ".mvbuild/main.mo",
+      "args": "--package motoview ../../../runtime/src"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4962",
+      "type": "ephemeral"
+    }
+  }
+}

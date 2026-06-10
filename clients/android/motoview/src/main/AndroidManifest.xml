@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MotoView Android library manifest (scaffold). INTERNET is needed for the
+  HostBridge.fetch path and the RawHtmlView WebView. NOT built here.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

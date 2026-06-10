@@ -1,0 +1,41 @@
+# ============================================================================
+# MotoView Android — Fastlane (ALTERNATIVE to Gradle Play Publisher) — Slice 11
+# ============================================================================
+# The PRIMARY Android upload path is the Gradle Play Publisher plugin
+# (`./gradlew :app:publishReleaseBundle`, configured in ../app/build.gradle.kts).
+# This Fastfile is the OPTIONAL fastlane-based path for teams that prefer
+# fastlane across both platforms — `supply` does the same Play upload.
+#
+# EXTERNAL PREREQUISITES (user must supply — none exist on the build machine):
+#   * Android SDK/NDK + cargo-ndk (the Rust .so), and the signed .aab.
+#   * A Play service-account JSON (PLAY_JSON_FILE) with release permission.
+#   * The app already created in the Play Console (first upload is manual).
+# ============================================================================
+
+default_platform(:android)
+
+platform :android do
+  desc "Build the App Bundle and upload to the Play internal track via supply"
+  lane :internal do
+    # Cross-compile the Rust core (flags itself if cargo-ndk is absent).
+    sh("cd ../.. && bash tools/native-build.sh android")
+
+    gradle(
+      project_dir: "..",
+      task: "bundle",
+      flavor: "",
+      build_type: "Release"
+    )
+
+    upload_to_play_store(
+      track: "internal",
+      json_key: ENV["PLAY_JSON_FILE"],
+      package_name: ENV["APP_IDENTIFIER"] || "dev.motoview.app",
+      aab: "../app/build/outputs/bundle/release/app-release.aab",
+      release_status: "completed",
+      skip_upload_apk: true
+    )
+
+    UI.success("Uploaded .aab to Play internal track")
+  end
+end

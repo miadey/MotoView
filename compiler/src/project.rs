@@ -4,6 +4,7 @@
 
 use crate::ast::FileKind;
 use crate::codegen::Codegen;
+use crate::lint::{self, Severity};
 use crate::parser;
 use std::collections::HashMap;
 use std::fs;
@@ -13,9 +14,66 @@ pub struct BuildOptions {
     pub project_dir: PathBuf,
     pub app_name: String,
     pub out: PathBuf,
+    /// Target network: "local" (default) uses the local `dfx_test_key` vetKD
+    /// key; "ic"/"mainnet" uses the production `key_1`. Selects the key name
+    /// baked into the generated actor (see `vetkd_key_name`).
+    pub network: String,
+}
+
+impl Default for BuildOptions {
+    fn default() -> Self {
+        BuildOptions {
+            project_dir: PathBuf::from("."),
+            app_name: "MotoViewApp".to_string(),
+            out: PathBuf::from(".mvbuild/main.mo"),
+            network: "local".to_string(),
+        }
+    }
+}
+
+/// Pick the vetKD key name for a target network. Mainnet (`ic`/`mainnet`) gets
+/// the production `key_1`; every other network (local replica, playground) gets
+/// the local `dfx_test_key`. Centralised so the network gate has one source of
+/// truth and the hard-fail guard below can check it.
+fn vetkd_key_name(network: &str) -> &'static str {
+    match network.trim().to_ascii_lowercase().as_str() {
+        "ic" | "mainnet" => "key_1",
+        _ => "dfx_test_key",
+    }
+}
+
+/// Defensive network gate: refuse to emit the LOCAL `dfx_test_key` for a mainnet
+/// target. With `vetkd_key_name` the resolved key is always correct, so this
+/// never trips on a real build — but it is a hard backstop against a future
+/// regression that lets the local test key leak into a mainnet artifact (the
+/// local key does not exist on `ic`, so vetKeys would silently break). Pulled
+/// out as a pure function so the Err branch is independently unit-testable.
+pub fn enforce_network_gate(network: &str, key: &str) -> Result<(), String> {
+    let net = network.trim().to_ascii_lowercase();
+    if (net == "ic" || net == "mainnet") && key == "dfx_test_key" {
+        return Err(format!(
+            "network gate: refusing to emit vetKeys key `dfx_test_key` for network \
+             `{}` — mainnet requires the production key `key_1`.",
+            network
+        ));
+    }
+    Ok(())
 }
 
 pub fn build(opts: &BuildOptions) -> Result<String, String> {
+    // ---- network gate (defensive hard-fail) ----
+    // Resolve the vetKD key name for the target network. If we are building for
+    // mainnet but the resolved key is still the LOCAL `dfx_test_key`, refuse to
+    // emit — shipping the local key to `ic` would silently break vetKeys (the
+    // local test key does not exist on mainnet). With `vetkd_key_name` this can't
+    // happen, but the guard must exist and be testable.
+    let vetkd_key = vetkd_key_name(&opts.network);
+    enforce_network_gate(&opts.network, vetkd_key)?;
+
+    // Lint diagnostics accumulate across every parsed .mview; an Error aborts the
+    // build before any codegen, a Warning is printed but does not block.
+    let mut diagnostics: Vec<(String, lint::Diagnostic)> = Vec::new();
+
     let src = opts.project_dir.join("src");
     // Services/Models are imported relative to the GENERATED actor. It now lives
     // in .mvbuild/, so prefix those imports with the path back to src/ (e.g.
@@ -129,10 +187,23 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // tag to a call of `mvComponent_Card(...)`.
     let mut components: HashMap<String, crate::codegen::CompInfo> = HashMap::new();
     let mut parsed_components = Vec::new();
+    // First `@theme brand="#hex"` seen across ALL .mview files (components,
+    // pages, layouts) — the project's brand color. Used to cross-compile the
+    // SAME design tokens to native (SwiftUI/Compose) alongside the web CSS, so
+    // theming is pixel-identical across web/iOS/Android. Brand themes usually
+    // live on a Layout, so every loop below contributes.
+    let mut theme_brand: Option<String> = None;
     for cf in &component_files {
         let name = file_stem(cf);
         let source = fs::read_to_string(cf).map_err(|e| format!("{}: {}", cf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Component)?;
+        if theme_brand.is_none() {
+            theme_brand = file.theme_brand.clone();
+        }
+        let rel = rel_src(&opts.project_dir, cf);
+        for d in lint::lint_file(&file, &rel) {
+            diagnostics.push((rel.clone(), d));
+        }
         let slots = crate::codegen::collect_slot_names(&file.template);
         components.insert(
             name,
@@ -157,6 +228,13 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let name = file_stem(pf);
         let source = fs::read_to_string(pf).map_err(|e| format!("{}: {}", pf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Page)?;
+        if theme_brand.is_none() {
+            theme_brand = file.theme_brand.clone();
+        }
+        let rel = rel_src(&opts.project_dir, pf);
+        for d in lint::lint_file(&file, &rel) {
+            diagnostics.push((rel.clone(), d));
+        }
         let mut cg = Codegen::new(&models, &components);
         let pg = cg.gen_page(&file);
         page_objects.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, pf)));
@@ -173,11 +251,29 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let name = file_stem(lf);
         let source = fs::read_to_string(lf).map_err(|e| format!("{}: {}", lf.display(), e))?;
         let file = parser::parse(&source, &name, FileKind::Layout)?;
+        if theme_brand.is_none() {
+            theme_brand = file.theme_brand.clone();
+        }
+        let rel = rel_src(&opts.project_dir, lf);
+        for d in lint::lint_file(&file, &rel) {
+            diagnostics.push((rel.clone(), d));
+        }
         let mut cg = Codegen::new(&models, &components);
         layout_funcs.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, lf)));
         layout_funcs.push_str(&cg.gen_layout(&file));
         layout_funcs.push('\n');
         layout_entries.push((name.clone(), format!("mvLayout_{}", name)));
+    }
+
+    // Lint gate: if ANY .mview produced an Error-severity diagnostic, abort the
+    // build before emitting the actor. All diagnostics (errors AND warnings) are
+    // printed, mapped to their source .mview; warnings alone never abort.
+    if diagnostics.iter().any(|(_, d)| d.severity == Severity::Error) {
+        return Err(format_diagnostics(&diagnostics));
+    }
+    // Warnings (e.g. @raw) don't block the build, but surface them.
+    if !diagnostics.is_empty() {
+        eprint!("{}", format_diagnostics(&diagnostics));
     }
 
     // The real HMAC secret is installed at runtime from raw_rand (see the
@@ -196,6 +292,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         &service_instances,
         &persistence,
         &component_funcs,
+        vetkd_key,
     );
     // Collapse the per-token `b.raw("…")` storm into one call per contiguous
     // static run, so the generated actor reads as readable HTML chunks.
@@ -214,17 +311,82 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     }
     fs::write(&opts.out, &main).map_err(|e| format!("writing {}: {}", opts.out.display(), e))?;
 
+    // ---- design-token cross-compile (web CSS -> native SwiftUI/Compose) ----
+    // When the project declares `@theme brand="#hex"`, emit the SAME brand ramp +
+    // alias tokens the web `<style>` carries, as native color sources next to the
+    // generated actor. The native emitters reuse color::brand_ramp / BRAND_ALIASES
+    // / shade_idx, so the shade selection is byte-identical to the CSS path.
+    let mut native_artifacts: Vec<PathBuf> = Vec::new();
+    if let Some(brand) = &theme_brand {
+        let native_dir = opts
+            .out
+            .parent()
+            .unwrap_or(&opts.project_dir)
+            .join("native");
+        if let (Some(swift), Some(kotlin)) = (
+            crate::color_native::brand_theme_swift(brand),
+            crate::color_native::brand_theme_kotlin(brand),
+        ) {
+            fs::create_dir_all(&native_dir)
+                .map_err(|e| format!("creating {}: {}", native_dir.display(), e))?;
+            let swift_path = native_dir.join("BrandTokens.swift");
+            let kotlin_path = native_dir.join("BrandTokens.kt");
+            fs::write(&swift_path, &swift)
+                .map_err(|e| format!("writing {}: {}", swift_path.display(), e))?;
+            fs::write(&kotlin_path, &kotlin)
+                .map_err(|e| format!("writing {}: {}", kotlin_path.display(), e))?;
+            native_artifacts.push(swift_path);
+            native_artifacts.push(kotlin_path);
+        }
+    }
+
     let mut summary = format!(
         "compiled {} page(s), {} layout(s) -> {}\n",
         page_files.len(),
         layout_files.len(),
         opts.out.display()
     );
+    for art in &native_artifacts {
+        summary.push_str(&format!("native tokens -> {}\n", art.display()));
+    }
     summary.push_str("routes:\n");
     for (r, n) in &routes {
         summary.push_str(&format!("  {:<24} {}\n", r, n));
     }
     Ok(summary)
+}
+
+/// Parse every `.mview` in the project (pages/layouts/components) and run the
+/// security lint pass over each, returning `(source_path, diagnostic)` pairs.
+/// Reuses the same file discovery + parser the build uses, so `motoview lint`
+/// sees exactly what `motoview build` would lint. A parse error is surfaced as
+/// an `Err` (lint can only run on a tree that parses).
+pub fn lint_project(project_dir: &Path) -> Result<Vec<(String, lint::Diagnostic)>, String> {
+    let src = project_dir.join("src");
+    let mut out: Vec<(String, lint::Diagnostic)> = Vec::new();
+    let groups = [
+        (list_mview(&src.join("Pages")), FileKind::Page),
+        (list_mview(&src.join("Layouts")), FileKind::Layout),
+        (list_mview(&src.join("Components")), FileKind::Component),
+    ];
+    for (files, kind) in groups {
+        for f in &files {
+            let name = file_stem(f);
+            let source = fs::read_to_string(f).map_err(|e| format!("{}: {}", f.display(), e))?;
+            let file = parser::parse(&source, &name, kind.clone())?;
+            let rel = rel_src(project_dir, f);
+            for d in lint::lint_file(&file, &rel) {
+                out.push((rel.clone(), d));
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Public access to the diagnostic formatter so the `lint` CLI prints the same
+/// `error:`/`warning:` lines the build does.
+pub fn format_lint(diags: &[(String, lint::Diagnostic)]) -> String {
+    format_diagnostics(diags)
 }
 
 fn assemble(
@@ -239,6 +401,7 @@ fn assemble(
     service_instances: &str,
     persistence: &str,
     component_funcs: &str,
+    vetkd_key: &str,
 ) -> String {
     let pages_arr = page_idents.join(", ");
     let layouts_arr = layout_entries
@@ -333,9 +496,18 @@ actor {{
   stable var mvEpochs : [(Text, Nat)] = [];
   // Role store (principal -> roles), backing `@authorize role="..."`.
   stable var mvRoles : [(Principal, [Text])] = [];
+  // Consumed secure-form nonces (replay protection), kept stable so a consumed
+  // nonce cannot be replayed after an upgrade.
+  stable var mvConsumed : [(Text, Int)] = [];
+  // Per-principal wallet spend-velocity log (Slice 9B), kept stable so the
+  // rolling-window spend cap survives an upgrade and a leaked session cannot be
+  // drained across a redeploy boundary. The record type matches WalletAuth.Entry.
+  stable var mvVelocity : [(Text, [{{ ts : Int; weight : Nat }}])] = [];
   if (mvSecret.size() == 32) {{ mvApp.setSecret(mvSecret) }};
   mvApp.setEpochs(mvEpochs);
   mvApp.setRoles(mvRoles);
+  mvApp.setConsumed(mvConsumed);
+  mvApp.setVelocity(mvVelocity);
 
   public shared query (msg) func http_request(req : MV.HttpRequest) : async MV.HttpResponse {{
     // vetKeys endpoints must run as updates (they await the management canister).
@@ -355,17 +527,19 @@ actor {{
       let mvVetCtx = Text.encodeUtf8("motoview");
       let mvVetHdrs = [("content-type", "application/octet-stream"), ("cache-control", "no-store")];
       if (Text.startsWith(req.url, #text "/_motoview/vetkd/public-key")) {{
-        let pk = await VetKeys.publicKey("dfx_test_key", mvVetCtx);
+        let pk = await VetKeys.publicKey("{vetkd_key}", mvVetCtx);
         return {{ status_code = 200; headers = mvVetHdrs; body = pk; upgrade = null }};
       }};
       if (Text.startsWith(req.url, #text "/_motoview/vetkd/derive")) {{
-        let ek = await VetKeys.deriveKey("dfx_test_key", mvVetCtx, Principal.toBlob(mvVetCaller), req.body);
+        let ek = await VetKeys.deriveKey("{vetkd_key}", mvVetCtx, Principal.toBlob(mvVetCaller), req.body);
         return {{ status_code = 200; headers = mvVetHdrs; body = ek; upgrade = null }};
       }};
     }};
     let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
     mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
     mvRoles := mvApp.dumpRoles(); // persist any role grant/revoke
+    mvConsumed := mvApp.dumpConsumed(); // persist any consumed secure-form nonce
+    mvVelocity := mvApp.dumpVelocity(); // persist any wallet spend-velocity record
     mvResp;
   }};
 
@@ -379,15 +553,17 @@ actor {{
 
   // vetKeys: threshold-derived encryption keys. The derived key is bound to the
   // authenticated caller's principal (per-user). The client unwraps it + runs the
-  // IBE encrypt/decrypt (BLS12-381 in the Rust brain). `dfx_test_key` is the local
-  // key; switch to `key_1` for mainnet. See VetKeys.mo + docs/security.md.
+  // IBE encrypt/decrypt (BLS12-381 in the Rust brain). The key name is selected by
+  // the build network: local replicas use `dfx_test_key`, mainnet (`--network ic`)
+  // uses `key_1` — enforced by the compiler's network gate. See VetKeys.mo +
+  // docs/security.md.
   public shared query (msg) func mvVetkdContext() : async Text {{ ignore msg; "motoview" }};
   public shared (msg) func mvVetkdPublicKey() : async Blob {{
     ignore msg;
-    await VetKeys.publicKey("dfx_test_key", Text.encodeUtf8("motoview"));
+    await VetKeys.publicKey("{vetkd_key}", Text.encodeUtf8("motoview"));
   }};
   public shared (msg) func mvVetkdDeriveKey(transportKey : Blob) : async Blob {{
-    await VetKeys.deriveKey("dfx_test_key", Text.encodeUtf8("motoview"), Principal.toBlob(msg.caller), transportKey);
+    await VetKeys.deriveKey("{vetkd_key}", Text.encodeUtf8("motoview"), Principal.toBlob(msg.caller), transportKey);
   }};
 }};
 "#,
@@ -402,7 +578,30 @@ actor {{
         service_instances = service_instances,
         persistence = persistence,
         component_funcs = component_funcs,
+        vetkd_key = vetkd_key,
     )
+}
+
+/// Format accumulated lint diagnostics for printing: `error:`/`warning:` lines
+/// mapped to their `.mview` source, sorted errors-first for readability.
+fn format_diagnostics(diags: &[(String, lint::Diagnostic)]) -> String {
+    let mut out = String::new();
+    let mut ordered: Vec<&(String, lint::Diagnostic)> = diags.iter().collect();
+    ordered.sort_by_key(|(_, d)| match d.severity {
+        Severity::Error => 0,
+        Severity::Warning => 1,
+    });
+    for (_, d) in ordered {
+        let label = match d.severity {
+            Severity::Error => "error",
+            Severity::Warning => "warning",
+        };
+        out.push_str(&format!(
+            "{}: [{}] {}\n  --> {}\n",
+            label, d.rule, d.message, d.location
+        ));
+    }
+    out
 }
 
 /// A service file is "stateful" when it exports a `public class <Name>()` whose

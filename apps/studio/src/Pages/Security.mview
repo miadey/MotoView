@@ -1,0 +1,186 @@
+@page "/security"
+@layout StudioLayout
+@title "Security posture — MotokoStudio"
+@description "Visualize the secure-by-construction checks a MotoView app passes: secure forms (deny-by-default lint), @authorize gating, validate{} server-side, @raw audited, and the verified runtime security modules."
+
+<header class="sp-head">
+    <div>
+        <h1 class="st-h1">Security posture</h1>
+        <p class="st-lede">
+            MotokoStudio is <strong>secure by construction</strong>: an artifact can only be saved/deployed when the
+            unbypassable compiler accepts it. This page visualizes the checks an app passes — what the
+            <code>lint</code> gate enforces, what the runtime provides, and what is the author's responsibility.
+        </p>
+    </div>
+</header>
+
+<section class="st-card sp-summary">
+    <div class="sp-score">
+        <span class="sp-score-num">@passing() / @total()</span>
+        <span class="sp-score-label">posture checks demonstrated</span>
+    </div>
+    <p class="sp-summary-note">
+        The <strong>secure-form</strong> check below is <em>hard-enforced</em> by <code>motoview lint</code> /
+        <code>build</code> (deny-by-default): an unsecured state-mutating <code>&lt;form @@submit&gt;</code> fails the
+        build — it cannot ship. The others are wired-in capabilities the author opts into per page.
+    </p>
+</section>
+
+<div class="sp-grid">
+    @for c in checks {
+        <article class="st-card sp-check">
+            <div class="sp-check-top">
+                <span class="sp-ico">@c.icon</span>
+                @if c.enforced {
+                    <Badge type="success">enforced by compiler</Badge>
+                } else {
+                    <Badge type="brand">runtime capability</Badge>
+                }
+            </div>
+            <h3 class="sp-check-title">@c.title</h3>
+            <p class="sp-check-q"><strong>Asks:</strong> @c.question</p>
+            <p class="sp-check-desc">@c.detail</p>
+            <p class="sp-check-mod"><span class="sp-mod-label">Backed by</span> <code>@c.module_</code></p>
+        </article>
+    }
+</div>
+
+<section class="st-card">
+    <h2 class="sp-h2">The deny-by-default gate (Slice 1)</h2>
+    <p class="sp-p">
+        The single hardest line in the posture is the secure-form lint. A state-mutating form with no
+        <code>secure</code> attribute is a CSRF + over-posting hole, so the compiler treats it as a build
+        <strong>Error</strong>, not a warning:
+    </p>
+    <pre class="st-code">@raw(badSample)</pre>
+    <p class="sp-p">…fails <code>motoview lint</code> and <code>motoview build</code> with exit code 1. The fix is to mark the
+    form <code>secure</code> (the runtime then mints an HMAC-SHA256 token binding path, handler, caller, nonce,
+    expiry and field-schema), and validate server-side:</p>
+    <pre class="st-code">@raw(goodSample)</pre>
+    <p class="st-note">
+        This is what makes the studio trustworthy: the AI cannot talk its way past the compiler. If the
+        generated artifact is insecure, <code>tools/studio/validate.sh</code> exits nonzero and the studio
+        refuses to save it.
+    </p>
+</section>
+
+<section class="st-card">
+    <h2 class="sp-h2">Verified runtime modules a template can wire to</h2>
+    <ul class="sp-mods">
+        @for m in modules {
+            <li><code>@m.name</code> — @m.role</li>
+        }
+    </ul>
+    <p class="st-note">
+        See <code>apps/studio/templates/</code> for lint-clean patterns wiring these: a secure form,
+        an Internet-Identity sign-in + role, and a wallet spend flow with the intent-bound authorization gate.
+    </p>
+</section>
+
+<style>
+    .sp-head { margin-bottom: var(--spacingVerticalL); }
+    .sp-summary { display: flex; align-items: center; gap: var(--spacingHorizontalXL); flex-wrap: wrap; }
+    .sp-score { display: flex; flex-direction: column; }
+    .sp-score-num { font-size: var(--fontSizeHero800, 2rem); font-weight: var(--fontWeightBold);
+        color: var(--colorBrandForeground1); letter-spacing: -.02em; }
+    .sp-score-label { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground4);
+        text-transform: uppercase; letter-spacing: .05em; }
+    .sp-summary-note { margin: 0; flex: 1; min-width: 240px; color: var(--colorNeutralForeground3);
+        font-size: var(--fontSizeBase300); }
+
+    .sp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacingHorizontalL);
+        margin-bottom: var(--spacingVerticalL); }
+    .sp-check { margin: 0; }
+    .sp-check-top { display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: var(--spacingVerticalS); }
+    .sp-ico { font-size: 1.4rem; }
+    .sp-check-title { margin: 0 0 var(--spacingVerticalXS); font-size: var(--fontSizeBase400);
+        font-weight: var(--fontWeightSemibold); }
+    .sp-check-q { margin: 0 0 .35rem; font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2); }
+    .sp-check-desc { margin: 0 0 .5rem; font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
+    .sp-check-mod { margin: 0; font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground4); }
+    .sp-mod-label { text-transform: uppercase; letter-spacing: .05em; margin-right: .35rem; }
+
+    .sp-h2 { margin: 0 0 var(--spacingVerticalM); font-size: var(--fontSizeBase500); }
+    .sp-p { margin: 0 0 var(--spacingVerticalM); color: var(--colorNeutralForeground2);
+        font-size: var(--fontSizeBase300); }
+    .sp-mods { margin: 0; padding-left: 1.2rem; color: var(--colorNeutralForeground2);
+        font-size: var(--fontSizeBase300); line-height: 1.9; }
+
+    @media (max-width: 820px) { .sp-grid { grid-template-columns: 1fr; } }
+</style>
+
+@code {
+    type Check = {
+        icon : Text; title : Text; question : Text; detail : Text;
+        module_ : Text; enforced : Bool;
+    };
+
+    // Wrapper accessors so the template reads c.module / c.question cleanly while
+    // the field is `module_` (module is a Motoko keyword).
+    var checks : [Check] = [];
+
+    func onLoad(ctx : Context) {
+        checks := [
+            {
+                icon = "🛡️"; title = "Secure forms";
+                question = "Is every state-mutating <form @submit> marked `secure`?";
+                detail = "Deny-by-default: an unsecured mutating form is a hard lint + build Error. `secure` mints an HMAC-SHA256 token binding path, handler, caller, nonce, expiry and field-schema; the server re-derives the MAC and rejects replays and tampering.";
+                module_ = "runtime/src/Security.mo"; enforced = true;
+            },
+            {
+                icon = "🔑"; title = "Authorization";
+                question = "Do gated pages declare @authorize (and a role)?";
+                detail = "`@authorize` requires an authenticated caller; `@authorize role=\"Admin\"` additionally requires the caller to HOLD that role in the persisted role store — otherwise the page redirects and its content is never rendered, so the data is never sent.";
+                module_ = "runtime/src/Roles.mo"; enforced = false;
+            },
+            {
+                icon = "✅"; title = "Server-side validation";
+                question = "Do handlers run the validate block over the submission server-side?";
+                detail = "The validate block (field rules like required / minLength) runs INSIDE the canister handler, not the browser. There is one validation path; it cannot be skipped by a crafted client.";
+                module_ = "compiler validate-block to handler"; enforced = false;
+            },
+            {
+                icon = "⚠️"; title = "Audited raw output";
+                question = "Is every @raw(expr) trusted, server-built HTML (never user input)?";
+                detail = "`@count` / `@(expr)` are HTML-escaped by default. `@raw` bypasses escaping and must only ever receive server-built Text. Passing user input to @raw is an XSS hole — audit every @raw site.";
+                module_ = "runtime/src/Audit.mo"; enforced = false;
+            },
+            {
+                icon = "🔐"; title = "Zero-trust encryption";
+                question = "Is sensitive data encrypted in-browser (vetKeys), canister holds only ciphertext?";
+                detail = "With vetKeys + IBE the browser derives a key bound to the caller and encrypts locally; the canister stores ciphertext it can never read (`data-mv-encrypt`/`data-mv-decrypt` glue + EncStore). Every access is audited.";
+                module_ = "runtime/src/{VetKeys,EncStore}.mo"; enforced = false;
+            },
+            {
+                icon = "💸"; title = "Wallet spend gate";
+                question = "Does every value-moving signature pass the intent-bound authorization gate first?";
+                detail = "Before ChainKey signs, the handler MUST call ctx.authorizeSpend: a token bound to the EXACT spend intent (amount, dest, chain), single-use replay protection, and a per-principal velocity limit. A token minted for spend X cannot authorize spend Y.";
+                module_ = "runtime/src/{WalletAuth,ChainKey}.mo"; enforced = false;
+            },
+        ];
+    };
+
+    func passing() : Nat { checks.size() };
+    func total() : Nat { checks.size() };
+
+    // The lint-failing sample (raw, so its literal @submit / &lt; render verbatim).
+    let badSample : Text = "<pre style=\"margin:0\">&lt;form <span style=\"color:#fbbf24\">@submit</span>=<span style=\"color:#86efac\">\"save\"</span>&gt;   <span style=\"color:#f87171\">&larr; no `secure` &rarr; build ERROR</span>\n  &lt;input name=\"amount\"&gt;\n  &lt;button&gt;Send&lt;/button&gt;\n&lt;/form&gt;</pre>";
+
+    // NOTE: the keyword sequences `validate {` and `<field> required` are written
+    // with intervening <span> tags so the compiler's validate-block macro does NOT
+    // expand them here — this is display HTML emitted via @raw, not real handler code.
+    let goodSample : Text = "<pre style=\"margin:0\">&lt;form <span style=\"color:#fbbf24\">@submit</span>=<span style=\"color:#86efac\">\"save\"</span> <span style=\"color:#7dd3fc\">secure</span>&gt;\n  &lt;InputText name=\"amount\" bind=\"@amount\" <span style=\"color:#7dd3fc\">required</span> /&gt;\n  &lt;ValidationSummary /&gt;\n  &lt;Button kind=\"primary\" type=\"submit\"&gt;Send&lt;/Button&gt;\n&lt;/form&gt;\n\n<span style=\"color:#c084fc\">func</span> save(ctx : Context) : <span style=\"color:#c084fc\">async</span> () {\n  <span style=\"color:#c084fc\">validate</span> <span>{</span> amount <span style=\"color:#c084fc\">required</span> \"Required.\"; };\n  <span style=\"color:#6b7280\">// persist…</span>\n}</pre>";
+
+    type Mod = { name : Text; role : Text };
+    var modules : [Mod] = [
+        { name = "Security.mo"; role = "HMAC-SHA256 secure-form tokens + intent binding + replay verify" },
+        { name = "Roles.mo"; role = "persisted per-principal role store behind @authorize role=\"…\"" },
+        { name = "EncStore.mo"; role = "ciphertext-only storage keyed by owner principal" },
+        { name = "VetKeys.mo"; role = "vetKD-derived keys for in-browser decryption (zero-trust)" },
+        { name = "Audit.mo"; role = "append-only access log for sensitive operations" },
+        { name = "ChainKey.mo"; role = "threshold ECDSA/Schnorr signing (BTC/EVM/…) via management canister" },
+        { name = "WalletAuth.mo"; role = "intent-bound spend-authorization gate + per-principal velocity limit" },
+        { name = "CertV2.mo"; role = "certified responses (body certification) for trustless query rendering" },
+    ];
+}

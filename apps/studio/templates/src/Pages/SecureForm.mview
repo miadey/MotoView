@@ -1,0 +1,80 @@
+@page "/templates/secure-form"
+@layout TemplatesLayout
+@authorize
+@title "Pattern — secure form"
+@description "A secure-by-construction MotoView form: the secure attribute mints an HMAC token binding the request, the handler validates server-side, and the page is gated to an authenticated caller."
+
+<section class="tpl">
+    <h1 class="st-h1">Contact us</h1>
+    <p class="st-lede">A minimal secure form: a mutating submit marked <code>secure</code>, with
+        server-side validation, gated to an authenticated caller.</p>
+
+    @if sent {
+        <MessageBar intent="success">Thanks — your message was received.</MessageBar>
+    }
+
+    <form @submit="submit" secure>
+        <ValidationSummary />
+
+        <div class="tpl-field">
+            <label class="tpl-label" for="name">Name</label>
+            <InputText name="name" bind="@name" required />
+        </div>
+
+        <div class="tpl-field">
+            <label class="tpl-label" for="email">Email</label>
+            <InputText name="email" bind="@email" required />
+        </div>
+
+        <div class="tpl-field">
+            <label class="tpl-label" for="message">Message</label>
+            <TextArea name="message" bind="@message" required />
+        </div>
+
+        <Button kind="primary" type="submit">Send securely</Button>
+    </form>
+</section>
+
+<style>
+    .tpl { max-width: 560px; }
+    .tpl-field { margin-bottom: var(--spacingVerticalL); }
+    .tpl-label { display: block; font-weight: var(--fontWeightSemibold);
+        font-size: var(--fontSizeBase300); margin-bottom: var(--spacingVerticalXS); }
+</style>
+
+@code {
+    // SECURE FORM PATTERN — what makes this lint-clean AND safe:
+    //
+    //   The page is gated by the @-authorize directive above: an authenticated
+    //     caller is required. Add role="Admin" to also require a role.
+    //   <form ... secure> makes the runtime mint an HMAC-SHA256 token binding
+    //     path, handler, caller, nonce, expiry and field-schema; the server
+    //     re-derives the MAC and rejects replays / tampering. WITHOUT secure,
+    //     this mutating form is a HARD lint + build Error (deny-by-default).
+    //   The validate block below runs INSIDE the handler (server-side). There is
+    //     ONE validation path; a crafted client cannot skip it.
+    //   A bound input two-way-binds to typed state in this block.
+    var name : Text = "";
+    var email : Text = "";
+    var message : Text = "";
+    var sent : Bool = false;
+
+    func submit(ctx : Context) : async () {
+        validate {
+            name required "Please tell us your name.";
+            name minLength 2 "Name is too short.";
+            email required "We need an email to reply.";
+            message required "Write a message.";
+            message minLength 10 "Add a little more detail.";
+        };
+        // The secure token was verified by the runtime BEFORE this handler ran.
+        // Persist to your service here, e.g.
+        //   Inbox.add(ctx.caller, name, email, message);
+        ignore ctx;
+        sent := true;
+        name := "";
+        email := "";
+        message := "";
+        toast("Message sent.");
+    };
+}

@@ -189,7 +189,11 @@ fn reconcile(old: &[Region], new: &[Region]) -> Vec<Op> {
 
 /// Indices (into the new sequence) of a longest increasing subsequence over the
 /// kept items' old positions — the items that need not move.
-fn lis_stable_set(seq: &[i64]) -> HashSet<usize> {
+///
+/// Shared with the UI-IR keyed diff (`ir::ir_diff`): the structural reconcile is
+/// identical whether the keyed regions are HTML spans or `UINode` subtrees, so
+/// both paths reuse this one LIS implementation rather than reinventing it.
+pub(crate) fn lis_stable_set(seq: &[i64]) -> HashSet<usize> {
     let cand: Vec<usize> = (0..seq.len()).filter(|&j| seq[j] >= 0).collect();
     let m = cand.len();
     let mut set = HashSet::new();

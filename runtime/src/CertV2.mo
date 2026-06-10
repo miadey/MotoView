@@ -1,16 +1,31 @@
-/// IC HTTP response-certification v2 — "pass-through" (no-certification) form.
+/// IC HTTP response-certification v2 — BODY-BOUND form.
 ///
 /// Lets the canister serve responses as fast *certified queries* (no consensus
-/// round-trip) instead of upgrading every request to an update call. We use the
-/// pass-through expression `default_certification(ValidationArgs{no_certification:Empty{}})`,
-/// which tells the boundary "this path's responses are not body-certified" — so
-/// we only have to commit the SET of certified paths into `certified_data`, not
-/// hash every body. Ideal for static assets (js/css/wasm/favicon/…).
+/// round-trip) instead of upgrading every request to an update call, while
+/// committing the RESPONSE BODY (and status + certified headers) into the
+/// certificate — so a boundary node / MITM cannot swap the body of a certified
+/// response undetected.
 ///
-/// Ported from the proven C# implementation in the bzzz/wasp repo (live on
-/// mainnet). Spec: internetcomputer.org/docs/references/http-gateway-protocol-spec
-/// (response certification v2). Tree shape, per registered single-segment path:
-///   "http_expr" → <segment> → "<$>" → <expr_hash> → leaf("")
+/// We use the response-only certification expression
+///   default_certification(ValidationArgs{certification:Certification{
+///     no_request_certification:Empty{},
+///     response_certification:ResponseCertification{
+///       response_header_exclusions:ResponseHeaderList{headers:[]}}}})
+/// (no request certification; all response headers certified — we exclude none).
+/// `expr_hash = SHA256(expression)`.
+///
+/// Tree shape, per registered path (single or multi segment), per the
+/// HTTP Gateway Protocol spec (response certification v2):
+///   "http_expr" → <segment…> → "<$>"|"<*>"
+///                  → <expr_hash> → "" (empty request-hash, no req cert)
+///                  → <response_hash> → leaf("")
+/// The response_hash is the representation-independent hash of
+///   { ":ic-cert-status" -> status } ∪ certified-headers  concatenated with
+///   SHA256(body), then SHA256 of that — exactly as the boundary recomputes it
+///   from the served response, so the witness proves the body.
+///
+/// Spec: internetcomputer.org/docs/references/http-gateway-protocol-spec
+/// (response certification v2) and the dfinity/response-verification reference.
 import Sha256 "Sha256";
 import Blob "mo:base/Blob";
 import Text "mo:base/Text";
@@ -18,6 +33,7 @@ import Buffer "mo:base/Buffer";
 import Array "mo:base/Array";
 import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
+import Char "mo:base/Char";
 import Iter "mo:base/Iter";
 
 module {
@@ -82,7 +98,7 @@ module {
     };
   };
   func selfDescribe(b : Buffer.Buffer<Nat8>) { b.add(0xd9); b.add(0xd9); b.add(0xf7) };
-  func encodeTree(t : Tree) : Blob {
+  public func encodeTree(t : Tree) : Blob {
     let b = Buffer.Buffer<Nat8>(256);
     selfDescribe(b);
     encodeInto(b, t);
@@ -122,15 +138,6 @@ module {
     Text.fromIter(out.vals());
   };
 
-  // ---- v2 certification ----
-  public let expression : Text = "default_certification(ValidationArgs{no_certification:Empty{}})";
-  func exprHash() : Blob { Sha256.hash(Text.encodeUtf8(expression)) };
-  func terminalMarker() : Blob { Text.encodeUtf8("<$>") };
-  func httpExpr() : Blob { Text.encodeUtf8("http_expr") };
-
-  // "/forum/new" -> ["forum","new"]; "/" -> []. Empty segments dropped.
-  func split(path : Text) : [Text] { Iter.toArray(Text.tokens(path, #char '/')) };
-
   func compareBlob(a : Blob, b : Blob) : { #less; #equal; #greater } {
     let aa = Blob.toArray(a);
     let bb = Blob.toArray(b);
@@ -144,38 +151,135 @@ module {
     if (aa.size() < bb.size()) { #less } else if (aa.size() > bb.size()) { #greater } else { #equal };
   };
 
+  // ---- representation-independent hash + response_hash --------------------
+  // Per the spec (dfinity/ic-representation-independent-hash): for a map of
+  // (key, value) pairs, hash each key (SHA256 of its utf8 bytes) and each value
+  // to a 32-byte digest, form (keyHash, valueHash) pairs, SORT them, concat all
+  // (keyHash · valueHash) and SHA256 the result. Value hashing depends on type:
+  //   * a string value -> SHA256(utf8 bytes)
+  //   * a number value (the status code) -> SHA256(unsigned LEB128 of the number)
+
+  func leb128(n : Nat) : Blob {
+    let out = Buffer.Buffer<Nat8>(4);
+    var v = n;
+    loop {
+      let byte = v % 128;
+      v /= 128;
+      if (v != 0) { out.add(Nat8.fromNat(byte) | 0x80) } else {
+        out.add(Nat8.fromNat(byte));
+        return Blob.fromArray(Buffer.toArray(out));
+      };
+    };
+  };
+
+  func lower(t : Text) : Text {
+    Text.map(t, func(c : Char) : Char {
+      if (c >= 'A' and c <= 'Z') { Char.fromNat32(Char.toNat32(c) + 32) } else { c };
+    });
+  };
+
+  // representation-independent hash over (key, valueHash) pairs (value already
+  // hashed by the caller, so we can mix string- and number-valued entries).
+  func repIndependentHash(pairs : [(Text, Blob)]) : Blob {
+    let hashed = Array.map<(Text, Blob), (Blob, Blob)>(pairs, func((k, vh)) {
+      (Sha256.hash(Text.encodeUtf8(k)), vh);
+    });
+    let sorted = Array.sort(hashed, func(a : (Blob, Blob), b : (Blob, Blob)) : { #less; #equal; #greater } {
+      switch (compareBlob(a.0, b.0)) { case (#equal) { compareBlob(a.1, b.1) }; case other { other } };
+    });
+    let parts = Buffer.Buffer<Blob>(sorted.size() * 2);
+    for ((kh, vh) in sorted.vals()) { parts.add(kh); parts.add(vh) };
+    Sha256.hash(concat(Buffer.toArray(parts)));
+  };
+
+  /// The representation-independent hash of the certified response, per spec:
+  ///   responseHash = SHA256( RIH({":ic-cert-status" -> status} ∪ headers)
+  ///                          · SHA256(body) )
+  /// Header names are lowercased; values hashed as utf8 strings. The status
+  /// pseudo-header value is hashed as an unsigned-LEB128 number. We certify ALL
+  /// response headers (response_header_exclusions with an empty list), so the
+  /// caller passes exactly the headers it will serve (minus IC-Certificate,
+  /// which is never certified — it carries the proof itself).
+  public func responseHash(status : Nat, headers : [(Text, Text)], body : Blob) : Blob {
+    let pairs = Buffer.Buffer<(Text, Blob)>(headers.size() + 1);
+    pairs.add((":ic-cert-status", Sha256.hash(leb128(status))));
+    for ((k, v) in headers.vals()) {
+      let lk = lower(k);
+      // IC-Certificate is never part of the certified set (it is the proof).
+      if (lk != "ic-certificate") { pairs.add((lk, Sha256.hash(Text.encodeUtf8(v)))) };
+    };
+    let headerHash = repIndependentHash(Buffer.toArray(pairs));
+    Sha256.hash(concat([headerHash, Sha256.hash(body)]));
+  };
+
+  // ---- v2 certification expression ----
+  // EXACT response-only expression (matches dfinity/response-verification's
+  // create_default_response_only_cel_expr with no header exclusions). No
+  // whitespace. exprHash = SHA256(expression).
+  public let expression : Text = "default_certification(ValidationArgs{certification:Certification{no_request_certification:Empty{},response_certification:ResponseCertification{response_header_exclusions:ResponseHeaderList{headers:[]}}}})";
+  func exprHash() : Blob { Sha256.hash(Text.encodeUtf8(expression)) };
+  func terminalMarker() : Blob { Text.encodeUtf8("<$>") };
+  func httpExpr() : Blob { Text.encodeUtf8("http_expr") };
   func wildcardMarker() : Blob { Text.encodeUtf8("<*>") };
   func markerOf(wild : Bool) : Blob { if (wild) { wildcardMarker() } else { terminalMarker() } };
+  // The "no request certification" request-hash label is the empty blob.
+  func emptyReqHash() : Blob { "" };
 
-  // A certified entry: a path (exact) or a static prefix (wildcard). For a
-  // wildcard entry the terminal is "<*>", which matches the prefix and anything
-  // below it — used for parameterized routes like /u/{handle} (prefix "/u").
+  // "/forum/new" -> ["forum","new"]; "/" -> []. Empty segments dropped.
+  func split(path : Text) : [Text] { Iter.toArray(Text.tokens(path, #char '/')) };
+
+  /// A body-bound certified entry: a path (exact) or a static prefix
+  /// (wildcard), TOGETHER with the response_hash that commits that path's
+  /// served response (status + certified headers + body). For a wildcard entry
+  /// the terminal is "<*>", matching the prefix and anything below it — used for
+  /// parameterized routes like /u/{handle} (prefix "/u").
+  public type BoundEntry = { path : Text; wild : Bool; respHash : Blob };
+
+  // Backwards-compatible alias: an Entry without a body hash. Constructing the
+  // tree from these certifies the path set only (no body) — kept so callers that
+  // genuinely cannot precompute a body hash still compile, but App.mo now always
+  // supplies a respHash.
   public type Entry = { path : Text; wild : Bool };
 
   func addDistinctText(b : Buffer.Buffer<Text>, s : Text) {
     for (x in b.vals()) { if (x == s) { return } };
     b.add(s);
   };
-  func addDistinctBlob(b : Buffer.Buffer<Blob>, v : Blob) {
-    for (x in b.vals()) { if (x == v) { return } };
-    b.add(v);
+
+  // The body-bound terminal subtree placed under each marker ("<$>"/"<*>"):
+  //   <expr_hash> → "" (empty request hash) → <response_hash> → leaf("")
+  func boundTerminal(respHash : Blob) : Tree {
+    #labeled(exprHash(),
+      #labeled(emptyReqHash(),
+        #labeled(respHash, #leaf(""))));
   };
 
+  // A marker key carries its body-bound terminal. We dedupe markers by their
+  // (marker, respHash) so two distinct entries that share a segment path but
+  // certify different bodies do not collide (they cannot, in practice, since a
+  // path maps to one response — but we key defensively).
+  type MarkerLeaf = { marker : Blob; respHash : Blob };
+
   // Recursively build the http_expr inner subtree. Each entry contributes a
-  // terminal marker ("<$>" or "<*>") at the depth where its segments end.
-  func buildSubtree(entries : [([Text], Bool)], depth : Nat) : Tree {
-    let markers = Buffer.Buffer<Blob>(2);
+  // body-bound terminal at the depth where its segments end.
+  func buildSubtree(entries : [([Text], Bool, Blob)], depth : Nat) : Tree {
+    let markers = Buffer.Buffer<MarkerLeaf>(2);
     let segSet = Buffer.Buffer<Text>(8);
     for (e in entries.vals()) {
-      let (segs, wild) = e;
-      if (segs.size() == depth) { addDistinctBlob(markers, markerOf(wild)) } else if (segs.size() > depth) {
+      let (segs, wild, rh) = e;
+      if (segs.size() == depth) {
+        let m = markerOf(wild);
+        var seen = false;
+        for (x in markers.vals()) { if (x.marker == m and x.respHash == rh) { seen := true } };
+        if (not seen) { markers.add({ marker = m; respHash = rh }) };
+      } else if (segs.size() > depth) {
         addDistinctText(segSet, segs[depth]);
       };
     };
     let pairs = Buffer.Buffer<(Blob, Tree)>(markers.size() + segSet.size());
-    for (m in markers.vals()) { pairs.add((m, #labeled(exprHash(), #leaf("")))) };
+    for (m in markers.vals()) { pairs.add((m.marker, boundTerminal(m.respHash))) };
     for (s in segSet.vals()) {
-      let bucket = Buffer.Buffer<([Text], Bool)>(4);
+      let bucket = Buffer.Buffer<([Text], Bool, Blob)>(4);
       for (e in entries.vals()) { if (e.0.size() > depth and e.0[depth] == s) { bucket.add(e) } };
       pairs.add((Text.encodeUtf8(s), buildSubtree(Buffer.toArray(bucket), depth + 1)));
     };
@@ -183,36 +287,41 @@ module {
     buildBalancedLabeled(sorted);
   };
 
-  func segmented(entries : [Entry]) : [([Text], Bool)] {
-    Array.map<Entry, ([Text], Bool)>(entries, func(e) { (split(e.path), e.wild) });
+  func segmented(entries : [BoundEntry]) : [([Text], Bool, Blob)] {
+    Array.map<BoundEntry, ([Text], Bool, Blob)>(entries, func(e) { (split(e.path), e.wild, e.respHash) });
   };
 
-  func tree(entries : [Entry]) : Tree { #labeled(httpExpr(), buildSubtree(segmented(entries), 0)) };
+  func tree(entries : [BoundEntry]) : Tree { #labeled(httpExpr(), buildSubtree(segmented(entries), 0)) };
 
-  /// Root hash to install via CertifiedData.set.
-  public func rootHash(entries : [Entry]) : Blob { hash(tree(entries)) };
+  /// Root hash to install via CertifiedData.set. Commits the body-bound tree.
+  public func rootHash(entries : [BoundEntry]) : Blob { hash(tree(entries)) };
 
-  // Walk the inner subtree, keeping the witness path (segments then `marker`)
-  // and pruning every sibling.
-  func pruneToPath(node : Tree, segs : [Text], marker : Blob, depth : Nat) : Tree {
+  // Walk the inner subtree, keeping the witness path (segments, then `marker`,
+  // then through expr_hash → "" → respHash) and pruning every sibling.
+  func pruneToPath(node : Tree, segs : [Text], marker : Blob, respHash : Blob, depth : Nat) : Tree {
     switch node {
-      case (#fork(l, r)) { #fork(pruneToPath(l, segs, marker, depth), pruneToPath(r, segs, marker, depth)) };
+      case (#fork(l, r)) { #fork(pruneToPath(l, segs, marker, respHash, depth), pruneToPath(r, segs, marker, respHash, depth)) };
       case (#labeled(lbl, sub)) {
         var onPath = false;
-        if (depth < segs.size()) { onPath := (lbl == Text.encodeUtf8(segs[depth])) } else if (depth == segs.size()) {
-          onPath := (lbl == marker);
-        } else if (depth == segs.size() + 1) { onPath := (lbl == exprHash()) };
-        if (onPath) { #labeled(lbl, pruneToPath(sub, segs, marker, depth + 1)) } else { #pruned(hash(#labeled(lbl, sub))) };
+        if (depth < segs.size()) { onPath := (lbl == Text.encodeUtf8(segs[depth])) }
+        else if (depth == segs.size()) { onPath := (lbl == marker) }
+        else if (depth == segs.size() + 1) { onPath := (lbl == exprHash()) }
+        else if (depth == segs.size() + 2) { onPath := (lbl == emptyReqHash()) }
+        else if (depth == segs.size() + 3) { onPath := (lbl == respHash) };
+        if (onPath) { #labeled(lbl, pruneToPath(sub, segs, marker, respHash, depth + 1)) } else { #pruned(hash(#labeled(lbl, sub))) };
       };
       case other { other };
     };
   };
 
-  func witness(entries : [Entry], target : Entry) : Tree {
-    #labeled(httpExpr(), pruneToPath(buildSubtree(segmented(entries), 0), split(target.path), markerOf(target.wild), 0));
+  /// The pruned HashTree witness for `target`: it reconstructs the same root as
+  /// `rootHash(entries)` while exposing only the target's path AND its
+  /// response_hash (every sibling pruned). Exposed for unit tests.
+  public func witnessTree(entries : [BoundEntry], target : BoundEntry) : Tree {
+    #labeled(httpExpr(), pruneToPath(buildSubtree(segmented(entries), 0), split(target.path), markerOf(target.wild), target.respHash, 0));
   };
 
-  func exprPathCbor(target : Entry) : Blob {
+  func exprPathCbor(target : BoundEntry) : Blob {
     let segs = split(target.path);
     let b = Buffer.Buffer<Nat8>(48);
     selfDescribe(b);
@@ -224,10 +333,12 @@ module {
   };
 
   /// The IC-Certificate header value for the certified `target` (exact path or
-  /// wildcard prefix), given the full entry set and the system certificate.
-  public func headerValue(entries : [Entry], target : Entry, cert : Blob) : Text {
+  /// wildcard prefix), given the full entry set and the system certificate. The
+  /// witnessed tree now commits the response body, so the boundary verifies the
+  /// served body against the certificate.
+  public func headerValue(entries : [BoundEntry], target : BoundEntry, cert : Blob) : Text {
     "certificate=:" # base64(cert)
-    # ":, tree=:" # base64(encodeTree(witness(entries, target)))
+    # ":, tree=:" # base64(encodeTree(witnessTree(entries, target)))
     # ":, version=2, expr_path=:" # base64(exprPathCbor(target)) # ":";
   };
 };

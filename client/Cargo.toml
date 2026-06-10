@@ -6,8 +6,68 @@ description = "The MotoView browser client — the protocol/polling brain, compi
 license = "MIT"
 
 [lib]
-crate-type = ["cdylib"]
+# `cdylib` is the wasm32-unknown-unknown artifact the JS glue loads — the shipped
+# web brain. `staticlib` is the native archive (`libmotoview_client.a`) the
+# iOS/desktop Swift package and the Android cargo-ndk build link against (Slice
+# 8). The two crate-types are independent artifacts: the wasm `.wasm` (cdylib) is
+# emitted byte-for-byte as before — adding `staticlib` here does NOT alter it
+# (verified: default release wasm stays 84634 bytes). `cargo test` builds its own
+# `lib test` harness from the same sources regardless of crate-type.
+crate-type = ["cdylib", "staticlib"]
 path = "src/lib.rs"
+
+[features]
+# OFF by default. The default web brain pulls ZERO crypto deps; its release
+# wasm32 artifact is ~84.6 KB (84634 bytes, measured 2026-06-09) and this
+# feature adds 0 bytes to it (the deps below do not compile when it is off).
+# Enabling this compiles the chain-key certificate verifier (Slice 4) and its
+# heavy deps. It is meant for native clients (iOS/Android/desktop) that talk to
+# the IC directly and must not trust the boundary node — NOT for the web brain,
+# which is itself served from a certified asset canister.
+cert-verify = ["dep:ic-verify-bls-signature", "dep:sha2", "dep:ciborium", "dep:leb128"]
+
+# OFF by default. The portable UI-IR apply path (Slice 5). The `ir` module ALWAYS
+# compiles and is always covered by `cargo test`; this feature only WIRES it into
+# the live render-apply loop (the `Batch.ui` branch in lib.rs). Left off, the
+# default web build's apply path is byte-identical to before and LTO drops the
+# unreachable IR code, so the shipped web wasm stays ~84.6 KB. A native renderer
+# (iOS/Android/desktop) — or a future IR-driven web brain — turns it on to consume
+# the portable node tree instead of HTML. The web brain ships HTML today, so it
+# stays off here.
+ui-ir = []
+
+# OFF by default. Slice 8 — the native client FFI surface (`src/ffi.rs`). Exposes
+# a hand-written C ABI (cbindgen-style; NOT UniFFI — its bindgen binary is not on
+# this machine and a flat C ABI is the lead-approved fallback) that the iOS
+# (SwiftUI) and Android (Compose) clients call: parse_forest / parse_node /
+# ir_diff / render_forest / verify_response. Pulls in `cert-verify` (so the native
+# client gets the chain-key verifier) but adds ZERO dependencies beyond what
+# cert-verify already declared — `ffi.rs` uses only std + this crate's own
+# modules. The DEFAULT wasm32 web build leaves this OFF, so its release `.wasm`
+# is unchanged (84634 bytes) and pulls no FFI/crypto code.
+ffi = ["cert-verify"]
+
+[dependencies]
+# All OPTIONAL — only linked when the `cert-verify` feature is on. The default
+# web build (no features) has an empty dependency graph, exactly as before.
+#
+# ic-verify-bls-signature is the SAME crate the IC reference verifier
+# (ic-certificate-verification / ic-agent) calls for `verify_bls_signature`,
+# so our pairing check is byte-for-byte the IC's: signature on G1, public key
+# on G2, hash-to-G1 with DST "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_".
+# It pulls ic_bls12_381 (the same BLS12-381 family vetKeys uses in client-crypto).
+ic-verify-bls-signature = { version = "0.6", optional = true, default-features = false, features = ["alloc"] }
+# CBOR for the Certificate / HashTree wire format (no_std-friendly, no serde_derive).
+ciborium = { version = "0.2", optional = true, default-features = false }
+# SHA-256 for the HashTree reconstruction (matches runtime/src/CertV2.mo + ic-certification).
+sha2 = { version = "0.10", optional = true, default-features = false }
+# Unsigned LEB128 for decoding the certified /time leaf.
+leb128 = { version = "0.2", optional = true }
+
+[dev-dependencies]
+# Used only by the cert-verify tests to build read_state request bodies / decode
+# fixtures when refreshing them. Not part of any shipped artifact.
+ciborium = { version = "0.2", default-features = false }
 
 [profile.release]
 opt-level = "z"

@@ -1,0 +1,86 @@
+@page "/templates/identity"
+@layout TemplatesLayout
+@title "Pattern — Internet Identity sign-in + role"
+@description "An Internet Identity sign-in pattern: a server-rendered signed-in state from ctx.caller, a first-come role bootstrap via the persisted role store, and a role-gated admin action behind a secure form."
+
+<!--
+  IDENTITY PATTERN — Internet Identity sign-in + role.
+
+  • The `data-mv-signin` button is the hand-rolled II login glue (no agent-js):
+    it runs the II flow and establishes the session so ctx.caller is the
+    authenticated principal on subsequent requests. Server logic reads identity
+    from ctx.caller / ctx.isAuthenticated — never from the client.
+  • Roles live in the runtime's persisted per-principal role store (Roles.mo),
+    surfaced on the page via ctx.hasRole / ctx.callerRoles / ctx.claimRole.
+  • The role-changing action is a `secure` form (mutating → must be secure).
+-->
+
+<section class="tpl">
+    <h1 class="st-h1">Your identity</h1>
+
+    @if signedIn {
+        <MessageBar intent="success">Signed in.</MessageBar>
+        <dl class="id-meta">
+            <dt>Principal</dt><dd><code>@principalText</code></dd>
+            <dt>Role</dt><dd>@roleLabel</dd>
+        </dl>
+
+        @if isAdmin {
+            <p class="st-note">You hold the <strong>Admin</strong> role — admin actions are available.</p>
+        } else {
+            @if adminClaimable {
+                <div class="st-note">
+                    <p>No one administers this app yet. Claim the founding Admin seat:</p>
+                    <form @submit="claimAdmin" secure>
+                        <Button kind="primary" type="submit">Claim Admin</Button>
+                    </form>
+                </div>
+            } else {
+                <p class="st-note">Ask an existing admin to grant you a role.</p>
+            }
+        }
+    } else {
+        <p class="st-lede">Sign in with Internet Identity to see your principal and role.</p>
+        <button data-mv-signin class="mv-btn mv-btn-primary" type="button">Sign in with Internet Identity</button>
+    }
+</section>
+
+<style>
+    .tpl { max-width: 560px; }
+    .id-meta { display: grid; grid-template-columns: max-content 1fr; gap: .35rem var(--spacingHorizontalL);
+        margin: var(--spacingVerticalL) 0; }
+    .id-meta dt { color: var(--colorNeutralForeground3); font-weight: var(--fontWeightSemibold); }
+    .id-meta dd { margin: 0; }
+    .id-meta code { background: var(--colorNeutralBackground3); border-radius: 4px; padding: .1rem .4rem; }
+</style>
+
+@code {
+    var signedIn : Bool = false;
+    var principalText : Text = "";
+    var roleLabel : Text = "Member";
+    var isAdmin : Bool = false;
+    var adminClaimable : Bool = false;
+
+    func onLoad(ctx : Context) {
+        signedIn := ctx.isAuthenticated;
+        principalText := Principal.toText(ctx.caller);
+        isAdmin := ctx.hasRole(ctx.caller, "Admin");
+        roleLabel := if (isAdmin) "Admin" else "Member";
+        // First-come bootstrap is only offered when nobody holds Admin yet. The
+        // runtime's claimRole grants only if the role is currently unheld, so the
+        // button is a safe one-time seat-claim — not a privilege escalation.
+        adminClaimable := signedIn and not isAdmin and (ctx.callerRoles().size() == 0);
+    };
+
+    func claimAdmin(ctx : Context) : async () {
+        // claimRole grants "Admin" to the caller ONLY if no principal holds it.
+        if (ctx.claimRole("Admin")) {
+            isAdmin := true;
+            roleLabel := "Admin";
+            adminClaimable := false;
+            toast("You are now the founding Admin.");
+        } else {
+            toast("Admin is already held by someone.");
+        };
+    };
+}

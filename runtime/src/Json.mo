@@ -41,6 +41,15 @@ module {
     "{" # Text.join(",", parts.vals()) # "}";
   };
 
+  // The optional portable UI-IR field: `,"ui":<json>` when present, else "".
+  // The IR is already JSON, so it is embedded verbatim (not re-stringified).
+  func uiField(ui : ?Text) : Text {
+    switch (ui) {
+      case (?j) { ",\"ui\":" # j };
+      case null { "" };
+    };
+  };
+
   /// Encode a full batch to the motoview/1 JSON wire format.
   public func encodeBatch(b : Types.Batch) : Text {
     switch (b.status) {
@@ -55,6 +64,7 @@ module {
         # ",\"batchId\":" # str(b.batchId)
         # ",\"target\":" # str(b.target)
         # ",\"html\":" # str(b.html)
+        # uiField(b.ui)
         # ",\"errors\":" # encodePairs(b.errors)
         # ",\"effects\":" # encodeEffects(b.effects) # "}";
       };
@@ -64,6 +74,7 @@ module {
         # ",\"mode\":\"replace\""
         # ",\"target\":" # str(b.target)
         # ",\"html\":" # str(b.html)
+        # uiField(b.ui)
         # ",\"head\":" # encodeHead(b.head)
         # ",\"effects\":" # encodeEffects(b.effects) # "}";
       };

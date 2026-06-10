@@ -1,0 +1,9 @@
+# MotoView Android — Fastlane Appfile (Slice 11, supply path).
+#
+# NO secrets here: the Play service-account JSON path comes from the
+# PLAY_JSON_FILE env var (written from the PLAY_SERVICE_ACCOUNT_JSON CI secret).
+#
+# EXTERNAL PREREQUISITE: this package name must already exist in the Play
+# Console (the first .aab must be uploaded manually once).
+json_key_file(ENV["PLAY_JSON_FILE"])
+package_name(ENV["APP_IDENTIFIER"] || "dev.motoview.app")

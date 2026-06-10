@@ -47,6 +47,26 @@ module {
     // Generated render code calls this for `<form secure>`. No-op ("") outside
     // a render that needs it.
     mintToken : (handler : Text, schema : Text) -> Text;
+    // Mint a secure-form token additionally bound to a SERVER-KNOWN intent
+    // (a deterministic hash of the (key,value) pairs the server already knows
+    // at mint time, e.g. a confirmation-flow amount + recipient). verify()
+    // rejects any submission whose intent does not match. For future wallet
+    // confirm steps (Slice 9); ordinary forms use `mintToken` (intent unbound).
+    mintIntentToken : (handler : Text, schema : Text, intent : [(Text, Text)]) -> Text;
+    // Wallet spend-authorization gate (Slice 9B). A wallet confirm-step handler
+    // MUST call this and get `true` BEFORE building a sighash and calling
+    // ChainKey.signWithEcdsa/signWithSchnorr. It enforces, atomically: a valid
+    // session (token bound to the caller), an intent-bound single-use token (a
+    // token minted for spend X cannot authorize spend Y), replay protection
+    // (consumes the nonce on success), and a per-principal velocity limit on the
+    // `weight`. (A future native `host_device_sign` hardware assertion is a
+    // SEPARATE factor that must also gate signing — NOT implemented yet.)
+    authorizeSpend : (handler : Text, intent : [(Text, Text)], token : Text, weight : Nat) -> Bool;
+    // Mint the spend token that `authorizeSpend` will accept for exactly this
+    // intent. A wallet confirm page renders this as the hidden token; the
+    // schema/intent binding is derived from the intent itself so mint and verify
+    // agree on one derivation (the confirm form's fields ARE the intent).
+    mintSpendToken : (handler : Text, intent : [(Text, Text)]) -> Text;
     // Role store, backing `@authorize role="..."`. Reads (hasRole/callerRoles)
     // are safe anywhere; mutations (grant/revoke/claim) should be called from
     // event handlers (updates). `claimRole` grants the role to the caller only
@@ -90,10 +110,16 @@ module {
 
   /// A versioned UI batch. The full-container-replace strategy (MVP) carries
   /// the rendered `html` plus head + effects. Unchanged batches omit html.
+  ///
+  /// `ui` is the optional portable UI-IR (a JSON node tree, see `Ir.mo`) the
+  /// compiler's second backend can produce so native renderers can drive the
+  /// same source. It is `null` whenever no IR was produced (today: always null
+  /// on the HTML path), and never replaces `html` — it rides alongside it.
   public type Batch = {
     status : BatchStatus;
     batchId : Text;
     html : Text;
+    ui : ?Text; // portable UI-IR JSON, or null when not produced
     head : Head;
     effects : [Effect];
     target : Text; // DOM id to replace; "app" by default

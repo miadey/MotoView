@@ -1,0 +1,104 @@
+@theme brand="#6d28d9"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#6d28d9">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1);
+            font-family: var(--fontFamilyBase); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+        a { color: var(--colorBrandForeground1); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code, pre { font-family: var(--fontFamilyMonospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); }
+
+        /* Top bar */
+        .st-bar { position: sticky; top: 0; z-index: 40; height: 52px; display: flex; align-items: center;
+            justify-content: space-between; padding: 0 var(--spacingHorizontalL);
+            background: color-mix(in srgb, var(--colorNeutralBackground1) 86%, transparent);
+            backdrop-filter: saturate(1.6) blur(10px); -webkit-backdrop-filter: saturate(1.6) blur(10px);
+            border-bottom: 1px solid var(--colorNeutralStroke2); }
+        .st-brand { display: flex; align-items: center; gap: .55rem; font-weight: var(--fontWeightBold);
+            font-size: var(--fontSizeBase400); letter-spacing: -.01em; color: var(--colorNeutralForeground1); }
+        .st-brand:hover { text-decoration: none; }
+        .st-logo { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff;
+            font-weight: 800; font-size: 14px; background: linear-gradient(135deg, var(--colorBrandBackground), #a855f7); }
+        .st-bar-actions { display: flex; align-items: center; gap: var(--spacingHorizontalM); }
+        .st-tag { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3);
+            border: 1px solid var(--colorNeutralStroke2); border-radius: var(--borderRadiusMedium);
+            padding: .15rem .5rem; }
+
+        /* Shell: nav rail + content */
+        .st-shell { display: flex; align-items: flex-start; min-height: calc(100vh - 52px); }
+        .st-nav { position: sticky; top: 52px; width: 224px; flex-shrink: 0; box-sizing: border-box;
+            height: calc(100vh - 52px); padding: var(--spacingVerticalM) var(--spacingHorizontalS);
+            background: var(--colorNeutralBackground1); border-right: 1px solid var(--colorNeutralStroke2);
+            overflow-y: auto; }
+        .st-nav-group { font-size: var(--fontSizeBase200); text-transform: uppercase; letter-spacing: .06em;
+            color: var(--colorNeutralForeground4); font-weight: var(--fontWeightSemibold);
+            padding: var(--spacingVerticalM) var(--spacingHorizontalM) var(--spacingVerticalXS); }
+        .st-nav a { display: flex; align-items: center; gap: .5rem; padding: .45rem var(--spacingHorizontalM);
+            border-radius: var(--borderRadiusMedium); color: var(--colorNeutralForeground2);
+            font-size: var(--fontSizeBase300); font-weight: var(--fontWeightRegular); }
+        .st-nav a:hover { background: var(--colorNeutralBackground1Hover); color: var(--colorNeutralForeground1);
+            text-decoration: none; }
+        .st-nav a.is-active { background: var(--colorBrandBackground2, var(--colorNeutralBackground1Selected));
+            color: var(--colorBrandForeground1); font-weight: var(--fontWeightSemibold); }
+        .st-nav-ico { width: 1.1rem; text-align: center; }
+
+        .st-content { flex: 1; min-width: 0; }
+        .st-main { max-width: 1180px; margin: 0; box-sizing: border-box;
+            padding: var(--spacingVerticalXL) var(--spacingHorizontalXXL) var(--spacingVerticalXXXL); }
+
+        /* Generic studio cards / panes reused across pages */
+        .st-card { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+            border-radius: var(--borderRadiusLarge); padding: var(--spacingVerticalL) var(--spacingHorizontalL);
+            margin-bottom: var(--spacingVerticalL); }
+        .st-h1 { margin: 0 0 var(--spacingVerticalXS); font-size: var(--fontSizeHero700, 1.6rem);
+            font-weight: var(--fontWeightBold); letter-spacing: -.015em; }
+        .st-lede { margin: 0 0 var(--spacingVerticalL); color: var(--colorNeutralForeground3); max-width: 70ch; }
+        .st-note { background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke3);
+            border-radius: var(--borderRadiusMedium); padding: var(--spacingVerticalM) var(--spacingHorizontalM);
+            color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); }
+        .st-flag { display: inline-flex; align-items: center; gap: .35rem; font-size: var(--fontSizeBase200);
+            font-weight: var(--fontWeightSemibold); color: #92400e; background: #fef3c7;
+            border: 1px solid #fde68a; border-radius: 999px; padding: .12rem .55rem; }
+
+        .st-code { margin: 0; padding: var(--spacingVerticalM) var(--spacingHorizontalM); overflow-x: auto;
+            background: #1c1730; color: #e6e1f5; border-radius: var(--borderRadiusMedium);
+            font-size: 13px; line-height: 1.6; }
+
+        @media (max-width: 820px) {
+            .st-nav { display: none; }
+            .st-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
+        }
+    </style>
+</head>
+<body>
+    <div class="st-bar">
+        <a class="st-brand" href="/"><span class="st-logo">M</span> MotokoStudio</a>
+        <div class="st-bar-actions">
+            <span class="st-tag">scaffold</span>
+            <a href="/security">Security posture</a>
+        </div>
+    </div>
+    <div class="st-shell">
+        <nav class="st-nav">
+            <div class="st-nav-group">Design</div>
+            <a href="/"><span class="st-nav-ico">🎨</span> Design surface</a>
+            <a href="/preview"><span class="st-nav-ico">📺</span> Live preview</a>
+            <div class="st-nav-group">Verify</div>
+            <a href="/security"><span class="st-nav-ico">🛡️</span> Security posture</a>
+            <div class="st-nav-group">Reference</div>
+            <a href="https://github.com/miadey/MotoView"><span class="st-nav-ico">↗</span> GitHub</a>
+        </nav>
+        <div class="st-content">
+            <main class="st-main">
+                @yield
+            </main>
+        </div>
+    </div>
+</body>
+</html>

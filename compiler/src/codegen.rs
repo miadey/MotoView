@@ -121,11 +121,33 @@ pub fn replace_ident_in_code(src: &str, from: &str, to: &str) -> String {
     out
 }
 
+/// Which backend the node walker emits. `Html` is the default and is BYTE-
+/// IDENTICAL to the original single-path codegen; `Ir` emits a portable
+/// `Ir.Builder` UINode tree (see runtime/src/Ir.mo) for native renderers.
+///
+/// In `Ir` mode the generated render uses an `ir` builder instead of `b`, and
+/// builtins/charts that are not yet IR-modeled fall back to an `ir.raw(html)`
+/// leaf carrying the EXACT HTML the `Html` backend would emit — so output is
+/// never wrong, only not-yet-native.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EmitMode {
+    Html,
+    Ir,
+}
+
+impl Default for EmitMode {
+    fn default() -> Self {
+        EmitMode::Html
+    }
+}
+
 pub struct Codegen<'a> {
     // name -> Motoko type (vars, params, func returns, and scoped @for loop
     // vars). RefCell so loop-var types can be pushed/popped during the otherwise
     // `&self` render walk.
     types: std::cell::RefCell<HashMap<String, String>>,
+    // Active emit backend. Defaults to Html (byte-identical to the original).
+    emit: EmitMode,
     is_layout: bool,
     is_component: bool,
     // The current layout's @theme `<style>…</style>`, emitted at its `@head`.
@@ -145,6 +167,7 @@ impl<'a> Codegen<'a> {
     ) -> Self {
         Codegen {
             types: std::cell::RefCell::new(HashMap::new()),
+            emit: EmitMode::Html,
             is_layout: false,
             is_component: false,
             layout_theme: None,
@@ -153,10 +176,53 @@ impl<'a> Codegen<'a> {
         }
     }
 
+    /// Like [`new`] but selects the emit backend. `EmitMode::Html` reproduces
+    /// the default (byte-identical) path; `EmitMode::Ir` emits the portable
+    /// UINode tree. Builder-style so call sites read clearly.
+    pub fn new_with_emit(
+        models: &'a HashMap<String, HashMap<String, String>>,
+        components: &'a HashMap<String, CompInfo>,
+        emit: EmitMode,
+    ) -> Self {
+        let mut cg = Codegen::new(models, components);
+        cg.emit = emit;
+        cg
+    }
+
+    /// The active emit backend.
+    pub fn emit_mode(&self) -> EmitMode {
+        self.emit
+    }
+
+    /// The render-function preamble that constructs the builder. In Html mode
+    /// this is byte-identical to the original (`let b = Html.Builder();`); in Ir
+    /// mode it constructs an `Ir.Builder` as `ir`.
+    fn builder_decl(&self) -> &'static str {
+        match self.emit {
+            EmitMode::Html => "let b = Html.Builder();\n",
+            EmitMode::Ir => "let ir = Ir.Builder();\n",
+        }
+    }
+
+    /// The build/return expression. Html returns the joined HTML; Ir returns the
+    /// serialized UINode forest as JSON Text (so the `: Text` signature holds in
+    /// both modes — the IR rides as a Text payload).
+    fn builder_build(&self) -> &'static str {
+        match self.emit {
+            EmitMode::Html => "b.build();\n",
+            EmitMode::Ir => "ir.toJson();\n",
+        }
+    }
+
     /// Compile a `src/Components/*.mview` into a render function:
     /// `func mvComponent_<Name>(<params>, mvChildren : Text) : Text { ... }`.
     /// `@children` inside the template emits the passed default-slot content.
     pub fn gen_app_component(&mut self, file: &MviewFile) -> String {
+        // App components compile to a `… : Text` HTML fragment that pages embed
+        // via `b.raw(mvComponent_X(...))`; they are always HTML-emitted. In Ir
+        // mode a page's component invocation becomes an `ir.raw(...)` fallback.
+        let saved_emit = self.emit;
+        self.emit = EmitMode::Html;
         self.is_component = true;
         self.is_layout = false;
         self.build_type_env(&file.code);
@@ -197,6 +263,7 @@ impl<'a> Codegen<'a> {
         s.push_str(&body);
         s.push_str("    b.build();\n  };\n");
         self.is_component = false;
+        self.emit = saved_emit;
         s
     }
 
@@ -304,13 +371,13 @@ impl<'a> Codegen<'a> {
 
         // render
         s.push_str("    public func mvRender(ctx : MV.Ctx) : Text {\n");
-        s.push_str("      let b = Html.Builder();\n");
+        s.push_str(&format!("      {}", self.builder_decl()));
         s.push_str("      ignore ctx;\n");
         s.push_str(&set_params);
         let mut body = String::new();
         self.gen_nodes(&file.template, &mut body, "      ");
         s.push_str(&body);
-        s.push_str("      b.build();\n    };\n");
+        s.push_str(&format!("      {}    }};\n", self.builder_build()));
 
         // title / description / head
         let title_expr = file.title.clone().unwrap_or_else(|| "\"\"".into());
@@ -444,6 +511,11 @@ impl<'a> Codegen<'a> {
 
     // ---- layout generation ------------------------------------------------
     pub fn gen_layout(&mut self, file: &MviewFile) -> String {
+        // Layouts are the HTML document shell (they wrap `mvBody : Text`, which
+        // is HTML) — they are always emitted on the HTML path, even when this
+        // Codegen is otherwise in Ir mode (the IR backend targets page bodies).
+        let saved_emit = self.emit;
+        self.emit = EmitMode::Html;
         self.is_layout = true;
         self.build_type_env(&file.code);
         // A layout-level @theme is emitted at the layout's `@head`.
@@ -460,6 +532,7 @@ impl<'a> Codegen<'a> {
         self.gen_nodes(&file.template, &mut body, "    ");
         s.push_str(&body);
         s.push_str("    b.build();\n  };\n");
+        self.emit = saved_emit;
         s
     }
 
@@ -471,6 +544,12 @@ impl<'a> Codegen<'a> {
     }
 
     fn gen_node(&self, node: &Node, out: &mut String, indent: &str) {
+        // The Ir backend has a parallel walker; the Html walker below is left
+        // byte-identical to the original single-path codegen.
+        if self.emit == EmitMode::Ir {
+            self.gen_node_ir(node, out, indent);
+            return;
+        }
         match node {
             Node::Text(t) => {
                 if !t.is_empty() {
@@ -597,11 +676,244 @@ impl<'a> Codegen<'a> {
         }
     }
 
+    // ====================================================================
+    // IR backend (EmitMode::Ir) — a parallel node walker that builds an
+    // `Ir.Builder` UINode tree. Core node kinds (elements, attrs, events,
+    // keyed regions, escaped/dynamic text, @if/@for/@switch) are native IR.
+    // Builtins/charts/components/@raw that are not yet IR-modeled fall back to
+    // an `ir.raw(<html>)` leaf carrying the EXACT HTML the Html backend emits,
+    // so output is never wrong — only not-yet-native.
+    // ====================================================================
+
+    /// Capture the HTML the Html backend would emit for `nodes` as a Motoko
+    /// `Text` expression: `(do { let b = Html.Builder(); …; b.build() })`. Used
+    /// to wrap not-yet-IR-modeled nodes as an `ir.raw(...)` fallback leaf.
+    fn html_fallback_expr(&self, nodes: &[Node]) -> String {
+        // Re-enter the Html walker via a throwaway HTML-mode clone so the
+        // captured chunk is byte-for-byte the real HTML output.
+        let html_cg = Codegen {
+            types: std::cell::RefCell::new(self.types.borrow().clone()),
+            emit: EmitMode::Html,
+            is_layout: self.is_layout,
+            is_component: self.is_component,
+            layout_theme: self.layout_theme.clone(),
+            models: self.models,
+            components: self.components,
+        };
+        let mut tmp = String::new();
+        html_cg.gen_nodes(nodes, &mut tmp, "");
+        let mut s = String::from("(do { let b = Html.Builder(); ");
+        for line in tmp.lines() {
+            s.push_str(line.trim());
+            s.push(' ');
+        }
+        s.push_str("b.build() })");
+        s
+    }
+
+    fn gen_nodes_ir(&self, nodes: &[Node], out: &mut String, indent: &str) {
+        for n in nodes {
+            self.gen_node_ir(n, out, indent);
+        }
+    }
+
+    fn gen_node_ir(&self, node: &Node, out: &mut String, indent: &str) {
+        match node {
+            Node::Text(t) => {
+                if !t.is_empty() {
+                    // Static literal template text -> a #raw leaf (it is already
+                    // exact HTML/markup the author wrote).
+                    out.push_str(&format!("{}ir.raw({});\n", indent, mo_str(t)));
+                }
+            }
+            Node::Expr(e) => {
+                if self.is_component && e.trim() == "children" {
+                    out.push_str(&format!("{}ir.raw(mvChildren);\n", indent));
+                } else {
+                    out.push_str(&format!("{}ir.text({});\n", indent, self.as_text(e)));
+                }
+            }
+            // @raw(expr): trusted literal HTML -> a #raw leaf (no native model).
+            Node::Raw(e) => {
+                let e = e.trim();
+                let expr = if self.is_layout {
+                    e.strip_prefix("View.").map(|r| format!("mvHead.{}", r)).unwrap_or_else(|| e.to_string())
+                } else {
+                    e.to_string()
+                };
+                out.push_str(&format!("{}ir.raw({});\n", indent, expr));
+            }
+            Node::Yield => {
+                out.push_str(&format!("{}ir.raw(mvBody);\n", indent));
+            }
+            Node::Head => {
+                // Document <head> is an HTML-shell concern; emit the same HTML the
+                // Html backend would, wrapped as a #raw leaf.
+                out.push_str(&format!("{}ir.raw({});\n", indent, self.html_fallback_expr(&[node.clone()])));
+            }
+            Node::SectionRef(_) => {}
+            Node::Slot(name) => {
+                if self.is_component {
+                    out.push_str(&format!("{}ir.raw(mvSlot_{});\n", indent, name));
+                }
+            }
+            Node::Effect { .. } => {}
+            Node::If(branches) => {
+                let n = branches.len();
+                for (k, br) in branches.iter().enumerate() {
+                    let opener = match &br.cond {
+                        Some(c) => {
+                            if k == 0 { format!("if ({}) {{\n", c) } else { format!("else if ({}) {{\n", c) }
+                        }
+                        None => "else {\n".to_string(),
+                    };
+                    if k == 0 {
+                        out.push_str(&format!("{}{}", indent, opener));
+                    } else {
+                        out.push_str(&opener);
+                    }
+                    self.gen_nodes_ir(&br.body, out, &format!("{}  ", indent));
+                    if k + 1 < n {
+                        out.push_str(&format!("{}}} ", indent));
+                    } else {
+                        out.push_str(&format!("{}}};\n", indent));
+                    }
+                }
+            }
+            Node::For { var, iter, body } => {
+                out.push_str(&format!("{}for ({} in ({}).vals()) {{\n", indent, var, iter));
+                let prev = self.types.borrow().get(var).cloned();
+                if let Some(elem) = self.element_type(iter) {
+                    self.types.borrow_mut().insert(var.clone(), elem);
+                }
+                self.gen_nodes_ir(body, out, &format!("{}  ", indent));
+                {
+                    let mut t = self.types.borrow_mut();
+                    match prev {
+                        Some(p) => { t.insert(var.clone(), p); }
+                        None => { t.remove(var); }
+                    }
+                }
+                out.push_str(&format!("{}}};\n", indent));
+            }
+            Node::Switch { subject, cases } => {
+                out.push_str(&format!("{}switch ({}) {{\n", indent, subject));
+                for c in cases {
+                    let pat = if c.pattern.starts_with('(') { c.pattern.clone() } else { format!("({})", c.pattern) };
+                    out.push_str(&format!("{}  case {} {{\n", indent, pat));
+                    self.gen_nodes_ir(&c.body, out, &format!("{}    ", indent));
+                    out.push_str(&format!("{}  }};\n", indent));
+                }
+                out.push_str(&format!("{}}};\n", indent));
+            }
+            Node::Element(el) => self.gen_element_ir(el, out, indent),
+            Node::Component(c) => self.gen_component_ir(c, out, indent),
+        }
+    }
+
+    fn gen_element_ir(&self, el: &Element, out: &mut String, indent: &str) {
+        out.push_str(&format!("{}ir.open({});\n", indent, mo_str(&el.tag)));
+        // Server-driven forms get `novalidate` so the submit reaches MotoView.
+        if el.tag.eq_ignore_ascii_case("form") && el.events.iter().any(|e| e.event.eq_ignore_ascii_case("submit")) {
+            out.push_str(&format!("{}ir.attr(\"novalidate\", \"\");\n", indent));
+        }
+        for a in &el.attrs {
+            self.gen_attr_ir(a, out, indent);
+        }
+        // two-way bind -> name + keyed marker + value
+        if let Some(lv) = &el.bind {
+            let key = lv.clone();
+            let name = lv.split('.').last().unwrap_or(lv).to_string();
+            out.push_str(&format!("{}ir.attr(\"name\", {});\n", indent, mo_str(&name)));
+            out.push_str(&format!("{}ir.key({});\n", indent, mo_str(&key)));
+            out.push_str(&format!("{}ir.attr(\"value\", {});\n", indent, self.as_text(lv)));
+        }
+        // events
+        for ev in &el.events {
+            if ev.event.eq_ignore_ascii_case("submit") {
+                out.push_str(&format!("{}ir.event(\"submit\", {});\n", indent, mo_str(&ev.handler)));
+                if el.secure {
+                    let schema = escape_mo_inner(&collect_form_schema(el));
+                    out.push_str(&format!("{}ir.attr(\"data-mv-secure\", \"1\");\n", indent));
+                    out.push_str(&format!("{}ir.attr(\"data-mv-token\", ctx.mintToken(\"{}\", \"{}\"));\n", indent, ev.handler, schema));
+                    out.push_str(&format!("{}ir.attr(\"data-mv-schema\", \"{}\");\n", indent, schema));
+                }
+            } else {
+                out.push_str(&format!("{}ir.event({}, {});\n", indent, mo_str(&ev.event), mo_str(&ev.handler)));
+                for (i, arg) in ev.args.iter().enumerate() {
+                    if is_simple_literal(arg) {
+                        out.push_str(&format!("{}ir.attr(\"data-mv-arg{}\", {});\n", indent, i, mo_str(arg.trim_matches('"'))));
+                    } else {
+                        out.push_str(&format!("{}ir.attr(\"data-mv-arg{}\", {});\n", indent, i, self.as_text(arg)));
+                    }
+                }
+            }
+        }
+        if el.self_closing {
+            out.push_str(&format!("{}ir.close();\n", indent));
+            return;
+        }
+        self.gen_nodes_ir(&el.children, out, indent);
+        out.push_str(&format!("{}ir.close();\n", indent));
+    }
+
+    fn gen_attr_ir(&self, a: &Attr, out: &mut String, indent: &str) {
+        let name = match a.name.as_str() {
+            "key" => "data-mv-key",
+            "enter" => "data-mv-enter",
+            "exit" => "data-mv-exit",
+            other => other,
+        };
+        // `key="…"` is the keyed-region marker; model it natively as ir.key so a
+        // native renderer can reconcile lists. Other data attrs are plain attrs.
+        match &a.value {
+            AttrValue::Bool => {
+                out.push_str(&format!("{}ir.attr({:?}, \"\");\n", indent, name));
+            }
+            AttrValue::Literal(v) => {
+                if name == "data-mv-key" {
+                    out.push_str(&format!("{}ir.key({});\n", indent, mo_str(v)));
+                } else {
+                    out.push_str(&format!("{}ir.attr({:?}, {});\n", indent, name, mo_str(v)));
+                }
+            }
+            AttrValue::Expr(e) => {
+                if name == "data-mv-key" {
+                    out.push_str(&format!("{}ir.key({});\n", indent, self.as_text(e)));
+                } else {
+                    out.push_str(&format!("{}ir.attr({:?}, {});\n", indent, name, self.as_text(e)));
+                }
+            }
+            AttrValue::Concat(parts) => {
+                let mut pieces = Vec::new();
+                for p in parts {
+                    match p {
+                        AttrPart::Lit(l) => pieces.push(mo_str(l)),
+                        AttrPart::Expr(e) => pieces.push(self.as_text(e)),
+                    }
+                }
+                let joined = format!("({})", pieces.join(" # "));
+                if name == "data-mv-key" {
+                    out.push_str(&format!("{}ir.key({});\n", indent, joined));
+                } else {
+                    out.push_str(&format!("{}ir.attr({:?}, {});\n", indent, name, joined));
+                }
+            }
+        }
+    }
+
+    fn gen_component_ir(&self, c: &Component, out: &mut String, indent: &str) {
+        // Builtins/charts and app components are not yet IR-modeled: emit the
+        // EXACT HTML the Html backend produces, wrapped as an `ir.raw(...)`
+        // fallback leaf. (Honest coverage: see irCoverage report.)
+        out.push_str(&format!("{}ir.raw({});\n", indent, self.html_fallback_expr(&[Node::Component(c.clone())])));
+    }
+
     fn gen_element(&self, el: &Element, out: &mut String, indent: &str) {
         out.push_str(&format!("{}b.raw(\"<{}\");\n", indent, el.tag));
         // Server-driven forms must bypass native constraint validation so the
         // submit reaches MotoView (server-side validation is the source of truth).
-        if el.tag == "form" && el.events.iter().any(|e| e.event == "submit") {
+        if el.tag.eq_ignore_ascii_case("form") && el.events.iter().any(|e| e.event.eq_ignore_ascii_case("submit")) {
             out.push_str(&format!("{}b.raw(\" novalidate\");\n", indent));
         }
         // static + expr attributes
@@ -617,7 +929,7 @@ impl<'a> Codegen<'a> {
         }
         // events
         for ev in &el.events {
-            if ev.event == "submit" {
+            if ev.event.eq_ignore_ascii_case("submit") {
                 // forms: handled at the <form> level
                 out.push_str(&format!("{}b.raw(\" data-mv-handler=\\\"{}\\\" data-mv-event=\\\"submit\\\"\");\n", indent, ev.handler));
                 if el.secure {

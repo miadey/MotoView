@@ -8,6 +8,7 @@
 ///   * The browser synchronizes through versioned UI batches (`batchId`).
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
+import Nat16 "mo:base/Nat16";
 import Nat32 "mo:base/Nat32";
 import Int "mo:base/Int";
 import Char "mo:base/Char";
@@ -26,6 +27,7 @@ import Html "Html";
 import Sha256 "Sha256";
 import Hex "Hex";
 import Roles "Roles";
+import WalletAuth "WalletAuth";
 import CertV2 "CertV2";
 import CertifiedData "mo:base/CertifiedData";
 
@@ -49,17 +51,38 @@ module {
     let expiryNs : Int = 15 * 60 * 1_000_000_000; // 15 minutes
     var counter : Nat = 0;
     // consumed nonce -> the time it stops mattering (token expiry). Pruned so
-    // replay-protection state stays bounded.
+    // replay-protection state stays bounded. Persisted across upgrades by the
+    // generated actor (stable var mvConsumed via dumpConsumed/setConsumed) so a
+    // consumed nonce survives `dfx deploy --mode upgrade` and cannot be replayed
+    // after an upgrade.
     let consumed = HashMap.HashMap<Text, Int>(256, Text.equal, Text.hash);
 
     func consumeNonce(nonce : Text) {
       consumed.put(nonce, Time.now() + expiryNs);
       if (consumed.size() > 4096) {
+        // SOUNDNESS: only evict EXPIRED nonces. An expired nonce can never be
+        // replayed (verify() already rejects it as "token expired"), so
+        // forgetting it is safe. We must NEVER evict a still-live nonce: doing
+        // so would re-open it to an eviction-replay. If every entry is unexpired
+        // and we are over cap we keep them all and let the map grow — a bounded
+        // DoS (an attacker can only inflate it with valid single-use tokens it
+        // already spent, each self-expiring within expiryNs) traded for never
+        // dropping live replay-protection state. Honest tradeoff.
         let now = Time.now();
         let dead = Buffer.Buffer<Text>(64);
         for ((k, exp) in consumed.entries()) { if (exp < now) { dead.add(k) } };
         for (k in dead.vals()) { consumed.delete(k) };
       };
+    };
+
+    // Snapshot / restore the consumed-nonce store for upgrade persistence,
+    // mirroring dumpEpochs/setEpochs and dumpRoles/setRoles. On restore we drop
+    // entries already expired at load time so the map does not carry dead weight
+    // across an upgrade.
+    public func dumpConsumed() : [(Text, Int)] { Iter.toArray(consumed.entries()) };
+    public func setConsumed(es : [(Text, Int)]) {
+      let now = Time.now();
+      for ((k, exp) in es.vals()) { if (exp >= now) { consumed.put(k, exp) } };
     };
 
     // ---- Internet Identity session bridge --------------------------------
@@ -81,14 +104,34 @@ module {
     public func needsSecret() : Bool { mvSecret.size() != 32 };
 
     // Static framework assets served as fast CERTIFIED QUERIES (response-cert v2,
-    // pass-through expression) instead of upgrading to an update call. certified_
-    // data is set on the first update (ensureCert); until then assets serve via
-    // the update path (consensus-valid), so it self-bootstraps.
+    // BODY-BOUND) instead of upgrading to an update call. certified_data is set
+    // on the first update (ensureCert); until then assets serve via the update
+    // path (consensus-valid), so it self-bootstraps. The committed tree now
+    // commits each asset's response BODY (status + certified headers + body
+    // hash), so a boundary/MITM cannot swap a certified asset's body undetected.
     let certAssets : [Text] = [
       "/motoview.js", "/motoview.css", "/motoview.wasm", "/motoview-crypto.wasm", "/mv-auth.js",
       "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
       "/manifest.webmanifest", "/sw.js",
     ];
+
+    // The certified header SET for a response (response_header_exclusions:[] →
+    // ALL response headers are certified). It is exactly what we serve PLUS the
+    // IC-CertificateExpression header (also certified) and MINUS IC-Certificate
+    // (which carries the proof and is never certified). The response_hash is
+    // computed over this set so it matches what the boundary recomputes from the
+    // served response. Kept in one place so certify-time and serve-time agree.
+    func certifiedHeaderSet(base : [(Text, Text)]) : [(Text, Text)] {
+      let h = Buffer.Buffer<(Text, Text)>(base.size() + 1);
+      for (p in base.vals()) { h.add(p) };
+      h.add(("IC-CertificateExpression", CertV2.expression));
+      Buffer.toArray(h);
+    };
+    // The body-bound response hash for a response with this status/base-headers/
+    // body, over the certified header set above.
+    func respHashFor(status : Nat, base : [(Text, Text)], body : Blob) : Blob {
+      CertV2.responseHash(status, certifiedHeaderSet(base), body);
+    };
     // The static prefix of a route, up to its first `{param}` segment.
     // "/u/{handle}" -> "/u" ; "/forum/t/{id:Nat}" -> "/forum/t".
     func wildcardPrefix(route : Text) : Text {
@@ -122,20 +165,68 @@ module {
         null;
       } else { ?{ path = path; wild = false } };
     };
-    // Entries committed into certified_data: static assets + certifiable pages.
-    let allCertPaths : [CertV2.Entry] = do {
-      let b = Buffer.Buffer<CertV2.Entry>(certAssets.size() + 4);
-      for (a in certAssets.vals()) { b.add({ path = a; wild = false }) };
-      for (p in pages.vals()) {
-        if (p.cacheable) {
-          switch (certEntryFor(p.route, p.route)) { case (?e) { b.add(e) }; case null {} };
-        };
+    // The body-bound entry for a static asset: its served (status, base headers,
+    // body) hashed per the v2 spec. Returns null if the path is not a real asset.
+    func assetBoundEntry(path : Text) : ?CertV2.BoundEntry {
+      switch (asset(path)) {
+        case null { null };
+        case (?r) { ?{ path = path; wild = false; respHash = respHashFor(Nat16.toNat(r.status_code), r.headers, r.body) } };
       };
+    };
+
+    // The set of body-bound page entries currently certified. @cacheable page
+    // bodies are DYNAMIC (depend on canister state), so unlike static assets we
+    // cannot hash them once at construction. They are registered on demand
+    // (registerPage) and re-registered when their content changes; the root hash
+    // is recomputed and re-installed via CertifiedData.set so the certificate
+    // tracks the live body. Until a page is registered (or after a mutation, on
+    // the first request that re-renders it) it falls back to the update path.
+    let pageBound = HashMap.HashMap<Text, CertV2.BoundEntry>(16, Text.equal, Text.hash);
+
+    // Build the full body-bound entry set: static assets (hashed now) + any
+    // currently-registered @cacheable pages.
+    func allBoundEntries() : [CertV2.BoundEntry] {
+      let b = Buffer.Buffer<CertV2.BoundEntry>(certAssets.size() + pageBound.size());
+      for (a in certAssets.vals()) {
+        switch (assetBoundEntry(a)) { case (?e) { b.add(e) }; case null {} };
+      };
+      for ((_, e) in pageBound.entries()) { b.add(e) };
       Buffer.toArray(b);
     };
+
     var certReady : Bool = false;
-    public func ensureCert() {
-      if (not certReady) { CertifiedData.set(CertV2.rootHash(allCertPaths)); certReady := true };
+    // Recompute and install the body-bound root hash over the current entry set.
+    // Called on first update (bootstrap) and whenever a @cacheable page's body
+    // changes (registerPage). Static-asset hashes are stable; only page entries
+    // move the root.
+    func recertify() {
+      CertifiedData.set(CertV2.rootHash(allBoundEntries()));
+      certReady := true;
+    };
+    public func ensureCert() { if (not certReady) { recertify() } };
+
+    /// Register (or update) a @cacheable page's body-bound certificate entry and
+    /// re-install certified_data so the live response is body-certified.
+    ///
+    /// IMPORTANT (dynamic @cacheable content): a static asset is hashed once and
+    /// never changes, so it is certified at bootstrap. A @cacheable PAGE renders
+    /// from canister state, so its certified body must be RE-CERTIFIED whenever
+    /// that state mutates — otherwise the boundary would reject the stale-hash
+    /// response and the request silently falls back to the (always-correct,
+    /// consensus-validated) update path: safe, just no certified-query speedup.
+    /// The runtime calls this from the certified-query render path so the entry
+    /// self-heals to the current body on the next request after a mutation; an
+    /// app that mutates @cacheable state in an update handler may also call it
+    /// eagerly to keep the fast path warm. No-op if the rendered body is null.
+    public func registerPage(target : CertV2.Entry, status : Nat, headers : [(Text, Text)], body : Blob) {
+      let rh = respHashFor(status, headers, body);
+      let entry : CertV2.BoundEntry = { path = target.path; wild = target.wild; respHash = rh };
+      switch (pageBound.get(target.path)) {
+        case (?prev) { if (prev.respHash == rh and prev.wild == target.wild) { return } }; // unchanged
+        case null {};
+      };
+      pageBound.put(target.path, entry);
+      recertify();
     };
     func isCertAsset(path : Text) : Bool {
       for (a in certAssets.vals()) { if (a == path) { return true } };
@@ -183,6 +274,69 @@ module {
     func claimRole(p : Principal, role : Text) : Bool { roleStore.claim(p, role) };
     public func dumpRoles() : [(Principal, [Text])] { roleStore.dump() };
     public func setRoles(rs : [(Principal, [Text])]) { roleStore.load(rs) };
+
+    // ---- wallet spend-authorization gate (Slice 9B) -----------------------
+    // Per-principal velocity limiter backing `ctx.authorizeSpend`. A leaked or
+    // abused session cannot be drained in a burst: the rolling-window sum of
+    // authorized spend "weight" is capped per principal. Persisted by the
+    // generated actor via a stable var (dumpVelocity/setVelocity), like the
+    // consumed-nonce store and the role store, so the limit survives upgrades.
+    let velocity = WalletAuth.Velocity();
+    public func dumpVelocity() : [(Text, [WalletAuth.Entry])] { velocity.dump() };
+    public func setVelocity(es : [(Text, [WalletAuth.Entry])]) { velocity.load(es) };
+    // Default policy: total authorized weight per principal within a rolling
+    // window. An app can pick the weight unit (amount, normalized risk score);
+    // these defaults bound a runaway/leaked session to a bursty-but-bounded loss.
+    let spendWindowNs : Int = 60 * 60 * 1_000_000_000; // 1 hour
+    let spendLimit : Nat = 1_000_000; // total weight per principal per window
+
+    /// Authorize a wallet spend. A wallet confirm-step handler MUST call this and
+    /// get `true` BEFORE it builds the sighash and calls
+    /// `ChainKey.signWithEcdsa` / `signWithSchnorr`. (A future native
+    /// `host_device_sign` hardware-assertion check MUST also gate signing once the
+    /// native client lands — see WalletAuth.mo; it is NOT implemented here.)
+    ///
+    /// All four invariants are enforced atomically:
+    ///   * valid session — the token is bound to `caller`'s principal;
+    ///   * intent binding — the token's intentHash must equal the hash of THIS
+    ///     `intent`, so a token minted for spend X cannot authorize spend Y;
+    ///   * single-use — the token's nonce is consumed here (replay rejected);
+    ///   * velocity — `weight` must keep the per-principal rolling-window sum
+    ///     within `spendLimit`.
+    /// Returns true only if every check passes. State (nonce consumption,
+    /// velocity record) mutates ONLY on success, so a rejected attempt costs the
+    /// caller nothing toward their limit and does not burn the token's nonce.
+    func authorizeSpend(handler : Text, intent : [(Text, Text)], token : Text, weight : Nat, path : Text, caller : Principal) : Bool {
+      switch (
+        WalletAuth.authorizeSpend({
+          secret = mvSecret;
+          token;
+          path;
+          handler;
+          caller;
+          nowNs = Time.now();
+          intent;
+        })
+      ) {
+        case (#err(_)) { false }; // bad sig/route/handler/principal/intent/expired
+        case (#ok({ nonce })) {
+          // single-use: reject a token whose nonce was already consumed (replay).
+          switch (consumed.get(nonce)) {
+            case (?_) { return false };
+            case null {};
+          };
+          // velocity: atomic check-and-record so the window sum can't be raced
+          // past the cap within this message. Reject (without consuming the
+          // nonce) if over limit, so the caller can retry after the window.
+          if (not velocity.tryRecord(caller, weight, Time.now(), spendLimit, spendWindowNs)) {
+            return false;
+          };
+          // all checks passed -> burn the nonce so this exact token can't sign again.
+          consumeNonce(nonce);
+          true;
+        };
+      };
+    };
 
     func sessionMac(body : Text) : Text {
       Hex.encode(Sha256.hmac(mvSecret, Text.encodeUtf8(body)));
@@ -307,15 +461,19 @@ module {
       { status_code = 200; headers = jsonHeaders(); body = ""; upgrade = ?true };
     };
 
-    func certHeaders(base : [(Text, Text)], target : CertV2.Entry, cert : Blob) : [(Text, Text)] {
+    // Emit the served headers for a body-bound certified response: the certified
+    // header SET (base + IC-CertificateExpression) PLUS the IC-Certificate proof.
+    // This is exactly the set responseHash was computed over (certifiedHeaderSet)
+    // with IC-Certificate appended — keeping serve-time and certify-time aligned.
+    func certHeaders(base : [(Text, Text)], target : CertV2.BoundEntry, entries : [CertV2.BoundEntry], cert : Blob) : [(Text, Text)] {
       let hdrs = Buffer.Buffer<(Text, Text)>(base.size() + 2);
-      for (h in base.vals()) { hdrs.add(h) };
-      hdrs.add(("IC-CertificateExpression", CertV2.expression));
-      hdrs.add(("IC-Certificate", CertV2.headerValue(allCertPaths, target, cert)));
+      for (h in certifiedHeaderSet(base).vals()) { hdrs.add(h) };
+      hdrs.add(("IC-Certificate", CertV2.headerValue(entries, target, cert)));
       Buffer.toArray(hdrs);
     };
 
-    /// Build a certified-query response for a static asset, or null to fall back.
+    /// Build a body-bound certified-query response for a static asset, or null to
+    /// fall back to the update path.
     func certifiedAsset(path : Text) : ?HttpResponse {
       if (not certReady or not isCertAsset(path)) { return null };
       switch (CertifiedData.getCertificate()) {
@@ -323,37 +481,63 @@ module {
         case (?cert) {
           switch (asset(path)) {
             case null { null };
-            case (?r) { ?{ status_code = r.status_code; headers = certHeaders(r.headers, { path = path; wild = false }, cert); body = r.body; upgrade = null } };
+            case (?r) {
+              let target : CertV2.BoundEntry = { path = path; wild = false; respHash = respHashFor(Nat16.toNat(r.status_code), r.headers, r.body) };
+              ?{ status_code = r.status_code; headers = certHeaders(r.headers, target, allBoundEntries(), cert); body = r.body; upgrade = null };
+            };
           };
         };
       };
     };
 
-    /// Render a @cacheable page in the query context and serve it as a certified
-    /// query (pass-through expression accepts any body). Parameterized routes use
-    /// a wildcard over their static prefix. null to fall back to the update path.
+    /// Render a @cacheable page in the query context and serve it as a BODY-BOUND
+    /// certified query. The rendered body is hashed and (if changed) re-certified
+    /// before the response is served, so the certificate commits THIS body. If
+    /// the page body changed since the last certify and a fresh certificate is
+    /// not yet available, we fall back to the update path (safe). Parameterized
+    /// routes use a wildcard over their static prefix.
     func certifiedPage(req : HttpRequest, path : Text, caller : Principal) : ?HttpResponse {
       if (not certReady) { return null };
-      switch (CertifiedData.getCertificate()) {
+      switch (Router.find(pages, path)) {
         case null { null };
-        case (?cert) {
-          switch (Router.find(pages, path)) {
-            case null { null };
-            case (?(page, params)) {
-              if (not page.cacheable) { return null };
-              switch (certEntryFor(page.route, path)) {
-                case null { null }; // not safely certifiable -> update path
-                case (?target) {
-                  let (_, q) = Url.splitUrl(req.url);
-                  let ctx = makeCtx("GET", path, Url.parsePairs(q), params, [], caller, "");
-                  page.onLoad(ctx);
-                  ignore page.takeRedirect();
-                  let head = page.head(ctx);
-                  let inner = page.render(ctx);
-                  let bid = batchIdFor(path, head.title, inner);
-                  let doc = renderDocument(page, ctx, head, inner, bid);
-                  let base = [("content-type", "text/html"), ("cache-control", "no-store")];
-                  ?{ status_code = 200; headers = certHeaders(base, target, cert); body = Text.encodeUtf8(doc); upgrade = null };
+        case (?(page, params)) {
+          if (not page.cacheable) { return null };
+          switch (certEntryFor(page.route, path)) {
+            case null { null }; // not safely certifiable -> update path
+            case (?target) {
+              let (_, q) = Url.splitUrl(req.url);
+              let ctx = makeCtx("GET", path, Url.parsePairs(q), params, [], caller, "");
+              page.onLoad(ctx);
+              ignore page.takeRedirect();
+              let head = page.head(ctx);
+              let inner = page.render(ctx);
+              let bid = batchIdFor(path, head.title, inner);
+              let doc = renderDocument(page, ctx, head, inner, bid);
+              let body = Text.encodeUtf8(doc);
+              let base = [("content-type", "text/html"), ("cache-control", "no-store")];
+              // Body-bind: ensure this exact body is the one committed in
+              // certified_data. registerPage re-installs the root hash if the
+              // body changed (and is a no-op if unchanged). The certificate we
+              // then read must correspond to that root; if certified_data was
+              // just bumped, getCertificate() may still reflect the PREVIOUS
+              // root within this same message — in that case the witnessed body
+              // hash would not match, so we fall back to the update path rather
+              // than serve a mismatched (boundary-rejected) certificate.
+              let entry : CertV2.BoundEntry = { path = target.path; wild = target.wild; respHash = respHashFor(200, base, body) };
+              let changed = switch (pageBound.get(target.path)) {
+                case (?prev) { prev.respHash != entry.respHash or prev.wild != entry.wild };
+                case null { true };
+              };
+              if (changed) {
+                // Cannot safely certify a freshly-changed body in a query (no
+                // CertifiedData.set in query context); serve via the update path,
+                // which re-renders, registers the body, and re-certifies.
+                return null;
+              };
+              switch (CertifiedData.getCertificate()) {
+                case null { null };
+                case (?cert) {
+                  ?{ status_code = 200; headers = certHeaders(base, entry, allBoundEntries(), cert); body = body; upgrade = null };
                 };
               };
             };
@@ -439,7 +623,22 @@ module {
           let head = page.head(ctx);
           let inner = page.render(ctx);
           let bid = batchIdFor(path, head.title, inner);
-          return htmlResp(200, renderDocument(page, ctx, head, inner, bid));
+          let doc = renderDocument(page, ctx, head, inner, bid);
+          // Body-bind @cacheable pages: this update-context render is the moment
+          // we CAN re-certify (CertifiedData.set is allowed in an update), so we
+          // register the rendered body. The NEXT query for this page then serves
+          // it as a fast, body-bound certified query. A no-op if the body is
+          // unchanged. Only for routes that are safely certifiable (certEntryFor).
+          if (page.cacheable) {
+            switch (certEntryFor(page.route, path)) {
+              case (?target) {
+                let base = [("content-type", "text/html"), ("cache-control", "no-store")];
+                registerPage(target, 200, base, Text.encodeUtf8(doc));
+              };
+              case null {};
+            };
+          };
+          return htmlResp(200, doc);
         };
         case null { return htmlResp(404, notFoundDoc()) };
       };
@@ -470,6 +669,7 @@ module {
                 Principal.toText(caller),
                 Time.now(),
                 Security.schemaHash(schema),
+                "", // ordinary forms carry no server-known intent
               )
             ) {
               case (#invalid(reason)) {
@@ -509,6 +709,7 @@ module {
               status = #validationError;
               batchId = bid;
               html = inner;
+              ui = null;
               head;
               effects;
               target = "mv-root";
@@ -521,6 +722,7 @@ module {
             status = #changed;
             batchId = bid;
             html = inner;
+            ui = null;
             head;
             effects;
             target = "mv-root";
@@ -549,6 +751,7 @@ module {
               status = #unchanged;
               batchId = bid;
               html = "";
+              ui = null;
               head;
               effects = [];
               target = "mv-root";
@@ -560,6 +763,7 @@ module {
             status = #changed;
             batchId = bid;
             html = inner;
+            ui = null;
             head;
             effects = [];
             target = "mv-root";
@@ -706,6 +910,7 @@ module {
         status = #redirect;
         batchId = "";
         html = "";
+        ui = null;
         head = Types.emptyHead();
         effects = [];
         target = "mv-root";
@@ -719,6 +924,7 @@ module {
         status = #validationError;
         batchId = "";
         html = "<div class=\"mv-alert mv-alert-danger\">Security check failed: " # Html.escape(reason) # ". Please reload the page and try again.</div>";
+        ui = null;
         head = Types.emptyHead();
         effects = [{ kind = "toast"; target = "Security check failed"; value = "" }];
         target = "mv-root";
@@ -738,6 +944,9 @@ module {
       caller : Principal,
       last : Text,
     ) : Ctx {
+      // Ordinary secure-form token: no server-known intent, so intentHash="".
+      // We honestly do NOT bind the not-yet-typed form values (impossible at
+      // render time); the token binds route/handler/caller/schema/expiry/nonce.
       let mint = func(handler : Text, schema : Text) : Text {
         counter += 1;
         let nonce = Int.toText(Time.now()) # "-" # Nat.toText(counter);
@@ -749,6 +958,26 @@ module {
           Time.now() + expiryNs,
           nonce,
           Security.schemaHash(schema),
+          "",
+        );
+      };
+      // Intent-bound token for confirmation flows (e.g. a future wallet confirm
+      // step, Slice 9): binds a value the server ALREADY KNOWS at mint time by
+      // hashing its canonical intent into the token. verify() then rejects any
+      // submission whose intent does not match.
+      let mintIntent = func(handler : Text, schema : Text, intent : [(Text, Text)]) : Text {
+        counter += 1;
+        let nonce = Int.toText(Time.now()) # "-" # Nat.toText(counter);
+        let ih = Security.intentHash(Security.canonicalIntent(intent));
+        Security.mint(
+          mvSecret,
+          path,
+          handler,
+          Principal.toText(caller),
+          Time.now() + expiryNs,
+          nonce,
+          Security.schemaHash(schema),
+          ih,
         );
       };
       {
@@ -761,6 +990,15 @@ module {
         isAuthenticated = not Principal.isAnonymous(caller);
         lastBatchId = last;
         mintToken = mint;
+        mintIntentToken = mintIntent;
+        authorizeSpend = func(handler : Text, intent : [(Text, Text)], token : Text, weight : Nat) : Bool {
+          authorizeSpend(handler, intent, token, weight, path, caller);
+        };
+        mintSpendToken = func(handler : Text, intent : [(Text, Text)]) : Text {
+          counter += 1;
+          let nonce = Int.toText(Time.now()) # "-" # Nat.toText(counter);
+          WalletAuth.mintSpendToken(mvSecret, path, handler, caller, Time.now() + expiryNs, nonce, intent);
+        };
         hasRole = hasRole;
         callerRoles = func() : [Text] { roleStore.rolesOf(caller) };
         grantRole = grantRole;

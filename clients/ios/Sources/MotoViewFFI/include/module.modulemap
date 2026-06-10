@@ -1,0 +1,4 @@
+module MotoViewFFI {
+    header "motoview_ffi.h"
+    export *
+}

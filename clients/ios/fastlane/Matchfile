@@ -1,0 +1,32 @@
+# ============================================================================
+# MotoView iOS — Fastlane Matchfile (Slice 11)
+# ============================================================================
+# `match` stores the distribution certificate + provisioning profiles in a
+# PRIVATE git repo, encrypted with MATCH_PASSWORD, so CI can fetch them without
+# a developer's local keychain.
+#
+# EXTERNAL PREREQUISITES (user must supply):
+#   * A private git repo URL for the certs (MATCH_GIT_URL), e.g.
+#     git@github.com:<org>/motoview-certs.git — NEVER this public repo.
+#   * MATCH_PASSWORD (the encryption passphrase) as a CI secret.
+#   * A deploy key / token granting CI read access to the certs repo
+#     (MATCH_GIT_BASIC_AUTHORIZATION or an SSH key).
+#   * App Store Connect API key (shared with the Fastfile) so match can create/
+#     renew certs non-interactively.
+#
+# In CI we run match READONLY (it only fetches existing certs; it never
+# regenerates them on a shared runner). Generating/renewing certs is a one-time
+# operator action run locally with full Xcode.
+# ============================================================================
+
+git_url(ENV["MATCH_GIT_URL"])                  # private certs repo, from secret
+storage_mode("git")
+
+type("appstore")                               # default; lanes override as needed
+
+app_identifier([ENV["APP_IDENTIFIER"] || "dev.motoview.app"])
+team_id(ENV["FASTLANE_TEAM_ID"])
+
+# Read-only on shared CI: fetch, never create. Set MATCH_READONLY=false only on
+# a trusted operator machine when you intentionally (re)issue certificates.
+readonly(ENV["MATCH_READONLY"] != "false")

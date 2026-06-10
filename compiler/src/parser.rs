@@ -729,7 +729,12 @@ impl Parser {
                     split_args(&args)
                 };
                 events.push(EventBind {
-                    event: ev.to_string(),
+                    // Normalize event names to lowercase so the security lint, the
+                    // codegen submit/event wiring, and the DOM all agree. Without
+                    // this, `@Submit`/`@SUBMIT` would slip past the secure-form
+                    // lint (which matches `submit`) while still wiring a live
+                    // submit handler — a CSRF bypass.
+                    event: ev.to_ascii_lowercase(),
                     handler: handler.to_string(),
                     args,
                 });
@@ -748,6 +753,16 @@ impl Parser {
         }
 
         let is_component = tag.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+        // For HTML elements (lowercase-first), normalize the tag name to
+        // lowercase so the security lint and codegen match it consistently.
+        // Without this, `<fOrm @submit>` parses as an Element with tag "fOrm",
+        // dodges the secure-form lint (which matches "form"), yet the browser
+        // still treats it as a <form> and submits it — a CSRF bypass. Components
+        // (uppercase-first) keep their original casing; `is_component` was
+        // computed above on the original tag, so this does not reclassify them.
+        if !is_component {
+            tag.make_ascii_lowercase();
+        }
         let is_void = VOID_TAGS.contains(&tag.as_str());
 
         if is_component {

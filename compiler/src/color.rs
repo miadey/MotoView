@@ -14,7 +14,7 @@ const REF_RAMP: [&str; 16] = [
 
 include!("brand_aliases.rs");
 
-fn parse_hex(hex: &str) -> Option<(f64, f64, f64)> {
+pub(crate) fn parse_hex(hex: &str) -> Option<(f64, f64, f64)> {
     let h = hex.trim().trim_start_matches('#');
     let h = match h.len() {
         3 => h.chars().flat_map(|c| [c, c]).collect::<String>(),
@@ -74,7 +74,7 @@ fn hex_to_hsl(hex: &str) -> Option<(f64, f64, f64)> {
 
 /// The 16-step ramp for a brand color: shade 80 == the input, other shades
 /// follow the reference ramp's lightness deltas with brand-matched saturation.
-fn brand_ramp(hex: &str) -> Option<[String; 16]> {
+pub(crate) fn brand_ramp(hex: &str) -> Option<[String; 16]> {
     let (bh, bs, bl) = hex_to_hsl(hex)?;
     let (_, ref_s80, ref_l80) = hex_to_hsl(REF_RAMP[7]).unwrap();
     let sat_scale = if ref_s80 > 1e-3 { bs / ref_s80 } else { 1.0 };
@@ -88,7 +88,7 @@ fn brand_ramp(hex: &str) -> Option<[String; 16]> {
     Some(out)
 }
 
-fn shade_idx(shade: u32) -> usize {
+pub(crate) fn shade_idx(shade: u32) -> usize {
     (shade / 10).saturating_sub(1) as usize
 }
 
