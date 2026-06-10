@@ -120,4 +120,93 @@ final class MotoViewKitTests: XCTestCase {
         XCTAssertEqual(events.first(where: { $0.name == "click" })?.value, "pick")
         XCTAssertEqual(attrs.first(where: { $0.name == "data-mv-arg0" })?.value, "7")
     }
+
+    // MARK: - CROSS-PLATFORM PROOF: the CRM forest -> SwiftUI widgets
+    //
+    // Loads the COMMITTED CRM UI-IR fixture (the exact `motoview preview
+    // examples/crm` output — the same forest the deployed web canister was
+    // Playwright-driven against), parses it through the REAL Rust core, and
+    // asserts NativeView's SwiftUI mapping via the pure `nativeWidgetKind`
+    // shadow. This XCTest is the full-Xcode mirror of step [4/4] in the
+    // `motoview-smoke` executable (which runs the SAME assertions on this
+    // Command-Line-Tools-only machine).
+
+    private func crmForest() throws -> [UINode] {
+        // This test file lives at clients/ios/Tests/MotoViewKitTests/…; the
+        // fixture is at clients/ios/Tests/Fixtures/crm.forest.json.
+        let here = URL(fileURLWithPath: #filePath)
+        let url = here
+            .deletingLastPathComponent()   // MotoViewKitTests
+            .deletingLastPathComponent()   // Tests
+            .appendingPathComponent("Fixtures/crm.forest.json")
+        let json = try String(contentsOf: url, encoding: .utf8)
+        return try core.parseForest(json)
+    }
+
+    private func walk(_ nodes: [UINode], _ visit: (UINode) -> Void) {
+        for n in nodes {
+            visit(n)
+            if case let .element(_, _, _, _, children) = n { walk(children, visit) }
+        }
+    }
+
+    func testCRMForestIsTheCRMBoard() throws {
+        let forest = try crmForest()
+        XCTAssertFalse(forest.isEmpty)
+
+        var h1: String?
+        var cols = 0, cards = 0
+        var titles: [String] = []
+        var newDeal = 0
+        walk(forest) { node in
+            guard case let .element(tag, attrs, events, _, _) = node else { return }
+            if tag == "h1" { h1 = nativeFlattenedText(node) }
+            let cls = attrs.first(where: { $0.name == "class" })?.value
+            if cls == "kanban-col" { cols += 1; XCTAssertEqual(tag, "section") }
+            if cls == "deal-card" { cards += 1; XCTAssertEqual(tag, "article") }
+            if cls == "deal-title" { titles.append(nativeFlattenedText(node)) }
+            if tag == "button",
+               events.first(where: { $0.name == "click" })?.value == "toggleCreate" {
+                newDeal += 1
+                XCTAssertEqual(nativeFlattenedText(node), "+ New deal")
+            }
+        }
+        XCTAssertEqual(h1, "Pipeline")
+        XCTAssertEqual(cols, 4)
+        XCTAssertEqual(cards, 6)
+        XCTAssertEqual(titles.count, 6)
+        XCTAssertTrue(titles.contains("Website redesign"))
+        XCTAssertEqual(newDeal, 1)
+    }
+
+    func testCRMForestMapsToSwiftUIWidgets() throws {
+        let forest = try crmForest()
+        var buttons = 0
+        walk(forest) { node in
+            guard case let .element(tag, attrs, events, _, _) = node else { return }
+            let cls = attrs.first(where: { $0.name == "class" })?.value
+            if tag == "button" {
+                XCTAssertEqual(nativeWidgetKind(node), .button,
+                               "every CRM <button> maps to a SwiftUI Button")
+                let h = events.first(where: { $0.name == "click" })?.value ?? ""
+                if ["toggleCreate", "removeDeal", "moveBack", "moveFwd"].contains(h) {
+                    buttons += 1
+                }
+            }
+            if cls == "kanban-col" || cls == "kanban-col-body" || cls == "deal-card" {
+                XCTAssertEqual(nativeWidgetKind(node), .stack,
+                               "\(cls!) maps to a SwiftUI VStack")
+            }
+            if cls == "deal-title" {
+                XCTAssertEqual(nativeWidgetKind(node), .text,
+                               "a deal title maps to a SwiftUI Text")
+                XCTAssertFalse(nativeFlattenedText(node).isEmpty)
+            }
+            if tag == "h1" {
+                XCTAssertEqual(nativeWidgetKind(node), .text)
+            }
+        }
+        // 1 "+ New deal" + 6x(removeDeal+moveBack+moveFwd) = 19 mapped buttons.
+        XCTAssertEqual(buttons, 19)
+    }
 }

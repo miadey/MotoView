@@ -1267,4 +1267,220 @@ mod tests {
         assert_eq!(a, b, "the same session must replay to an identical forest");
         let _ = std::fs::remove_dir_all(&counter);
     }
+
+    // -- CROSS-PLATFORM PROOF: the CRM forest -> native egui widgets ---------
+    //
+    // The committed `tests/fixtures/crm.forest.json` is the EXACT UI-IR forest
+    // that `motoview preview examples/crm` emits from the ONE examples/crm
+    // source (the same forest the deployed web canister was Playwright-driven
+    // against). These tests prove the egui renderer would DRAW that CRM: we
+    // parse the committed forest, assert the CRM structure is present, and
+    // assert `widget_kind` maps each key node to the right native widget
+    // (kanban columns / form sections -> Group; "New deal" + per-card buttons
+    // -> Button; deal titles -> Inline/Label text). `app::render_node` is a
+    // thin performer over exactly these `widget_kind` decisions, so proving the
+    // mapping proves the draw. (Launching the egui WINDOW is out of scope —
+    // headless; this is the forest -> native-widget mapping the window uses.)
+
+    /// Load the committed CRM forest fixture (NOT spawned — a real, committed
+    /// artifact of `motoview preview examples/crm`).
+    fn crm_forest() -> Vec<UiNode> {
+        let path = fixtures_dir().join("crm.forest.json");
+        let json = read_file(&path)
+            .unwrap_or_else(|e| panic!("read CRM fixture {}: {e}", path.display()));
+        parse_forest(json.trim())
+            .unwrap_or_else(|e| panic!("parse CRM forest fixture: {e}"))
+    }
+
+    /// Walk the whole forest, visiting every node (pre-order).
+    fn walk_all<'a>(nodes: &'a [UiNode], f: &mut dyn FnMut(&'a UiNode)) {
+        for n in nodes {
+            f(n);
+            if let UiNode::El { children, .. } = n {
+                walk_all(children, f);
+            }
+        }
+    }
+
+    /// Count `<el>` nodes whose `class` attribute equals `class`.
+    fn count_with_class(forest: &[UiNode], class: &str) -> usize {
+        let mut n = 0;
+        walk_all(forest, &mut |node| {
+            if let UiNode::El { attrs, .. } = node {
+                if attrs.get("class").map(String::as_str) == Some(class) {
+                    n += 1;
+                }
+            }
+        });
+        n
+    }
+
+    /// Collect every `<el>` node whose `class` equals `class`.
+    fn nodes_with_class<'a>(forest: &'a [UiNode], class: &str) -> Vec<&'a UiNode> {
+        let mut out = Vec::new();
+        walk_all(forest, &mut |node| {
+            if let UiNode::El { attrs, .. } = node {
+                if attrs.get("class").map(String::as_str) == Some(class) {
+                    out.push(node);
+                }
+            }
+        });
+        out
+    }
+
+    /// Collect every `<button>` node whose `click` event handler equals `handler`.
+    fn buttons_clicking<'a>(forest: &'a [UiNode], handler: &str) -> Vec<&'a UiNode> {
+        let mut out = Vec::new();
+        walk_all(forest, &mut |node| {
+            if let UiNode::El { tag, events, .. } = node {
+                if tag == "button" && events.get("click").map(String::as_str) == Some(handler) {
+                    out.push(node);
+                }
+            }
+        });
+        out
+    }
+
+    #[test]
+    fn crm_fixture_is_the_crm_board() {
+        // The committed fixture parses, and it IS the CRM board: the "Pipeline"
+        // h1, the four kanban columns, the six deal cards, and the "+ New deal"
+        // button (events.click=toggleCreate). This is the contract the web
+        // canister was Playwright-proven on.
+        let forest = crm_forest();
+        assert!(!forest.is_empty(), "CRM forest must be non-empty");
+
+        // The h1 reads "Pipeline".
+        let mut h1_text = None;
+        walk_all(&forest, &mut |node| {
+            if let UiNode::El { tag, .. } = node {
+                if tag == "h1" {
+                    h1_text = Some(node_text(node));
+                }
+            }
+        });
+        assert_eq!(
+            h1_text.as_deref(),
+            Some("Pipeline"),
+            "CRM board's h1 must read 'Pipeline'"
+        );
+
+        // Four kanban-col <section>s (Lead / Contacted / Proposal / Won).
+        assert_eq!(
+            count_with_class(&forest, "kanban-col"),
+            4,
+            "CRM has four kanban columns"
+        );
+        for col in nodes_with_class(&forest, "kanban-col") {
+            assert_eq!(col.tag(), Some("section"), "a kanban-col is a <section>");
+        }
+
+        // Six deal-card <article>s with the expected deal titles.
+        assert_eq!(
+            count_with_class(&forest, "deal-card"),
+            6,
+            "CRM has six deal cards"
+        );
+        for card in nodes_with_class(&forest, "deal-card") {
+            assert_eq!(card.tag(), Some("article"), "a deal-card is an <article>");
+        }
+        let titles: Vec<String> = nodes_with_class(&forest, "deal-title")
+            .iter()
+            .map(|n| node_text(n))
+            .collect();
+        assert!(
+            titles.iter().any(|t| t == "Website redesign"),
+            "expected the 'Website redesign' deal, got {titles:?}"
+        );
+        assert_eq!(titles.len(), 6, "six deal titles, got {titles:?}");
+
+        // The "+ New deal" button toggles the create form.
+        let new_deal = buttons_clicking(&forest, "toggleCreate");
+        assert_eq!(new_deal.len(), 1, "exactly one '+ New deal' button");
+        assert_eq!(
+            node_text(new_deal[0]),
+            "+ New deal",
+            "the toggleCreate button is labelled '+ New deal'"
+        );
+    }
+
+    #[test]
+    fn crm_forest_maps_to_egui_widgets() {
+        // PROVE the egui renderer would draw the CRM: `widget_kind` (the pure
+        // decision app::render_node performs) maps each key CRM node to the
+        // right native widget.
+        let forest = crm_forest();
+
+        // 1) The "+ New deal" button -> WidgetKind::Button.
+        let new_deal = buttons_clicking(&forest, "toggleCreate");
+        assert_eq!(
+            widget_kind(new_deal[0]),
+            WidgetKind::Button,
+            "the '+ New deal' button must render as a native egui Button"
+        );
+
+        // 2) The per-card action buttons (remove / move) -> Button, all 18.
+        let remove = buttons_clicking(&forest, "removeDeal"); // one per card -> 6
+        let back = buttons_clicking(&forest, "moveBack"); // 6
+        let fwd = buttons_clicking(&forest, "moveFwd"); // 6
+        assert_eq!(remove.len(), 6, "one remove button per deal card");
+        assert_eq!(back.len(), 6, "one move-back button per deal card");
+        assert_eq!(fwd.len(), 6, "one move-forward button per deal card");
+        for b in remove.iter().chain(back.iter()).chain(fwd.iter()) {
+            assert_eq!(
+                widget_kind(b),
+                WidgetKind::Button,
+                "every per-card action <button> maps to a native Button"
+            );
+        }
+
+        // 3) Kanban columns (<section class=kanban-col>) -> Group containers.
+        let cols = nodes_with_class(&forest, "kanban-col");
+        assert_eq!(cols.len(), 4);
+        for c in &cols {
+            assert_eq!(
+                widget_kind(c),
+                WidgetKind::Group,
+                "a kanban column <section> maps to a native group container"
+            );
+        }
+        // The column BODY (<div class=kanban-col-body>) is also a Group, and the
+        // deal cards (<article>) inside it are Groups too.
+        for body in nodes_with_class(&forest, "kanban-col-body") {
+            assert_eq!(widget_kind(body), WidgetKind::Group);
+        }
+        for card in nodes_with_class(&forest, "deal-card") {
+            assert_eq!(
+                widget_kind(card),
+                WidgetKind::Group,
+                "a deal-card <article> maps to a native group container"
+            );
+        }
+
+        // 4) The deal TITLES: the title wrapper is an inline-ish <el> (Inline),
+        //    and its visible text is the deal name (what egui draws as a label
+        //    inside the inline row).
+        for title in nodes_with_class(&forest, "deal-title") {
+            assert_eq!(
+                widget_kind(title),
+                WidgetKind::Inline,
+                "a deal title wrapper maps to an inline (heading-style) row"
+            );
+            assert!(
+                !node_text(title).is_empty(),
+                "every deal title carries visible text"
+            );
+        }
+
+        // 5) The "Pipeline" h1 -> Inline (rendered as an egui heading).
+        let mut h1: Option<&UiNode> = None;
+        walk_all(&forest, &mut |node| {
+            if node.tag() == Some("h1") {
+                h1 = Some(node);
+            }
+        });
+        let h1 = h1.expect("CRM has an <h1>");
+        assert_eq!(widget_kind(h1), WidgetKind::Inline);
+        assert_eq!(node_text(h1), "Pipeline");
+    }
 }

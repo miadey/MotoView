@@ -8,6 +8,14 @@
 //    2. runs a keyed ir_diff and asserts a Replace op,
 //    3. calls verify_response with garbage and asserts it fails CLOSED (named
 //       error, no crash) — the chain-key verifier path is reached.
+//    4. CROSS-PLATFORM PROOF: loads the COMMITTED CRM UI-IR forest fixture (the
+//       exact `motoview preview examples/crm` output — the same forest the web
+//       canister was Playwright-driven against), parses it through the REAL Rust
+//       core, and asserts the SwiftUI mapping: the "+ New deal" button -> Button,
+//       the kanban columns/cards -> VStacks, the deal titles -> Text. This proves
+//       the SwiftUI renderer (NativeView) would draw the CRM from the one source.
+//       (Launching an iOS SIMULATOR is out of scope — full Xcode absent; this is
+//       the forest -> SwiftUI widget MAPPING that NativeView performs.)
 //  Exits non-zero on any assertion failure so CI / the build script can gate.
 //
 
@@ -100,9 +108,143 @@ do {
     fail("verifyResponse unexpectedly succeeded on garbage: time_ns=\(t)")
 } catch let MotoViewError.core(reason) {
     // Expected: a named CertError variant (fails closed).
-    print("[3/3] verifyResponse failed closed on garbage as expected: \(reason)")
+    print("[3/4] verifyResponse failed closed on garbage as expected: \(reason)")
 } catch {
     fail("verifyResponse threw unexpected error: \(error)")
 }
 
-print("SMOKE OK: Rust core reached over the C ABI; IR parse + diff + cert-verify all exercised.")
+// 4) CROSS-PLATFORM PROOF — the CRM forest renders on SwiftUI from the ONE source.
+//
+// Load the COMMITTED fixture (Tests/Fixtures/crm.forest.json), parse it through
+// the REAL Rust core, then assert NativeView's SwiftUI mapping via the pure,
+// assertable shadow `nativeWidgetKind` (which mirrors NativeView.renderElement
+// 1:1). Resolve the fixture relative to THIS source file so cwd doesn't matter.
+
+func crmFixtureURL() -> URL {
+    // main.swift lives at clients/ios/Sources/MotoViewSmoke/main.swift; the
+    // fixture is at clients/ios/Tests/Fixtures/crm.forest.json.
+    let here = URL(fileURLWithPath: #filePath)
+    return here
+        .deletingLastPathComponent()      // .../Sources/MotoViewSmoke
+        .deletingLastPathComponent()      // .../Sources
+        .deletingLastPathComponent()      // .../ios
+        .appendingPathComponent("Tests/Fixtures/crm.forest.json")
+}
+
+let crmURL = crmFixtureURL()
+guard let crmJSON = try? String(contentsOf: crmURL, encoding: .utf8) else {
+    fail("could not read CRM fixture at \(crmURL.path)")
+}
+
+let crmForest: [UINode]
+do {
+    crmForest = try core.parseForest(crmJSON)
+} catch {
+    fail("parseForest(CRM) threw: \(error)")
+}
+guard !crmForest.isEmpty else { fail("CRM forest is empty") }
+
+// Walk helper over the parsed tree.
+func crmWalk(_ nodes: [UINode], _ visit: (UINode) -> Void) {
+    for n in nodes {
+        visit(n)
+        if case let .element(_, _, _, _, children) = n {
+            crmWalk(children, visit)
+        }
+    }
+}
+
+func attrValue(_ node: UINode, _ name: String) -> String? {
+    if case let .element(_, attrs, _, _, _) = node {
+        return attrs.first(where: { $0.name == name })?.value
+    }
+    return nil
+}
+
+func clickHandler(_ node: UINode) -> String? {
+    if case let .element(tag, _, events, _, _) = node, tag == "button" {
+        return events.first(where: { $0.name == "click" })?.value
+    }
+    return nil
+}
+
+// (a) It IS the CRM board: the "Pipeline" h1, 4 kanban-col <section>s, 6
+//     deal-card <article>s, and the "+ New deal" button (click=toggleCreate).
+var h1Text: String? = nil
+var kanbanCols = 0
+var dealCards = 0
+var dealTitles: [String] = []
+var newDealButtons: [UINode] = []
+var cardButtons: [UINode] = []   // removeDeal / moveBack / moveFwd
+
+crmWalk(crmForest) { node in
+    guard case let .element(tag, _, _, _, _) = node else { return }
+    if tag == "h1" { h1Text = nativeFlattenedText(node) }
+    let cls = attrValue(node, "class")
+    if cls == "kanban-col" {
+        kanbanCols += 1
+        if tag != "section" { fail("kanban-col should be a <section>, got <\(tag)>") }
+    }
+    if cls == "deal-card" {
+        dealCards += 1
+        if tag != "article" { fail("deal-card should be an <article>, got <\(tag)>") }
+    }
+    if cls == "deal-title" { dealTitles.append(nativeFlattenedText(node)) }
+    switch clickHandler(node) {
+    case "toggleCreate": newDealButtons.append(node)
+    case "removeDeal", "moveBack", "moveFwd": cardButtons.append(node)
+    default: break
+    }
+}
+
+guard h1Text == "Pipeline" else { fail("CRM h1 must read 'Pipeline', got \(h1Text ?? "nil")") }
+guard kanbanCols == 4 else { fail("expected 4 kanban columns, got \(kanbanCols)") }
+guard dealCards == 6 else { fail("expected 6 deal cards, got \(dealCards)") }
+guard dealTitles.count == 6 else { fail("expected 6 deal titles, got \(dealTitles)") }
+guard dealTitles.contains("Website redesign") else {
+    fail("expected the 'Website redesign' deal, got \(dealTitles)")
+}
+guard newDealButtons.count == 1 else { fail("expected one '+ New deal' button, got \(newDealButtons.count)") }
+guard nativeFlattenedText(newDealButtons[0]) == "+ New deal" else {
+    fail("toggleCreate button label != '+ New deal'")
+}
+guard cardButtons.count == 18 else {
+    // 6 cards x (removeDeal + moveBack + moveFwd) = 18 interactive controls.
+    fail("expected 18 per-card action buttons, got \(cardButtons.count)")
+}
+
+// (b) The SwiftUI MAPPING (NativeView's dispatch, via the assertable shadow):
+//     - the "+ New deal" + every per-card action button -> .button (Button)
+//     - the kanban columns + deal cards -> .stack (VStack)
+//     - the deal titles + the h1 -> .text (Text)
+guard nativeWidgetKind(newDealButtons[0]) == .button else {
+    fail("'+ New deal' must map to a SwiftUI Button")
+}
+for b in cardButtons where nativeWidgetKind(b) != .button {
+    fail("a per-card action <button> did not map to a SwiftUI Button")
+}
+crmWalk(crmForest) { node in
+    let cls = attrValue(node, "class")
+    if cls == "kanban-col" || cls == "kanban-col-body" || cls == "deal-card" {
+        if nativeWidgetKind(node) != .stack {
+            fail("\(cls ?? "?") must map to a SwiftUI VStack")
+        }
+    }
+    if cls == "deal-title" {
+        if nativeWidgetKind(node) != .text {
+            fail("a deal title must map to a SwiftUI Text")
+        }
+        if nativeFlattenedText(node).isEmpty {
+            fail("a deal title has no visible text")
+        }
+    }
+    if case let .element(tag, _, _, _, _) = node, tag == "h1" {
+        if nativeWidgetKind(node) != .text { fail("the <h1> must map to a SwiftUI Text") }
+    }
+}
+
+print("[4/4] CRM forest -> SwiftUI mapping asserted OK "
+    + "(\(kanbanCols) columns -> VStack, \(dealCards) deal cards, "
+    + "\(1 + cardButtons.count) Buttons, \(dealTitles.count) deal-title Texts; h1 'Pipeline')")
+
+print("SMOKE OK: Rust core reached over the C ABI; IR parse + diff + cert-verify + CRM cross-platform render all exercised.")
