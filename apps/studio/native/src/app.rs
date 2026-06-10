@@ -16,7 +16,7 @@ use eframe::egui;
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, FontId, RichText};
 
-use motokostudio::backend::{self, CommandReport, PreviewResult, UiNode, WidgetKind};
+use motokostudio::backend::{self, CommandReport, PreviewResult, Session, SessionEvent, UiNode, WidgetKind};
 use motokostudio::highlight::{classify_line, TokenClass};
 
 /// The whole application state.
@@ -31,6 +31,19 @@ pub struct StudioApp {
     preview: Option<PreviewResult>,
     route: String,
     status: String,
+
+    // --- R17: LIVE preview via replay -------------------------------------
+    /// The accumulated, ordered events dispatched in the current preview
+    /// session. Replaying the whole list reproduces page-local state from the
+    /// initial render up to the latest click.
+    session: Session,
+    /// The route the CURRENT preview/session was rendered for, captured at
+    /// Preview time so replays stay pinned to the same page even if the user
+    /// edits the route box afterwards.
+    session_route: Option<String>,
+    /// A last replay error to surface in the diagnostics area (cleared on the
+    /// next successful dispatch / preview / reset).
+    replay_error: Option<String>,
 }
 
 impl Default for StudioApp {
@@ -45,6 +58,9 @@ impl Default for StudioApp {
             preview: None,
             route: String::new(),
             status: "Open a MotoView project (a folder with motoview.json) to begin.".to_string(),
+            session: Vec::new(),
+            session_route: None,
+            replay_error: None,
         }
     }
 }
@@ -77,6 +93,9 @@ impl StudioApp {
         self.dirty = false;
         self.diagnostics = None;
         self.preview = None;
+        self.session.clear();
+        self.session_route = None;
+        self.replay_error = None;
     }
 
     fn open(&mut self, path: PathBuf) {
@@ -133,6 +152,61 @@ impl StudioApp {
                 format!("Preview failed: {}", r.note.clone().unwrap_or_default())
             };
             self.preview = Some(r);
+            // A fresh preview is the INITIAL render: clear the live session and
+            // pin replays to whichever route we just rendered.
+            self.session.clear();
+            self.session_route = route.map(str::to_string);
+            self.replay_error = None;
+        }
+    }
+
+    // --- R17: LIVE preview via replay -------------------------------------
+
+    /// Dispatch one event through the page's dispatch+render: append it to the
+    /// accumulated session, replay the WHOLE session via `motoview preview
+    /// --replay` (moc -r, no deploy), and swap in the resulting forest so
+    /// page-local state visibly mutates. On replay failure the previous forest
+    /// is kept and the error is surfaced in the diagnostics area.
+    fn dispatch_event(&mut self, ev: SessionEvent) {
+        let Some(dir) = self.project_dir.clone() else {
+            return;
+        };
+        self.session.push(ev);
+        let route = self.session_route.as_deref();
+        match backend::replay_dispatch(&dir, route, &self.session) {
+            Ok(forest) => {
+                let n = forest.len();
+                // Preserve the prior raw_json/ok wrapper shape via a fresh result.
+                self.preview = Some(PreviewResult {
+                    forest,
+                    raw_json: String::new(),
+                    note: None,
+                    ok: true,
+                });
+                self.replay_error = None;
+                self.status = format!(
+                    "Live: dispatched {} event(s) — {} root node(s).",
+                    self.session.len(),
+                    n
+                );
+            }
+            Err(e) => {
+                // Roll back the event that failed so the session stays in sync
+                // with the forest still on screen.
+                self.session.pop();
+                self.replay_error = Some(e.clone());
+                self.status = format!("Replay failed: {e}");
+            }
+        }
+    }
+
+    /// Reset the live session back to the initial render (re-run plain preview).
+    fn reset_session(&mut self) {
+        self.session.clear();
+        self.replay_error = None;
+        if self.project_dir.is_some() {
+            self.run_preview();
+            self.status = "Live session reset to initial render.".to_string();
         }
     }
 }
@@ -219,12 +293,40 @@ impl StudioApp {
     }
 
     fn right_panel(&mut self, ctx: &egui::Context) {
+        // Event dispatched by a button click this frame (applied after render so
+        // we don't borrow `self` while egui borrows the forest).
+        let mut clicked: Option<SessionEvent> = None;
+        let mut do_reset = false;
+
         egui::SidePanel::right("preview").default_width(360.0).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("Preview");
-                ui.label(RichText::new("native egui · IR renderer").weak());
+                ui.label(RichText::new("native egui · LIVE replay").weak());
+            });
+            // Live-session controls: a reset back to the initial render + a
+            // count of how many events are in the accumulated session.
+            ui.horizontal(|ui| {
+                let has_preview = matches!(&self.preview, Some(p) if p.ok);
+                ui.add_enabled_ui(has_preview && !self.session.is_empty(), |ui| {
+                    if ui.button("Reset").clicked() {
+                        do_reset = true;
+                    }
+                });
+                if !self.session.is_empty() {
+                    ui.label(
+                        RichText::new(format!("{} event(s) dispatched", self.session.len()))
+                            .weak(),
+                    );
+                } else if has_preview {
+                    ui.label(RichText::new("click a button to dispatch").weak());
+                }
             });
             ui.separator();
+            if let Some(err) = &self.replay_error {
+                ui.colored_label(Color32::LIGHT_RED, "Replay failed (forest unchanged):");
+                ui.label(RichText::new(err).weak());
+                ui.separator();
+            }
             match &self.preview {
                 None => {
                     ui.label("Press Preview to render the page IR forest as native widgets.");
@@ -241,12 +343,19 @@ impl StudioApp {
                             ui.label(RichText::new("(empty forest)").weak());
                         }
                         for node in &p.forest {
-                            render_node(ui, node);
+                            render_node(ui, node, &mut clicked);
                         }
                     });
                 }
             }
         });
+
+        // Apply any click AFTER the panel closure releases its borrow of `self`.
+        if do_reset {
+            self.reset_session();
+        } else if let Some(ev) = clicked {
+            self.dispatch_event(ev);
+        }
     }
 
     fn bottom_bar(&mut self, ctx: &egui::Context) {
@@ -399,7 +508,12 @@ fn highlight_job(text: &str, dark: bool) -> LayoutJob {
 
 /// Render one IR node as native egui widgets. The widget CHOICE is the pure,
 /// tested `widget_kind`; this fn just performs the chosen widget.
-fn render_node(ui: &mut egui::Ui, node: &UiNode) {
+///
+/// `clicked` is the LIVE-preview sink: when a clickable node (button/submit)
+/// is pressed and `event_from_node` yields a [`SessionEvent`], we record it so
+/// the caller can dispatch it through `--replay`. We record the FIRST click of
+/// the frame; egui only reports one press per frame anyway.
+fn render_node(ui: &mut egui::Ui, node: &UiNode, clicked: &mut Option<SessionEvent>) {
     match backend::widget_kind(node) {
         WidgetKind::Label => {
             if let UiNode::Text { value } = node {
@@ -425,9 +539,15 @@ fn render_node(ui: &mut egui::Ui, node: &UiNode) {
                     t
                 }
             };
-            // Preview buttons are inert (this is a render preview, not a live
-            // session); we still show the egui Button so it looks right.
-            let _ = ui.button(label);
+            // LIVE: a real egui Button. When pressed, extract its handler+args
+            // (event_from_node) and queue the event for replay dispatch.
+            if ui.button(label).clicked() {
+                if clicked.is_none() {
+                    if let Some(ev) = backend::event_from_node(node) {
+                        *clicked = Some(ev);
+                    }
+                }
+            }
         }
         WidgetKind::Input => {
             // Show a disabled placeholder text box reflecting the field.
@@ -451,7 +571,7 @@ fn render_node(ui: &mut egui::Ui, node: &UiNode) {
                         ui.heading(t);
                     } else {
                         for c in children {
-                            render_node(ui, c);
+                            render_node(ui, c, clicked);
                         }
                     }
                 });
@@ -459,11 +579,14 @@ fn render_node(ui: &mut egui::Ui, node: &UiNode) {
         }
         WidgetKind::Group | WidgetKind::Unknown => {
             // Block container: a bordered vertical group holding its children.
+            // A <form> with a submit handler also dispatches via replay when a
+            // submit-type control inside it is pressed (the button case above),
+            // so the group itself just lays out children.
             if let UiNode::El { children, .. } = node {
                 egui::Frame::group(ui.style()).show(ui, |ui| {
                     ui.vertical(|ui| {
                         for c in children {
-                            render_node(ui, c);
+                            render_node(ui, c, clicked);
                         }
                     });
                 });

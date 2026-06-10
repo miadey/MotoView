@@ -357,6 +357,147 @@ fn first_meaningful_line(s: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// LIVE preview via replay (R17): accumulate dispatched events into a session
+// and re-render the page IR forest through `motoview preview --replay`.
+//
+// The replay path runs the page's dispatch+render through `moc -r` (NO dfx
+// deploy, deterministic), exactly as R10 wired it. Each entry in the session
+// is one event; replaying the WHOLE accumulated session reproduces the
+// page-local state from the initial render up to the latest click.
+// ---------------------------------------------------------------------------
+
+/// One dispatched event in a replay session, matching the R10 session schema
+/// element: `{"handler":"increment","args":["1"],"caller":"<principal-opt>"}`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionEvent {
+    pub handler: String,
+    pub args: Vec<String>,
+    pub caller: Option<String>,
+}
+
+/// An ordered list of events. Replaying it reproduces page-local state.
+pub type Session = Vec<SessionEvent>;
+
+/// Extract a dispatchable [`SessionEvent`] from an interactive IR node.
+///
+/// A clickable node (`<button>`, or an `<input type=submit|button>`, or a
+/// `<form>`) carries its handler in the node's `events` map — under the
+/// `"click"` key for buttons or `"submit"` for forms — and the codegen bakes
+/// each positional argument value into a `data-mv-arg0`, `data-mv-arg1`, …
+/// attribute. We read the handler from the matching event and collect the
+/// args in index order.
+///
+/// Returns `None` for non-interactive nodes (text/raw, or elements with no
+/// click/submit handler), so the UI never tries to dispatch a no-op.
+pub fn event_from_node(node: &UiNode) -> Option<SessionEvent> {
+    let UiNode::El { attrs, events, .. } = node else {
+        return None;
+    };
+    // Prefer a click handler (buttons), then a submit handler (forms).
+    let handler = events
+        .get("click")
+        .or_else(|| events.get("submit"))
+        .filter(|h| !h.is_empty())?
+        .clone();
+
+    // Collect baked args: data-mv-arg0, data-mv-arg1, … in contiguous order.
+    let mut args = Vec::new();
+    let mut i = 0usize;
+    while let Some(v) = attrs.get(&format!("data-mv-arg{i}")) {
+        args.push(v.clone());
+        i += 1;
+    }
+
+    Some(SessionEvent {
+        handler,
+        args,
+        caller: None,
+    })
+}
+
+/// Serialize a session to the R10 `--replay` JSON: `{"events":[ … ]}`.
+pub fn session_to_json(session: &Session) -> String {
+    let events: Vec<serde_json::Value> = session
+        .iter()
+        .map(|e| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("handler".into(), serde_json::Value::String(e.handler.clone()));
+            obj.insert(
+                "args".into(),
+                serde_json::Value::Array(
+                    e.args
+                        .iter()
+                        .map(|a| serde_json::Value::String(a.clone()))
+                        .collect(),
+                ),
+            );
+            if let Some(c) = &e.caller {
+                obj.insert("caller".into(), serde_json::Value::String(c.clone()));
+            }
+            serde_json::Value::Object(obj)
+        })
+        .collect();
+    let root = serde_json::json!({ "events": events });
+    serde_json::to_string(&root).unwrap_or_else(|_| "{\"events\":[]}".to_string())
+}
+
+/// Replay an accumulated `session` through the page's dispatch+render and parse
+/// the resulting IR forest. Writes the session to a temp `session.json`, runs
+/// `motoview preview <dir> --replay <tmp> [--route <r>] --json` (which uses
+/// `moc -r` — NO dfx deploy, deterministic) and parses the forest line.
+///
+/// On success returns the new forest. On any failure (spawn, non-zero exit, no
+/// forest line, parse error) returns `Err` with a human-readable message so the
+/// UI can surface it in the diagnostics area without losing the prior render.
+pub fn replay_dispatch(
+    project_dir: &Path,
+    route: Option<&str>,
+    session: &Session,
+) -> Result<Vec<UiNode>, String> {
+    // Write the session to a unique temp file. Include the pid + a nanosecond
+    // timestamp so concurrent replays (e.g. fast clicks) don't collide.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let tmp = std::env::temp_dir().join(format!(
+        "mvstudio_session_{}_{}.json",
+        std::process::id(),
+        nanos
+    ));
+    std::fs::write(&tmp, session_to_json(session))
+        .map_err(|e| format!("failed to write session file: {e}"))?;
+
+    let tmp_str = tmp.to_string_lossy().into_owned();
+    let mut args: Vec<&str> = vec!["preview", ".", "--replay", &tmp_str, "--json"];
+    if let Some(r) = route {
+        if !r.trim().is_empty() {
+            args.push("--route");
+            args.push(r);
+        }
+    }
+
+    let outcome = run_motoview(&args, Some(project_dir));
+    // Best-effort cleanup; ignore errors (temp dir is fine either way).
+    let _ = std::fs::remove_file(&tmp);
+
+    match outcome {
+        Ok((stdout, stderr, ok)) => {
+            if let Some(json_line) = stdout.lines().find(|l| l.trim_start().starts_with('[')) {
+                parse_forest(json_line.trim_start())
+                    .map_err(|e| format!("replay forest parse error: {e}"))
+            } else {
+                Err(format!(
+                    "replay produced no IR forest (exit_ok={ok}). stderr: {}",
+                    first_meaningful_line(&stderr)
+                ))
+            }
+        }
+        Err(e) => Err(format!("failed to spawn motoview preview --replay: {e}")),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // UI IR node tree (the {t:el|text|raw} schema) — a plain, testable type
 // ---------------------------------------------------------------------------
 
@@ -888,5 +1029,242 @@ mod tests {
         assert!(t.contains("+1"));
         assert!(t.contains("hello"));
         assert!(t.contains("bold & raw"));
+    }
+
+    // -- R17: live preview via replay --------------------------------------
+
+    /// A `+1` counter button: click handler `increment` with one baked arg `1`.
+    fn counter_inc_button(arg: &str) -> UiNode {
+        let mut attrs = BTreeMap::new();
+        attrs.insert("class".to_string(), "mv-btn mv-btn-primary".to_string());
+        attrs.insert("data-mv-arg0".to_string(), arg.to_string());
+        let mut events = BTreeMap::new();
+        events.insert("click".to_string(), "increment".to_string());
+        UiNode::El {
+            tag: "button".into(),
+            attrs,
+            events,
+            key: None,
+            children: vec![UiNode::Raw { html: format!("+{arg}") }],
+        }
+    }
+
+    #[test]
+    fn event_from_node_extracts_handler_and_args() {
+        // The "+1" button -> increment with arg ["1"], no caller.
+        let ev = event_from_node(&counter_inc_button("1"))
+            .expect("a clickable button yields an event");
+        assert_eq!(ev.handler, "increment");
+        assert_eq!(ev.args, vec!["1".to_string()]);
+        assert_eq!(ev.caller, None);
+
+        // The "+5" button -> same handler, arg ["5"].
+        let ev5 = event_from_node(&counter_inc_button("5")).unwrap();
+        assert_eq!(ev5.handler, "increment");
+        assert_eq!(ev5.args, vec!["5".to_string()]);
+    }
+
+    #[test]
+    fn event_from_node_handles_no_args_and_forms() {
+        // A button with a click handler but no baked args (e.g. <button @click="reset">).
+        let mut events = BTreeMap::new();
+        events.insert("click".to_string(), "reset".to_string());
+        let reset_btn = UiNode::El {
+            tag: "button".into(),
+            attrs: BTreeMap::new(),
+            events,
+            key: None,
+            children: vec![UiNode::Raw { html: "Reset".into() }],
+        };
+        let ev = event_from_node(&reset_btn).unwrap();
+        assert_eq!(ev.handler, "reset");
+        assert!(ev.args.is_empty(), "no data-mv-arg* -> no args");
+
+        // A <form @submit="save"> dispatches its submit handler.
+        let mut fevents = BTreeMap::new();
+        fevents.insert("submit".to_string(), "save".to_string());
+        let form = UiNode::El {
+            tag: "form".into(),
+            attrs: BTreeMap::new(),
+            events: fevents,
+            key: None,
+            children: vec![],
+        };
+        let fev = event_from_node(&form).expect("a form with a submit handler is interactive");
+        assert_eq!(fev.handler, "save");
+    }
+
+    #[test]
+    fn event_from_node_none_for_non_interactive() {
+        // A plain text node has no handler.
+        assert_eq!(event_from_node(&UiNode::Text { value: "hi".into() }), None);
+        // A raw node has no handler.
+        assert_eq!(event_from_node(&UiNode::Raw { html: "<b>x</b>".into() }), None);
+        // A <div> with no events is not interactive.
+        assert_eq!(event_from_node(&el("div")), None);
+        // A <strong> wrapping the counter value carries no handler.
+        assert_eq!(event_from_node(&el("strong")), None);
+    }
+
+    #[test]
+    fn session_to_json_round_trips_through_parser() {
+        let session = vec![
+            SessionEvent { handler: "increment".into(), args: vec!["1".into()], caller: None },
+            SessionEvent { handler: "save".into(), args: vec![], caller: Some("abc".into()) },
+        ];
+        let json = session_to_json(&session);
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let events = v.get("events").and_then(|e| e.as_array()).expect("events array");
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0]["handler"], "increment");
+        assert_eq!(events[0]["args"][0], "1");
+        assert_eq!(events[1]["caller"], "abc");
+    }
+
+    /// Find the counter's value text node ("0"/"1"/"2"…) inside the forest.
+    /// In the real counter page it sits in `<strong>` under `<p.counter-value>`,
+    /// and it is the only `text` leaf that parses as a number.
+    fn counter_value(forest: &[UiNode]) -> Option<String> {
+        fn walk(n: &UiNode, out: &mut Option<String>) {
+            match n {
+                UiNode::Text { value } => {
+                    let t = value.trim();
+                    if !t.is_empty() && t.chars().all(|c| c.is_ascii_digit() || c == '-') {
+                        *out = Some(t.to_string());
+                    }
+                }
+                UiNode::El { children, .. } => {
+                    for c in children {
+                        walk(c, out);
+                    }
+                }
+                UiNode::Raw { .. } => {}
+            }
+        }
+        let mut out = None;
+        for n in forest {
+            walk(n, &mut out);
+        }
+        out
+    }
+
+    fn inc_session(n: usize) -> Session {
+        (0..n)
+            .map(|_| SessionEvent { handler: "increment".into(), args: vec!["1".into()], caller: None })
+            .collect()
+    }
+
+    /// Recursively copy a directory tree, skipping build/VCS noise so each test
+    /// gets an isolated project sandbox (the compiler writes generated `.mo`
+    /// + `.mvbuild` artifacts into the project dir, so concurrent replays on
+    /// the SHARED examples/counter would race; an isolated copy makes the
+    /// real-binary tests independent and parallel-safe).
+    fn copy_tree(src: &Path, dst: &Path) {
+        std::fs::create_dir_all(dst).expect("mkdir dst");
+        for entry in std::fs::read_dir(src).expect("read_dir").flatten() {
+            let path = entry.path();
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".mvbuild" | ".dfx" | ".git" | "target" | "node_modules") {
+                continue;
+            }
+            let to = dst.join(name);
+            if path.is_dir() {
+                copy_tree(&path, &to);
+            } else {
+                std::fs::copy(&path, &to).expect("copy file");
+            }
+        }
+    }
+
+    /// An isolated copy of examples/counter under a unique temp dir, or `None`
+    /// if the example isn't present. Caller is responsible for cleanup.
+    fn isolated_counter(tag: &str) -> Option<PathBuf> {
+        let src = repo_root().join("examples/counter");
+        if !src.join("motoview.json").exists() && !src.join("dfx.json").exists() {
+            return None;
+        }
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dst = std::env::temp_dir().join(format!(
+            "mvstudio_counter_{tag}_{}_{}",
+            std::process::id(),
+            nanos
+        ));
+        copy_tree(&src, &dst);
+        // The copied dfx.json references the runtime package by a path relative
+        // to the ORIGINAL project dir (`--package motoview ../../runtime/src`),
+        // which does not resolve from the temp dir. Rewrite it to the absolute
+        // repo path so `moc -r` resolves it here — otherwise the replay tests
+        // would silently SKIP (preview fails) and pass vacuously.
+        let dfx = dst.join("dfx.json");
+        if let Ok(txt) = std::fs::read_to_string(&dfx) {
+            let abs = repo_root().join("runtime/src");
+            let fixed = txt.replace("../../runtime/src", &abs.to_string_lossy());
+            let _ = std::fs::write(&dfx, fixed);
+        }
+        Some(dst)
+    }
+
+    #[test]
+    fn replay_dispatch_mutates_counter_state() {
+        if !motoview_available() {
+            eprintln!("SKIP: motoview binary not found");
+            return;
+        }
+        let Some(counter) = isolated_counter("mutate") else {
+            eprintln!("SKIP: examples/counter not present");
+            return;
+        };
+        // First confirm a plain preview is runnable in this env (needs moc -r).
+        if !run_preview(&counter, None).ok {
+            eprintln!("SKIP: preview/replay not runnable here (moc?)");
+            let _ = std::fs::remove_dir_all(&counter);
+            return;
+        }
+
+        // One increment -> the count reads "1".
+        let f1 = replay_dispatch(&counter, None, &inc_session(1))
+            .expect("replay with [increment] should succeed");
+        assert_eq!(
+            counter_value(&f1).as_deref(),
+            Some("1"),
+            "one increment must yield count 1 (real stateful replay), forest={f1:?}"
+        );
+
+        // Two increments -> the count reads "2". This is page-local STATE that
+        // accumulated across the session, not a static render.
+        let f2 = replay_dispatch(&counter, None, &inc_session(2))
+            .expect("replay with [increment, increment] should succeed");
+        assert_eq!(
+            counter_value(&f2).as_deref(),
+            Some("2"),
+            "two increments must yield count 2, forest={f2:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&counter);
+    }
+
+    #[test]
+    fn replay_dispatch_is_deterministic() {
+        if !motoview_available() {
+            eprintln!("SKIP: motoview binary not found");
+            return;
+        }
+        let Some(counter) = isolated_counter("determ") else {
+            eprintln!("SKIP: examples/counter not present");
+            return;
+        };
+        if !run_preview(&counter, None).ok {
+            eprintln!("SKIP: preview/replay not runnable here (moc?)");
+            let _ = std::fs::remove_dir_all(&counter);
+            return;
+        }
+        let session = inc_session(2);
+        let a = replay_dispatch(&counter, None, &session).expect("replay a");
+        let b = replay_dispatch(&counter, None, &session).expect("replay b");
+        assert_eq!(a, b, "the same session must replay to an identical forest");
+        let _ = std::fs::remove_dir_all(&counter);
     }
 }
