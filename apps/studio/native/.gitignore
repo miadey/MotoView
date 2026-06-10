@@ -1,8 +1,12 @@
 # Cargo build artifacts for this standalone crate.
 /target
 
-# Packaging outputs from bundle.sh. The .app bundle and the .dmg are BUILD
-# OUTPUTS — never committed. Only the packaging SCRIPT (bundle.sh), the
-# Info.plist template, and this .gitignore are tracked. Re-create the artifacts
-# any time with `bash bundle.sh`.
+# Cargo build artifacts for the standalone icongen/ icon-generator crate.
+/icongen/target
+
+# Packaging outputs from bundle.sh. The .app bundle, the .dmg, the generated
+# AppIcon.iconset/ and AppIcon.icns are all BUILD OUTPUTS — never committed.
+# Only the packaging SCRIPT (bundle.sh), the Info.plist template, the icon
+# SOURCE (assets/icon.svg), the icongen/ crate source, and this .gitignore are
+# tracked. Re-create the artifacts any time with `bash bundle.sh`.
 /dist

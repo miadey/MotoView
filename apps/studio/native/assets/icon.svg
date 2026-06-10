@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!--
+    The MotoView brand mark, scaled 32x (32 -> 1024) from the canonical
+    32-unit mark so the pure-Rust renderer (resvg/tiny-skia) rasterizes it at a
+    crisp 1024px without upscaling. Colors and geometry are unchanged:
+      - rounded purple square (#6d28d9, corner radius 7/32 of the side)
+      - a white "M" stroke
+      - a white dot top-right
+    Stroke widths/coords are the 32-unit values multiplied by 32.
+  -->
+  <rect width="1024" height="1024" rx="224" fill="#6d28d9"/>
+  <path d="M224 736V288l160 224 160-224v448"
+        fill="none" stroke="#fff" stroke-width="76.8"
+        stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="736" cy="384" r="76.8" fill="#fff"/>
+</svg>

@@ -58,11 +58,13 @@
 	<key>LSUIElement</key>
 	<false/>
 
-	<!-- App icon, OPTIONAL. If a Resources/MotokoStudio.icns exists, bundle.sh
-	     copies it in and this key points at it (sans extension). No .icns is
-	     committed, so by default the app launches with the generic icon and this
-	     key is harmless (macOS ignores a missing CFBundleIconFile). -->
+	<!-- App icon. bundle.sh generates Resources/AppIcon.icns from
+	     assets/icon.svg (pure-Rust render -> iconset -> iconutil) and sets this
+	     key to "AppIcon" (sans extension) via plutil -replace. If icon
+	     generation is skipped/fails, bundle.sh REMOVES this key instead, so the
+	     bundle never dangle-points at a missing resource. The placeholder below
+	     keeps `plutil -lint` happy on the bare template. -->
 	<key>CFBundleIconFile</key>
-	<string>MotokoStudio</string>
+	<string>AppIcon</string>
 </dict>
 </plist>

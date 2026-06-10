@@ -1,0 +1,27 @@
+[package]
+name = "icongen"
+version = "0.1.0"
+edition = "2021"
+description = "Pure-Rust macOS iconset generator for MotokoStudio: renders apps/studio/native/assets/icon.svg into AppIcon.iconset/*.png."
+license = "MIT"
+publish = false
+
+# DELIBERATELY a standalone crate with its own empty [workspace]. It is NOT a
+# member of the motokostudio-native crate and NOT a dependency of it: the SVG
+# renderer (resvg/usvg/tiny-skia) must never enter the shipping studio binary's
+# dependency graph. bundle.sh builds this tool on its own manifest path purely
+# as a build step, then throws the binary away.
+[workspace]
+
+[[bin]]
+name = "icongen"
+path = "src/main.rs"
+
+[dependencies]
+# Pure-Rust SVG -> raster. No system rsvg/resvg/inkscape needed (none present).
+#   usvg     parses + normalizes the SVG into a tree,
+#   resvg    rasterizes that tree onto a tiny-skia pixmap,
+#   tiny-skia owns the RGBA pixel buffer (and PNG encode via .encode_png()).
+resvg = "0.44"
+tiny-skia = "0.11"
+usvg = "0.44"

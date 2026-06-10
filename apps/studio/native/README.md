@@ -70,18 +70,76 @@ bash apps/studio/native/bundle.sh
 
 `bundle.sh` is our **own** dependency-free packager — no `cargo-bundle`, no
 third-party bundler, only stock Command-Line-Tools (`cargo`, `codesign`,
-`hdiutil`, `plutil`, `file`). It:
+`hdiutil`, `plutil`, `file`, `lipo`, `iconutil`). It:
 
-1. `cargo build --release`,
-2. assembles `dist/MotokoStudio.app/Contents/{Info.plist, MacOS/motokostudio,
-   Resources/, PkgInfo}` (the [`Info.plist`](Info.plist) template, with the
-   version stamped from `Cargo.toml`; `plutil -lint` must pass),
-3. **ad-hoc** code-signs it (`codesign --sign -`), and
-4. `hdiutil create … -format UDZO` makes the `.dmg`.
+1. **gen-icon** — builds the standalone [`icongen/`](icongen/) crate and runs it
+   to render [`assets/icon.svg`](assets/icon.svg) into an `AppIcon.iconset/`,
+   then `iconutil -c icns` folds that into `AppIcon.icns` (see **Icon** below),
+2. **universal build** — `cargo build --release --target aarch64-apple-darwin`
+   **and** `--target x86_64-apple-darwin`, then `lipo -create` welds them into
+   one fat binary that runs on Apple Silicon **and** Intel (see **Universal**),
+3. assembles `dist/MotokoStudio.app/Contents/{Info.plist, MacOS/motokostudio,
+   Resources/AppIcon.icns, PkgInfo}` (the [`Info.plist`](Info.plist) template,
+   with the version stamped from `Cargo.toml` and `CFBundleIconFile=AppIcon`;
+   `plutil -lint` must pass),
+4. **ad-hoc** code-signs it (`codesign --sign -`), and
+5. `hdiutil create … -format UDZO` makes the `.dmg`.
 
-The `.app` and `.dmg` are **build outputs** — they live under `dist/`, which is
-`.gitignore`d. Only the *script* and *plist template* are committed; rebuild the
-artifacts any time with `bash bundle.sh`.
+The `.app`, `.dmg`, generated `AppIcon.iconset/` and `AppIcon.icns` are all
+**build outputs** — they live under `dist/`, which is `.gitignore`d. Only the
+*script*, the *plist template*, the *icon source* `assets/icon.svg`, and the
+*`icongen/` crate source* are committed; rebuild the artifacts any time with
+`bash bundle.sh`.
+
+### Icon — pure-Rust SVG → `.icns` (no system renderer)
+
+The app icon is the **MotoView brand mark** (purple rounded square, white "M",
+white dot), kept in [`assets/icon.svg`](assets/icon.svg) at a 1024-unit viewBox.
+This box has **no system SVG renderer** (`rsvg`/`resvg`/`inkscape` are absent),
+so [`icongen/`](icongen/) — a **separate** standalone crate (its own empty
+`[workspace]`, **not** a dependency of the studio binary) — rasterizes it in
+**100% Rust** via `usvg` + `resvg` + `tiny-skia`. It renders the ten macOS
+iconset PNGs (16/32/128/256/512 at @1x and @2x, i.e. up to 1024px) **directly at
+each target pixel size** from the vector source, so every size is crisp. The
+heavy SVG-renderer dependency graph therefore **never** enters the shipping
+studio binary — `icongen` is a build-time tool that `bundle.sh` builds, runs,
+and discards.
+
+The result is the brand **mark** (a programmatic geometric logo), not bespoke
+artwork. Regenerate it standalone:
+
+```sh
+cargo build --release --manifest-path apps/studio/native/icongen/Cargo.toml
+apps/studio/native/icongen/target/release/icongen \
+    apps/studio/native/assets/icon.svg /tmp/AppIcon.iconset
+iconutil -c icns -o /tmp/AppIcon.icns /tmp/AppIcon.iconset
+file /tmp/AppIcon.icns          # -> Mac OS X icon
+```
+
+### Universal binary (arm64 + x86_64)
+
+By **default** `bundle.sh` produces a **universal** binary: it builds the
+release crate for **both** `aarch64-apple-darwin` and `x86_64-apple-darwin`
+(both `rustup` targets must be installed) and `lipo -create`s them into one fat
+Mach-O, so the same `.app`/`.dmg` runs on Apple Silicon **and** Intel Macs.
+`codesign` then signs the universal bundle; verify it with:
+
+```sh
+lipo -info dist/MotokoStudio.app/Contents/MacOS/motokostudio   # -> arm64 x86_64
+codesign -dvv dist/MotokoStudio.app 2>&1 | grep Format         # -> ... universal (x86_64 arm64)
+```
+
+Opt out to host-arch-only (skip the cross-build) with `--arch host`:
+
+```sh
+bash apps/studio/native/bundle.sh --arch host   # -> a single-arch (host) binary
+```
+
+If the `x86_64` cross-build genuinely fails (e.g. a dep that won't
+cross-compile), `bundle.sh` does **not** fake a universal binary — it falls back
+to the host arch alone, prints a loud `WARNING`, and reports the real arch in
+its summary. (On this toolchain the cross-build succeeds, so the default really
+is universal.)
 
 ### Signing caveat (honest)
 

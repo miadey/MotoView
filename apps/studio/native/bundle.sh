@@ -5,21 +5,29 @@
 #             no cargo-bundle / third-party bundler, no Apple account).
 #
 # What it does (in order):
-#   1. cargo build --release            (the wgpu/Metal native studio)
-#   2. assemble dist/MotokoStudio.app/Contents/{Info.plist,MacOS/,Resources/}
-#   3. codesign --sign -  (AD-HOC)       — required so it launches on Apple
+#   1. gen-icon                          (pure-Rust SVG -> AppIcon.iconset ->
+#                                          iconutil -> AppIcon.icns)
+#   2. cargo build --release for BOTH    (the wgpu/Metal native studio)
+#      aarch64 + x86_64, then `lipo` them into ONE UNIVERSAL binary
+#      (Apple Silicon AND Intel). `--arch host` opts out to host-only.
+#   3. assemble dist/MotokoStudio.app/Contents/{Info.plist,MacOS/,Resources/}
+#      — including Resources/AppIcon.icns, with CFBundleIconFile pointed at it.
+#   4. codesign --sign -  (AD-HOC)       — required so it launches on Apple
 #                                          Silicon without a "damaged" kill.
 #      ...or, with --sign "Developer ID Application: ...", a REAL signature.
-#   4. hdiutil create ... UDZO           — the distributable .dmg
-#   5. print where the artifacts are + the HONEST signing/notarization note.
+#   5. hdiutil create ... UDZO           — the distributable .dmg
+#   6. print where the artifacts are + the HONEST signing/notarization note.
 #
 # Usage:
-#   bash bundle.sh                       # default: AD-HOC signature (no account)
+#   bash bundle.sh                       # default: UNIVERSAL + AD-HOC (no account)
+#   bash bundle.sh --arch host           # host-arch only (skip the cross-build)
 #   bash bundle.sh --sign "Developer ID Application: Your Name (TEAMID)"
 #   bash bundle.sh --sign "..." --notarize-profile "<notarytool-keychain-profile>"
 #
 # This script is deliberately transparent and dependency-free: every tool it
-# calls (cargo, codesign, hdiutil, plutil, file, lipo) is the stock toolchain.
+# calls (cargo, codesign, hdiutil, plutil, file, lipo, iconutil) is the stock
+# toolchain. The icon renderer is a pure-Rust crate (icongen/) — NO system SVG
+# renderer (rsvg/resvg/inkscape) is required.
 set -euo pipefail
 
 # ---- locate ourselves; all paths are relative to this script's dir ----------
@@ -34,9 +42,17 @@ APP_DIR="$DIST_DIR/$APP_NAME.app"
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
 PLIST_TEMPLATE="$SCRIPT_DIR/Info.plist"
 
+# Icon pipeline paths.
+ICON_SVG="$SCRIPT_DIR/assets/icon.svg"
+ICONGEN_MANIFEST="$SCRIPT_DIR/icongen/Cargo.toml"
+ICONSET_DIR="$DIST_DIR/AppIcon.iconset"     # build output (gitignored)
+ICNS_PATH="$DIST_DIR/AppIcon.icns"          # build output (gitignored)
+ICON_NAME="AppIcon"                         # CFBundleIconFile value (no ext)
+
 # ---- parse args -------------------------------------------------------------
 SIGN_IDENTITY="-"                   # "-" == ad-hoc (no cert / no account)
 NOTARIZE_PROFILE=""
+ARCH_MODE="universal"               # "universal" (default) | "host"
 while [ $# -gt 0 ]; do
   case "$1" in
     --sign)
@@ -45,8 +61,14 @@ while [ $# -gt 0 ]; do
     --notarize-profile)
       NOTARIZE_PROFILE="${2:?--notarize-profile needs a notarytool keychain profile name}"
       shift 2 ;;
+    --arch)
+      case "${2:?--arch needs a value: universal|host}" in
+        universal|host) ARCH_MODE="$2" ;;
+        *) echo "bundle.sh: --arch must be 'universal' or 'host' (got: $2)" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
     -h|--help)
-      sed -n '2,30p' "$SELF"; exit 0 ;;
+      sed -n '2,38p' "$SELF"; exit 0 ;;
     *)
       echo "bundle.sh: unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -69,18 +91,80 @@ echo "    signing identity: $SIGN_LABEL"
 echo
 
 # ---- 0. sanity: required CLT tools present ----------------------------------
-for tool in cargo codesign hdiutil plutil file; do
+for tool in cargo codesign hdiutil plutil file lipo iconutil; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FATAL: '$tool' not found on PATH" >&2; exit 1; }
 done
 
-# ---- 1. release build -------------------------------------------------------
-echo "==> [1/5] cargo build --release"
-cargo build --release
-SRC_BIN="$SCRIPT_DIR/target/release/$BIN_NAME"
-[ -x "$SRC_BIN" ] || { echo "FATAL: release binary not found at $SRC_BIN" >&2; exit 1; }
+mkdir -p "$DIST_DIR"
 
-# ---- 2. assemble the .app bundle --------------------------------------------
-echo "==> [2/5] assembling $APP_NAME.app"
+# ---- 1. gen-icon: pure-Rust SVG -> AppIcon.iconset -> AppIcon.icns ----------
+# The icongen/ crate (its OWN standalone workspace) reads assets/icon.svg and
+# renders every iconset PNG (16..1024). iconutil then folds the .iconset/ dir
+# into a single AppIcon.icns. Both the .iconset/ and .icns are build outputs
+# under dist/ (gitignored); the only tracked icon source is assets/icon.svg.
+echo "==> [1/6] gen-icon (icongen -> $ICON_NAME.iconset -> $ICON_NAME.icns)"
+ICON_OK=0
+if [ -f "$ICON_SVG" ] && [ -f "$ICONGEN_MANIFEST" ]; then
+  cargo build --release --manifest-path "$ICONGEN_MANIFEST"
+  ICONGEN_BIN="$SCRIPT_DIR/icongen/target/release/icongen"
+  if [ -x "$ICONGEN_BIN" ]; then
+    rm -rf "$ICONSET_DIR" "$ICNS_PATH"
+    "$ICONGEN_BIN" "$ICON_SVG" "$ICONSET_DIR"
+    iconutil -c icns -o "$ICNS_PATH" "$ICONSET_DIR"
+    if [ -f "$ICNS_PATH" ]; then
+      ICON_OK=1
+      echo "    built $ICNS_PATH"
+    fi
+  fi
+fi
+if [ "$ICON_OK" != "1" ]; then
+  echo "    WARNING: icon generation skipped/failed — bundling without an icon." >&2
+fi
+
+# ---- 2. release build (UNIVERSAL by default; --arch host opts out) ----------
+echo "==> [2/6] cargo build --release (arch mode: $ARCH_MODE)"
+ARM_TARGET="aarch64-apple-darwin"
+X86_TARGET="x86_64-apple-darwin"
+UNIVERSAL_BUILT=0                   # reported truthfully in the summary
+
+if [ "$ARCH_MODE" = "host" ]; then
+  # Host-arch only: a plain `cargo build --release` lands in target/release/.
+  cargo build --release
+  SRC_BIN="$SCRIPT_DIR/target/release/$BIN_NAME"
+  [ -x "$SRC_BIN" ] || { echo "FATAL: release binary not found at $SRC_BIN" >&2; exit 1; }
+else
+  # Universal: build BOTH explicit targets, then lipo them together.
+  echo "    building $ARM_TARGET ..."
+  cargo build --release --target "$ARM_TARGET"
+  ARM_BIN="$SCRIPT_DIR/target/$ARM_TARGET/release/$BIN_NAME"
+  [ -x "$ARM_BIN" ] || { echo "FATAL: arm64 binary not found at $ARM_BIN" >&2; exit 1; }
+
+  echo "    building $X86_TARGET ..."
+  # The x86_64 cross-build CAN fail (a dep that won't cross-compile). If it
+  # does, we DO NOT fake a universal binary: we fall back to the arm64 build
+  # alone and say so loudly + in the final summary.
+  if cargo build --release --target "$X86_TARGET"; then
+    X86_BIN="$SCRIPT_DIR/target/$X86_TARGET/release/$BIN_NAME"
+  else
+    X86_BIN=""
+  fi
+
+  SRC_BIN="$DIST_DIR/$BIN_NAME.universal"
+  if [ -n "$X86_BIN" ] && [ -x "$X86_BIN" ]; then
+    lipo -create -output "$SRC_BIN" "$ARM_BIN" "$X86_BIN"
+    UNIVERSAL_BUILT=1
+    echo "    lipo -> universal: $(lipo -info "$SRC_BIN")"
+  else
+    # Honest fallback: arm64 only.
+    cp "$ARM_BIN" "$SRC_BIN"
+    UNIVERSAL_BUILT=0
+    echo "    WARNING: x86_64 cross-build failed — falling back to arm64-only." >&2
+    echo "             (NOT a faked universal binary.)" >&2
+  fi
+fi
+
+# ---- 3. assemble the .app bundle --------------------------------------------
+echo "==> [3/6] assembling $APP_NAME.app"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
@@ -98,15 +182,16 @@ plutil -replace CFBundleVersion            -string "$APP_VERSION" "$APP_DIR/Cont
 plutil -replace CFBundleShortVersionString -string "$APP_VERSION" "$APP_DIR/Contents/Info.plist"
 echo "    stamped version $APP_VERSION"
 
-# 2c. OPTIONAL icon: only if a committed/working .icns exists.
-if [ -f "$SCRIPT_DIR/$APP_NAME.icns" ]; then
-  cp "$SCRIPT_DIR/$APP_NAME.icns" "$APP_DIR/Contents/Resources/$APP_NAME.icns"
-  echo "    bundled icon $APP_NAME.icns"
+# 2c. icon: copy the freshly-generated AppIcon.icns into Resources/ and keep
+#     CFBundleIconFile pointed at it. If gen-icon failed (ICON_OK!=1) drop the
+#     key so we don't dangle-point at a missing resource (generic icon then).
+if [ "$ICON_OK" = "1" ] && [ -f "$ICNS_PATH" ]; then
+  cp "$ICNS_PATH" "$APP_DIR/Contents/Resources/$ICON_NAME.icns"
+  plutil -replace CFBundleIconFile -string "$ICON_NAME" "$APP_DIR/Contents/Info.plist"
+  echo "    bundled icon Resources/$ICON_NAME.icns (CFBundleIconFile=$ICON_NAME)"
 else
-  # No icon committed: drop the CFBundleIconFile key so we don't dangle-point
-  # at a missing resource. macOS then uses the generic app icon.
   plutil -remove CFBundleIconFile "$APP_DIR/Contents/Info.plist" 2>/dev/null || true
-  echo "    no $APP_NAME.icns — using the generic app icon (CFBundleIconFile removed)"
+  echo "    no icon — using the generic app icon (CFBundleIconFile removed)"
 fi
 
 # 2d. PkgInfo (cosmetic but conventional): APPL + 4-char signature.
@@ -115,8 +200,8 @@ printf 'APPL????' > "$APP_DIR/Contents/PkgInfo"
 # 2e. validate the plist before we sign anything.
 plutil -lint "$APP_DIR/Contents/Info.plist"
 
-# ---- 3. codesign (AD-HOC by default) ----------------------------------------
-echo "==> [3/5] codesign ($SIGN_LABEL)"
+# ---- 4. codesign (AD-HOC by default) ----------------------------------------
+echo "==> [4/6] codesign ($SIGN_LABEL)"
 # --force: re-sign if already signed. --deep: also sign nested code (we have
 # none, but it is correct/harmless). --timestamp=none for ad-hoc (a trusted
 # timestamp needs a real cert + network); a real Developer ID build below adds
@@ -129,8 +214,8 @@ else
 fi
 codesign --verify --deep --strict --verbose=2 "$APP_DIR" 2>&1 | sed 's/^/    /'
 
-# ---- 4. make the .dmg -------------------------------------------------------
-echo "==> [4/5] hdiutil create $APP_NAME.dmg"
+# ---- 5. make the .dmg -------------------------------------------------------
+echo "==> [5/6] hdiutil create $APP_NAME.dmg"
 rm -f "$DMG_PATH"
 hdiutil create -volname "$APP_NAME" -srcfolder "$APP_DIR" \
                -ov -format UDZO "$DMG_PATH" >/dev/null
@@ -139,7 +224,7 @@ if [ "$SIGN_IDENTITY" != "-" ]; then
   codesign --force --sign "$SIGN_IDENTITY" "$DMG_PATH"
 fi
 
-# ---- 4b. OPTIONAL notarization (real cert + notarytool only) ----------------
+# ---- 5b. OPTIONAL notarization (real cert + notarytool only) ----------------
 if [ -n "$NOTARIZE_PROFILE" ]; then
   if command -v xcrun >/dev/null 2>&1 && xcrun --find notarytool >/dev/null 2>&1; then
     echo "==> [4b] notarytool submit + staple"
@@ -152,12 +237,27 @@ if [ -n "$NOTARIZE_PROFILE" ]; then
   fi
 fi
 
-# ---- 5. report + honest signing note ----------------------------------------
+# ---- 6. report + honest signing note ----------------------------------------
 echo
-echo "==> [5/5] done."
+echo "==> [6/6] done."
 echo "    app : $APP_DIR"
 echo "    dmg : $DMG_PATH"
 echo
+echo "    ----------------------------------------------------------------"
+# Honest architecture report straight off the final, bundled binary.
+FINAL_BIN="$APP_DIR/Contents/MacOS/$BIN_NAME"
+echo "    ARCH: $(lipo -info "$FINAL_BIN" 2>/dev/null || file "$FINAL_BIN")"
+if [ "$ARCH_MODE" = "universal" ]; then
+  if [ "$UNIVERSAL_BUILT" = "1" ]; then
+    echo "      • UNIVERSAL (arm64 + x86_64) — runs on Apple Silicon AND Intel."
+  else
+    echo "      • NOT universal: the x86_64 cross-build failed; fell back to"
+    echo "        arm64-only. (No faked fat binary — see WARNING above.)"
+  fi
+else
+  echo "      • host-arch only (--arch host)."
+fi
+echo "    ICON: $([ "$ICON_OK" = "1" ] && echo "AppIcon.icns bundled (from assets/icon.svg)" || echo "none (generation failed/skipped)")"
 echo "    ----------------------------------------------------------------"
 if [ "$SIGN_IDENTITY" = "-" ]; then
   cat <<'NOTE'
