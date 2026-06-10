@@ -1,0 +1,14 @@
+{
+  "name": "mview-grammar-test",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Headless tokenization test for apps/studio/assets/mview.tmLanguage.json using vscode-textmate + vscode-oniguruma (the same engine VS Code / Monaco-with-textmate use).",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tokenize-test.js"
+  },
+  "dependencies": {
+    "vscode-oniguruma": "1.7.0",
+    "vscode-textmate": "9.0.0"
+  }
+}

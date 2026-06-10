@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@View.title</title>
+    @head
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+        .field { margin-bottom: 1rem; }
+        .note { border-bottom: 1px solid #ddd; padding: .5rem 0; }
+    </style>
+</head>
+<body>
+    <main>
+        @yield
+    </main>
+</body>
+</html>

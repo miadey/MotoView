@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "canisters": {
+    "__NAME__": {
+      "type": "motoko",
+      "main": ".mvbuild/main.mo",
+      "args": "--package motoview __RUNTIME_PKG__"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:__PORT__",
+      "type": "ephemeral"
+    }
+  }
+}

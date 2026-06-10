@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MotoView — Observability (R7)</title>
+    <!--
+      MotokoStudio observability panel (R7). HEADLESS-TESTED CORE, browser-flagged UI.
+
+      The parser + tree-builder logic is the SAME pure code as
+      tools/studio/observability.js (verified by log-parser-test.js and
+      view-tree-test.js). This page wires it to a DOM:
+
+        * left:  paste the `dfx canister logs <id>` stream from an --instrument
+                 build -> the event/BATCH TIMELINE (sortable by cost).
+        * right: paste a `motoview preview <dir>` IR forest -> the collapsible
+                 VIEW-HIERARCHY inspector. Clicking a logged handler in the
+                 timeline highlights the firing node(s) in the tree (click-to-source).
+
+      OUT OF SCOPE (honest): source-step debugging / attaching a debugger is
+      impossible on the replicated IC — there is no single deterministic stepping
+      host. Faithful record/replay is the R10 item, not this.
+
+      This file is design-time tooling; it ships nothing into a canister.
+    -->
+    <style>
+      :root { color-scheme: light dark; --bd: #d0d7de; --mut: #57606a; --hot: #cf222e; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      header { padding: 10px 16px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: baseline; }
+      header h1 { font-size: 15px; margin: 0; }
+      header .scope { color: var(--mut); font-size: 12px; }
+      main { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: calc(100vh - 46px); }
+      section { overflow: auto; padding: 12px 16px; }
+      section + section { border-left: 1px solid var(--bd); }
+      h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--mut); margin: 0 0 8px; }
+      textarea { width: 100%; height: 96px; font: inherit; }
+      ol.mv-timeline { list-style: none; margin: 10px 0 0; padding: 0; }
+      .mv-tl-row { display: grid; grid-template-columns: 36px 1fr 1fr 1fr 90px; gap: 8px; padding: 3px 6px; border-radius: 5px; cursor: pointer; }
+      .mv-tl-row:hover, .mv-tl-row.sel { background: rgba(127,127,127,.14); }
+      .mv-tl-i { color: var(--mut); }
+      .mv-tl-cost { text-align: right; }
+      .mv-tl-handler { font-weight: 600; }
+      ul.mv-viewtree, ul.mv-viewtree ul { list-style: none; margin: 0; padding-left: 16px; }
+      summary { cursor: pointer; }
+      .mv-ev { margin-left: 8px; padding: 0 5px; border: 1px solid var(--bd); border-radius: 10px; font-size: 11px; color: var(--mut); }
+      summary.hit { background: rgba(207,34,46,.16); border-radius: 4px; }
+      .hot { color: var(--hot); font-weight: 600; }
+      .empty { color: var(--mut); font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>MotoView Observability</h1>
+      <span class="scope">R7 · log stream + batch timeline + view-hierarchy + per-event cost. Source-step debugging is out of scope (replicated IC); record/replay is R10.</span>
+    </header>
+    <main>
+      <section>
+        <h2>Event / batch timeline</h2>
+        <textarea id="logs" placeholder="Paste `dfx canister logs <id>` from an --instrument build (lines like: MV|dispatch|page=Counter|handler=increment|...|costInstr=42)"></textarea>
+        <div id="timeline" class="empty">No log stream yet.</div>
+      </section>
+      <section>
+        <h2>View hierarchy</h2>
+        <textarea id="forest" placeholder="Paste the IR forest from `motoview preview <dir>` (the [...] JSON array)"></textarea>
+        <div id="tree" class="empty">No IR forest yet.</div>
+      </section>
+    </main>
+
+    <script>
+      // ---- inlined pure core (mirror of tools/studio/observability.js) -------
+      const TAG = 'MV', KIND = 'dispatch';
+      function parseLogLine(line) {
+        if (typeof line !== 'string') return null;
+        const at = line.indexOf(TAG + '|');
+        if (at < 0) return null;
+        const prefix = line.slice(0, at).trim();
+        let payload = line.slice(at).trim().replace(/["'\]\)]+$/, '');
+        const segs = payload.split('|');
+        if (segs.length < 2 || segs[0] !== TAG || segs[1] !== KIND) return null;
+        const fields = {};
+        for (let i = 2; i < segs.length; i++) {
+          const eq = segs[i].indexOf('='); if (eq < 0) continue;
+          fields[segs[i].slice(0, eq)] = segs[i].slice(eq + 1);
+        }
+        const c = fields.costInstr;
+        return { tag: TAG, kind: KIND, page: fields.page || '', handler: fields.handler || '',
+          event: fields.event || fields.handler || '', caller: fields.caller || '',
+          lastBatch: fields.lastBatch || '', costInstr: c != null && /^\d+$/.test(c) ? Number(c) : null,
+          prefix: prefix || null, fields, raw: payload };
+      }
+      function parseLogStream(t) { return t == null ? [] : String(t).split(/\r?\n/).map(parseLogLine).filter(Boolean); }
+      function isWS(n) { return n && n.t === 'raw' && typeof n.html === 'string' && n.html.trim() === ''; }
+      function buildViewNode(node, path) {
+        if (!node || typeof node !== 'object') return null;
+        const id = path.join('.');
+        if (node.t === 'el') {
+          const events = node.events && typeof node.events === 'object' ? node.events : {};
+          const handlers = Object.keys(events).map((ev) => ({ event: ev, handler: events[ev] }));
+          const children = [];
+          (Array.isArray(node.children) ? node.children : []).forEach((c, i) => {
+            if (isWS(c)) return; const b = buildViewNode(c, path.concat(i)); if (b) children.push(b);
+          });
+          return { kind: 'el', id, tag: node.tag || '', label: node.tag || 'el',
+            attrs: node.attrs || {}, events, handlers, children, source: { path: id, tag: node.tag || '', handlers } };
+        }
+        if (node.t === 'text') return { kind: 'text', id, label: 'text', value: node.value || '', children: [], source: { path: id } };
+        if (node.t === 'raw') return { kind: 'raw', id, label: 'raw', html: node.html || '', children: [], source: { path: id } };
+        return null;
+      }
+      function buildViewTree(forest) {
+        const arr = typeof forest === 'string' ? JSON.parse(forest) : forest;
+        if (!Array.isArray(arr)) throw new Error('expected an IR forest array');
+        const roots = [];
+        arr.forEach((n, i) => { if (isWS(n)) return; const b = buildViewNode(n, [i]); if (b) roots.push(b); });
+        return roots;
+      }
+      function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      // ---- DOM wiring (browser-only; the UI itself is browser-flagged) -------
+      const $ = (id) => document.getElementById(id);
+      function renderTimeline(events) {
+        const el = $('timeline');
+        if (!events.length) { el.className = 'empty'; el.textContent = 'No dispatch lines found.'; return; }
+        el.className = '';
+        const max = Math.max(...events.map((e) => e.costInstr || 0), 1);
+        el.innerHTML = '<ol class="mv-timeline">' + events.map((e, i) => {
+          const hot = (e.costInstr || 0) > max * 0.66 ? ' hot' : '';
+          const cost = typeof e.costInstr === 'number' ? e.costInstr + ' instr' : '—';
+          return `<li class="mv-tl-row" data-handler="${esc(e.handler)}"><span class="mv-tl-i">#${i+1}</span>`
+            + `<span class="mv-tl-page">${esc(e.page)}</span><span class="mv-tl-handler">${esc(e.handler)}</span>`
+            + `<span class="mv-tl-caller">${esc(e.caller)}</span><span class="mv-tl-cost${hot}">${esc(cost)}</span></li>`;
+        }).join('') + '</ol>';
+        el.querySelectorAll('.mv-tl-row').forEach((row) => {
+          row.addEventListener('click', () => {
+            el.querySelectorAll('.mv-tl-row').forEach((r) => r.classList.remove('sel'));
+            row.classList.add('sel');
+            highlightHandler(row.getAttribute('data-handler'));
+          });
+        });
+      }
+      function renderTree(roots) {
+        const el = $('tree');
+        if (!roots.length) { el.className = 'empty'; el.textContent = 'Forest had no renderable nodes.'; return; }
+        el.className = '';
+        const li = (n) => {
+          const badge = (n.handlers || []).map((h) => `<span class="mv-ev" data-handler="${esc(h.handler)}">@${esc(h.event)}=${esc(h.handler)}</span>`).join('');
+          const head = n.kind === 'el' ? `&lt;${esc(n.tag)}&gt;` : n.kind === 'text' ? `"${esc(n.value)}"` : 'raw';
+          const sum = `<summary data-path="${esc(n.id)}" data-handlers="${esc((n.handlers||[]).map((h)=>h.handler).join(','))}">${head}${badge}</summary>`;
+          return n.children && n.children.length
+            ? `<li><details open>${sum}<ul>${n.children.map(li).join('')}</ul></details></li>`
+            : `<li>${sum}</li>`;
+        };
+        el.innerHTML = `<ul class="mv-viewtree">${roots.map(li).join('')}</ul>`;
+      }
+      function highlightHandler(handler) {
+        document.querySelectorAll('#tree summary').forEach((s) => {
+          const hs = (s.getAttribute('data-handlers') || '').split(',');
+          s.classList.toggle('hit', hs.indexOf(handler) >= 0 && !!handler);
+        });
+      }
+      $('logs').addEventListener('input', (e) => { try { renderTimeline(parseLogStream(e.target.value)); } catch (_) {} });
+      $('forest').addEventListener('input', (e) => {
+        const v = e.target.value.trim();
+        if (!v) { $('tree').className = 'empty'; $('tree').textContent = 'No IR forest yet.'; return; }
+        try { renderTree(buildViewTree(v)); } catch (err) { $('tree').className = 'empty'; $('tree').textContent = 'Invalid forest JSON: ' + err.message; }
+      });
+    </script>
+  </body>
+</html>

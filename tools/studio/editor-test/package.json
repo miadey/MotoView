@@ -1,0 +1,23 @@
+{
+  "name": "mview-editor-test",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Headless jsdom test for apps/studio/assets/mview-editor.js: mounts CodeMirror 6 with the .mview StreamLanguage, asserts tokenization, and asserts an R2 diagnostic produces a lint marker decoration.",
+  "type": "module",
+  "scripts": {
+    "test": "node editor-test.mjs"
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.10",
+    "@codemirror/lint": "^6.8",
+    "@codemirror/state": "^6.6",
+    "@codemirror/view": "^6.28",
+    "@lezer/highlight": "^1.2",
+    "codemirror": "^6.0",
+    "jsdom": "^24.1"
+  },
+  "overrides": {
+    "@codemirror/state": "$@codemirror/state",
+    "@codemirror/view": "$@codemirror/view"
+  }
+}

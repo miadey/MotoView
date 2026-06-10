@@ -1,0 +1,19 @@
+# Motoko package manifest (https://mops.one).
+#
+# MotoView ships its runtime as the mops package `motoview`. Declaring it here
+# puts the runtime that serves HTTP from your canister on the dependency path,
+# so `import MotoView "mo:motoview"` resolves when the generated actor compiles.
+#
+#   mops install        # fetch the runtime declared below
+#
+# This scaffold's dfx.json ALSO wires the runtime directly with
+# `--package motoview <path-to-runtime/src>` for local-checkout development.
+# Either path makes `mo:motoview` resolve; pick one. If you build with mops,
+# drop the `--package motoview ...` arg from dfx.json.
+[package]
+name = "__NAME__"
+version = "0.1.0"
+
+[dependencies]
+motoview = "0.1.0"
+base = "0.13.4"

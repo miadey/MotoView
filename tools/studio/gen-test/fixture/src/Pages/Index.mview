@@ -1,0 +1,27 @@
+@page "/"
+@layout MainLayout
+@title "Notes"
+@description "A baseline lint-clean page so the fixture project type-checks before the gen-loop stages a generated page beside it."
+
+<header>
+    <h1>Notes</h1>
+    <p>@Notes.count() note(s) so far.</p>
+</header>
+
+<ul>
+    @for note in notes {
+        <li class="note" key="@note.id">
+            <strong>@note.title</strong>
+            <p>@note.body</p>
+        </li>
+    }
+</ul>
+
+@code {
+    var notes : [Notes.Note] = [];
+
+    func onLoad(ctx : Context) {
+        ignore ctx;
+        notes := Notes.all();
+    };
+}

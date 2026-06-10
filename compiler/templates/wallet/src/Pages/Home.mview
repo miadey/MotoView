@@ -1,0 +1,143 @@
+@page "/"
+@layout MainLayout
+@authorize
+@title "Wallet — spend with intent-bound authorization"
+@description "A wallet spend flow that confirms the EXACT intent and runs the intent-bound authorization gate (ctx.authorizeSpend) BEFORE any ChainKey signing. References ChainKey for threshold signing and EncStore for at-rest secrets. Authorize first, sign second."
+
+<!--
+  WALLET PATTERN — confirm intent → authorize gate → sign.
+
+  The cardinal rule (WalletAuth.mo): a value-moving signature MUST NOT happen
+  unless the handler first calls ctx.authorizeSpend(...) and gets `true`. That
+  gate enforces, atomically:
+    1. a valid SESSION   — the secure token is bound to ctx.caller;
+    2. an INTENT-bound single-use token — minted over the EXACT spend intent
+       (amount, dest, chain). A token minted for spend X CANNOT authorize spend Y.
+    3. REPLAY protection — the nonce is consumed exactly once;
+    4. a per-principal VELOCITY limit on the `weight`.
+  Only on `true` do we derive the sighash and call ChainKey.signWithEcdsa.
+
+  Modules referenced:
+    • ChainKey.mo   — threshold ECDSA/Schnorr signing via the management canister.
+    • EncStore.mo   — ciphertext-only at-rest storage (e.g. an encrypted memo),
+                      keyed by owner principal; the canister never sees plaintext.
+    • WalletAuth.mo — backs ctx.authorizeSpend / ctx.mintSpendToken.
+
+  NOTE: a native hardware device assertion (Secure-Enclave / StrongBox) is a
+  SEPARATE factor that must ALSO gate signing once the native client lands. It is
+  intentionally NOT faked here.
+
+  The CONFIRM step's hidden token is minted by ctx.mintSpendToken over the SAME
+  (amount,to,chain) intent the gate re-derives, so the token is self-consistent:
+  the confirm form's fields ARE the intent it binds.
+-->
+
+<section class="tpl">
+    <h1 class="st-h1">Confirm spend</h1>
+
+    @if done {
+        <MessageBar intent="success">Spend authorized and signed. Tx broadcast handed off.</MessageBar>
+    }
+
+    <div class="wl-intent">
+        <h2 class="wl-h2">You are about to send</h2>
+        <dl class="wl-meta">
+            <dt>Amount</dt><dd><strong>@amount</strong> @chain</dd>
+            <dt>To</dt><dd><code>@destination</code></dd>
+            <dt>Chain</dt><dd>@chain</dd>
+        </dl>
+    </div>
+
+    <!--
+      The confirm form is secure (mutating, so it MUST be). The hidden mv_token
+      is an INTENT-BOUND spend token, minted by ctx.mintSpendToken over the EXACT
+      (amount,to,chain) intent. The submit handler authorizes-then-signs: it feeds
+      the same intent to ctx.authorizeSpend, which re-derives the binding and
+      rejects a token minted for any other intent.
+    -->
+    <form @submit="confirmSpend" secure>
+        <ValidationSummary />
+        <input type="hidden" name="mv_token" value="@spendToken">
+        <p class="st-note">By confirming, you authorize signing a transaction that moves real value.
+            The authorization is bound to <em>this exact</em> amount, destination and chain.</p>
+        <Button kind="primary" type="submit">Confirm &amp; sign</Button>
+    </form>
+</section>
+
+<style>
+    .tpl { max-width: 560px; }
+    .wl-intent { background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+        border-radius: var(--borderRadiusLarge); padding: var(--spacingVerticalL) var(--spacingHorizontalL);
+        margin: var(--spacingVerticalL) 0; }
+    .wl-h2 { margin: 0 0 var(--spacingVerticalM); font-size: var(--fontSizeBase400); }
+    .wl-meta { display: grid; grid-template-columns: max-content 1fr; gap: .35rem var(--spacingHorizontalL); margin: 0; }
+    .wl-meta dt { color: var(--colorNeutralForeground3); font-weight: var(--fontWeightSemibold); }
+    .wl-meta dd { margin: 0; }
+    .wl-meta code { background: var(--colorNeutralBackground3); border-radius: 4px; padding: .1rem .4rem; word-break: break-all; }
+</style>
+
+@code {
+    // The spend intent under confirmation. In a real wallet these come from the
+    // route / a prior "compose" step; here they are the page's typed state.
+    var amount : Text = "0.05";
+    var destination : Text = "bc1qexampledestinationaddressxxxxxxxxxxx";
+    var chain : Text = "btc";
+    var done : Bool = false;
+
+    // The hidden intent-bound spend token rendered into the confirm form. Minted
+    // in onLoad (render time) by ctx.mintSpendToken over exactly intent(), so the
+    // token the browser submits is bound to THIS spend and nothing else.
+    var spendToken : Text = "";
+
+    // The canonical (key,value) intent. mintSpendToken (render) and authorizeSpend
+    // (handler) MUST be given the SAME pairs so mint and verify agree on one
+    // derivation — the gate rejects any token whose intent differs by even one byte.
+    func intent() : [(Text, Text)] {
+        [ ("amount", amount), ("to", destination), ("chain", chain) ];
+    };
+
+    func onLoad(ctx : Context) {
+        // Mint the intent-bound spend token for the confirm form. (Outside a
+        // render that needs it, mintSpendToken is a no-op returning "".)
+        spendToken := ctx.mintSpendToken("confirmSpend", intent());
+    };
+
+    func confirmSpend(ctx : Context) : async () {
+        // 1) Sanity-validate the intent fields server-side.
+        validate {
+            amount required "Missing amount.";
+            destination required "Missing destination.";
+            chain required "Missing chain.";
+        };
+
+        // 2) THE GATE. Pull the submitted secure token and authorize the EXACT
+        //    intent. `weight` feeds the per-principal velocity limit. Returns true
+        //    only if session + intent-binding + replay + velocity ALL pass.
+        let token = formGet(ctx, "mv_token");
+        let weight : Nat = 5; // app-chosen cost for the velocity window
+        if (not ctx.authorizeSpend("confirmSpend", intent(), token, weight)) {
+            toast("Spend not authorized (bad/expired/replayed token or velocity limit).");
+            return;
+        };
+
+        // 3) ONLY NOW may we sign. Authorize first, sign second.
+        //    A real handler builds the sighash for `chain` and calls ChainKey:
+        //      let keyName = ChainKey.requireKeyName("ic", #production);
+        //      let path    = ChainKey.derivationPath(ctx.caller, chain);
+        //      let sig     = await ChainKey.signWithEcdsa(keyName, path, sighash);
+        //    (Left as a comment so this template type-checks without a live
+        //     management-canister call; the GATE above is the security-critical part.)
+
+        // 4) Optionally persist an at-rest encrypted memo via EncStore (ciphertext
+        //    only — the canister never sees plaintext):
+        //      EncStore.put(ctx.caller, ciphertextMemo);
+
+        done := true;
+        toast("Authorized. Signing handed to ChainKey.");
+    };
+
+    func formGet(ctx : Context, key : Text) : Text {
+        for ((k, v) in ctx.form.vals()) { if (k == key) { return v } };
+        "";
+    };
+}

@@ -1,0 +1,10 @@
+{
+  "name": "__NAME__",
+  "version": "0.1.0",
+  "src": "src",
+  "out": ".mvbuild/main.mo",
+  "pages": "src/Pages",
+  "components": "src/Components",
+  "layouts": "src/Layouts",
+  "seo": true
+}

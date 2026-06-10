@@ -1,0 +1,260 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MotoView",
+  "scopeName": "source.mview",
+  "fileTypes": ["mview"],
+  "comment": "TextMate grammar for the MotoView .mview single-file format: template HTML + @directives + @code{...} embedded Motoko. Portable across Monaco / VS Code / vscode-textmate. Authored for MotokoStudio (R6).",
+  "patterns": [
+    { "include": "#code-block" },
+    { "include": "#line-directives" },
+    { "include": "#template" }
+  ],
+  "repository": {
+
+    "line-directives": {
+      "comment": "Header / top-of-file @directives that own a whole line: @page, @layout, @title, @description, @theme, @head, @yield, @authorize, @cacheable, @section, etc.",
+      "patterns": [
+        {
+          "comment": "@theme brand=\"#hex\"",
+          "match": "(@)(theme)\\b",
+          "captures": {
+            "1": { "name": "punctuation.definition.keyword.mview" },
+            "2": { "name": "keyword.control.directive.theme.mview" }
+          }
+        },
+        {
+          "comment": "Directives that take a quoted-string or identifier argument on the rest of the line.",
+          "match": "(@)(page|layout|title|description|authorize|cacheable|section|head|yield)\\b",
+          "captures": {
+            "1": { "name": "punctuation.definition.keyword.mview" },
+            "2": { "name": "keyword.control.directive.mview" }
+          }
+        }
+      ]
+    },
+
+    "code-block": {
+      "comment": "@code { ...embedded Motoko... } — delegate body to the Motoko scope. Begin captures the @code keyword; the closing brace ends it. The body is the project's typed state + @code handlers.",
+      "begin": "(@)(code)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.keyword.mview" },
+        "2": { "name": "keyword.control.directive.code.mview" },
+        "3": { "name": "punctuation.section.embedded.begin.mview" }
+      },
+      "end": "(\\})\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.section.embedded.end.mview" }
+      },
+      "name": "meta.embedded.block.motoko",
+      "contentName": "source.motoko",
+      "patterns": [
+        { "include": "#motoko" }
+      ]
+    },
+
+    "motoko": {
+      "comment": "A pragmatic Motoko pattern set (used both inside @code{} and inline @() expressions). Not a full source.motoko grammar — enough that an editor without source.motoko still colours keywords, types, strings, comments, and numbers.",
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.motoko",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.motoko",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "string.quoted.double.motoko",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.motoko", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "keyword.control.motoko",
+          "match": "\\b(actor|and|async|assert|await|break|case|catch|class|continue|debug|debug_show|do|else|for|func|if|ignore|import|in|module|not|object|or|label|let|loop|private|public|query|return|shared|stable|switch|system|throw|try|type|var|while|with)\\b"
+        },
+        {
+          "name": "storage.type.primitive.motoko",
+          "match": "\\b(Nat|Nat8|Nat16|Nat32|Nat64|Int|Int8|Int16|Int32|Int64|Float|Bool|Text|Char|Blob|Principal|Error|None|Any|Null|Region)\\b"
+        },
+        {
+          "name": "constant.language.motoko",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "comment": "Variant tags like #ok #err #Draft",
+          "name": "entity.name.tag.variant.motoko",
+          "match": "#[A-Za-z_][A-Za-z0-9_]*"
+        },
+        {
+          "name": "constant.numeric.motoko",
+          "match": "\\b(0x[0-9A-Fa-f_]+|[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9]+)?)\\b"
+        },
+        {
+          "comment": "A type after a colon or an uppercased identifier read as a type.",
+          "name": "entity.name.type.motoko",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+
+    "template": {
+      "comment": "Everything that is not @code{} or a line-directive: HTML-ish template markup with @if/@for/@switch control flow and @expr output.",
+      "patterns": [
+        { "include": "#comment-html" },
+        { "include": "#control-flow" },
+        { "include": "#interpolation" },
+        { "include": "#tag" },
+        { "include": "#entity" }
+      ]
+    },
+
+    "comment-html": {
+      "name": "comment.block.html.mview",
+      "begin": "<!--",
+      "end": "-->"
+    },
+
+    "control-flow": {
+      "comment": "Template control-flow directives: @if @else @for @switch @case @default. These own a keyword; the braces/conditions are template-level.",
+      "patterns": [
+        {
+          "match": "(@)(if|else\\s+if|else|for|switch|case|default)\\b",
+          "captures": {
+            "1": { "name": "punctuation.definition.keyword.mview" },
+            "2": { "name": "keyword.control.flow.mview" }
+          }
+        }
+      ]
+    },
+
+    "interpolation": {
+      "comment": "Output interpolation: @raw(expr), @(expr) parenthesised, and bare @ident.field chains.",
+      "patterns": [
+        {
+          "comment": "@raw( ... ) trusted unescaped HTML output.",
+          "begin": "(@)(raw)\\s*(\\()",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.template-expression.begin.mview" },
+            "2": { "name": "keyword.other.raw.mview" },
+            "3": { "name": "punctuation.section.expression.begin.mview" }
+          },
+          "end": "(\\))",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.expression.end.mview" }
+          },
+          "name": "meta.embedded.expression.raw.mview",
+          "patterns": [ { "include": "#motoko" } ]
+        },
+        {
+          "comment": "@( ... ) parenthesised escaped expression.",
+          "begin": "(@)(\\()",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.template-expression.begin.mview" },
+            "2": { "name": "punctuation.section.expression.begin.mview" }
+          },
+          "end": "(\\))",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.expression.end.mview" }
+          },
+          "name": "meta.embedded.expression.mview",
+          "patterns": [ { "include": "#motoko" } ]
+        },
+        {
+          "comment": "Bare @ident or @ident.field chain (escaped output) — must NOT match an escaped @@ literal.",
+          "match": "(@)([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:\\(\\))?)",
+          "captures": {
+            "1": { "name": "punctuation.definition.template-expression.begin.mview" },
+            "2": { "name": "variable.other.interpolated.mview" }
+          }
+        }
+      ]
+    },
+
+    "tag": {
+      "comment": "HTML tags and MotoView components (capitalised tag names like <Button> <Badge>). Within a tag we colour attributes, the special `secure`/`bind` attributes and @event bindings.",
+      "patterns": [
+        {
+          "comment": "Closing tag </Tag>",
+          "match": "(</)([A-Za-z][A-Za-z0-9_-]*)\\s*(>)",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.html" },
+            "2": { "name": "entity.name.tag.html" },
+            "3": { "name": "punctuation.definition.tag.end.html" }
+          }
+        },
+        {
+          "comment": "Opening tag up to > or />",
+          "begin": "(<)([A-Za-z][A-Za-z0-9_-]*)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.html" },
+            "2": { "name": "entity.name.tag.html" }
+          },
+          "end": "(/?>)",
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.end.html" }
+          },
+          "name": "meta.tag.mview",
+          "patterns": [
+            { "include": "#tag-inner" }
+          ]
+        }
+      ]
+    },
+
+    "tag-inner": {
+      "patterns": [
+        {
+          "comment": "The deny-by-default `secure` attribute (security-relevant — own scope).",
+          "match": "(?<=[\\s])(secure)(?=[\\s/>])",
+          "name": "keyword.other.attribute.secure.mview"
+        },
+        {
+          "comment": "Two-way `bind` and required/validation boolean attributes.",
+          "match": "(?<=[\\s])(bind|required|disabled|readonly|checked|autofocus|novalidate)(?=[\\s/>=])",
+          "name": "keyword.other.attribute.special.mview"
+        },
+        {
+          "comment": "Event binding attributes: @click, @submit, @input, @change, @keyup, ... — a directive inside a tag.",
+          "match": "(@)(click|submit|input|change|keyup|keydown|focus|blur|load|mount)\\b",
+          "captures": {
+            "1": { "name": "punctuation.definition.keyword.mview" },
+            "2": { "name": "entity.other.attribute-name.event.mview" }
+          }
+        },
+        {
+          "comment": "@(expr) inside an attribute value (e.g. bind=\"@model.name\").",
+          "include": "#interpolation"
+        },
+        {
+          "comment": "A regular attribute name.",
+          "match": "([A-Za-z_:][A-Za-z0-9_:.-]*)\\s*(=)?",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.html" },
+            "2": { "name": "punctuation.separator.key-value.html" }
+          }
+        },
+        {
+          "name": "string.quoted.double.html",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [ { "include": "#interpolation" } ]
+        },
+        {
+          "name": "string.quoted.single.html",
+          "begin": "'",
+          "end": "'",
+          "patterns": [ { "include": "#interpolation" } ]
+        }
+      ]
+    },
+
+    "entity": {
+      "name": "constant.character.entity.html",
+      "match": "&[a-zA-Z0-9#]+;"
+    }
+  }
+}

@@ -3,7 +3,7 @@
 //! MotoView runtime.
 
 use crate::ast::FileKind;
-use crate::codegen::Codegen;
+use crate::codegen::{Codegen, EmitMode};
 use crate::lint::{self, Severity};
 use crate::parser;
 use std::collections::HashMap;
@@ -18,6 +18,17 @@ pub struct BuildOptions {
     /// key; "ic"/"mainnet" uses the production `key_1`. Selects the key name
     /// baked into the generated actor (see `vetkd_key_name`).
     pub network: String,
+    /// Which backend the page render emits. `Html` is the DEFAULT and is the
+    /// byte-identical legacy path (every `motoview build`/`check`/`dev` uses it).
+    /// `Ir` makes each page's `mvRender` return the portable UINode forest as
+    /// JSON Text (via `Ir.Builder`) — the basis of the no-deploy preview.
+    pub emit: EmitMode,
+    /// Opt-in observability instrumentation (R7). When true, the generated event
+    /// dispatch emits a structured `Debug.print` line per event (tag + page +
+    /// handler + caller + lastBatch + instruction cost) consumed by the studio
+    /// log parser. DEFAULT is false; when false the generated `main.mo` is
+    /// BYTE-IDENTICAL to the legacy path (no Debug import, no perf counter).
+    pub instrument: bool,
 }
 
 impl Default for BuildOptions {
@@ -27,6 +38,8 @@ impl Default for BuildOptions {
             app_name: "MotoViewApp".to_string(),
             out: PathBuf::from(".mvbuild/main.mo"),
             network: "local".to_string(),
+            emit: EmitMode::Html,
+            instrument: false,
         }
     }
 }
@@ -162,6 +175,15 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         extra_imports.push_str(&format!("import {} \"{prefix}Models/{}\";\n", n, n));
     }
 
+    // R7 observability: the instrumented dispatch references `Debug.print` and
+    // `ExperimentalInternetComputer.performanceCounter`. These imports are ONLY
+    // emitted when `--instrument` is on, so the default build header (and thus
+    // every byte) is unchanged. (`Principal` is already imported unconditionally.)
+    if opts.instrument {
+        extra_imports.push_str("import Debug \"mo:base/Debug\";\n");
+        extra_imports.push_str("import ExperimentalIC \"mo:base/ExperimentalInternetComputer\";\n");
+    }
+
     if page_files.is_empty() {
         return Err(format!(
             "no .mview pages found in {}",
@@ -235,7 +257,11 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         for d in lint::lint_file(&file, &rel) {
             diagnostics.push((rel.clone(), d));
         }
-        let mut cg = Codegen::new(&models, &components);
+        // Pages honour the requested emit backend: Html (default, byte-identical)
+        // or Ir (portable UINode forest, used by the no-deploy preview). Layouts
+        // and components are always Html-emitted regardless (they are the document
+        // shell / HTML fragments — see gen_layout / gen_app_component).
+        let mut cg = Codegen::new_with_emit(&models, &components, opts.emit).with_instrument(opts.instrument);
         let pg = cg.gen_page(&file);
         page_objects.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, pf)));
         page_objects.push_str(&pg.object_block);
@@ -356,6 +382,433 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     Ok(summary)
 }
 
+// ---- no-deploy preview (motoview preview) --------------------------------
+
+/// One recorded interaction event for deterministic record/replay (R10). It is the
+/// exact triple the generated `mvDispatch(ctx, handler, args)` consumes: a handler
+/// id, its string args (the same `[Text]` the runtime passes), and the caller
+/// principal text (anonymous by default). Replaying the same ordered list through
+/// the page's dispatch is byte-deterministic — the IC's determinism makes
+/// time-travel near-free.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplayEvent {
+    /// The handler/event id, e.g. `increment` (matches an `@click="increment(..)"`).
+    pub handler: String,
+    /// The handler's string arguments, in order (e.g. `["1"]` for `increment(1)`).
+    pub args: Vec<String>,
+    /// The caller principal text. Defaults to the anonymous principal `2vxsx-fae`.
+    pub caller: String,
+}
+
+impl ReplayEvent {
+    /// The anonymous principal — the default caller for a recorded event.
+    pub const ANON: &'static str = "2vxsx-fae";
+}
+
+/// The result of generating a no-deploy preview driver.
+#[derive(Debug, Clone)]
+pub struct PreviewBuild {
+    /// Absolute/relative path of the generated preview driver program.
+    pub driver_path: PathBuf,
+    /// The route of the page the driver renders.
+    pub route: String,
+    /// The page identifier (file stem) the driver renders.
+    pub page_name: String,
+    /// All discovered routes (route -> page name), for the error message / listing.
+    pub routes: Vec<(String, String)>,
+}
+
+/// Generate a self-contained preview DRIVER program (`.mvbuild/preview.mo`) that,
+/// when run through the Motoko interpreter (`moc -r`), constructs a MOCK request
+/// context (anonymous caller, empty params/query/form, isAuthenticated=false,
+/// no-op token/role functions) and `Debug.print`s the IR forest produced by the
+/// target page's `render(mockCtx)`.
+///
+/// This is the fast inner loop: NO `dfx deploy`, NO replica. The page objects in
+/// the driver are the EXACT ones the real build emits, but in `EmitMode::Ir` so
+/// `mvRender` returns the portable UINode forest JSON (see runtime/src/Ir.mo).
+/// The driver is a top-level program (not an `actor`) so `moc -r` evaluates it
+/// directly; the actor's HTTP/stable/vetKD machinery (which needs the async actor
+/// context) is intentionally omitted — the preview only needs the initial render.
+///
+/// `route` selects which page to render (matched against each page's route, or by
+/// page name); `None` renders the first page (after sorting routes for stability).
+pub fn build_preview(
+    project_dir: &Path,
+    route: Option<&str>,
+) -> Result<PreviewBuild, String> {
+    build_preview_with_events(project_dir, route, &[])
+}
+
+/// Like [`build_preview`], but BEFORE the final render it applies an ordered list
+/// of recorded [`ReplayEvent`]s through the page's `mvDispatch` (R10 deterministic
+/// replay). Each event mutates the page-local state exactly as a real interaction
+/// would; the forest printed is the page's render AFTER those N dispatches. Passing
+/// an empty slice is identical to [`build_preview`] (the initial render). Because
+/// the page render + dispatch are pure/deterministic, replaying the same session
+/// twice yields byte-identical forests — that is the core record/replay property.
+pub fn build_preview_with_events(
+    project_dir: &Path,
+    route: Option<&str>,
+    events: &[ReplayEvent],
+) -> Result<PreviewBuild, String> {
+    let mut diagnostics: Vec<(String, lint::Diagnostic)> = Vec::new();
+    let src = project_dir.join("src");
+    // The driver lives in .mvbuild/, so service/model imports point back to ../src.
+    let out = project_dir.join(".mvbuild").join("preview.mo");
+    let prefix = {
+        let rel = rel_path_between(out.parent().unwrap_or(project_dir), &src);
+        if rel.is_empty() { String::new() } else { format!("{}/", rel) }
+    };
+
+    let pages_dir = src.join("Pages");
+    let layouts_dir = src.join("Layouts");
+    let components_dir = src.join("Components");
+    let page_files = list_mview(&pages_dir);
+    let layout_files = list_mview(&layouts_dir);
+    let component_files = list_mview(&components_dir);
+
+    if page_files.is_empty() {
+        return Err(format!("no .mview pages found in {}", pages_dir.display()));
+    }
+
+    // ---- services (mirrors build()): stateless modules + stateful classes ----
+    let mut extra_imports = String::new();
+    let mut service_instances = String::new();
+    for f in list_mo(&src.join("Services")) {
+        let n = file_stem(&f);
+        let content = fs::read_to_string(&f).unwrap_or_default();
+        if is_stateful_service(&content, &n) {
+            extra_imports.push_str(&format!("import {n}__mod \"{prefix}Services/{n}\";\n", n = n));
+            service_instances.push_str(&format!(
+                "  let {n} = {n}__mod.{n}();\n",
+                n = n
+            ));
+        } else {
+            extra_imports.push_str(&format!("import {} \"{prefix}Services/{}\";\n", n, n));
+        }
+    }
+    for f in list_mo(&src.join("Models")) {
+        let n = file_stem(&f);
+        extra_imports.push_str(&format!("import {} \"{prefix}Models/{}\";\n", n, n));
+    }
+
+    // ---- scan record types (mirrors build()) ----
+    let mut models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for f in list_mo(&src.join("Services")) {
+        let content = fs::read_to_string(&f).unwrap_or_default();
+        scan_types(&content, Some(&file_stem(&f)), &mut models);
+    }
+    for f in list_mo(&src.join("Models")) {
+        let content = fs::read_to_string(&f).unwrap_or_default();
+        scan_types(&content, Some(&file_stem(&f)), &mut models);
+    }
+
+    // ---- components (always Html-emitted, like build()) ----
+    let mut components: HashMap<String, crate::codegen::CompInfo> = HashMap::new();
+    let mut parsed_components = Vec::new();
+    for cf in &component_files {
+        let name = file_stem(cf);
+        let source = fs::read_to_string(cf).map_err(|e| format!("{}: {}", cf.display(), e))?;
+        let file = parser::parse(&source, &name, FileKind::Component)?;
+        let rel = rel_src(project_dir, cf);
+        for d in lint::lint_file(&file, &rel) {
+            diagnostics.push((rel.clone(), d));
+        }
+        let slots = crate::codegen::collect_slot_names(&file.template);
+        components.insert(
+            name,
+            crate::codegen::CompInfo { params: file.code.params.clone(), slots },
+        );
+        parsed_components.push(file);
+    }
+    let mut component_funcs = String::new();
+    for (cf, file) in component_files.iter().zip(parsed_components.iter()) {
+        let mut cg = Codegen::new(&models, &components);
+        component_funcs.push_str(&format!("  // mv:src {}\n", rel_src(project_dir, cf)));
+        component_funcs.push_str(&cg.gen_app_component(file));
+        component_funcs.push('\n');
+    }
+
+    // ---- pages: emit each in IR mode (the whole point of preview) ----
+    let mut page_objects = String::new();
+    let mut page_records = String::new();
+    let mut routes: Vec<(String, String)> = Vec::new();
+    for pf in &page_files {
+        let name = file_stem(pf);
+        let source = fs::read_to_string(pf).map_err(|e| format!("{}: {}", pf.display(), e))?;
+        let file = parser::parse(&source, &name, FileKind::Page)?;
+        let rel = rel_src(project_dir, pf);
+        for d in lint::lint_file(&file, &rel) {
+            diagnostics.push((rel.clone(), d));
+        }
+        let mut cg = Codegen::new_with_emit(&models, &components, EmitMode::Ir);
+        let pg = cg.gen_page(&file);
+        page_objects.push_str(&format!("  // mv:src {}\n", rel_src(project_dir, pf)));
+        page_objects.push_str(&pg.object_block);
+        page_objects.push('\n');
+        page_records.push_str(&pg.page_record);
+        routes.push((pg.route.clone(), pg.name.clone()));
+    }
+
+    // ---- layouts (always Html-emitted) ----
+    let mut layout_funcs = String::new();
+    for lf in &layout_files {
+        let name = file_stem(lf);
+        let source = fs::read_to_string(lf).map_err(|e| format!("{}: {}", lf.display(), e))?;
+        let file = parser::parse(&source, &name, FileKind::Layout)?;
+        let rel = rel_src(project_dir, lf);
+        for d in lint::lint_file(&file, &rel) {
+            diagnostics.push((rel.clone(), d));
+        }
+        let mut cg = Codegen::new(&models, &components);
+        layout_funcs.push_str(&format!("  // mv:src {}\n", rel_src(project_dir, lf)));
+        layout_funcs.push_str(&cg.gen_layout(&file));
+        layout_funcs.push('\n');
+    }
+
+    // Lint gate: an Error-severity finding aborts the preview (same gate as build).
+    if diagnostics.iter().any(|(_, d)| d.severity == Severity::Error) {
+        return Err(format_diagnostics(&diagnostics));
+    }
+
+    // Pick the target page: by route (exact match), then by page name, else first.
+    let mut sorted = routes.clone();
+    sorted.sort();
+    let (target_route, target_name) = if let Some(want) = route {
+        let w = want.trim();
+        routes
+            .iter()
+            .find(|(r, _)| r == w)
+            .or_else(|| routes.iter().find(|(_, n)| n.eq_ignore_ascii_case(w.trim_start_matches('/'))))
+            .cloned()
+            .ok_or_else(|| {
+                let mut msg = format!("no page matches route `{}`. Available routes:\n", want);
+                for (r, n) in &sorted {
+                    msg.push_str(&format!("  {:<24} {}\n", r, n));
+                }
+                msg
+            })?
+    } else {
+        sorted
+            .first()
+            .cloned()
+            .ok_or_else(|| "no pages to preview".to_string())?
+    };
+    let target_obj = format!("{}Page", target_name);
+
+    let program = assemble_preview(
+        &page_objects,
+        &component_funcs,
+        &layout_funcs,
+        &extra_imports,
+        &service_instances,
+        &target_obj,
+        &target_route,
+        events,
+    );
+    // Collapse the per-token raw runs (same readability pass the build uses).
+    let program = coalesce_raw(&program);
+
+    if let Some(parent) = out.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&out, &program).map_err(|e| format!("writing {}: {}", out.display(), e))?;
+
+    Ok(PreviewBuild {
+        driver_path: out,
+        route: target_route,
+        page_name: target_name,
+        routes: sorted,
+    })
+}
+
+/// Assemble the preview DRIVER as a top-level Motoko PROGRAM (not an actor) that
+/// `moc -r` can evaluate directly. It carries the same imports, conversion
+/// helpers, services, components, page objects and layout funcs the real actor
+/// has — but instead of HTTP wiring it builds a mock `MV.Ctx` and prints the IR
+/// forest of the target page's `mvRender(mockCtx)`.
+///
+/// Why a program and not the actor: the actor's `http_request*`/vetKD/raw_rand
+/// machinery is `async` and needs the canister context (`Random.blob()`,
+/// `await VetKeys.*`), which `moc -r` cannot drive. The preview only needs the
+/// page's INITIAL render, which is a pure `Ctx -> Text` call — fully evaluable in
+/// the interpreter with a mock context.
+#[allow(clippy::too_many_arguments)]
+fn assemble_preview(
+    page_objects: &str,
+    component_funcs: &str,
+    layout_funcs: &str,
+    extra_imports: &str,
+    service_instances: &str,
+    target_obj: &str,
+    target_route: &str,
+    events: &[ReplayEvent],
+) -> String {
+    // REPLAY: emit one `mvDispatch(...)` per recorded event, in order, BEFORE the
+    // final render. The dispatch reuses `mockCtx` for the anonymous caller and a
+    // per-event override otherwise, so a recorded session re-runs through the exact
+    // same dispatch+render path the live actor uses (deterministically).
+    let mut replay = String::new();
+    for ev in events {
+        let args_lit = ev
+            .args
+            .iter()
+            .map(|a| mo_string(a))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if ev.caller == ReplayEvent::ANON {
+            replay.push_str(&format!(
+                "{obj}.mvDispatch(mockCtx, {h}, [{args}]);\n",
+                obj = target_obj,
+                h = mo_string(&ev.handler),
+                args = args_lit
+            ));
+        } else {
+            // A non-anonymous caller: clone mockCtx with the recorded principal so a
+            // handler reading `ctx.caller` sees the replayed identity.
+            replay.push_str(&format!(
+                "{obj}.mvDispatch({{ mockCtx with caller = Principal.fromText({c}) }}, {h}, [{args}]);\n",
+                obj = target_obj,
+                c = mo_string(&ev.caller),
+                h = mo_string(&ev.handler),
+                args = args_lit
+            ));
+        }
+    }
+    format!(
+        r#"// GENERATED by `motoview preview` — do not edit.
+// A no-deploy preview DRIVER: run it with `moc -r` to print the IR forest of one
+// page's INITIAL render against a MOCK context. No dfx, no replica. Edit the
+// .mview source instead, then re-run `motoview preview`.
+import Html "mo:motoview/Html";
+import Ir "mo:motoview/Ir";
+import MV "mo:motoview/Types";
+import Charts "mo:motoview/Charts";
+import Nat "mo:base/Nat";
+import Nat32 "mo:base/Nat32";
+import Nat64 "mo:base/Nat64";
+import Int "mo:base/Int";
+import Float "mo:base/Float";
+import Char "mo:base/Char";
+import Text "mo:base/Text";
+import Buffer "mo:base/Buffer";
+import Principal "mo:base/Principal";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
+import Option "mo:base/Option";
+import Time "mo:base/Time";
+import Bool "mo:base/Bool";
+import Debug "mo:base/Debug";
+{extra_imports}
+// `Context` alias (a handler whose first param is `ctx : Context`).
+type Context = MV.Ctx;
+
+// ---- conversion helpers (identical to the generated actor's) ----
+func mvNat(t : Text) : Nat {{
+  var n : Nat = 0;
+  for (c in t.chars()) {{
+    let d = Char.toNat32(c);
+    if (d >= 48 and d <= 57) {{ n := n * 10 + Nat32.toNat(d - 48) }};
+  }};
+  n;
+}};
+func mvInt(t : Text) : Int {{
+  var n : Int = 0;
+  var neg = false;
+  for (c in t.chars()) {{
+    if (c == '-') {{ neg := true }} else {{
+      let d = Char.toNat32(c);
+      if (d >= 48 and d <= 57) {{ n := n * 10 + Nat32.toNat(d - 48) }};
+    }};
+  }};
+  if (neg) {{ -n }} else {{ n }};
+}};
+func mvIsEmail(t : Text) : Bool {{
+  Text.contains(t, #char '@') and Text.contains(t, #char '.');
+}};
+func mvFormGet(ctx : MV.Ctx, k : Text) : ?Text {{
+  for ((kk, vv) in ctx.form.vals()) {{ if (kk == k) {{ return ?vv }} }};
+  null;
+}};
+func mvParamGet(ctx : MV.Ctx, k : Text) : Text {{
+  for ((kk, vv) in ctx.params.vals()) {{ if (kk == k) {{ return vv }} }};
+  "";
+}};
+// Silence "unused" warnings for helpers a given page may not reference.
+ignore mvNat; ignore mvInt; ignore mvIsEmail; ignore mvFormGet; ignore mvParamGet;
+ignore Html; ignore Charts;
+
+// ---- shared service instances ----
+{service_instances}
+{component_funcs}
+{page_objects}
+{layout_funcs}
+
+// ---- mock request context (anonymous, empty, no-op security) ----
+// The anonymous principal (2vxsx-fae) — exactly what a query render sees before
+// any Internet Identity login. isAuthenticated=false; all token/role functions
+// are inert so a page that *reads* them renders, while a page that *requires* a
+// real session simply renders its unauthenticated branch.
+let mockCtx : MV.Ctx = {{
+  method = "GET";
+  path = {target_route:?};
+  queryParams = [];
+  params = [];
+  form = [];
+  caller = Principal.fromText("2vxsx-fae");
+  isAuthenticated = false;
+  lastBatchId = "";
+  mintToken = func (_h : Text, _s : Text) : Text {{ "" }};
+  mintIntentToken = func (_h : Text, _s : Text, _i : [(Text, Text)]) : Text {{ "" }};
+  authorizeSpend = func (_h : Text, _i : [(Text, Text)], _t : Text, _w : Nat) : Bool {{ false }};
+  mintSpendToken = func (_h : Text, _i : [(Text, Text)]) : Text {{ "" }};
+  hasRole = func (_w : Principal, _r : Text) : Bool {{ false }};
+  callerRoles = func () : [Text] {{ [] }};
+  grantRole = func (_w : Principal, _r : Text) : () {{ () }};
+  revokeRole = func (_w : Principal, _r : Text) : () {{ () }};
+  claimRole = func (_r : Text) : Bool {{ false }};
+}};
+
+// Run the page's data-loading lifecycle, REPLAY any recorded events through the
+// page's dispatch, then print the IR forest. With no recorded events this is the
+// INITIAL render; with events it is the render AFTER those N dispatches.
+// `mvRender` returns the UINode forest as JSON Text (EmitMode::Ir). This single
+// line of stdout IS the preview payload.
+{target_obj}.mvOnLoad(mockCtx);
+{replay}Debug.print({target_obj}.mvRender(mockCtx));
+"#,
+        extra_imports = extra_imports,
+        service_instances = service_instances,
+        component_funcs = component_funcs,
+        page_objects = page_objects,
+        layout_funcs = layout_funcs,
+        target_obj = target_obj,
+        target_route = target_route,
+        replay = replay,
+    )
+}
+
+/// Emit a Motoko string literal for `s` (double-quoted, with the escapes Motoko
+/// accepts). Used to embed recorded handler ids/args/caller text into the replay
+/// driver safely.
+fn mo_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
 /// Parse every `.mview` in the project (pages/layouts/components) and run the
 /// security lint pass over each, returning `(source_path, diagnostic)` pairs.
 /// Reuses the same file discovery + parser the build uses, so `motoview lint`
@@ -387,6 +840,35 @@ pub fn lint_project(project_dir: &Path) -> Result<Vec<(String, lint::Diagnostic)
 /// `error:`/`warning:` lines the build does.
 pub fn format_lint(diags: &[(String, lint::Diagnostic)]) -> String {
     format_diagnostics(diags)
+}
+
+/// Like [`lint_project`], but returns the machine-readable [`lint::JsonDiagnostic`]
+/// for each finding — with the offending node's span resolved to 1-based
+/// line/col against that file's source. This is what `motoview lint --json`
+/// serializes. Each file is re-parsed exactly as [`lint_project`]/`build` does,
+/// so the JSON sees identical findings; we additionally keep the source around to
+/// resolve positions (`lint::lint_file` returns raw spans).
+pub fn lint_project_json(project_dir: &Path) -> Result<Vec<lint::JsonDiagnostic>, String> {
+    let src = project_dir.join("src");
+    let mut out: Vec<lint::JsonDiagnostic> = Vec::new();
+    let groups = [
+        (list_mview(&src.join("Pages")), FileKind::Page),
+        (list_mview(&src.join("Layouts")), FileKind::Layout),
+        (list_mview(&src.join("Components")), FileKind::Component),
+    ];
+    for (files, kind) in groups {
+        for f in &files {
+            let name = file_stem(f);
+            let source = fs::read_to_string(f).map_err(|e| format!("{}: {}", f.display(), e))?;
+            let file = parser::parse(&source, &name, kind.clone())?;
+            let rel = rel_src(project_dir, f);
+            let chars: Vec<char> = source.chars().collect();
+            for d in lint::lint_file(&file, &rel) {
+                out.push(lint::JsonDiagnostic::from_lint(&rel, &d, &chars));
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn assemble(
@@ -848,6 +1330,97 @@ pub fn map_moc_errors(main_mo: &str, moc_output: &str) -> (String, bool) {
         }
     }
     (out, had_error)
+}
+
+/// Machine-readable variant of [`map_moc_errors`]: parse `moc`'s output into
+/// structured [`lint::JsonDiagnostic`]s, mapping each `main.mo:LINE.COL` position
+/// back to the originating `.mview` (via the `// mv:src` markers) where possible.
+///
+/// The shape is IDENTICAL to the lint `--json` diagnostics so the editor (R6) /
+/// repair loop (R5) consume one schema. `rule` is `"type-check"` for moc errors
+/// and `"moc"` for warnings/notes; `severity` is mapped from moc's own label.
+/// `file` is the `.mview` source path when a marker covers the generated line,
+/// else the generated `main.mo`. `line`/`col` are moc's reported position into
+/// the generated actor (the only line numbers moc emits); `endLine`/`endCol`
+/// carry moc's end position when present (`LINE.COL-LINE.COL`), else equal start.
+pub fn map_moc_errors_json(main_mo: &str, moc_output: &str) -> Vec<lint::JsonDiagnostic> {
+    // (generated line number, source path) for each marker, in order.
+    let mut markers: Vec<(usize, String)> = Vec::new();
+    for (i, line) in main_mo.lines().enumerate() {
+        if let Some(rest) = line.trim_start().strip_prefix("// mv:src ") {
+            markers.push((i + 1, rest.trim().to_string()));
+        }
+    }
+    let src_for = |gen_line: usize| -> Option<&String> {
+        markers
+            .iter()
+            .rev()
+            .find(|(l, _)| *l <= gen_line)
+            .map(|(_, p)| p)
+    };
+    let mut out: Vec<lint::JsonDiagnostic> = Vec::new();
+    for line in moc_output.lines() {
+        // e.g. ".../main.mo:6519.5-6519.11: syntax error [M0001], unexpected ..."
+        let pos = match line.find("main.mo:") {
+            Some(p) => p,
+            None => continue, // continuation/blank lines carry no position
+        };
+        let after = &line[pos + "main.mo:".len()..];
+        // Parse `LINE.COL` and an optional `-LINE.COL` end before the `:`.
+        let (line_no, col, end_line, end_col) = parse_moc_position(after);
+        // moc labels the severity in the message body (`... error ...`/`warning`).
+        let lower = line.to_ascii_lowercase();
+        let severity = if lower.contains("warning") && !lower.contains("error") {
+            lint::Severity::Warning
+        } else {
+            lint::Severity::Error
+        };
+        let rule = match severity {
+            lint::Severity::Error => "type-check",
+            lint::Severity::Warning => "moc",
+        };
+        let message = line.splitn(2, ": ").nth(1).unwrap_or(line).trim().to_string();
+        let file = src_for(line_no)
+            .cloned()
+            .unwrap_or_else(|| "main.mo".to_string());
+        out.push(lint::JsonDiagnostic {
+            severity,
+            rule: rule.to_string(),
+            message,
+            file,
+            line: line_no as u32,
+            col: col as u32,
+            end_line: end_line as u32,
+            end_col: end_col as u32,
+        });
+    }
+    out
+}
+
+/// Parse a moc position string of the form `LINE.COL` or `LINE.COL-LINE.COL`
+/// (the text right after `main.mo:`), returning `(line, col, end_line, end_col)`.
+/// The end defaults to the start when moc gives only a point. Non-numeric or
+/// missing fields fall back to `0`.
+fn parse_moc_position(after: &str) -> (usize, usize, usize, usize) {
+    // Take up to the `:` that ends the position span.
+    let head = after.split(':').next().unwrap_or("");
+    let mut parts = head.splitn(2, '-');
+    let start = parts.next().unwrap_or("");
+    let end = parts.next();
+    let (line, col) = split_line_col(start);
+    let (end_line, end_col) = match end {
+        Some(e) => split_line_col(e),
+        None => (line, col),
+    };
+    (line, col, end_line, end_col)
+}
+
+/// Split `"LINE.COL"` into `(line, col)`; missing parts are `0`.
+fn split_line_col(s: &str) -> (usize, usize) {
+    let mut it = s.splitn(2, '.');
+    let line = it.next().and_then(|x| x.trim().parse().ok()).unwrap_or(0);
+    let col = it.next().and_then(|x| x.trim().parse().ok()).unwrap_or(0);
+    (line, col)
 }
 
 fn list_mview(dir: &Path) -> Vec<PathBuf> {

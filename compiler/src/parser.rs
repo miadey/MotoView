@@ -671,6 +671,7 @@ impl Parser {
 
     // ---- elements & components ----
     fn parse_tag(&mut self) -> Result<Node, String> {
+        let tag_start = self.i; // offset of the opening '<'
         self.bump(); // <
         let mut tag = String::new();
         while !self.eof() && (self.peek().is_alphanumeric() || self.peek() == '_' || self.peek() == '-') {
@@ -698,6 +699,7 @@ impl Parser {
                 break;
             }
             // read attribute name
+            let attr_start = self.i; // offset of the first char of the name
             let mut name = String::new();
             while !self.eof()
                 && !self.peek().is_whitespace()
@@ -711,14 +713,21 @@ impl Parser {
                 self.bump();
                 continue;
             }
+            let name_end = self.i; // one-past-last char of the name (before any ws)
             // value?
             let mut raw_val: Option<String> = None;
+            let mut had_value = false;
             self.skip_spaces();
             if self.peek() == '=' {
                 self.bump();
                 self.skip_spaces();
                 raw_val = Some(self.read_attr_value());
+                had_value = true;
             }
+            // span covers `name` through the end of its value (one-past-last
+            // char); for a boolean attr (no `=`) it covers just the name, so the
+            // trailing whitespace `skip_spaces` consumed is excluded.
+            let attr_span = Span::new(attr_start, if had_value { self.i } else { name_end });
             // classify
             if let Some(ev) = name.strip_prefix('@') {
                 let v = raw_val.unwrap_or_default();
@@ -737,6 +746,7 @@ impl Parser {
                     event: ev.to_ascii_lowercase(),
                     handler: handler.to_string(),
                     args,
+                    span: attr_span,
                 });
             } else if name == "bind" {
                 let v = raw_val.unwrap_or_default();
@@ -748,9 +758,11 @@ impl Parser {
                     None => AttrValue::Bool,
                     Some(v) => parse_attr_value(&v),
                 };
-                attrs.push(Attr { name, value });
+                attrs.push(Attr { name, value, span: attr_span });
             }
         }
+        // span covers `<` through the end of the open tag (after `>` / `/>`).
+        let open_span = Span::new(tag_start, self.i);
 
         let is_component = tag.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
         // For HTML elements (lowercase-first), normalize the tag name to
@@ -771,6 +783,7 @@ impl Parser {
                 attrs.push(Attr {
                     name: "bind".to_string(),
                     value: AttrValue::Expr(b),
+                    span: open_span,
                 });
             }
             let mut comp = Component {
@@ -780,6 +793,7 @@ impl Parser {
                 slots: Vec::new(),
                 children: Vec::new(),
                 self_closing,
+                span: open_span,
             };
             if !self_closing {
                 let (children, slots) = self.parse_children_with_slots(&tag)?;
@@ -796,6 +810,7 @@ impl Parser {
                 secure,
                 children: Vec::new(),
                 self_closing: self_closing || is_void,
+                span: open_span,
             };
             if !self_closing && !is_void {
                 // `<style>` and `<script>` are raw-text elements (as in HTML):
@@ -1183,6 +1198,10 @@ pub fn scan_code(body: &str) -> CodeBlock {
             continue;
         }
         let word = read_word(&chars, &mut i);
+        // Offset (into the @code body) of this declaration's keyword: `read_word`
+        // skipped leading whitespace then consumed exactly `word`, so the keyword
+        // begins at `i - word.chars().count()`. Used to span vars/funcs.
+        let kw_start = i.saturating_sub(word.chars().count());
         match word.as_str() {
             "stable" => {
                 skip_ws(&mut i);
@@ -1192,6 +1211,7 @@ pub fn scan_code(body: &str) -> CodeBlock {
                     let mut vd = parse_var_decl(&decl);
                     vd.stable = true;
                     vd.raw = format!("stable var {}", raw);
+                    vd.span = Span::new(kw_start, i);
                     cb.vars.push(vd);
                 } else {
                     let (_d, raw) = read_statement(&chars, &mut i);
@@ -1202,6 +1222,7 @@ pub fn scan_code(body: &str) -> CodeBlock {
                 let (decl, _raw) = read_statement(&chars, &mut i);
                 let mut vd = parse_var_decl(&decl);
                 vd.raw = format!("var {};", decl.trim());
+                vd.span = Span::new(kw_start, i);
                 cb.vars.push(vd);
             }
             "param" => {
@@ -1211,7 +1232,8 @@ pub fn scan_code(body: &str) -> CodeBlock {
                 }
             }
             "func" => {
-                let fd = read_func(&chars, &mut i);
+                let mut fd = read_func(&chars, &mut i);
+                fd.span = Span::new(kw_start, i);
                 cb.funcs.push(fd);
             }
             "let" => {
@@ -1341,6 +1363,9 @@ fn parse_var_decl(decl: &str) -> VarDecl {
         ty,
         init,
         raw: String::new(),
+        // Placeholder; the caller (`scan_code`) overwrites this with the real
+        // declaration span once it knows the keyword start.
+        span: Span::default(),
     }
 }
 
@@ -1499,6 +1524,9 @@ fn read_func(chars: &[char], i: &mut usize) -> FuncDecl {
         ret,
         body,
         is_async,
+        // Placeholder; the caller (`scan_code`) overwrites this with the real
+        // `func ... { ... }` span once it knows the keyword start.
+        span: Span::default(),
     }
 }
 

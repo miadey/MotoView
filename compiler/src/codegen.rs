@@ -158,6 +158,14 @@ pub struct Codegen<'a> {
     // app components: name -> params + slot names. Used to compile `<MyCard .../>`
     // to a call of the generated `mvComponent_MyCard(...)`.
     components: &'a HashMap<String, CompInfo>,
+    // Opt-in observability (R7). When true, `gen_page` wraps each event handler
+    // in the generated `mvDispatch` with a structured `Debug.print` line (a
+    // stable, parseable `MV|dispatch|...` record) plus an instruction-cost
+    // delta from `ExperimentalInternetComputer.performanceCounter`. DEFAULT is
+    // false, in which case the generated dispatch is BYTE-IDENTICAL to the
+    // legacy path (no Debug.print, no perf counter, `ignore ctx`). The studio
+    // log parser (tools/studio/log-parser.js) consumes the emitted format.
+    instrument: bool,
 }
 
 impl<'a> Codegen<'a> {
@@ -173,6 +181,7 @@ impl<'a> Codegen<'a> {
             layout_theme: None,
             models,
             components,
+            instrument: false,
         }
     }
 
@@ -187,6 +196,15 @@ impl<'a> Codegen<'a> {
         let mut cg = Codegen::new(models, components);
         cg.emit = emit;
         cg
+    }
+
+    /// Enable opt-in dispatch instrumentation (R7 debug/observability). When set,
+    /// `gen_page` wraps each handler in `mvDispatch` with a structured
+    /// `Debug.print` log line + an instruction-cost delta. Default (unset) keeps
+    /// the generated dispatch byte-identical to the legacy path. Builder-style.
+    pub fn with_instrument(mut self, instrument: bool) -> Self {
+        self.instrument = instrument;
+        self
     }
 
     /// The active emit backend.
@@ -420,7 +438,15 @@ impl<'a> Codegen<'a> {
 
         // dispatch
         s.push_str("    public func mvDispatch(ctx : MV.Ctx, mvH : Text, mvArgs : [Text]) {\n");
-        s.push_str("      ignore ctx; ignore mvArgs;\n");
+        if self.instrument {
+            // R7 observability: `ctx` is now USED (caller + lastBatchId feed the
+            // structured log), so it is no longer ignored. `mvArgs` may still be
+            // unused if no handler takes args, so keep ignoring it.
+            s.push_str("      ignore mvArgs;\n");
+            s.push_str("      let mvT0 = ExperimentalIC.performanceCounter(0);\n");
+        } else {
+            s.push_str("      ignore ctx; ignore mvArgs;\n");
+        }
         s.push_str(&set_params);
         s.push_str("      mvErrors.clear(); // each interaction starts with a clean slate\n");
         s.push_str("      mvEffects.clear();\n");
@@ -448,7 +474,22 @@ impl<'a> Codegen<'a> {
             s.push_str(&format!("        case \"{}\" {{ {} }};\n", f.name, call));
         }
         s.push_str("        case _ {};\n");
-        s.push_str("      };\n    };\n");
+        s.push_str("      };\n");
+        if self.instrument {
+            // Structured, parseable observability record — ONE line per event,
+            // stable field order so tools/studio/log-parser.js can split it.
+            // Format (pipe-delimited key=value, see docs/observability.md):
+            //   MV|dispatch|page=<page>|handler=<h>|event=<h>|caller=<principal>|lastBatch=<id>|costInstr=<delta>
+            // `event` mirrors `handler` (the dispatched event IS the handler id
+            // on the server). `costInstr` is the instruction delta across the
+            // handler body via the IC performance counter.
+            s.push_str("      let mvCost = ExperimentalIC.performanceCounter(0) - mvT0;\n");
+            s.push_str(&format!(
+                "      Debug.print(\"MV|dispatch|page={}|handler=\" # mvH # \"|event=\" # mvH # \"|caller=\" # Principal.toText(ctx.caller) # \"|lastBatch=\" # ctx.lastBatchId # \"|costInstr=\" # debug_show (mvCost));\n",
+                file.name
+            ));
+        }
+        s.push_str("    };\n");
 
         // Errors persist across render polls (so they don't flash away); they are
         // cleared at the start of the next dispatch.
@@ -699,6 +740,7 @@ impl<'a> Codegen<'a> {
             layout_theme: self.layout_theme.clone(),
             models: self.models,
             components: self.components,
+            instrument: self.instrument,
         };
         let mut tmp = String::new();
         html_cg.gen_nodes(nodes, &mut tmp, "");

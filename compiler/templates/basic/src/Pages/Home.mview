@@ -1,0 +1,22 @@
+@page "/"
+@layout MainLayout
+@title "Home"
+
+<section class="mv-container">
+    <h1>Hello from MotoView</h1>
+    <p>You clicked <strong>@count</strong> times.</p>
+    <button class="mv-btn mv-btn-primary" @click="bump">Click me</button>
+</section>
+
+@code {
+    // Page @code state is REQUEST-scoped: it is re-seeded on each render and the
+    // event handler mutates it for the batch it returns. For state that must
+    // outlive a request (and survive `dfx deploy --mode upgrade`), put it in a
+    // stateful service under src/Services and add mvStableSave/mvStableLoad —
+    // see docs/persistence.md and docs/state.md.
+    var count : Nat = 0;
+
+    func bump() : async () {
+        count += 1;
+    };
+}

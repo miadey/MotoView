@@ -49,7 +49,44 @@ the **design-time orchestration** that runs **off-canister** around it.
 |------|------------|
 | `validate.sh` | **The save gate.** Runs `lint` + `check`; exits nonzero if either fails. This is the unbypassable, security-by-construction enforcement. Real and tested. |
 | `generate.md` | The AI-generation **contract**: input (prompt + real service signatures) → output (one complete `.mview`) → MUST pass `validate.sh`. The LLM call is marked off-canister/design-time and is **not** faked. |
+| `diagnostics-server.js` | **The editor's inline-diagnostics bridge** (R6). A tiny, dependency-free localhost HTTP server. The studio editor POSTs the `.mview` buffer; this runs `motoview lint/check --json` over a throwaway copy and returns the R2 `{severity,rule,message,line,col,endLine,endCol}` array + the save-gate verdict, which the editor draws as squiggles/gutter markers. |
+| `build-editor-bootstrap.js` | Derives the `editorBootstrap` Motoko `Text` constant in `apps/studio/src/Pages/Design.mview` from `apps/studio/assets/mview-editor.js` (base64-inlined `<script type="module">` via `@raw`). Re-run with `--inject` after editing the editor; `--check` verifies it is in sync. |
+| `bridge-test.js` | Round-trips the bridge through the REAL compiler: a clean buffer is saveable; an unsecured `<form @submit>` yields a `secure-form` error with 1-based positions. |
+| `run-tests.sh` | Runs all R6 editor/grammar tests (grammar tokenization, editor JS validity, bootstrap-in-sync, headless editor, bridge round-trip, studio build+lint). |
+| `grammar-test/` | Headless `.mview` TextMate grammar tokenization test (vscode-textmate + vscode-oniguruma — the engine VS Code/Monaco use). |
+| `editor-test/` | Headless jsdom + real-CodeMirror test: mounts the editor, asserts tokenization, and asserts an R2 diagnostic produces a lint marker decoration. |
 | `README.md` | This file: the loop + honest dependencies. |
+
+## The editor (R6)
+
+The studio Design page (`apps/studio/src/Pages/Design.mview`) hosts a real
+**CodeMirror 6** editor with `.mview` syntax highlighting and **inline
+diagnostics**, replacing the old read-only `<pre>`:
+
+- **Grammar:** `apps/studio/assets/mview.tmLanguage.json` — a portable TextMate
+  grammar (template tags, `@directives`, `@expr`/`@raw`, `secure`/`bind`/`@event`
+  attributes, embedded Motoko in `@code{…}`). Usable in VS Code / Monaco too.
+- **Editor:** `apps/studio/assets/mview-editor.js` — CodeMirror 6 (pinned ESM
+  CDN) + a `StreamLanguage` tokenizer that mirrors the grammar + an async linter
+  that calls the bridge and renders `{line,col,endLine,endCol}` as squiggles.
+- **Bridge:** `tools/studio/diagnostics-server.js` — run it for live diagnostics:
+
+  ```sh
+  node tools/studio/diagnostics-server.js          # 127.0.0.1:8731
+  ```
+
+> **DEV-TOOL exception to "no app JS".** Shipped MotoView apps run no app JS.
+> The studio is a *design tool*, so it inlines the editor as a `<script
+> type="module">` (base64, via `@raw`). This is deliberately scoped to the studio.
+>
+> **Framework gaps surfaced (real, not yet fixed here):**
+> 1. **No clean app-static-asset mechanism** — there is no first-class way to ship
+>    a `.js`/`.wasm` asset alongside a page, so the editor is base64-inlined. A
+>    `@asset`/static-files directive would remove the workaround.
+> 2. **HTML-comment parser bug** — a `<pre>`/`<script>`/`<style>` *tag name written
+>    inside an HTML comment* (`<!-- … <pre> … -->`) flips the template parser into
+>    raw-text mode and corrupts the parse downstream (manifested as `unbound
+>    variable` errors). Worked around by not naming raw-text tags in comments.
 
 ## Using the gate
 

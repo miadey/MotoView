@@ -5,6 +5,8 @@
 //! (so it can wire up event dispatch and infer output types); function bodies
 //! are emitted to Motoko almost verbatim — `moc` does the real Motoko work.
 
+pub use crate::span::Span;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileKind {
     Page,
@@ -75,6 +77,13 @@ pub struct HeadMeta {
 }
 
 /// Scanned contents of the `@code { ... }` block.
+///
+/// Spans on the declarations below ([`VarDecl::span`], [`FuncDecl::span`]) are
+/// offsets **into the `@code` body** (the text between its braces), not into the
+/// whole file — `scan_code`/`read_func` work on that substring. A later slice can
+/// add the body's file offset to rebase them; that is enough to map `moc` errors
+/// (which already carry `@code`-body line numbers via the `// mv:src` markers)
+/// back to the source.
 #[derive(Debug, Clone, Default)]
 pub struct CodeBlock {
     pub vars: Vec<VarDecl>,
@@ -92,6 +101,9 @@ pub struct VarDecl {
     pub init: Option<String>,
     /// full raw text, e.g. "var count : Nat = 0;"
     pub raw: String,
+    /// Source span of the whole declaration (`@code`-relative — see note below).
+    /// Additive metadata for diagnostics; codegen ignores it.
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -108,10 +120,22 @@ pub struct FuncDecl {
     pub ret: Option<String>,           // return type with `async` stripped
     pub body: String,                  // raw body WITHOUT braces, `await` stripped
     pub is_async: bool,
+    /// Source span of the whole `func ... { ... }` (`@code`-relative — see note
+    /// below). Additive metadata for diagnostics; codegen ignores it.
+    pub span: Span,
 }
 
 // ---- template nodes -------------------------------------------------------
 
+// TODO(R1+): the bare directive variants below (`Expr`, `Raw`, `If`, `For`,
+// `Switch`) do not yet carry a `Span`. Adding one to a tuple/struct variant
+// would force a `Spanned<Node>` wrapper or per-variant field that codegen would
+// have to thread through — risking a byte-level change to emitted Motoko. Since
+// `Element`/`Component`/`Attr`/`EventBind`/`FuncDecl`/`VarDecl` already carry
+// spans (which covers tag/attr/event/decl diagnostics — the priority for the
+// language server), Node-level spans are deferred to keep byte-identity. When
+// added, prefer a parallel `Spanned<Node>` that derefs to `Node` so existing
+// codegen matches stay byte-identical.
 #[derive(Debug, Clone)]
 pub enum Node {
     Text(String),
@@ -163,6 +187,9 @@ pub struct Element {
     pub secure: bool,
     pub children: Vec<Node>,
     pub self_closing: bool,
+    /// Source span covering the open `<` through the end of the open tag
+    /// (`>` / `/>`). File-relative char offsets. Additive; codegen ignores it.
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -173,12 +200,18 @@ pub struct Component {
     pub slots: Vec<(String, Vec<Node>)>,
     pub children: Vec<Node>, // default slot
     pub self_closing: bool,
+    /// Source span covering the open `<` through the end of the open tag
+    /// (`>` / `/>`). File-relative char offsets. Additive; codegen ignores it.
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
 pub struct Attr {
     pub name: String,
     pub value: AttrValue,
+    /// Source span covering `name` through the end of its value (or just `name`
+    /// for a boolean attr). File-relative char offsets. Additive; ignored by codegen.
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -201,4 +234,7 @@ pub struct EventBind {
     pub event: String,    // "click" | "submit" | "input" | "change"
     pub handler: String,  // function name
     pub args: Vec<String>, // raw Motoko arg expressions
+    /// Source span covering the `@event[=handler]` binding within the open tag.
+    /// File-relative char offsets. Additive; ignored by codegen.
+    pub span: Span,
 }
