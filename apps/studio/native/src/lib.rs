@@ -14,7 +14,8 @@ pub mod backend;
 pub mod highlight;
 
 pub use backend::{
-    list_mview_files, node_text, parse_forest, read_file, resolve_motoview, run_build, run_check,
-    run_fmt, run_lint, run_preview, strip_html, widget_kind, write_file, CommandReport, Diagnostic,
-    PreviewResult, UiNode, WidgetKind,
+    expand_path, home_dir, list_mview_files, node_text, open_project, parse_forest, read_file,
+    resolve_motoview, run_build, run_check, run_fmt, run_lint, run_preview, strip_html,
+    widget_kind, write_file, CommandReport, Diagnostic, OpenOutcome, PreviewResult, UiNode,
+    WidgetKind,
 };

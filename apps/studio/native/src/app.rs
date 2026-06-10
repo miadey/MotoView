@@ -16,12 +16,19 @@ use eframe::egui;
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, FontId, RichText};
 
-use motokostudio::backend::{self, CommandReport, PreviewResult, Session, SessionEvent, UiNode, WidgetKind};
+use motokostudio::backend::{
+    self, CommandReport, OpenOutcome, PreviewResult, Session, SessionEvent, UiNode, WidgetKind,
+};
 use motokostudio::highlight::{classify_line, TokenClass};
 
 /// The whole application state.
 pub struct StudioApp {
     project_dir: Option<PathBuf>,
+    /// The editable project-folder path shown in the top bar. The user pastes
+    /// or types a path here and clicks "Open" — this is the PRIMARY, always-
+    /// works way to open a project. It never triggers a native folder dialog
+    /// (which crashes the macOS run-loop when run synchronously from update()).
+    project_path_input: String,
     files: Vec<PathBuf>,
     open_file: Option<PathBuf>,
     editor_text: String,
@@ -50,6 +57,7 @@ impl Default for StudioApp {
     fn default() -> Self {
         Self {
             project_dir: None,
+            project_path_input: String::new(),
             files: Vec::new(),
             open_file: None,
             editor_text: String::new(),
@@ -75,18 +83,56 @@ impl StudioApp {
         cc.egui_ctx.set_style(style);
 
         let mut app = Self::default();
-        // If launched from inside a project, auto-open it.
+
+        // Pre-fill the path field with the current working dir so the user has a
+        // sensible starting point and the Open button is one click away.
         if let Ok(cwd) = std::env::current_dir() {
+            app.project_path_input = cwd.display().to_string();
+        }
+
+        // CLI arg wins: `cargo run -- <dir>` (or the bundled binary + a path)
+        // opens that project immediately — fully non-interactive, no dialog.
+        // We skip arg[0] (the program name) and take the first non-flag arg.
+        let cli_dir = std::env::args()
+            .skip(1)
+            .find(|a| !a.starts_with('-'));
+        if let Some(arg) = cli_dir {
+            app.project_path_input = arg.clone();
+            app.open_project_from_input();
+        } else if let Ok(cwd) = std::env::current_dir() {
+            // If launched from inside a project (a folder with motoview.json),
+            // auto-open it — same convenience as before, no dialog.
             if cwd.join("motoview.json").exists() {
-                app.set_project(cwd);
+                app.open_project_from_input();
             }
         }
         app
     }
 
-    fn set_project(&mut self, dir: PathBuf) {
-        self.files = backend::list_mview_files(&dir);
-        self.status = format!("Opened {} — {} .mview file(s).", dir.display(), self.files.len());
+    /// Open the project named by the current `project_path_input`. This is the
+    /// crash-free path: it resolves the typed/pasted path via the pure,
+    /// tested `backend::open_project` (NO native NSOpenPanel, so no nested
+    /// modal run-loop on the main thread) and either loads the project or sets
+    /// a clear status message. Never panics.
+    fn open_project_from_input(&mut self) {
+        let input = self.project_path_input.clone();
+        match backend::open_project(&input) {
+            OpenOutcome::Opened { dir, files, note } => {
+                self.project_path_input = dir.display().to_string();
+                self.apply_project(dir, files, note);
+            }
+            OpenOutcome::Rejected { note } => {
+                // Leave any already-open project untouched; just report why.
+                self.status = note;
+            }
+        }
+    }
+
+    /// Adopt a resolved project (directory + its `.mview` files) into the app
+    /// state. Pure state mutation — no filesystem access, no dialogs.
+    fn apply_project(&mut self, dir: PathBuf, files: Vec<PathBuf>, note: String) {
+        self.files = files;
+        self.status = note;
         self.project_dir = Some(dir);
         self.open_file = None;
         self.editor_text.clear();
@@ -238,11 +284,24 @@ impl StudioApp {
                 ui.heading("MotokoStudio");
                 ui.label(RichText::new("native · webview-free").weak());
                 ui.separator();
-                if ui.button("Open project…").clicked() {
-                    if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                        self.set_project(dir);
-                    }
+                // PRIMARY open path — a plain text field + Open button. The user
+                // pastes/types a project folder path and clicks Open. This NEVER
+                // opens a native NSOpenPanel, so it cannot re-enter eframe's
+                // event loop and crash (the bug we are fixing). Pressing Enter in
+                // the field is equivalent to clicking Open.
+                ui.label("project:");
+                let path_resp = ui.add(
+                    egui::TextEdit::singleline(&mut self.project_path_input)
+                        .hint_text("/path/to/project")
+                        .desired_width(320.0),
+                );
+                let open_clicked = ui.button("Open").clicked();
+                let enter_pressed =
+                    path_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if open_clicked || enter_pressed {
+                    self.open_project_from_input();
                 }
+                ui.separator();
                 let has_project = self.project_dir.is_some();
                 ui.add_enabled_ui(has_project, |ui| {
                     if ui.button("Check").clicked() {

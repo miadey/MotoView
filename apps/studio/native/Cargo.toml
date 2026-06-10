@@ -35,11 +35,16 @@ path = "src/lib.rs"
 # compiler, the wgpu/wgpu-hal/metal stack) and yields a larger binary than glow.
 eframe = { version = "0.29", default-features = false, features = ["wgpu", "default_fonts"] }
 egui = "0.29"
-# Native OS file-open/save dialog (no Apple-only framework beyond AppKit, which
-# CLT provides). MIT/Apache.
-rfd = "0.15"
 # Parse the `motoview ... --json` output (diagnostics + preview IR forest).
 serde_json = "1"
+
+# NOTE: `rfd` (native file dialog) was REMOVED. Calling
+# `rfd::FileDialog::pick_folder()` SYNCHRONOUSLY from inside eframe's `update()`
+# ran an NSOpenPanel nested-modal run-loop INSIDE winit's run-loop on macOS — a
+# re-entrancy that crashed + silently exited the app the moment a user tried to
+# open a project. Opening is now done with a plain path text field + Open button
+# (see app.rs / backend::open_project), which never touches AppKit's modal
+# machinery and so cannot re-enter the event loop.
 
 [dev-dependencies]
 # nothing extra — tests use only std + serde_json + the crate's own backend.

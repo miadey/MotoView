@@ -749,6 +749,85 @@ pub fn write_file(path: &Path, content: &str) -> std::io::Result<()> {
     std::fs::write(path, content)
 }
 
+// ---------------------------------------------------------------------------
+// Open-a-project (PURE, testable) — replaces the crashy native folder dialog
+// ---------------------------------------------------------------------------
+
+/// Trim whitespace/quotes and expand a leading `~` to `$HOME` so a user can
+/// paste either `~/dev/MotoView/examples/crm` or a fully-qualified path into
+/// the studio's path text field. Pure string work — no filesystem touch.
+pub fn expand_path(raw: &str) -> PathBuf {
+    // Drop surrounding whitespace and any wrapping quotes (a path dragged from
+    // Finder onto a terminal often arrives single-quoted).
+    let trimmed = raw.trim().trim_matches(|c| c == '"' || c == '\'').trim();
+    if trimmed == "~" {
+        if let Some(home) = home_dir() {
+            return home;
+        }
+    } else if let Some(rest) = trimmed.strip_prefix("~/") {
+        if let Some(home) = home_dir() {
+            return home.join(rest);
+        }
+    }
+    PathBuf::from(trimmed)
+}
+
+/// `$HOME` as a `PathBuf`, if set. (No `dirs` crate dependency.)
+pub fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
+}
+
+/// The outcome of resolving a project path the user typed/pasted. Either the
+/// directory + the `.mview` files found under it, or a clear human message
+/// explaining why nothing opened. NEVER panics; this is the function the GUI
+/// uses instead of a native folder dialog (which crashes the macOS run-loop).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpenOutcome {
+    /// A real directory; `files` may be empty (a clear status is set in `note`).
+    Opened {
+        dir: PathBuf,
+        files: Vec<PathBuf>,
+        note: String,
+    },
+    /// The path could not be used as a project (with a human-readable reason).
+    Rejected { note: String },
+}
+
+/// Resolve a user-supplied project path into an [`OpenOutcome`]. Expands `~`,
+/// trims quotes/whitespace, rejects empty/non-existent/non-directory inputs
+/// with a clear message, and otherwise lists the `.mview` files (build/VCS
+/// noise + `node_modules` are skipped by `list_mview_files`). This is the
+/// crash-free replacement for `rfd::FileDialog::pick_folder()`.
+pub fn open_project(raw: &str) -> OpenOutcome {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return OpenOutcome::Rejected {
+            note: "Enter a project folder path, then click Open.".to_string(),
+        };
+    }
+    let dir = expand_path(raw);
+    if !dir.exists() {
+        return OpenOutcome::Rejected {
+            note: format!("No such path: {}", dir.display()),
+        };
+    }
+    if !dir.is_dir() {
+        return OpenOutcome::Rejected {
+            note: format!("Not a folder (point at the project directory): {}", dir.display()),
+        };
+    }
+    let files = list_mview_files(&dir);
+    let note = if files.is_empty() {
+        format!(
+            "Opened {} — but no .mview files were found under it.",
+            dir.display()
+        )
+    } else {
+        format!("Opened {} — {} .mview file(s).", dir.display(), files.len())
+    };
+    OpenOutcome::Opened { dir, files, note }
+}
+
 // ===========================================================================
 // TESTS
 // ===========================================================================
@@ -1482,5 +1561,154 @@ mod tests {
         let h1 = h1.expect("CRM has an <h1>");
         assert_eq!(widget_kind(h1), WidgetKind::Inline);
         assert_eq!(node_text(h1), "Pipeline");
+    }
+
+    // -- Open-by-path (the crash-free replacement for the native dialog) ----
+
+    /// The absolute path to the in-repo `examples/crm` project.
+    fn crm_project_dir() -> PathBuf {
+        // CARGO_MANIFEST_DIR = apps/studio/native -> repo root is ../../.. .
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../examples/crm")
+            .canonicalize()
+            .expect("examples/crm should exist in the repo")
+    }
+
+    #[test]
+    fn open_by_path_lists_crm() {
+        // This is exactly the logic `app::StudioApp::open_project_from_input` runs when the
+        // user types the path + clicks Open (no native dialog, no run-loop
+        // re-entry). It must NOT panic and must list the CRM's real .mview
+        // files while ignoring e2e/node_modules, .dfx, .mvbuild and .DS_Store.
+        let crm = crm_project_dir();
+        let outcome = open_project(crm.to_str().unwrap());
+        let (dir, files) = match outcome {
+            OpenOutcome::Opened { dir, files, .. } => (dir, files),
+            OpenOutcome::Rejected { note } => panic!("CRM should open, got reject: {note}"),
+        };
+        assert_eq!(dir, crm);
+
+        let names: Vec<String> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            names.iter().any(|n| n == "Board.mview"),
+            "CRM open must list Board.mview, got {names:?}"
+        );
+        assert!(
+            names.iter().any(|n| n == "CrmLayout.mview"),
+            "CRM open must list the layout .mview, got {names:?}"
+        );
+
+        // Noise must be ignored: nothing from node_modules / e2e build dirs /
+        // .dfx / .mvbuild, and the .DS_Store (not a .mview) never appears.
+        for f in &files {
+            let s = f.to_string_lossy();
+            assert!(
+                !s.contains("node_modules"),
+                "node_modules must be skipped: {s}"
+            );
+            assert!(!s.contains(".mvbuild"), ".mvbuild must be skipped: {s}");
+            assert!(!s.contains(".dfx"), ".dfx must be skipped: {s}");
+            assert!(!s.ends_with(".DS_Store"), ".DS_Store is not a .mview: {s}");
+            assert_eq!(
+                f.extension().and_then(|e| e.to_str()),
+                Some("mview"),
+                "only .mview files are listed: {s}"
+            );
+        }
+        // The two real CRM .mview files, nothing more.
+        assert_eq!(files.len(), 2, "CRM has exactly two .mview files: {names:?}");
+    }
+
+    #[test]
+    fn open_nonexistent_path_is_clean_reject_no_panic() {
+        let bogus = std::env::temp_dir().join("definitely-not-a-real-project-xyzzy-123");
+        let _ = std::fs::remove_dir_all(&bogus); // make sure it's absent
+        match open_project(bogus.to_str().unwrap()) {
+            OpenOutcome::Rejected { note } => {
+                assert!(note.contains("No such path"), "clear reason: {note}");
+            }
+            OpenOutcome::Opened { .. } => panic!("a missing path must be rejected, not opened"),
+        }
+    }
+
+    #[test]
+    fn open_empty_path_is_clean_reject() {
+        match open_project("   ") {
+            OpenOutcome::Rejected { note } => {
+                assert!(!note.is_empty(), "rejection carries a human message");
+            }
+            OpenOutcome::Opened { .. } => panic!("an empty path must be rejected"),
+        }
+    }
+
+    #[test]
+    fn open_dir_without_mview_opens_with_empty_status() {
+        // A real directory containing NO .mview -> Opened with an empty file
+        // list and a clear note (NOT a reject, NOT a panic).
+        let tmp = std::env::temp_dir().join(format!("mvstudio_nomview_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("readme.txt"), "no mview here").unwrap();
+        match open_project(tmp.to_str().unwrap()) {
+            OpenOutcome::Opened { files, note, .. } => {
+                assert!(files.is_empty(), "no .mview -> empty list");
+                assert!(note.contains("no .mview"), "clear empty status: {note}");
+            }
+            OpenOutcome::Rejected { note } => {
+                panic!("an existing dir should open even with no .mview: {note}")
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn open_a_file_path_is_rejected_not_a_dir() {
+        // Pointing at a file (not a folder) is rejected with a clear message.
+        let tmp = std::env::temp_dir().join(format!("mvstudio_filepath_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let file = tmp.join("Board.mview");
+        std::fs::write(&file, "@page \"/\"\n").unwrap();
+        match open_project(file.to_str().unwrap()) {
+            OpenOutcome::Rejected { note } => assert!(note.contains("Not a folder"), "{note}"),
+            OpenOutcome::Opened { .. } => panic!("a file path must be rejected"),
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn expand_path_handles_tilde_and_quotes() {
+        std::env::set_var("HOME", "/Users/tester");
+        assert_eq!(expand_path("~"), PathBuf::from("/Users/tester"));
+        assert_eq!(
+            expand_path("~/dev/MotoView"),
+            PathBuf::from("/Users/tester/dev/MotoView")
+        );
+        // Surrounding whitespace and quotes (e.g. dragged from Finder) are
+        // stripped, and a plain absolute path is left intact.
+        assert_eq!(
+            expand_path("  '/Users/tester/examples/crm'  "),
+            PathBuf::from("/Users/tester/examples/crm")
+        );
+        assert_eq!(
+            expand_path("/abs/path/already"),
+            PathBuf::from("/abs/path/already")
+        );
+    }
+
+    #[test]
+    fn read_file_on_binary_is_err_not_panic() {
+        // read_file uses read_to_string -> invalid UTF-8 returns Err (the GUI's
+        // `open` shows the error in the status bar instead of unwrapping).
+        let tmp = std::env::temp_dir().join(format!("mvstudio_bin_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let bin = tmp.join("blob.mview");
+        std::fs::write(&bin, [0xff, 0xfe, 0x00, 0x80, 0x9c]).unwrap();
+        assert!(
+            read_file(&bin).is_err(),
+            "non-UTF8 bytes must surface as Err, not panic"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
