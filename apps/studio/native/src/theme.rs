@@ -33,6 +33,11 @@ pub struct Palette {
     pub panel: Color32,
     /// Card / layer fill (deal cards, the editor card, column cards).
     pub card: Color32,
+    /// The DESIGN-CANVAS work surface — the soft, distinct backdrop behind the
+    /// floating device frame (Canva's gray studio mat). Clearly different from
+    /// the white `card`/`panel` so the white-on-gray + shadow makes the design
+    /// pop. On dark it is a near-black a touch lighter than `window`.
+    pub canvas: Color32,
     /// Raised / hover fill — one step lighter than a card.
     pub raised: Color32,
     /// Hairline stroke / divider color.
@@ -72,6 +77,9 @@ impl Palette {
             window: rgb(0x1b, 0x1a, 0x1f),
             panel: rgb(0x1f, 0x1e, 0x24),
             card: rgb(0x26, 0x24, 0x2c),
+            // Near-black, a touch lighter than `window` so the lighter frame
+            // still floats with a shadow on dark.
+            canvas: rgb(0x22, 0x21, 0x27),
             raised: rgb(0x2f, 0x2d, 0x37),
             stroke: rgb(0x3a, 0x37, 0x42),
             text_primary: rgb(0xf3, 0xf2, 0xf5),
@@ -97,6 +105,9 @@ impl Palette {
             window: rgb(0xfa, 0xf9, 0xfc),
             panel: rgb(0xff, 0xff, 0xff),
             card: rgb(0xff, 0xff, 0xff),
+            // A soft cool gray work-surface, clearly distinct from white cards/
+            // panels — the Canva studio mat the white frame floats on.
+            canvas: rgb(0xec, 0xed, 0xf2),
             raised: rgb(0xf3, 0xf1, 0xf7),
             stroke: rgb(0xe6, 0xe3, 0xec),
             text_primary: rgb(0x1f, 0x1d, 0x24),
@@ -150,6 +161,22 @@ pub fn card_shadow(p: &Palette) -> Shadow {
             Color32::from_black_alpha(90)
         } else {
             Color32::from_black_alpha(28)
+        },
+    }
+}
+
+/// A GENEROUS, soft drop shadow for the floating DEVICE FRAME — larger blur and
+/// offset than [`card_shadow`] so the white design card reads as lifted off the
+/// gray work surface (the Canva "floating artboard" look).
+pub fn frame_shadow(p: &Palette) -> Shadow {
+    Shadow {
+        offset: [0, 18],
+        blur: 48,
+        spread: 0,
+        color: if p.dark {
+            Color32::from_black_alpha(140)
+        } else {
+            Color32::from_black_alpha(40)
         },
     }
 }
@@ -251,15 +278,16 @@ pub fn build_visuals(p: &Palette) -> Visuals {
     v
 }
 
-/// 8px spacing grid + comfortable button padding + panel margins.
+/// 8px spacing grid + comfortable button padding + panel margins. Tuned OPEN
+/// (Canva breathes): a touch more item spacing and roomier buttons.
 fn apply_spacing(style: &mut egui::Style) {
     let s = &mut style.spacing;
-    s.item_spacing = egui::vec2(SPACE, 6.0);
-    s.button_padding = egui::vec2(12.0, 7.0);
-    s.menu_margin = Margin::same(6);
-    s.window_margin = Margin::same(12);
+    s.item_spacing = egui::vec2(SPACE, 8.0);
+    s.button_padding = egui::vec2(14.0, 8.0);
+    s.menu_margin = Margin::same(8);
+    s.window_margin = Margin::same(16);
     s.indent = 18.0;
-    s.interact_size.y = 28.0;
+    s.interact_size.y = 30.0;
     s.icon_width = 18.0;
     s.icon_width_inner = 10.0;
     // A slightly slimmer scrollbar reads more "desktop app" than the default.
@@ -301,6 +329,26 @@ mod tests {
         assert_ne!(d.window, l.window);
         assert_ne!(d.text_primary, l.text_primary);
         assert!(d.dark && !l.dark);
+        // The design-canvas work surface is a DISTINCT color from white cards/
+        // panels on light (so white-on-gray makes the frame pop) and differs
+        // between themes.
+        assert_ne!(l.canvas, l.card, "light canvas must differ from white cards");
+        assert_ne!(l.canvas, l.panel, "light canvas must differ from white panels");
+        assert_ne!(d.canvas, l.canvas, "dark vs light canvas differ");
+    }
+
+    #[test]
+    fn frame_shadow_is_more_generous_than_card() {
+        let p = Palette::light();
+        let card = card_shadow(&p);
+        let frame = frame_shadow(&p);
+        // The floating-frame shadow has a clearly larger blur + drop so the
+        // design reads as lifted off the canvas (the Canva artboard look).
+        assert!(frame.blur > card.blur, "frame shadow blur must exceed card");
+        assert!(
+            frame.offset[1] > card.offset[1],
+            "frame shadow drop must exceed card"
+        );
     }
 
     #[test]

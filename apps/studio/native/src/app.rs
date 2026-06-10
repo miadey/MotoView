@@ -175,7 +175,9 @@ impl Default for StudioApp {
             preview: None,
             route: String::new(),
             status: "Open a MotoView project (a folder with motoview.json) to begin.".to_string(),
-            dark: true,
+            // LIGHT by default — the bright Canva look is the studio's resting
+            // state (the Dark/Light toggle still flips to dark on demand).
+            dark: false,
             theme_dirty: true,
             session: Vec::new(),
             session_route: None,
@@ -192,9 +194,10 @@ impl Default for StudioApp {
 
 impl StudioApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Install the Fluent dark theme immediately so the very first frame is
-        // already on-brand (no flash of default egui chrome).
-        theme::apply_fluent_theme(&cc.egui_ctx, true);
+        // Install the Fluent LIGHT theme immediately so the very first frame is
+        // already on-brand and bright (the Canva default; no flash of default
+        // egui chrome).
+        theme::apply_fluent_theme(&cc.egui_ctx, false);
 
         let mut app = Self::default();
         app.theme_dirty = false; // already applied above
@@ -590,7 +593,7 @@ impl StudioApp {
     fn top_bar(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
             .fill(p.panel)
-            .inner_margin(Margin::symmetric(14, 10))
+            .inner_margin(Margin::symmetric(18, 12))
             .stroke(Stroke {
                 width: 1.0,
                 color: p.stroke,
@@ -694,8 +697,8 @@ impl StudioApp {
     /// active segment uses the brand-subtle selection (via `seg_button`).
     fn design_toolbar(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
-            .fill(p.window)
-            .inner_margin(Margin::symmetric(14, 7))
+            .fill(p.panel)
+            .inner_margin(Margin::symmetric(18, 10))
             .stroke(Stroke {
                 width: 1.0,
                 color: p.stroke,
@@ -719,9 +722,7 @@ impl StudioApp {
                         }
                     });
 
-                    ui.add_space(SPACE);
-                    vsep(ui, p);
-                    ui.add_space(SPACE);
+                    group_gap(ui, p);
 
                     // [Desktop | Web | Mobile] device switcher.
                     ui.label(
@@ -737,9 +738,7 @@ impl StudioApp {
                         }
                     });
 
-                    ui.add_space(SPACE);
-                    vsep(ui, p);
-                    ui.add_space(SPACE);
+                    group_gap(ui, p);
 
                     // Grid on/off toggle + the live content width readout.
                     if seg_button(ui, p, "Grid", self.grid).clicked() {
@@ -794,36 +793,42 @@ impl StudioApp {
     /// underneath. Drag-drop is NOT wired this slice — this is the visual palette
     /// (the next slice makes the rows drop onto the canvas).
     fn toolbox_panel(&mut self, ui: &mut Ui, p: &Palette) {
+        // Roomier inner margin so the toolbox breathes (Canva whitespace).
         let frame = Frame::new()
             .fill(p.panel)
-            .inner_margin(Margin::same(12))
+            .inner_margin(Margin::same(18))
             .stroke(Stroke {
                 width: 1.0,
                 color: p.stroke,
             });
         egui::Panel::left("toolbox")
-            .default_size(244.0)
+            .default_size(284.0)
             .frame(frame)
             .show_inside(ui, |ui| {
-                section_title(ui, p, "Toolbox");
+                section_title(ui, p, "Elements");
                 ui.label(
                     RichText::new("drag a component onto the canvas")
                         .text_style(TextStyle::Small)
                         .color(p.text_secondary),
                 );
-                ui.add_space(SPACE);
+                ui.add_space(SPACE + 2.0);
+
+                // A search-looking field (a Canva touch). Non-functional
+                // placeholder this slice — labeled so it never lies.
+                search_field(ui, p);
+                ui.add_space(SPACE + 4.0);
 
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .id_salt("toolbox-scroll")
                     .show(ui, |ui| {
-                        // Layout primitives.
+                        // Layout primitives — a friendly 2-column tile grid.
                         palette_section(ui, p, "Layout", false, &[
                             ("▭", "Container"),
                             ("≡", "Row"),
                             ("‖", "Column"),
                         ]);
-                        ui.add_space(SPACE);
+                        ui.add_space(SPACE * 2.0);
                         // Basic widgets.
                         palette_section(ui, p, "Basic", false, &[
                             ("T", "Text"),
@@ -831,7 +836,7 @@ impl StudioApp {
                             ("▢", "Input"),
                             ("◭", "Image"),
                         ]);
-                        ui.add_space(SPACE);
+                        ui.add_space(SPACE * 2.0);
                         // SECURE primitives — visually distinct (brand accent + lock).
                         palette_section(ui, p, "Secure", true, &[
                             ("⚿", "Secure form"),
@@ -840,9 +845,9 @@ impl StudioApp {
                             ("⚿", "II auth"),
                         ]);
 
-                        ui.add_space(SPACE);
+                        ui.add_space(SPACE * 2.0);
                         vsep_h(ui, p);
-                        ui.add_space(SPACE);
+                        ui.add_space(SPACE * 2.0);
 
                         // The collapsible Pages/Files list (secondary now that the
                         // toolbox is the primary left content).
@@ -886,13 +891,13 @@ impl StudioApp {
     fn inspector_panel(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
             .fill(p.panel)
-            .inner_margin(Margin::same(12))
+            .inner_margin(Margin::same(18))
             .stroke(Stroke {
                 width: 1.0,
                 color: p.stroke,
             });
         egui::Panel::right("inspector")
-            .default_size(312.0)
+            .default_size(320.0)
             .frame(frame)
             .show_inside(ui, |ui| {
                 section_title(ui, p, "Inspector");
@@ -976,8 +981,8 @@ impl StudioApp {
             .show_inside(ui, |ui| {
                 // The canvas toolbar: Select/Interact + the live-session controls.
                 let bar = Frame::new()
-                    .fill(p.window)
-                    .inner_margin(Margin::symmetric(14, 8));
+                    .fill(p.panel)
+                    .inner_margin(Margin::symmetric(18, 10));
                 bar.show(ui, |ui| {
                     ui.horizontal(|ui| {
                         // Canvas mode: Select (designer) vs Interact (LIVE replay).
@@ -1030,6 +1035,15 @@ impl StudioApp {
                     .auto_shrink([false, false])
                     .id_salt("design-canvas")
                     .show(ui, |ui| {
+                        // Paint the distinct work-surface (Canva's gray mat)
+                        // across the whole canvas FIRST, then the subtle grid on
+                        // top — so the white device frame floats on gray, not on
+                        // the panel color.
+                        ui.painter().rect_filled(
+                            ui.clip_rect(),
+                            CornerRadius::ZERO,
+                            p.canvas,
+                        );
                         // Paint the designer grid behind everything in this canvas.
                         if grid {
                             paint_design_grid(ui, p);
@@ -1038,10 +1052,11 @@ impl StudioApp {
                         // the device frame is small (mobile).
                         let min = ui.available_size();
                         ui.set_min_size(egui::vec2(
-                            min.x.max(device.frame_width() + 96.0),
-                            min.y.max(560.0),
+                            min.x.max(device.frame_width() + 140.0),
+                            min.y.max(600.0),
                         ));
-                        ui.add_space(28.0);
+                        // Comfortable top margin so the floating frame breathes.
+                        ui.add_space(48.0);
                         ui.vertical_centered(|ui| {
                             match &self.preview {
                                 None => {
@@ -1080,7 +1095,7 @@ impl StudioApp {
                                 }
                             }
                         });
-                        ui.add_space(28.0);
+                        ui.add_space(48.0);
                     });
             });
 
@@ -1191,6 +1206,14 @@ fn brand_dot(ui: &mut Ui, p: &Palette) {
         .circle_filled(rect.center(), 5.0, p.brand);
 }
 
+/// A comfortable gap between toolbar GROUPS: roomy space, a hairline divider,
+/// roomy space (more breathing room than a bare `vsep`, the Canva calm).
+fn group_gap(ui: &mut Ui, p: &Palette) {
+    ui.add_space(SPACE * 1.5);
+    vsep(ui, p);
+    ui.add_space(SPACE * 1.5);
+}
+
 /// A thin vertical divider.
 fn vsep(ui: &mut Ui, p: &Palette) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(1.0, 22.0), egui::Sense::hover());
@@ -1264,10 +1287,36 @@ fn seg_button(ui: &mut Ui, p: &Palette, label: &str, active: bool) -> Response {
     ui.add(btn)
 }
 
-/// A titled toolbox section (Layout / Basic / Secure) of draggable-looking rows.
-/// `secure` makes the section visually distinct (a brand-tinted card + a lock
-/// glyph header). Drag-drop is NOT wired this slice — rows are the visual
-/// palette (the grip glyph signals draggability).
+/// A subtle, Canva-style SEARCH field at the top of the Elements toolbox. It is
+/// a non-functional placeholder this slice (a labeled affordance, not a lie): a
+/// rounded input shell with a magnifier glyph + hint text.
+fn search_field(ui: &mut Ui, p: &Palette) {
+    Frame::new()
+        .fill(p.raised)
+        .inner_margin(Margin::symmetric(12, 9))
+        .corner_radius(CornerRadius::same(10))
+        .stroke(Stroke { width: 1.0, color: p.stroke })
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("⌕")
+                        .size(16.0)
+                        .color(p.text_disabled),
+                );
+                ui.label(
+                    RichText::new("Search elements")
+                        .color(p.text_disabled),
+                );
+            });
+        });
+}
+
+/// A titled toolbox section (Layout / Basic / Secure) rendered as a friendly
+/// 2-column TILE GRID (Canva elements) — each tile is a big glyph over a label.
+/// `secure` makes the section visually distinct (a brand-tinted tile + a lock
+/// glyph header). Drag-drop is NOT wired this slice — the tiles are the visual
+/// palette.
 fn palette_section(ui: &mut Ui, p: &Palette, title: &str, secure: bool, rows: &[(&str, &str)]) {
     // Section header (a lock glyph for the secure section).
     ui.horizontal(|ui| {
@@ -1276,59 +1325,88 @@ fn palette_section(ui: &mut Ui, p: &Palette, title: &str, secure: bool, rows: &[
         }
         ui.label(
             RichText::new(title)
-                .text_style(TextStyle::Small)
+                .size(theme::SUB_HEADING_SIZE)
                 .strong()
-                .color(if secure { p.brand } else { p.text_secondary }),
+                .color(if secure { p.brand } else { p.text_primary }),
         );
     });
-    ui.add_space(4.0);
+    ui.add_space(SPACE);
 
-    let card_fill = if secure { p.brand_subtle } else { p.card };
-    let card_stroke = if secure { p.brand } else { p.stroke };
-    Frame::new()
-        .fill(card_fill)
-        .inner_margin(Margin::same(6))
-        .corner_radius(CornerRadius::same(RADIUS_CARD))
-        .stroke(Stroke { width: 1.0, color: card_stroke })
-        .show(ui, |ui| {
-            ui.spacing_mut().item_spacing.y = 3.0;
-            for (glyph, label) in rows {
-                palette_row(ui, p, glyph, label, secure);
+    // A 2-column grid of tiles. We compute the tile width from the available
+    // width so the two columns + the gap fill the toolbox neatly.
+    const GAP: f32 = 10.0;
+    let avail = ui.available_width();
+    let tile_w = ((avail - GAP) / 2.0).max(96.0);
+    let tile_h = 64.0;
+
+    let mut iter = rows.iter().peekable();
+    while iter.peek().is_some() {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = GAP;
+            for _ in 0..2 {
+                if let Some((glyph, label)) = iter.next() {
+                    palette_tile(ui, p, glyph, label, secure, egui::vec2(tile_w, tile_h));
+                }
             }
         });
+        if iter.peek().is_some() {
+            ui.add_space(GAP);
+        }
+    }
 }
 
-/// One palette row: a grip (draggable affordance) + a glyph + a label. Hover
-/// raises the row. The grip is purely visual this slice.
-fn palette_row(ui: &mut Ui, p: &Palette, glyph: &str, label: &str, secure: bool) {
-    let resp = Frame::new()
-        .fill(Color32::TRANSPARENT)
-        .inner_margin(Margin::symmetric(6, 4))
-        .corner_radius(CornerRadius::same(RADIUS_INPUT))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                // Grip (two dotted columns) — the "draggable" affordance.
-                ui.label(
-                    RichText::new("⠿")
-                        .text_style(TextStyle::Small)
-                        .color(p.text_disabled),
-                );
-                ui.label(
-                    RichText::new(glyph)
-                        .color(if secure { p.brand } else { p.text_secondary }),
-                );
-                ui.label(RichText::new(label).color(p.text_primary));
-            });
-        })
-        .response;
-    let resp = resp.interact(egui::Sense::click());
-    if resp.hovered() {
-        ui.painter().rect_filled(
-            resp.rect,
-            CornerRadius::same(RADIUS_INPUT),
-            p.raised.gamma_multiply(0.7),
-        );
-    }
+/// One palette TILE: a centered big glyph over a small label, in a soft rounded
+/// card with a gentle hover. `secure` tints it with the brand accent. The tile
+/// is a click-sensed visual affordance (drag-drop is the next slice).
+fn palette_tile(
+    ui: &mut Ui,
+    p: &Palette,
+    glyph: &str,
+    label: &str,
+    secure: bool,
+    size: egui::Vec2,
+) {
+    debug_assert!(!label.is_empty(), "palette_tile label must be non-empty");
+    let (id, rect) = ui.allocate_space(size);
+    let resp = ui.interact(rect, id, egui::Sense::click());
+
+    let hovered = resp.hovered();
+    let (fill, stroke_c) = if secure {
+        (
+            if hovered { p.brand_subtle } else { p.brand_subtle.gamma_multiply(0.7) },
+            p.brand,
+        )
+    } else if hovered {
+        (p.raised, p.brand)
+    } else {
+        (p.card, p.stroke)
+    };
+
+    let painter = ui.painter();
+    painter.rect_filled(rect, CornerRadius::same(RADIUS_CARD), fill);
+    painter.rect_stroke(
+        rect.shrink(0.5),
+        CornerRadius::same(RADIUS_CARD),
+        Stroke { width: 1.0, color: stroke_c },
+        egui::StrokeKind::Inside,
+    );
+
+    let glyph_color = if secure { p.brand } else { p.text_secondary };
+    let center = rect.center();
+    painter.text(
+        egui::pos2(center.x, rect.top() + size.y * 0.36),
+        egui::Align2::CENTER_CENTER,
+        glyph,
+        FontId::proportional(22.0),
+        glyph_color,
+    );
+    painter.text(
+        egui::pos2(center.x, rect.bottom() - size.y * 0.26),
+        egui::Align2::CENTER_CENTER,
+        label,
+        FontId::proportional(12.5),
+        p.text_primary,
+    );
 }
 
 /// A clickable collapsible header (a ▸/▾ caret + a title + a count chip). Returns
@@ -1365,7 +1443,13 @@ fn paint_design_grid(ui: &mut Ui, p: &Palette) {
     let rect = ui.clip_rect();
     let painter = ui.painter();
     const STEP: f32 = 24.0;
-    let dot = p.stroke.gamma_multiply(if p.dark { 0.9 } else { 1.0 });
+    // A subtle dot that still reads on the gray work surface: on light, a soft
+    // cool gray a step darker than the canvas; on dark, the divider color.
+    let dot = if p.dark {
+        p.stroke.gamma_multiply(0.9)
+    } else {
+        Color32::from_rgb(0xd2, 0xd4, 0xdd)
+    };
     // Cross-dots on a STEP grid: a tiny filled square at each lattice point.
     let mut y = (rect.top() / STEP).floor() * STEP;
     while y < rect.bottom() {
@@ -1391,7 +1475,9 @@ fn device_frame(ui: &mut Ui, p: &Palette, device: Device, content: impl FnOnce(&
     let frame_w = device.frame_width();
 
     let outer = Frame::new()
-        .fill(p.panel)
+        // The frame is a WHITE card on light (p.card) — white-on-gray + the soft
+        // shadow is what makes the design pop like a Canva artboard.
+        .fill(p.card)
         .inner_margin(Margin::same(if matches!(device, Device::Mobile) { 12 } else { 0 }))
         .corner_radius(CornerRadius::same(if matches!(device, Device::Mobile) {
             28
@@ -1402,7 +1488,9 @@ fn device_frame(ui: &mut Ui, p: &Palette, device: Device, content: impl FnOnce(&
             width: if matches!(device, Device::Mobile) { 6.0 } else { 1.0 },
             color: p.stroke,
         })
-        .shadow(theme::card_shadow(p));
+        // A GENEROUS soft shadow so the white frame floats off the gray canvas
+        // (the Canva artboard look) — bigger than a normal card's drop.
+        .shadow(theme::frame_shadow(p));
 
     outer.show(ui, |ui| {
         ui.set_width(frame_w);

@@ -33,9 +33,9 @@ fn crm_dir() -> PathBuf {
 /// and a fresh preview rendered. `dark` selects the Fluent theme.
 fn studio_with_crm(dark: bool) -> StudioApp {
     let mut app = StudioApp::new_headless();
-    if !dark {
-        app.set_dark(false);
-    }
+    // The studio now defaults to LIGHT, so set the theme EXPLICITLY for both
+    // branches (a `true` here must actually flip the app to dark).
+    app.set_dark(dark);
     let dir = crm_dir();
     assert!(
         dir.join("src/Pages/Board.mview").exists(),
@@ -128,12 +128,14 @@ fn studio_crm_selected() {
 }
 
 // ---------------------------------------------------------------------------
-// VISUAL DESIGNER snapshots — the new Figma/VB-style layout: a component toolbox
-// (left), the design canvas with a painted grid + a device frame (center), and
-// the inspector (right). Rendered large + dark for the human's visual review.
+// VISUAL DESIGNER snapshots — the Canva-style layout: a friendly element toolbox
+// (left), the design canvas with a soft gray work-surface + a floating white
+// device frame (center), and the inspector (right). Rendered LARGE and LIGHT —
+// light is the studio's DEFAULT now (Canva is bright), so these prove the
+// resting look. A single `designer_desktop_dark` preserves a dark sample.
 // ---------------------------------------------------------------------------
 
-/// Render the full designer at a designer-review size (dark).
+/// Render the full designer at a designer-review size.
 fn designer_snapshot(app: StudioApp, name: &str) {
     let mut app = app;
     let mut harness = Harness::builder()
@@ -143,43 +145,55 @@ fn designer_snapshot(app: StudioApp, name: &str) {
     harness.snapshot(name);
 }
 
-/// DESKTOP frame (the default): the widest device, a plain window chrome.
+/// DESKTOP frame (the default), LIGHT: the widest device, a plain window chrome,
+/// a white frame floating on the gray Canva work surface.
 #[test]
 fn designer_desktop() {
-    let mut app = studio_with_crm(true);
+    let mut app = studio_with_crm(false);
     assert_board_loaded(&app);
     app.set_device(Device::Desktop);
     assert_eq!(app.device(), Device::Desktop);
     designer_snapshot(app, "designer_desktop");
 }
 
-/// WEB frame: a faux browser (3 dots + an address pill) at ~1024px — the device
-/// switch visibly narrows the frame + changes the chrome.
+/// DESKTOP frame in DARK — a preserved dark sample so the dark theme keeps a
+/// designer-level snapshot even though LIGHT is now the default.
+#[test]
+fn designer_desktop_dark() {
+    let mut app = studio_with_crm(true);
+    assert_board_loaded(&app);
+    app.set_device(Device::Desktop);
+    assert_eq!(app.device(), Device::Desktop);
+    designer_snapshot(app, "designer_desktop_dark");
+}
+
+/// WEB frame, LIGHT: a faux browser (3 dots + an address pill) at ~1024px — the
+/// device switch visibly narrows the frame + changes the chrome.
 #[test]
 fn designer_web() {
-    let mut app = studio_with_crm(true);
+    let mut app = studio_with_crm(false);
     assert_board_loaded(&app);
     app.set_device(Device::Web);
     assert_eq!(app.device(), Device::Web);
     designer_snapshot(app, "designer_web");
 }
 
-/// MOBILE frame: a phone bezel at ~390px — the narrowest device, so the board
-/// columns reflow inside the bezel (a genuinely responsive preview).
+/// MOBILE frame, LIGHT: a phone bezel at ~390px — the narrowest device, so the
+/// board columns reflow inside the bezel (a genuinely responsive preview).
 #[test]
 fn designer_mobile() {
-    let mut app = studio_with_crm(true);
+    let mut app = studio_with_crm(false);
     assert_board_loaded(&app);
     app.set_device(Device::Mobile);
     assert_eq!(app.device(), Device::Mobile);
     designer_snapshot(app, "designer_mobile");
 }
 
-/// INSPECTOR populated: select a node → the right inspector shows its tag,
+/// INSPECTOR populated, LIGHT: select a node → the right inspector shows its tag,
 /// source location, attributes + events, and the node is outlined on the canvas.
 #[test]
 fn designer_inspector() {
-    let mut app = studio_with_crm(true);
+    let mut app = studio_with_crm(false);
     assert_board_loaded(&app);
     assert!(
         app.select_node_by_class("deal-card"),
