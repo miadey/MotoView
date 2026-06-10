@@ -1438,6 +1438,137 @@ fn rel_src(project_dir: &Path, file: &Path) -> String {
         .replace('\\', "/")
 }
 
+/// R12 token-anchored column resolution.
+///
+/// R11 maps a `moc` error's GENERATED line back to the originating `.mview` line.
+/// The COLUMN, however, is moc's column into the GENERATED actor text. For most
+/// `@code` lines that already equals the source column (codegen preserves source
+/// indentation byte-for-byte). It DRIFTS only when the line carries an in-line
+/// transform that shifts text horizontally: `await`-stripping (codegen removes
+/// `"await "`), `validate { … }` translation, identifier rewriting
+/// (`replace_ident_in_code`). After such a transform a token to its right lands
+/// at a smaller generated column than its true source column.
+///
+/// This helper re-anchors the column by the offending TOKEN's text:
+///   1. slice the GENERATED line at moc's `[gen_col, gen_end_col)` to get `T`,
+///   2. find `T` verbatim in the resolved SOURCE line (the occurrence nearest the
+///      column moc reported), and
+///   3. report `T`'s 1-based SOURCE column + `end = col + T.chars().count()`.
+///
+/// It is deliberately CONSERVATIVE: it returns `None` (caller keeps moc's column,
+/// never worse than today) whenever `T` is empty/whitespace, the range spans
+/// multiple lines, or `T` is not present verbatim in the source line (e.g. a
+/// RENAMED identifier — `replace_ident_in_code` made the generated text differ
+/// from the source, so there is nothing to anchor to).
+///
+/// All columns are 1-based and counted in CHARACTERS (matching moc + [`span::line_col`]).
+/// `gen_line`/`source_line` are the raw line TEXT (no trailing newline).
+fn anchor_token_column(
+    gen_line: &str,
+    source_line: &str,
+    gen_col: usize,
+    gen_end_col: usize,
+    gen_line_no: usize,
+    gen_end_line_no: usize,
+) -> Option<(u32, u32)> {
+    // Multi-line spans have no single source line to anchor onto.
+    if gen_end_line_no != gen_line_no {
+        return None;
+    }
+    if gen_col == 0 {
+        return None; // unparsed position — leave the column as-is.
+    }
+    let gen_chars: Vec<char> = gen_line.chars().collect();
+    // moc columns are 1-based; convert to 0-based char indices into the line.
+    let start = gen_col.saturating_sub(1);
+    // A point span (`col == end_col`) means moc fingered a single position; widen
+    // it to the identifier/operator token starting there so we have text to anchor.
+    let end = if gen_end_col > gen_col {
+        gen_end_col.saturating_sub(1)
+    } else {
+        // Grow to the end of the token at `start` (alnum/_ run, else one char).
+        let mut e = start;
+        while e < gen_chars.len() && is_ident_char(gen_chars[e]) {
+            e += 1;
+        }
+        if e == start {
+            (start + 1).min(gen_chars.len())
+        } else {
+            e
+        }
+    };
+    if start >= gen_chars.len() || end <= start || end > gen_chars.len() {
+        return None;
+    }
+    let token: String = gen_chars[start..end].iter().collect();
+    if token.trim().is_empty() {
+        return None; // whitespace-only — nothing to anchor.
+    }
+
+    // Find `token` in the source line. Prefer the occurrence whose source column is
+    // nearest the generated column (so a token that appears more than once snaps to
+    // the right one). We search by CHAR index to keep columns char-based.
+    let src_chars: Vec<char> = source_line.chars().collect();
+    let tok_chars: Vec<char> = token.chars().collect();
+    let mut best: Option<usize> = None; // 0-based char index of the match start.
+    let mut best_dist = usize::MAX;
+    let predicted = start; // expect the source token at >= the generated column.
+    let mut i = 0usize;
+    while i + tok_chars.len() <= src_chars.len() {
+        if src_chars[i..i + tok_chars.len()] == tok_chars[..] {
+            // The transform only ever shifts text RIGHTWARD in source vs. generated
+            // (codegen removes/contracts text), so the true source column is >= the
+            // generated one. Bias toward matches at-or-after `predicted`, but accept
+            // any if none qualify.
+            let dist = if i >= predicted { i - predicted } else { predicted - i + src_chars.len() };
+            if dist < best_dist {
+                best_dist = dist;
+                best = Some(i);
+            }
+        }
+        i += 1;
+    }
+    let idx = best?;
+    let col = (idx + 1) as u32; // 1-based source column.
+    let end_col = (idx + 1 + tok_chars.len()) as u32;
+    Some((col, end_col))
+}
+
+/// Whether `c` can be part of a Motoko identifier (used to widen a point span to
+/// the whole token when moc reports `col == end_col`).
+fn is_ident_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+/// Read the `.mview`/source line `line_no` (1-based) of `file` (project-relative)
+/// under `project_dir`, returning the raw line TEXT (no newline). Caches files so
+/// a report with many errors in one file reads it once. Any IO/range failure
+/// yields `None` (the caller then keeps moc's column — never worse than today).
+struct SourceLineLookup<'a> {
+    project_dir: Option<&'a Path>,
+    cache: HashMap<String, Option<Vec<String>>>,
+}
+
+impl<'a> SourceLineLookup<'a> {
+    fn new(project_dir: Option<&'a Path>) -> Self {
+        SourceLineLookup { project_dir, cache: HashMap::new() }
+    }
+
+    fn line(&mut self, file: &str, line_no: usize) -> Option<String> {
+        let dir = self.project_dir?;
+        if line_no == 0 {
+            return None;
+        }
+        let entry = self.cache.entry(file.to_string()).or_insert_with(|| {
+            let path = dir.join(file);
+            fs::read_to_string(&path)
+                .ok()
+                .map(|t| t.lines().map(|s| s.to_string()).collect())
+        });
+        entry.as_ref().and_then(|lines| lines.get(line_no - 1).cloned())
+    }
+}
+
 /// Rewrite `moc` errors that point at the generated `main.mo` so they name the
 /// originating `.mview`/source region instead. Uses the `// mv:src <path>`
 /// markers emitted per page/component/layout for the FILE, and (R11) the
@@ -1447,7 +1578,16 @@ fn rel_src(project_dir: &Path, file: &Path) -> String {
 /// When a [`SourceMap`] region covers the generated line, the report names the
 /// `.mview` file AND line (`src:LINE`); otherwise it falls back to the file from
 /// the `// mv:src` marker (line unknown) and always notes the generated line.
-pub fn map_moc_errors(main_mo: &str, moc_output: &str, source_map: &SourceMap) -> (String, bool) {
+///
+/// The human report does not print columns, so `project_dir` (used by the JSON
+/// path for R12 token-anchored columns) is accepted for signature symmetry but
+/// not consulted here — the output is byte-for-byte the same as before R12.
+pub fn map_moc_errors(
+    main_mo: &str,
+    moc_output: &str,
+    source_map: &SourceMap,
+    _project_dir: Option<&Path>,
+) -> (String, bool) {
     // (generated line number, source path) for each marker, in order.
     let mut markers: Vec<(usize, String)> = Vec::new();
     for (i, line) in main_mo.lines().enumerate() {
@@ -1508,14 +1648,21 @@ pub fn map_moc_errors(main_mo: &str, moc_output: &str, source_map: &SourceMap) -
 /// and `"moc"` for warnings/notes; `severity` is mapped from moc's own label.
 /// `file`/`line` are the `.mview` source path AND LINE when the generated->source
 /// [`SourceMap`] (R11) covers the generated line; otherwise `file` falls back to
-/// the `// mv:src` marker (line stays moc's generated line). `col` is moc's
-/// reported column into the generated actor (an approximation in `.mview` terms —
-/// see the honest caveat); `endLine`/`endCol` carry moc's end position when
-/// present (`LINE.COL-LINE.COL`), else equal start.
+/// the `// mv:src` marker (line stays moc's generated line).
+///
+/// `col`/`endCol` are R12 token-anchored to the `.mview` SOURCE column whenever the
+/// generated line resolves to a `.mview` line AND the offending token is found
+/// verbatim in that source line (so an `await`-stripped / transform-shifted token
+/// reports its true source column, not the contracted generated one — see
+/// [`anchor_token_column`]). When `project_dir` is `None`, the line cannot be read,
+/// or the token is absent (e.g. a RENAMED identifier), they FALL BACK to moc's
+/// generated column (never worse than before R12). `endLine`/`endCol` otherwise
+/// carry moc's end position when present (`LINE.COL-LINE.COL`), else equal start.
 pub fn map_moc_errors_json(
     main_mo: &str,
     moc_output: &str,
     source_map: &SourceMap,
+    project_dir: Option<&Path>,
 ) -> Vec<lint::JsonDiagnostic> {
     // (generated line number, source path) for each marker, in order.
     let mut markers: Vec<(usize, String)> = Vec::new();
@@ -1531,6 +1678,10 @@ pub fn map_moc_errors_json(
             .find(|(l, _)| *l <= gen_line)
             .map(|(_, p)| p)
     };
+    // R12: the GENERATED actor lines (to slice the offending token) + a cached
+    // reader for the `.mview` SOURCE lines (to re-anchor the column onto them).
+    let gen_lines: Vec<&str> = main_mo.lines().collect();
+    let mut src_lookup = SourceLineLookup::new(project_dir);
     let mut out: Vec<lint::JsonDiagnostic> = Vec::new();
     for line in moc_output.lines() {
         // e.g. ".../main.mo:6519.5-6519.11: syntax error [M0001], unexpected ..."
@@ -1574,15 +1725,33 @@ pub fn map_moc_errors_json(
                 end_line as u32,
             ),
         };
+        // R12: re-anchor the COLUMN onto the `.mview` source line. Only attempt it
+        // when the start line mapped to a `.mview` line (line_out != generated) AND
+        // we can read that source line; otherwise keep moc's column (the prior
+        // behaviour — never worse). The token is sliced from the GENERATED line.
+        let (mut col_out, mut end_col_out) = (col as u32, end_col as u32);
+        let mapped_to_source = source_map.resolve(line_no).is_some();
+        if mapped_to_source {
+            if let Some(gen_text) = gen_lines.get(line_no.saturating_sub(1)) {
+                if let Some(src_text) = src_lookup.line(&file, line_out as usize) {
+                    if let Some((c, ec)) =
+                        anchor_token_column(gen_text, &src_text, col, end_col, line_no, end_line)
+                    {
+                        col_out = c;
+                        end_col_out = ec;
+                    }
+                }
+            }
+        }
         out.push(lint::JsonDiagnostic {
             severity,
             rule: rule.to_string(),
             message,
             file,
             line: line_out,
-            col: col as u32,
+            col: col_out,
             end_line: end_line_out,
-            end_col: end_col as u32,
+            end_col: end_col_out,
         });
     }
     out
@@ -1740,5 +1909,96 @@ mod path_tests {
     #[test]
     fn same_dir_is_empty() {
         assert_eq!(rel_path_between(Path::new("app/src"), Path::new("app/src")), "");
+    }
+}
+
+/// R12 unit tests for the pure token-anchor core: given a generated line, the
+/// resolved source line, and moc's columns, it returns the SOURCE column of the
+/// offending token (or `None` to fall back to moc's column). No file IO here.
+#[cfg(test)]
+mod anchor_tests {
+    use super::anchor_token_column;
+
+    #[test]
+    fn await_strip_reanchors_token_to_source_column() {
+        // Source has `await ` (codegen strips it), so the token `nope` sits 6 cols
+        // further right in the SOURCE than in the GENERATED line. moc reports the
+        // generated column; the anchor must report the SOURCE column.
+        let gen = "      ignore (mvNoop()); let _b : Nat = nope;";
+        let src = "      ignore (await mvNoop()); let _b : Nat = nope;";
+        // `nope` in the generated line: find it to compute moc's reported cols.
+        let g0 = gen.find("nope").unwrap() + 1; // 1-based
+        let g1 = g0 + "nope".len();
+        let (col, end_col) = anchor_token_column(gen, src, g0, g1, 10, 10).expect("anchored");
+        let s0 = src.find("nope").unwrap() + 1;
+        assert_eq!(col as usize, s0, "token re-anchored to its SOURCE column");
+        assert_eq!(end_col as usize, s0 + "nope".len());
+        assert!(col as usize > g0, "source column is to the RIGHT of the generated one");
+    }
+
+    #[test]
+    fn simple_line_keeps_exact_source_column() {
+        // No transform: generated == source, so the anchored column equals moc's.
+        let line = "        let _b : Nat = nope;";
+        let g0 = line.find("nope").unwrap() + 1;
+        let g1 = g0 + "nope".len();
+        let (col, end_col) = anchor_token_column(line, line, g0, g1, 5, 5).expect("anchored");
+        assert_eq!(col as usize, g0, "unchanged column for a non-transformed line");
+        assert_eq!(end_col as usize, g1);
+    }
+
+    #[test]
+    fn renamed_identifier_falls_back_to_none() {
+        // `replace_ident_in_code` rewrote `oldName` -> `newName` in the generated
+        // text; the generated token is absent from the source line, so anchoring
+        // must DECLINE (caller keeps moc's column — never worse).
+        let gen = "      ignore newName;";
+        let src = "      ignore oldName;";
+        let g0 = gen.find("newName").unwrap() + 1;
+        let g1 = g0 + "newName".len();
+        assert_eq!(anchor_token_column(gen, src, g0, g1, 3, 3), None);
+    }
+
+    #[test]
+    fn multi_line_span_declines() {
+        let gen = "      let x = foo(";
+        let src = "      let x = foo(";
+        // end line != start line -> no single source line to anchor onto.
+        assert_eq!(anchor_token_column(gen, src, 7, 4, 3, 4), None);
+    }
+
+    #[test]
+    fn whitespace_or_empty_token_declines() {
+        let gen = "      let x = 1;";
+        let src = "      let x = 1;";
+        // A zero-width point on a space widens to one char; a pure-space slice declines.
+        // Force the start onto a run of spaces with end_col past it.
+        assert_eq!(anchor_token_column(gen, src, 1, 4, 1, 1), None);
+        // col == 0 (unparsed) -> decline.
+        assert_eq!(anchor_token_column(gen, src, 0, 0, 1, 1), None);
+    }
+
+    #[test]
+    fn point_span_widens_to_whole_token() {
+        // moc sometimes reports a point (col == end_col) at the token start; the
+        // anchor widens it to the full identifier and re-anchors both ends.
+        let gen = "      ignore (mvNoop()); let _b : Nat = nope;";
+        let src = "      ignore (await mvNoop()); let _b : Nat = nope;";
+        let g0 = gen.find("nope").unwrap() + 1;
+        let (col, end_col) = anchor_token_column(gen, src, g0, g0, 9, 9).expect("anchored");
+        let s0 = src.find("nope").unwrap() + 1;
+        assert_eq!(col as usize, s0);
+        assert_eq!(end_col as usize, s0 + "nope".len(), "widened to the whole token");
+    }
+
+    #[test]
+    fn nearest_occurrence_is_chosen_for_repeated_token() {
+        // `x` appears twice in the source; the anchor should pick the occurrence
+        // nearest (at-or-after) the generated column, not the first one.
+        let gen = "  x + x_marker_here_x;"; // generated col of the 2nd `x` region
+        let src = "  x + x_marker_here_x;";
+        // Target the standalone leading `x` at col 3.
+        let (col, _ec) = anchor_token_column(gen, src, 3, 4, 1, 1).expect("anchored");
+        assert_eq!(col, 3, "the leading x at its own column");
     }
 }
