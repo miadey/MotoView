@@ -6,9 +6,119 @@ use crate::ast::FileKind;
 use crate::codegen::{Codegen, EmitMode};
 use crate::lint::{self, Severity};
 use crate::parser;
+use crate::span::{self, SourceMap};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+/// One `@code` function's source-line footprint, gathered while a `.mview` is
+/// parsed and later matched against the generated `func <name>(` line in
+/// `main.mo` to build the generated->source [`SourceMap`] (R11). `name` is the
+/// (mangled-if-needed) emitted function identifier — what `main.mo` actually
+/// shows after `func`.
+#[derive(Debug, Clone)]
+struct FuncSrcInfo {
+    /// `.mview` source path (project-relative, e.g. `src/Pages/Counter.mview`).
+    file: String,
+    /// Emitted function identifier — matched against `    func <name>(` in main.mo.
+    name: String,
+    /// 1-based `.mview` line of the `func` keyword (the func's first source line).
+    src_start_line: usize,
+    /// Number of `.mview` lines the whole `func … { … }` spans (>= 1).
+    src_line_count: usize,
+}
+
+/// Compute the [`FuncSrcInfo`] list for one parsed file: each `@code` func's
+/// source line footprint, derived from its FILE-relative span (R11 rebases these
+/// in `parse_code_block`). `src` is the file's char slice for `line_col`.
+fn func_src_infos(file: &crate::ast::MviewFile, rel: &str, src: &[char]) -> Vec<FuncSrcInfo> {
+    let mut out = Vec::new();
+    for f in &file.code.funcs {
+        let (start_line, _) = span::line_col(src, f.span.start);
+        let (end_line, _) = span::line_col(src, f.span.end.saturating_sub(1).max(f.span.start));
+        out.push(FuncSrcInfo {
+            file: rel.to_string(),
+            // Codegen emits the user's func name verbatim for page/layout/component
+            // helpers, so the source name is what `main.mo` shows after `func`.
+            name: f.name.clone(),
+            src_start_line: start_line as usize,
+            src_line_count: (end_line as usize).saturating_sub(start_line as usize) + 1,
+        });
+    }
+    out
+}
+
+/// Build the generated->source [`SourceMap`] by scanning the FINAL `main.mo`
+/// (post-coalesce, post-header) for each `@code` function's emitted
+/// `    func <name>(` header line, anchored within the `// mv:src <path>` region
+/// it belongs to. Each func maps a line-preserving region: generated header line
+/// `G` ↔ source line `src_start_line`, extending `src_line_count` lines (the
+/// func body is emitted near-verbatim, so the correspondence is line-for-line).
+///
+/// This runs on the byte-final actor, so `coalesce_raw`'s line shifts are already
+/// baked in — the recorded generated lines are the ones `moc` will actually
+/// report. The map is a SIDE artifact (`.mvbuild/main.mo.map`); nothing is added
+/// to `main.mo`, so the golden actor stays byte-identical.
+fn build_source_map(main_mo: &str, funcs: &[FuncSrcInfo]) -> SourceMap {
+    let mut map = SourceMap::new();
+    // Index the funcs by their owning file for region-scoped matching.
+    let lines: Vec<&str> = main_mo.lines().collect();
+    // Track which (file, gen_line) we've already consumed so two funcs with the
+    // same name in different files don't collide, and re-emitted helper funcs
+    // (mvRender etc.) are never matched (they aren't in `funcs`).
+    let mut current_file: Option<String> = None;
+    // Per-file cursor: index into that file's not-yet-matched funcs (matched in
+    // emission order, which is source order — codegen preserves func order).
+    let mut by_file: HashMap<String, std::collections::VecDeque<&FuncSrcInfo>> = HashMap::new();
+    for f in funcs {
+        by_file.entry(f.file.clone()).or_default().push_back(f);
+    }
+    for (i, raw) in lines.iter().enumerate() {
+        let gen_line = i + 1; // 1-based, matches moc
+        let trimmed = raw.trim_start();
+        if let Some(rest) = trimmed.strip_prefix("// mv:src ") {
+            current_file = Some(rest.trim().to_string());
+            continue;
+        }
+        // Match `func <name>(` (the emitted user helper). The leading indent and
+        // exact name disambiguate from the runtime's own `public func ...`.
+        if let Some(name) = parse_emitted_func_name(trimmed) {
+            if let Some(file) = &current_file {
+                if let Some(queue) = by_file.get_mut(file) {
+                    // Pop the first queued func with this name (source order).
+                    if let Some(pos) = queue.iter().position(|f| f.name == name) {
+                        let info = queue.remove(pos).unwrap();
+                        let gen_start = gen_line;
+                        let gen_end = gen_line + info.src_line_count.saturating_sub(1);
+                        map.push(file.clone(), gen_start, gen_end, info.src_start_line);
+                    }
+                }
+            }
+        }
+    }
+    map
+}
+
+/// If `trimmed` (already left-trimmed) begins a Motoko function declaration
+/// `func <name>(`, return `<name>`. Skips `public func`/`shared func` so it only
+/// matches the plain `func name(` form codegen emits for `@code` helpers.
+fn parse_emitted_func_name(trimmed: &str) -> Option<String> {
+    let rest = trimmed.strip_prefix("func ")?;
+    let name: String = rest
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if name.is_empty() {
+        return None;
+    }
+    // Must be `func name(` — a paren (after optional spaces) follows the name.
+    let after = rest[name.len()..].trim_start();
+    if after.starts_with('(') {
+        Some(name)
+    } else {
+        None
+    }
+}
 
 pub struct BuildOptions {
     pub project_dir: PathBuf,
@@ -245,6 +355,16 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     let mut page_records = String::new();
     let mut page_idents: Vec<String> = Vec::new();
     let mut routes: Vec<(String, String)> = Vec::new();
+    // (R11) Per-`@code` func source-line footprints, gathered across pages/
+    // components/layouts; turned into the generated->source map after assembly.
+    let mut func_infos: Vec<FuncSrcInfo> = Vec::new();
+    // Components were already parsed above; record their func footprints too.
+    for (cf, file) in component_files.iter().zip(parsed_components.iter()) {
+        let rel = rel_src(&opts.project_dir, cf);
+        let csrc = fs::read_to_string(cf).unwrap_or_default();
+        let cchars: Vec<char> = csrc.chars().collect();
+        func_infos.extend(func_src_infos(file, &rel, &cchars));
+    }
 
     for pf in &page_files {
         let name = file_stem(pf);
@@ -254,6 +374,8 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
             theme_brand = file.theme_brand.clone();
         }
         let rel = rel_src(&opts.project_dir, pf);
+        let pchars: Vec<char> = source.chars().collect();
+        func_infos.extend(func_src_infos(&file, &rel, &pchars));
         for d in lint::lint_file(&file, &rel) {
             diagnostics.push((rel.clone(), d));
         }
@@ -281,6 +403,8 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
             theme_brand = file.theme_brand.clone();
         }
         let rel = rel_src(&opts.project_dir, lf);
+        let lchars: Vec<char> = source.chars().collect();
+        func_infos.extend(func_src_infos(&file, &rel, &lchars));
         for d in lint::lint_file(&file, &rel) {
             diagnostics.push((rel.clone(), d));
         }
@@ -336,6 +460,16 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let _ = fs::create_dir_all(parent);
     }
     fs::write(&opts.out, &main).map_err(|e| format!("writing {}: {}", opts.out.display(), e))?;
+
+    // ---- generated->source line map (R11, SIDE artifact) ----
+    // Scan the BYTE-FINAL `main.mo` for each `@code` func's emitted header line and
+    // record `generated line -> (.mview file, .mview line)`. Written next to the
+    // actor as `<out>.map`; nothing is added to `main.mo` (so it stays byte-
+    // identical). `check` reads this back to point `moc` type errors at the
+    // originating `.mview` LINE — see `map_moc_errors[_json]`.
+    let source_map = build_source_map(&main, &func_infos);
+    let map_path = source_map_path(&opts.out);
+    let _ = fs::write(&map_path, source_map.to_text());
 
     // ---- design-token cross-compile (web CSS -> native SwiftUI/Compose) ----
     // When the project declares `@theme brand="#hex"`, emit the SAME brand ramp +
@@ -1277,6 +1411,25 @@ fn rel_path_between(from: &Path, to: &Path) -> String {
     parts.join("/")
 }
 
+/// Sidecar path for the generated->source line map: `<out>.map` (e.g.
+/// `.mvbuild/main.mo.map`). A SIDE artifact — never part of `main.mo`.
+pub fn source_map_path(out: &Path) -> PathBuf {
+    let mut name = out.file_name().map(|s| s.to_os_string()).unwrap_or_default();
+    name.push(".map");
+    out.with_file_name(name)
+}
+
+/// Load the generated->source [`SourceMap`] sidecar for `out` (the generated
+/// `main.mo`). A missing/unreadable map yields an EMPTY map — callers then fall
+/// back to the `// mv:src` FILE markers, exactly as before R11.
+pub fn load_source_map(out: &Path) -> SourceMap {
+    let path = source_map_path(out);
+    match fs::read_to_string(&path) {
+        Ok(text) => SourceMap::parse(&text),
+        Err(_) => SourceMap::new(),
+    }
+}
+
 /// Path of a source file relative to the project dir (for `// mv:src` markers).
 fn rel_src(project_dir: &Path, file: &Path) -> String {
     file.strip_prefix(project_dir)
@@ -1287,9 +1440,14 @@ fn rel_src(project_dir: &Path, file: &Path) -> String {
 
 /// Rewrite `moc` errors that point at the generated `main.mo` so they name the
 /// originating `.mview`/source region instead. Uses the `// mv:src <path>`
-/// markers emitted per page/component/layout. Returns the mapped report and
-/// whether any errors were found.
-pub fn map_moc_errors(main_mo: &str, moc_output: &str) -> (String, bool) {
+/// markers emitted per page/component/layout for the FILE, and (R11) the
+/// generated->source [`SourceMap`] for the precise `.mview` LINE of `@code`
+/// errors. Returns the mapped report and whether any errors were found.
+///
+/// When a [`SourceMap`] region covers the generated line, the report names the
+/// `.mview` file AND line (`src:LINE`); otherwise it falls back to the file from
+/// the `// mv:src` marker (line unknown) and always notes the generated line.
+pub fn map_moc_errors(main_mo: &str, moc_output: &str, source_map: &SourceMap) -> (String, bool) {
     // (generated line number, source path) for each marker, in order.
     let mut markers: Vec<(usize, String)> = Vec::new();
     for (i, line) in main_mo.lines().enumerate() {
@@ -1320,9 +1478,18 @@ pub fn map_moc_errors(main_mo: &str, moc_output: &str) -> (String, bool) {
                 had_error = true;
             }
             let msg = line.splitn(2, ": ").nth(1).unwrap_or(line);
-            match src_for(gen_line) {
-                Some(src) => out.push_str(&format!("{}  ({}, generated main.mo:{})\n", msg, src, gen_line)),
-                None => out.push_str(&format!("{}  (generated main.mo:{})\n", msg, gen_line)),
+            // Prefer the precise (.mview file, .mview line) from the source map; it
+            // is the headline R11 behaviour. Fall back to the marker FILE, else the
+            // raw generated line.
+            match source_map.resolve(gen_line) {
+                Some((src, src_line)) => out.push_str(&format!(
+                    "{}  ({}:{}, generated main.mo:{})\n",
+                    msg, src, src_line, gen_line
+                )),
+                None => match src_for(gen_line) {
+                    Some(src) => out.push_str(&format!("{}  ({}, generated main.mo:{})\n", msg, src, gen_line)),
+                    None => out.push_str(&format!("{}  (generated main.mo:{})\n", msg, gen_line)),
+                },
             }
         } else if !line.trim().is_empty() {
             out.push_str(line);
@@ -1339,11 +1506,17 @@ pub fn map_moc_errors(main_mo: &str, moc_output: &str) -> (String, bool) {
 /// The shape is IDENTICAL to the lint `--json` diagnostics so the editor (R6) /
 /// repair loop (R5) consume one schema. `rule` is `"type-check"` for moc errors
 /// and `"moc"` for warnings/notes; `severity` is mapped from moc's own label.
-/// `file` is the `.mview` source path when a marker covers the generated line,
-/// else the generated `main.mo`. `line`/`col` are moc's reported position into
-/// the generated actor (the only line numbers moc emits); `endLine`/`endCol`
-/// carry moc's end position when present (`LINE.COL-LINE.COL`), else equal start.
-pub fn map_moc_errors_json(main_mo: &str, moc_output: &str) -> Vec<lint::JsonDiagnostic> {
+/// `file`/`line` are the `.mview` source path AND LINE when the generated->source
+/// [`SourceMap`] (R11) covers the generated line; otherwise `file` falls back to
+/// the `// mv:src` marker (line stays moc's generated line). `col` is moc's
+/// reported column into the generated actor (an approximation in `.mview` terms —
+/// see the honest caveat); `endLine`/`endCol` carry moc's end position when
+/// present (`LINE.COL-LINE.COL`), else equal start.
+pub fn map_moc_errors_json(
+    main_mo: &str,
+    moc_output: &str,
+    source_map: &SourceMap,
+) -> Vec<lint::JsonDiagnostic> {
     // (generated line number, source path) for each marker, in order.
     let mut markers: Vec<(usize, String)> = Vec::new();
     for (i, line) in main_mo.lines().enumerate() {
@@ -1380,17 +1553,35 @@ pub fn map_moc_errors_json(main_mo: &str, moc_output: &str) -> Vec<lint::JsonDia
             lint::Severity::Warning => "moc",
         };
         let message = line.splitn(2, ": ").nth(1).unwrap_or(line).trim().to_string();
-        let file = src_for(line_no)
-            .cloned()
-            .unwrap_or_else(|| "main.mo".to_string());
+        // R11: remap the generated start/end LINE to the `.mview` line via the
+        // source map; the column stays moc's (a per-line approximation — the
+        // generated body is indented like the source, so it is usually close).
+        // Fall back to the `// mv:src` marker FILE (keeping moc's generated line)
+        // when no mapped region covers the error.
+        let (file, line_out, end_line_out) = match source_map.resolve(line_no) {
+            Some((src, src_line)) => {
+                // Map the end line through the same region when it resolves there;
+                // otherwise keep it equal to the (now-mapped) start line.
+                let end_src = source_map
+                    .resolve(end_line)
+                    .map(|(_, l)| l)
+                    .unwrap_or(src_line);
+                (src, src_line as u32, end_src as u32)
+            }
+            None => (
+                src_for(line_no).cloned().unwrap_or_else(|| "main.mo".to_string()),
+                line_no as u32,
+                end_line as u32,
+            ),
+        };
         out.push(lint::JsonDiagnostic {
             severity,
             rule: rule.to_string(),
             message,
             file,
-            line: line_no as u32,
+            line: line_out,
             col: col as u32,
-            end_line: end_line as u32,
+            end_line: end_line_out,
             end_col: end_col as u32,
         });
     }

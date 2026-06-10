@@ -79,11 +79,13 @@ pub struct HeadMeta {
 /// Scanned contents of the `@code { ... }` block.
 ///
 /// Spans on the declarations below ([`VarDecl::span`], [`FuncDecl::span`]) are
-/// offsets **into the `@code` body** (the text between its braces), not into the
-/// whole file — `scan_code`/`read_func` work on that substring. A later slice can
-/// add the body's file offset to rebase them; that is enough to map `moc` errors
-/// (which already carry `@code`-body line numbers via the `// mv:src` markers)
-/// back to the source.
+/// **FILE-relative** char offsets (R11): `scan_code`/`read_func` compute them over
+/// the `@code` body substring, then [`crate::parser::parse_code_block`] rebases
+/// them by adding the body's file start offset (`code_offset`). So `src[span]`
+/// (on the whole-file `&[char]`) yields the declaration text, and the
+/// generated->source map can turn each `func`'s file line into a `moc`-error
+/// target line. (Before R11 these were `@code`-body-relative; the rebase happens
+/// in one place — see `parse_code_block`.)
 #[derive(Debug, Clone, Default)]
 pub struct CodeBlock {
     pub vars: Vec<VarDecl>,
@@ -127,23 +129,23 @@ pub struct FuncDecl {
 
 // ---- template nodes -------------------------------------------------------
 
-// TODO(R1+): the bare directive variants below (`Expr`, `Raw`, `If`, `For`,
-// `Switch`) do not yet carry a `Span`. Adding one to a tuple/struct variant
-// would force a `Spanned<Node>` wrapper or per-variant field that codegen would
-// have to thread through — risking a byte-level change to emitted Motoko. Since
-// `Element`/`Component`/`Attr`/`EventBind`/`FuncDecl`/`VarDecl` already carry
-// spans (which covers tag/attr/event/decl diagnostics — the priority for the
-// language server), Node-level spans are deferred to keep byte-identity. When
-// added, prefer a parallel `Spanned<Node>` that derefs to `Node` so existing
-// codegen matches stay byte-identical.
+// R11: `Expr`/`Raw` now carry a file-relative [`Span`] (the directive's `@…`
+// position) so lint's `raw-html` warning and `@expr` diagnostics get a real
+// editor position instead of `(0,0)`. The span is ADDITIVE metadata — codegen
+// matches `Node::Expr(e, _)`/`Node::Raw(e, _)` and emits the same bytes, so the
+// golden actor is unchanged. (`If`/`For`/`Switch` still carry no span; the
+// container nodes whose spans matter for diagnostics — Element/Component/Attr/
+// EventBind/FuncDecl/VarDecl — already have them.)
 #[derive(Debug, Clone)]
 pub enum Node {
     Text(String),
-    /// `@expr` — escaped output of a Motoko expression.
-    Expr(String),
+    /// `@expr` — escaped output of a Motoko expression. The [`Span`] covers the
+    /// `@…` directive (file-relative); additive, ignored by codegen.
+    Expr(String, Span),
     /// `@raw(expr)` — TRUSTED, unescaped HTML output (escape hatch). The
     /// expression must already be `Text` of safe HTML; never use on user input.
-    Raw(String),
+    /// The [`Span`] covers the `@raw(…)` directive (file-relative); additive.
+    Raw(String, Span),
     If(Vec<IfBranch>),
     For {
         var: String,

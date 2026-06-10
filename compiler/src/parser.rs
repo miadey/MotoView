@@ -5,16 +5,55 @@
 
 use crate::ast::*;
 
-pub fn parse(source: &str, name: &str, kind: FileKind) -> Result<MviewFile, String> {
+/// A parse failure with a human message AND (R11) the file CHAR offset at which
+/// the parser gave up, so editors can place the squiggle precisely instead of at
+/// `(0,0)`. `offset` is `None` only when the failure carries no position (rare).
+///
+/// `Display` yields just the message (so existing `format!("{}", e)` / `eprintln!`
+/// call sites are unchanged), and `From<ParseError> for String` collapses it to
+/// the message — that makes every `parser::parse(...)?` in a `Result<_, String>`
+/// function keep compiling untouched. Code that wants the position reads `.offset`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError {
+    pub message: String,
+    /// File char offset (index into `source.chars().collect()`) of the failure.
+    pub offset: Option<usize>,
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl From<ParseError> for String {
+    fn from(e: ParseError) -> String {
+        e.message
+    }
+}
+
+pub fn parse(source: &str, name: &str, kind: FileKind) -> Result<MviewFile, ParseError> {
     let mut p = Parser::new(source, name, kind);
-    p.parse_file()?;
-    Ok(p.file)
+    match p.parse_file() {
+        Ok(()) => Ok(p.file),
+        // `self.i` is at / immediately after the offending construct when an
+        // internal `expect`/`read_*` helper bubbles its error up via `?`, so it is
+        // the best single offset we have for the failure. Clamp to source length.
+        Err(message) => Err(ParseError {
+            message,
+            offset: Some(p.i.min(p.src.len())),
+        }),
+    }
 }
 
 struct Parser {
     src: Vec<char>,
     i: usize,
     file: MviewFile,
+    /// File char offset of the `@code { ... }` body's first char (just after `{`).
+    /// Set by `read_brace_block` when reading the code block; used to rebase
+    /// `@code`-body-relative declaration spans to file-relative (R11).
+    code_body_offset: usize,
 }
 
 const VOID_TAGS: &[&str] = &[
@@ -28,6 +67,7 @@ impl Parser {
             src: source.chars().collect(),
             i: 0,
             file: MviewFile::new(name.to_string(), kind),
+            code_body_offset: 0,
         }
     }
 
@@ -243,8 +283,16 @@ impl Parser {
     // ---- @code scanning ----
     fn parse_code_block(&mut self) -> Result<(), String> {
         self.consume_keyword(); // @code
+        // Remember where the `@code { ... }` body begins in the WHOLE FILE.
+        // `read_brace_block` returns the inner text and leaves `self.code_body_offset`
+        // = the file char offset of the first body char (just after `{`). `scan_code`
+        // spans declarations relative to that body, so we rebase them to file-
+        // relative here (R11): file_offset = code_offset + body_relative_offset.
         let body = self.read_brace_block()?;
-        self.file.code = scan_code(&body);
+        let code_offset = self.code_body_offset;
+        let mut code = scan_code(&body);
+        rebase_code_spans(&mut code, code_offset);
+        self.file.code = code;
         Ok(())
     }
 
@@ -254,6 +302,8 @@ impl Parser {
         self.skip_ws();
         self.expect('{')?;
         let start = self.i;
+        // Record the file offset of the body's first char for span rebasing.
+        self.code_body_offset = start;
         let mut depth = 1;
         while !self.eof() {
             let c = self.peek();
@@ -381,6 +431,9 @@ impl Parser {
                     self.bump();
                     continue;
                 }
+                // File offset of the `@` opening this directive — used to span
+                // `@expr`/`@raw` nodes for diagnostics (R11).
+                let at = self.i;
                 let kw = self.at_keyword().unwrap_or_default();
                 match kw.as_str() {
                     "if" => {
@@ -432,16 +485,16 @@ impl Parser {
                         self.skip_spaces();
                         if self.peek() == '(' {
                             let e = self.read_paren_inner();
-                            nodes.push(Node::Raw(e));
+                            nodes.push(Node::Raw(e, Span::new(at, self.i)));
                         } else {
-                            nodes.push(Node::Expr("raw".to_string()));
+                            nodes.push(Node::Expr("raw".to_string(), Span::new(at, self.i)));
                         }
                     }
                     _ => {
                         // @expr
                         flush!();
                         let e = self.read_at_expr();
-                        nodes.push(Node::Expr(e));
+                        nodes.push(Node::Expr(e, Span::new(at, self.i)));
                     }
                 }
             } else {
@@ -853,8 +906,9 @@ impl Parser {
                     if !text.is_empty() {
                         nodes.push(Node::Text(std::mem::take(&mut text)));
                     }
+                    let at = self.i;
                     let e = self.read_at_expr();
-                    nodes.push(Node::Expr(e));
+                    nodes.push(Node::Expr(e, Span::new(at, self.i)));
                     continue;
                 }
                 // bare '@' (e.g. a CSS at-rule) is literal
@@ -1165,6 +1219,19 @@ fn parse_theme(body: &str) -> Vec<(String, String)> {
 
 /// Scan a `@code` body into declarations. Function bodies are captured raw
 /// (with `async`/`await` stripped) for verbatim emission.
+/// Rebase every declaration span in `code` from `@code`-body-relative to
+/// FILE-relative by adding `code_offset` (the file char offset of the body's first
+/// char). After this, `src[span]` on the whole-file `&[char]` yields the decl text
+/// — which is what the generated->source map and editor diagnostics need (R11).
+fn rebase_code_spans(code: &mut CodeBlock, code_offset: usize) {
+    for v in &mut code.vars {
+        v.span = Span::new(v.span.start + code_offset, v.span.end + code_offset);
+    }
+    for f in &mut code.funcs {
+        f.span = Span::new(f.span.start + code_offset, f.span.end + code_offset);
+    }
+}
+
 pub fn scan_code(body: &str) -> CodeBlock {
     let chars: Vec<char> = body.chars().collect();
     let mut cb = CodeBlock::default();

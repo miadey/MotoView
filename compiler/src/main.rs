@@ -1025,8 +1025,10 @@ fn cmd_check(args: &[String]) -> i32 {
         }
     };
     let stderr = String::from_utf8_lossy(&output.stderr);
+    // R11: load the generated->source line map so moc errors map to the .mview LINE.
+    let source_map = project::load_source_map(&out);
     if json {
-        let diags = project::map_moc_errors_json(&main_mo, &stderr);
+        let diags = project::map_moc_errors_json(&main_mo, &stderr, &source_map);
         println!("{}", lint::diagnostics_to_json(&diags));
         return if diags.iter().any(|d| d.severity == lint::Severity::Error) {
             1
@@ -1034,7 +1036,7 @@ fn cmd_check(args: &[String]) -> i32 {
             0
         };
     }
-    let (mapped, had_err) = project::map_moc_errors(&main_mo, &stderr);
+    let (mapped, had_err) = project::map_moc_errors(&main_mo, &stderr, &source_map);
     if mapped.trim().is_empty() {
         println!("\n\u{2713} no type errors");
         0

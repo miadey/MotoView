@@ -597,7 +597,7 @@ impl<'a> Codegen<'a> {
                     out.push_str(&format!("{}b.raw({});\n", indent, mo_str(t)));
                 }
             }
-            Node::Expr(e) => {
+            Node::Expr(e, _) => {
                 if self.is_component && e.trim() == "children" {
                     out.push_str(&format!("{}b.raw(mvChildren);\n", indent));
                 } else {
@@ -607,7 +607,7 @@ impl<'a> Codegen<'a> {
             // `@raw(expr)` — trusted HTML, emitted without escaping. The
             // expression is emitted verbatim and must be `Text` (else moc errors);
             // we deliberately do NOT route through as_text (no debug_show wrap).
-            Node::Raw(e) => {
+            Node::Raw(e, _) => {
                 let e = e.trim();
                 // keep the layout `View.x` -> head-field convenience
                 let expr = if self.is_layout {
@@ -768,7 +768,7 @@ impl<'a> Codegen<'a> {
                     out.push_str(&format!("{}ir.raw({});\n", indent, mo_str(t)));
                 }
             }
-            Node::Expr(e) => {
+            Node::Expr(e, _) => {
                 if self.is_component && e.trim() == "children" {
                     out.push_str(&format!("{}ir.raw(mvChildren);\n", indent));
                 } else {
@@ -776,7 +776,7 @@ impl<'a> Codegen<'a> {
                 }
             }
             // @raw(expr): trusted literal HTML -> a #raw leaf (no native model).
-            Node::Raw(e) => {
+            Node::Raw(e, _) => {
                 let e = e.trim();
                 let expr = if self.is_layout {
                     e.strip_prefix("View.").map(|r| format!("mvHead.{}", r)).unwrap_or_else(|| e.to_string())

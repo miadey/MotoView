@@ -549,15 +549,27 @@ pub fn diagnostics_for(uri: &str, text: &str) -> Vec<Json> {
                 .collect()
         }
         Err(e) => {
-            // Parse failure -> one diagnostic at the document start. We do not have
-            // a precise offset from the string-returning parser, so we anchor at
-            // (0,0); the message carries the parser's detail.
+            // R11: parse failure -> one diagnostic at the parser's REAL offset
+            // (mapped to a 0-based LSP line/char), falling back to (0,0) only when
+            // the error carries no position. The message carries the parser detail.
+            let (line0, char0) = match e.offset {
+                Some(off) => {
+                    let chars: Vec<char> = text.chars().collect();
+                    let (l, c) = span::line_col(&chars, off);
+                    // line_col is 1-based; LSP positions are 0-based.
+                    (l.saturating_sub(1), c.saturating_sub(1))
+                }
+                None => (0, 0),
+            };
             let range = obj(vec![
                 (
                     "start",
-                    obj(vec![("line", num(0)), ("character", num(0))]),
+                    obj(vec![("line", num(line0 as i64)), ("character", num(char0 as i64))]),
                 ),
-                ("end", obj(vec![("line", num(0)), ("character", num(0))])),
+                (
+                    "end",
+                    obj(vec![("line", num(line0 as i64)), ("character", num(char0 as i64))]),
+                ),
             ]);
             vec![obj(vec![
                 ("range", range),
@@ -1399,6 +1411,21 @@ mod tests {
         let text = "@page \"/\"\n<div>Hello</div>";
         let diags = diagnostics_for("file:///proj/src/Pages/T.mview", text);
         assert!(diags.is_empty(), "clean buffer should have no diagnostics: {:?}", diags);
+    }
+
+    #[test]
+    fn diagnostics_for_parse_error_uses_the_real_offset_not_zero_zero() {
+        // R11: an `@if` whose body brace is never closed -> a parse error. The LSP
+        // must place the diagnostic at the parser's REAL offset (past line 1), not
+        // the old (0,0) fallback. The failure is in the `@if` body on line 2+.
+        let text = "@page \"/\"\n@if cond {\n  <p>x</p>\n";
+        let diags = diagnostics_for("file:///proj/src/Pages/T.mview", text);
+        assert_eq!(diags.len(), 1, "expected one parse-error diagnostic: {diags:?}");
+        let d = &diags[0];
+        assert_eq!(d.path("code").and_then(|c| c.as_str()), Some("parse-error"));
+        // 0-based line; the real offset is past line 0 (the `@page` line).
+        let line0 = d.path("range.start.line").and_then(|n| n.as_f64()).unwrap();
+        assert!(line0 >= 1.0, "parse error must not anchor at line 0, got {line0}");
     }
 
     #[test]

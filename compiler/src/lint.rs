@@ -178,7 +178,7 @@ fn walk_nodes(nodes: &[Node], path: &str, diags: &mut Vec<Diagnostic>) {
 
 fn walk_node(node: &Node, path: &str, diags: &mut Vec<Diagnostic>) {
     match node {
-        Node::Raw(_) => {
+        Node::Raw(_, span) => {
             // RULE raw-html (advisory): @raw emits unescaped HTML.
             diags.push(Diagnostic {
                 severity: Severity::Warning,
@@ -187,9 +187,9 @@ fn walk_node(node: &Node, path: &str, diags: &mut Vec<Diagnostic>) {
                     .to_string(),
                 location: format!("{} (@raw)", path),
                 rule: "raw-html".to_string(),
-                // `Node::Raw` carries no span yet (see ast.rs TODO), so this rule
-                // has no precise position; `--json` emits a zeroed/omitted span.
-                span: None,
+                // R11: `Node::Raw` now carries the `@raw(…)` directive span, so the
+                // editor / repair loop can squiggle the exact location (no more 0,0).
+                span: Some(*span),
             });
         }
         Node::Element(el) => {
@@ -243,7 +243,7 @@ fn walk_node(node: &Node, path: &str, diags: &mut Vec<Diagnostic>) {
         }
         // Leaf / non-container nodes carry no nested template to walk.
         Node::Text(_)
-        | Node::Expr(_)
+        | Node::Expr(_, _)
         | Node::Yield
         | Node::Head
         | Node::SectionRef(_)
@@ -304,7 +304,8 @@ mod json_tests {
     }
 
     #[test]
-    fn raw_html_json_warning_has_zeroed_position() {
+    fn raw_html_json_warning_has_real_position() {
+        // R11: `@raw(...)` now carries a span; the warning points at the directive.
         let src = "@page \"/\"\n<div>@raw(body)</div>\n@code { var body : Text = \"<b>x</b>\"; }";
         let file = parser::parse(src, "T", FileKind::Page).expect("parse");
         let diags = lint_file(&file, "src/Pages/T.mview");
@@ -318,7 +319,23 @@ mod json_tests {
             .find(|d| d.rule == "raw-html")
             .expect("a raw-html diagnostic");
         assert_eq!(raw.severity, Severity::Warning);
-        // @raw carries no span -> positions are zeroed.
-        assert_eq!((raw.line, raw.col, raw.end_line, raw.end_col), (0, 0, 0, 0));
+        // `@raw(body)` sits on line 2 (1-based), starting at column 6 (after `<div>`).
+        assert_eq!((raw.line, raw.col), (2, 6), "raw-html should point at the @raw directive");
+        // The span is non-zero-width and ends after it starts (covers `@raw(body)`).
+        assert!(
+            raw.end_line > raw.line || raw.end_col > raw.col,
+            "span should cover the directive, got {:?}",
+            (raw.line, raw.col, raw.end_line, raw.end_col)
+        );
+        // The exact slice the span covers is the directive text.
+        let span = file.template.iter().find_map(|n| match n {
+            // recurse one level: @raw lives inside the <div>
+            Node::Element(e) => e.children.iter().find_map(|c| match c {
+                Node::Raw(_, sp) => Some(*sp),
+                _ => None,
+            }),
+            _ => None,
+        });
+        assert_eq!(span.map(|sp| sp.slice(&src_chars)).as_deref(), Some("@raw(body)"));
     }
 }

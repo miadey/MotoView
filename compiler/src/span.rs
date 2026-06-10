@@ -90,6 +90,100 @@ pub fn line_col_str(src: &str, offset: usize) -> (u32, u32) {
     line_col(&chars, offset)
 }
 
+/// A generated-actor -> `.mview`-source line map (R11). It is a **side artifact**:
+/// codegen records it as the actor String is assembled, but never emits anything
+/// into the actor itself, so `main.mo` stays byte-identical (the 130 golden tests
+/// don't move). It exists only to remap `moc` type errors — which are reported at
+/// the GENERATED `main.mo` line — back to the originating `.mview` line.
+///
+/// Each [`MapEntry`] anchors ONE contiguous, line-preserving region (today: each
+/// `@code` function body, which is emitted near-verbatim). For a `moc` error at
+/// generated line `G`, [`resolve`] finds the entry whose generated range covers
+/// `G` and returns `(file, src_line)` by **linear extrapolation**:
+/// `src_line = src_start_line + (G - gen_start_line)`. That is exact for a body
+/// emitted line-for-line; it only drifts if a transform (e.g. `await`-stripping
+/// across a newline) adds/removes a line *inside* the body, which is rare.
+#[derive(Debug, Clone, Default)]
+pub struct SourceMap {
+    pub entries: Vec<MapEntry>,
+}
+
+/// One line-preserving region: `[gen_start_line, gen_end_line]` in the generated
+/// actor maps onto the `.mview` `file`, starting at `src_start_line`, line-for-line.
+/// All lines are **1-based**, matching `moc`'s reporting and [`line_col`].
+#[derive(Debug, Clone)]
+pub struct MapEntry {
+    /// `.mview` source path (project-relative, e.g. `src/Pages/Counter.mview`).
+    pub file: String,
+    /// First generated `main.mo` line this region occupies (1-based, inclusive).
+    pub gen_start_line: usize,
+    /// Last generated `main.mo` line this region occupies (1-based, inclusive).
+    pub gen_end_line: usize,
+    /// The `.mview` line that `gen_start_line` corresponds to (1-based).
+    pub src_start_line: usize,
+}
+
+impl SourceMap {
+    pub fn new() -> Self {
+        SourceMap { entries: Vec::new() }
+    }
+
+    /// Record a region: generated `[gen_start_line, gen_end_line]` maps to `file`
+    /// starting at `.mview` line `src_start_line`, line-for-line.
+    pub fn push(&mut self, file: String, gen_start_line: usize, gen_end_line: usize, src_start_line: usize) {
+        self.entries.push(MapEntry { file, gen_start_line, gen_end_line, src_start_line });
+    }
+
+    /// Resolve a generated `main.mo` line to `(.mview file, .mview line)`.
+    /// Returns `None` when no mapped region covers `gen_line` (e.g. a moc error in
+    /// template/boilerplate that no entry spans) — callers then fall back to the
+    /// `// mv:src` FILE markers / the generated line.
+    pub fn resolve(&self, gen_line: usize) -> Option<(String, usize)> {
+        // Most-specific (last-pushed covering) entry wins, mirroring how nested
+        // regions are emitted innermost-last.
+        self.entries
+            .iter()
+            .rev()
+            .find(|e| gen_line >= e.gen_start_line && gen_line <= e.gen_end_line)
+            .map(|e| {
+                let src_line = e.src_start_line + (gen_line - e.gen_start_line);
+                (e.file.clone(), src_line)
+            })
+    }
+
+    /// Serialize to the on-disk `.mvbuild/main.mo.map` format: one
+    /// `gen_start gen_end src_start <file>` record per line (space-separated, path
+    /// last so it may contain spaces). A trivial text format — no JSON dep — that
+    /// `check` reads back via [`SourceMap::parse`].
+    pub fn to_text(&self) -> String {
+        let mut out = String::new();
+        for e in &self.entries {
+            out.push_str(&format!(
+                "{} {} {} {}\n",
+                e.gen_start_line, e.gen_end_line, e.src_start_line, e.file
+            ));
+        }
+        out
+    }
+
+    /// Parse the on-disk format produced by [`SourceMap::to_text`]. Malformed or
+    /// blank lines are skipped (a stale/partial map must never crash `check`).
+    pub fn parse(text: &str) -> Self {
+        let mut m = SourceMap::new();
+        for line in text.lines() {
+            let mut it = line.splitn(4, ' ');
+            let g0 = it.next().and_then(|x| x.parse::<usize>().ok());
+            let g1 = it.next().and_then(|x| x.parse::<usize>().ok());
+            let s0 = it.next().and_then(|x| x.parse::<usize>().ok());
+            let file = it.next();
+            if let (Some(g0), Some(g1), Some(s0), Some(file)) = (g0, g1, s0, file) {
+                m.push(file.to_string(), g0, g1, s0);
+            }
+        }
+        m
+    }
+}
+
 #[cfg(test)]
 mod span_self_tests {
     use super::*;

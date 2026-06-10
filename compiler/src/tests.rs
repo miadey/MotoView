@@ -857,34 +857,35 @@ mod spans {
     }
 
     #[test]
-    fn func_span_is_code_relative_and_covers_the_decl() {
-        // FuncDecl/VarDecl spans are offsets INTO the @code body (between its
-        // braces), since scan_code works on that substring. Recover the body the
-        // same way the parser does and slice it.
+    fn func_span_is_file_relative_and_covers_the_decl() {
+        // R11: FuncDecl/VarDecl spans are now FILE-relative (rebased in
+        // parse_code_block by adding the @code body's file offset). So they slice
+        // against the WHOLE-FILE chars and still yield the exact declaration text.
         let code_body = "\nvar count : Nat = 0;\nfunc bump(n : Nat) { count += n; };\n";
         let src = format!("@page \"/\"\n<p>@count</p>\n@code {{{}}}", code_body);
         let file = parser::parse(&src, "T", FileKind::Page).expect("parse");
-        let body_chars: Vec<char> = code_body.chars().collect();
+        let file_chars: Vec<char> = src.chars().collect();
 
         let vd = file.code.vars.iter().find(|v| v.name == "count").expect("count var");
-        assert_eq!(vd.span.slice(&body_chars), "var count : Nat = 0;");
+        assert_eq!(vd.span.slice(&file_chars), "var count : Nat = 0;");
 
         let fd = file.code.funcs.iter().find(|f| f.name == "bump").expect("bump func");
         assert_eq!(
-            fd.span.slice(&body_chars),
+            fd.span.slice(&file_chars),
             "func bump(n : Nat) { count += n; };"
         );
     }
 
     #[test]
     fn stable_var_span_covers_the_stable_keyword() {
+        // R11: file-relative — slice against the whole file.
         let code_body = " stable var total : Nat = 0; ";
         let src = format!("@page \"/\"\n<p>@total</p>\n@code {{{}}}", code_body);
         let file = parser::parse(&src, "T", FileKind::Page).expect("parse");
-        let body_chars: Vec<char> = code_body.chars().collect();
+        let file_chars: Vec<char> = src.chars().collect();
         let vd = file.code.vars.iter().find(|v| v.name == "total").expect("total var");
         assert!(vd.stable);
-        assert_eq!(vd.span.slice(&body_chars), "stable var total : Nat = 0;");
+        assert_eq!(vd.span.slice(&file_chars), "stable var total : Nat = 0;");
     }
 
     #[test]
@@ -1038,7 +1039,8 @@ actor {
 };
 ";
         let moc = "/tmp/app/.mvbuild/main.mo:4.19-4.25: type error [M0096], expression of type\n  Text\ncannot produce expected type\n  Nat";
-        let diags = project::map_moc_errors_json(main_mo, moc);
+        // No source map -> falls back to the `// mv:src` marker FILE + moc's line.
+        let diags = project::map_moc_errors_json(main_mo, moc, &crate::span::SourceMap::new());
         assert_eq!(diags.len(), 1, "exactly one diagnostic: {diags:#?}");
         let d = &diags[0];
         assert_eq!(d.severity, Severity::Error);
@@ -1057,7 +1059,7 @@ actor {
     #[test]
     fn check_json_clean_output_is_empty_array() {
         // No moc output -> no diagnostics -> the serializer emits "[]".
-        let diags: Vec<JsonDiagnostic> = project::map_moc_errors_json("actor {}\n", "");
+        let diags: Vec<JsonDiagnostic> = project::map_moc_errors_json("actor {}\n", "", &crate::span::SourceMap::new());
         assert!(diags.is_empty());
         assert_eq!(lint::diagnostics_to_json(&diags), "[]");
     }
@@ -1788,5 +1790,310 @@ mod r7_observability {
             result.status
         );
         let _ = std::fs::remove_file(out);
+    }
+}
+
+// ===========================================================================
+// R11 — line-accurate editor errors: the generated->source line map, moc-error
+// remapping to the .mview LINE, the @raw span, and parse-error offsets.
+// ===========================================================================
+mod r11_source_map {
+    use crate::ast::FileKind;
+    use crate::parser;
+    use crate::project;
+    use crate::span::{line_col, SourceMap};
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("compiler/ has a parent")
+            .to_path_buf()
+    }
+
+    fn copy_tree(src: &Path, dst: &Path) {
+        std::fs::create_dir_all(dst).unwrap();
+        for entry in std::fs::read_dir(src).unwrap().flatten() {
+            let p = entry.path();
+            let name = p.file_name().unwrap().to_string_lossy().to_string();
+            if name == ".mvbuild" || name == ".git" || name == "node_modules" || name == "target" {
+                continue;
+            }
+            let target = dst.join(&name);
+            if p.is_dir() {
+                copy_tree(&p, &target);
+            } else {
+                std::fs::copy(&p, &target).unwrap();
+            }
+        }
+    }
+
+    fn find_moc() -> Option<(PathBuf, PathBuf)> {
+        let home = std::env::var("HOME").ok()?;
+        let versions = PathBuf::from(home).join(".cache/dfinity/versions");
+        let dirs: Vec<PathBuf> = std::fs::read_dir(&versions)
+            .ok()?
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.join("moc").exists())
+            .collect();
+        // Pin moc 0.28.0 to match the project (see r7_observability::find_moc).
+        if let Some(pinned) = dirs
+            .iter()
+            .find(|p| p.file_name().map(|n| n == "0.28.0").unwrap_or(false))
+            .cloned()
+        {
+            return Some((pinned.join("moc"), pinned.join("base")));
+        }
+        let mut dirs = dirs;
+        dirs.sort();
+        let dir = dirs.pop()?;
+        Some((dir.join("moc"), dir.join("base")))
+    }
+
+    fn dfx_package_args(dir: &Path) -> Vec<String> {
+        let txt = std::fs::read_to_string(dir.join("dfx.json")).unwrap_or_default();
+        let p = match txt.find("\"args\"") {
+            Some(p) => p,
+            None => return vec![],
+        };
+        let after = &txt[p..];
+        let colon = match after.find(':') {
+            Some(c) => c,
+            None => return vec![],
+        };
+        let start = match after[colon..].find('"') {
+            Some(i) => colon + i + 1,
+            None => return vec![],
+        };
+        let rest = &after[start..];
+        let end = match rest.find('"') {
+            Some(e) => e,
+            None => return vec![],
+        };
+        rest[..end]
+            .split_whitespace()
+            .map(|tok| {
+                if tok.contains('/') && !tok.starts_with('-') {
+                    dir.join(tok).to_string_lossy().to_string()
+                } else {
+                    tok.to_string()
+                }
+            })
+            .collect()
+    }
+
+    fn build(project_dir: &Path) -> PathBuf {
+        let out = project_dir.join(".mvbuild").join("main.mo");
+        let opts = project::BuildOptions {
+            project_dir: project_dir.to_path_buf(),
+            app_name: "R11Test".to_string(),
+            out: out.clone(),
+            ..Default::default()
+        };
+        project::build(&opts)
+            .unwrap_or_else(|e| panic!("build failed for {}: {}", project_dir.display(), e));
+        out
+    }
+
+    /// HEADLINE: inject a Motoko TYPE error into a page's `@code` on a KNOWN
+    /// `.mview` line N, then run the EXACT `check --json` mapping path. The
+    /// diagnostic must name the `.mview` file AND report line == N — the generated
+    /// `main.mo` line is NOT what the editor sees. Skips (does not fail) when moc
+    /// is unavailable in the environment.
+    #[test]
+    fn check_json_reports_moc_type_error_at_the_mview_line() {
+        let (moc, base) = match find_moc() {
+            Some(x) => x,
+            None => {
+                eprintln!("skipping R11 headline: moc not found under ~/.cache/dfinity/versions");
+                return;
+            }
+        };
+        // A repo-local throwaway copy of counter so the `../../runtime/src`
+        // package path in its dfx.json still resolves for moc.
+        let src = repo_root().join("examples").join("counter");
+        let tmp = repo_root()
+            .join("examples")
+            .join(format!("r11_headline_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        copy_tree(&src, &tmp);
+
+        // Replace the `count += by;` body line with a TYPE error (assign Text to a
+        // Nat var). Record the 1-based `.mview` line we mutate — that is N.
+        let page = tmp.join("src").join("Pages").join("Counter.mview");
+        let text = std::fs::read_to_string(&page).unwrap();
+        let mut lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
+        let mut injected_line = 0usize;
+        for (i, l) in lines.iter_mut().enumerate() {
+            if l.contains("count += by;") {
+                *l = "        count := \"definitely not a Nat\";".to_string();
+                injected_line = i + 1; // 1-based
+                break;
+            }
+        }
+        assert!(injected_line > 0, "fixture must contain `count += by;`");
+        std::fs::write(&page, lines.join("\n") + "\n").unwrap();
+
+        // Build (writes main.mo + main.mo.map), then run moc --check and map.
+        let out = build(&tmp);
+        let main_mo = std::fs::read_to_string(&out).unwrap();
+        let source_map = project::load_source_map(&out);
+
+        let mut cmd = Command::new(&moc);
+        cmd.arg("--check").arg("--package").arg("base").arg(&base);
+        for a in dfx_package_args(&tmp) {
+            cmd.arg(a);
+        }
+        cmd.arg(&out);
+        let result = cmd.output().expect("running moc --check failed");
+        let stderr = String::from_utf8_lossy(&result.stderr);
+
+        let diags = project::map_moc_errors_json(&main_mo, &stderr, &source_map);
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        // EXACTLY one type error, mapped to the .mview FILE and the injected LINE.
+        let type_errs: Vec<_> = diags.iter().filter(|d| d.rule == "type-check").collect();
+        assert_eq!(
+            type_errs.len(),
+            1,
+            "expected exactly one type error, got: {diags:#?}\nstderr:\n{stderr}"
+        );
+        let d = type_errs[0];
+        assert_eq!(d.file, "src/Pages/Counter.mview", "must name the .mview source");
+        assert_eq!(
+            d.line as usize, injected_line,
+            "type error must be reported at the .mview LINE {injected_line}, got {} \
+             (this is THE R11 headline)",
+            d.line
+        );
+    }
+
+    /// BYTE-IDENTITY: building writes the source map as a SIDE file; `main.mo`
+    /// itself is byte-identical to the committed golden artifact, and contains NO
+    /// map markers. Asserted for counter (the known-good 72a2ab39… hash) by direct
+    /// byte comparison against the committed artifact.
+    #[test]
+    fn build_keeps_main_mo_byte_identical_and_writes_side_map() {
+        let counter = repo_root().join("examples").join("counter");
+        let committed = std::fs::read(counter.join(".mvbuild").join("main.mo"))
+            .expect("committed counter main.mo exists");
+
+        // Build into a temp out so we never disturb the committed artifact.
+        let out = std::env::temp_dir().join(format!("mv_r11_bi_{}.mo", std::process::id()));
+        let opts = project::BuildOptions {
+            project_dir: counter.clone(),
+            app_name: "counter".to_string(),
+            out: out.clone(),
+            ..Default::default()
+        };
+        project::build(&opts).expect("counter build");
+        let fresh = std::fs::read(&out).expect("fresh main.mo");
+
+        assert_eq!(
+            fresh, committed,
+            "generated main.mo must be byte-identical to the committed golden artifact"
+        );
+        // The map is a SIDE artifact next to the out file, never in main.mo.
+        let map_path = project::source_map_path(&out);
+        assert!(map_path.exists(), "the source map side file must be written");
+        // The map's records (the `gen_start gen_end src_start <file>` lines) must
+        // NOT appear in main.mo — byte-identity already proves that, but assert the
+        // map's first line is absent so a future regression that inlines it is
+        // caught directly. (The pre-existing `// mv:src` FILE markers are expected
+        // and are part of the committed golden bytes.)
+        let map_text = std::fs::read_to_string(&map_path).unwrap_or_default();
+        if let Some(first) = map_text.lines().next() {
+            assert!(
+                !String::from_utf8_lossy(&fresh).contains(first),
+                "the source-map records must stay OUT of main.mo (found `{first}`)"
+            );
+        }
+
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(&map_path);
+    }
+
+    /// The map built from a real build resolves a body line to its `.mview` line.
+    #[test]
+    fn source_map_resolves_func_body_to_mview_line() {
+        let counter = repo_root().join("examples").join("counter");
+        let out = std::env::temp_dir().join(format!("mv_r11_map_{}.mo", std::process::id()));
+        let opts = project::BuildOptions {
+            project_dir: counter.clone(),
+            app_name: "counter".to_string(),
+            out: out.clone(),
+            ..Default::default()
+        };
+        project::build(&opts).expect("counter build");
+        let map = project::load_source_map(&out);
+        assert!(!map.entries.is_empty(), "counter has @code funcs -> a non-empty map");
+
+        // The `increment` func keyword is on src line 22, its body `count += by;`
+        // on src line 23 (see examples/counter/src/Pages/Counter.mview).
+        let inc = map
+            .entries
+            .iter()
+            .find(|e| e.src_start_line == 22)
+            .expect("an entry anchored at the increment func (src line 22)");
+        // The body line (gen_start + 1) resolves to src line 23.
+        let (file, src_line) = map.resolve(inc.gen_start_line + 1).expect("body line resolves");
+        assert_eq!(file, "src/Pages/Counter.mview");
+        assert_eq!(src_line, 23, "the func body line maps to its .mview line");
+
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(project::source_map_path(&out));
+    }
+
+    /// PARSE-ERROR OFFSET: a malformed `.mview` (unterminated `@code` block) yields
+    /// a `ParseError` carrying a real file offset, and that offset maps to a
+    /// line/col past the start of the file (not the (0,0) fallback).
+    #[test]
+    fn parse_error_carries_a_real_offset() {
+        // The `@code {` block is never closed -> `read_brace_block` errors at EOF.
+        let src = "@page \"/\"\n<h1>Hi</h1>\n@code {\n    var count : Nat = 0;\n";
+        let err = parser::parse(src, "T", FileKind::Page).expect_err("must fail to parse");
+        let off = err.offset.expect("parse error carries an offset");
+        let chars: Vec<char> = src.chars().collect();
+        let (line, _col) = line_col(&chars, off);
+        // The unterminated block is detected at EOF -> the offset is at/near the
+        // end, well past line 1 (not the old (0,0) fallback).
+        assert!(line >= 4, "offset must map past the start, got line {line} (offset {off})");
+        assert!(off <= chars.len(), "offset must be within the source");
+    }
+
+    /// A deterministic parse-error offset: an `@if` whose body brace is never
+    /// closed. The parser fails (`expected '}'`) at EOF; the carried offset is at
+    /// the end of the input and well past the `@page` line.
+    #[test]
+    fn parse_error_offset_points_at_the_failure_site() {
+        let src = "@page \"/\"\n@if cond {\n  <p>x</p>\n";
+        let err = parser::parse(src, "T", FileKind::Page).expect_err("must fail");
+        assert!(!err.message.is_empty(), "error carries a message");
+        let off = err.offset.expect("offset present");
+        let chars: Vec<char> = src.chars().collect();
+        // The offset advances past the `@page` line (the failure is in the @if body).
+        let (line, _col) = line_col(&chars, off);
+        assert!(line >= 2, "offset must be past line 1, got line {line} (offset {off})");
+        assert!(off <= chars.len(), "offset within source");
+    }
+
+    /// Unit: the on-disk source-map format round-trips and resolves by linear
+    /// extrapolation within a region.
+    #[test]
+    fn source_map_text_round_trips_and_extrapolates() {
+        let mut m = SourceMap::new();
+        m.push("src/Pages/A.mview".to_string(), 100, 104, 20);
+        let text = m.to_text();
+        let back = SourceMap::parse(&text);
+        assert_eq!(back.entries.len(), 1);
+        // gen 100 -> src 20 (start), gen 102 -> src 22 (extrapolated), gen 104 -> 24.
+        assert_eq!(back.resolve(100), Some(("src/Pages/A.mview".to_string(), 20)));
+        assert_eq!(back.resolve(102), Some(("src/Pages/A.mview".to_string(), 22)));
+        assert_eq!(back.resolve(104), Some(("src/Pages/A.mview".to_string(), 24)));
+        // Outside the region -> None (caller falls back to mv:src markers).
+        assert_eq!(back.resolve(105), None);
+        assert_eq!(back.resolve(99), None);
     }
 }
