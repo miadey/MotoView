@@ -44,18 +44,67 @@ So from the repo root, with `compiler/target/release/motoview` built, it just
 works. Then **Open project…** and point it at any folder containing a
 `motoview.json` (e.g. `examples/counter`, or `apps/studio`).
 
-## Backend choice: `glow`, not `wgpu`
+## Backend choice: `wgpu` (Metal), not `glow`
 
-`eframe` is configured `default-features=false, features=["glow",
-"default_fonts"]`. The `glow` (OpenGL) backend is lighter than `wgpu` and links
-cleanly with Command-Line-Tools only. On macOS it pulls in AppKit / QuartzCore /
-Metal / OpenGL / CoreGraphics — **all present in the CLT macOS SDK** — and
-crucially **no WebKit**. Verify it yourself:
+`eframe` is configured `default-features=false, features=["wgpu",
+"default_fonts"]`. The `wgpu` backend targets **Metal** on macOS; we prefer it
+over the legacy `glow` (OpenGL) backend because Apple has **deprecated OpenGL**,
+so glow is a long-term risk. Metal is a system GPU framework present in the
+Command-Line-Tools macOS SDK (`/System/Library/Frameworks/Metal.framework`), so
+there is still **no full Xcode, no code-signing, no $99, and no WebKit** — wgpu
+just pulls a heavier dep graph (naga + the wgpu/wgpu-hal/metal stack) and yields
+a larger binary than glow would. Verify there is no embedded browser yourself:
 
 ```sh
 cargo build --manifest-path apps/studio/native/Cargo.toml
 otool -L apps/studio/native/target/debug/motokostudio | grep -i webkit   # → nothing
 ```
+
+## Packaging: `.app` + `.dmg` (`bundle.sh`)
+
+```sh
+bash apps/studio/native/bundle.sh
+#   -> apps/studio/native/dist/MotokoStudio.app   (a real app bundle)
+#   -> apps/studio/native/dist/MotokoStudio.dmg   (a distributable disk image)
+```
+
+`bundle.sh` is our **own** dependency-free packager — no `cargo-bundle`, no
+third-party bundler, only stock Command-Line-Tools (`cargo`, `codesign`,
+`hdiutil`, `plutil`, `file`). It:
+
+1. `cargo build --release`,
+2. assembles `dist/MotokoStudio.app/Contents/{Info.plist, MacOS/motokostudio,
+   Resources/, PkgInfo}` (the [`Info.plist`](Info.plist) template, with the
+   version stamped from `Cargo.toml`; `plutil -lint` must pass),
+3. **ad-hoc** code-signs it (`codesign --sign -`), and
+4. `hdiutil create … -format UDZO` makes the `.dmg`.
+
+The `.app` and `.dmg` are **build outputs** — they live under `dist/`, which is
+`.gitignore`d. Only the *script* and *plist template* are committed; rebuild the
+artifacts any time with `bash bundle.sh`.
+
+### Signing caveat (honest)
+
+The default is an **ad-hoc** signature: no Apple account, no certificate. That
+is *required* on Apple Silicon — an unsigned bundle is killed as "damaged" — and
+it lets the app launch on **this** Mac, and on others via right-click → **Open**
+(a one-time Gatekeeper override). A plain double-click on **another** Mac will
+still warn.
+
+To distribute **without** any warning on any Mac you must **notarize**, and that
+is the one Apple toll: it needs a paid **Apple Developer ID** certificate
+($99/yr) plus Xcode's `notarytool`. That path is supported but not faked:
+
+```sh
+bash apps/studio/native/bundle.sh \
+     --sign "Developer ID Application: Your Name (TEAMID)" \
+     --notarize-profile <your-notarytool-keychain-profile>
+```
+
+With a real `--sign` identity the script code-signs with the hardened runtime +
+trusted timestamp and signs the `.dmg`; with `--notarize-profile` it also runs
+`notarytool submit --wait` and `stapler staple`. Neither a cert nor `notarytool`
+ships here, so the default ad-hoc path is what runs out of the box.
 
 ## Standalone crate (not in the compiler workspace)
 

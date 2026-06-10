@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist TEMPLATE for the MotokoStudio.app bundle.
+
+  bundle.sh copies this file verbatim into MotokoStudio.app/Contents/Info.plist
+  and then rewrites two version keys IN PLACE (via plutil -replace) from the
+  crate's Cargo.toml version:
+    CFBundleVersion, CFBundleShortVersionString.
+  The placeholder values below are valid on their own, so `plutil -lint
+  Info.plist` passes even before bundle.sh runs.
+-->
+<plist version="1.0">
+<dict>
+	<!-- Short, machine-ish bundle name (Finder uses CFBundleDisplayName below). -->
+	<key>CFBundleName</key>
+	<string>MotokoStudio</string>
+
+	<!-- The human-facing name shown under the icon / in the menu bar. -->
+	<key>CFBundleDisplayName</key>
+	<string>MotokoStudio</string>
+
+	<!-- Reverse-DNS bundle id. Stable across versions; identifies the app. -->
+	<key>CFBundleIdentifier</key>
+	<string>dev.motoview.studio</string>
+
+	<!-- MUST match the Mach-O binary placed in Contents/MacOS/ . -->
+	<key>CFBundleExecutable</key>
+	<string>motokostudio</string>
+
+	<!-- "APPL" = an application bundle. -->
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+
+	<!-- Build number (rewritten from Cargo.toml by bundle.sh). -->
+	<key>CFBundleVersion</key>
+	<string>0.1.0</string>
+
+	<!-- User-visible version (rewritten from Cargo.toml by bundle.sh). -->
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+
+	<!-- Plist format/info version; "6" is the long-standing value. -->
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+
+	<!-- Honor Retina: render at native pixel density, not 2x-upscaled. -->
+	<key>NSHighResolutionCapable</key>
+	<true/>
+
+	<!-- Oldest macOS we claim to support. wgpu/Metal + eframe 0.29 are happy
+	     well below this; 11.0 (Big Sur) is the first Apple-Silicon release and a
+	     safe, conservative floor. -->
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+
+	<!-- This is a normal windowed app (not a background/agent process). -->
+	<key>LSUIElement</key>
+	<false/>
+
+	<!-- App icon, OPTIONAL. If a Resources/MotokoStudio.icns exists, bundle.sh
+	     copies it in and this key points at it (sans extension). No .icns is
+	     committed, so by default the app launches with the generic icon and this
+	     key is harmless (macOS ignores a missing CFBundleIconFile). -->
+	<key>CFBundleIconFile</key>
+	<string>MotokoStudio</string>
+</dict>
+</plist>
