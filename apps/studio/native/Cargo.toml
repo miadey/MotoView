@@ -1,0 +1,41 @@
+[package]
+name = "motokostudio-native"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.91"
+description = "Webview-free native MotokoStudio — an egui/eframe desktop IDE for MotoView (.mview) projects."
+license = "MIT"
+publish = false
+
+# This crate is deliberately STANDALONE — it is NOT a member of the compiler
+# workspace. Keeping it out of that workspace means egui/eframe's heavy
+# dependency graph never bloats `compiler/` builds. Build it on its own:
+#   cargo build  --manifest-path apps/studio/native/Cargo.toml
+#   cargo test   --manifest-path apps/studio/native/Cargo.toml
+[workspace]
+
+[[bin]]
+name = "motokostudio"
+path = "src/main.rs"
+
+[lib]
+name = "motokostudio"
+path = "src/lib.rs"
+
+[dependencies]
+# eframe = egui + a window/event loop. We pick the `glow` backend (OpenGL via
+# glutin/winit) over wgpu: on macOS + Command-Line-Tools it links only AppKit /
+# QuartzCore / Metal / OpenGL / CoreGraphics — all present in the CLT macOS SDK,
+# so there is NO dependency on full Xcode, and crucially NO WebKit / webview.
+# default-features=false drops eframe's optional `accesskit`/`web`/`wgpu` bits;
+# we re-enable exactly: glow (renderer) + default_fonts (bundled font).
+eframe = { version = "0.29", default-features = false, features = ["glow", "default_fonts"] }
+egui = "0.29"
+# Native OS file-open/save dialog (no Apple-only framework beyond AppKit, which
+# CLT provides). MIT/Apache.
+rfd = "0.15"
+# Parse the `motoview ... --json` output (diagnostics + preview IR forest).
+serde_json = "1"
+
+[dev-dependencies]
+# nothing extra — tests use only std + serde_json + the crate's own backend.

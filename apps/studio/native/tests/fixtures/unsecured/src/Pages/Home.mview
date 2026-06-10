@@ -1,0 +1,19 @@
+@page "/"
+@layout MainLayout
+@title "Unsecured form fixture"
+
+<section>
+    <h1>Contact</h1>
+    <form @submit="submit">
+        <input name="name" />
+        <button type="submit">Send</button>
+    </form>
+</section>
+
+@code {
+    var name : Text = "";
+    func submit(ctx : Context) : async () {
+        ignore ctx;
+        name := "";
+    };
+}

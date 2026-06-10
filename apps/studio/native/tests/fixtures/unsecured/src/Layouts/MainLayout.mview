@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@View.title</title>
+    @head
+</head>
+<body>
+    <main>
+        @yield
+    </main>
+</body>
+</html>
