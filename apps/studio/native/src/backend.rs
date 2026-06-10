@@ -756,6 +756,187 @@ pub fn node_src_id(node: &UiNode) -> Option<usize> {
 }
 
 // ---------------------------------------------------------------------------
+// DRAG-AND-DROP — add a component from the Elements toolbox to the canvas
+// ---------------------------------------------------------------------------
+// A dropped tile splices its `.mview` snippet as the FIRST CHILD of the drop
+// target (right after the target element's open tag, whose span comes from the
+// selection bridge), validates the result with `check` (revert on error), and the
+// studio re-previews. Secure-by-construction: a dropped form is `secure` and its
+// submit handler is scaffolded so it compiles. The PURE splice is unit-tested; the
+// egui drag gesture is the GUI layer.
+
+/// A component that can be dragged from the Elements toolbox onto the canvas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentKind {
+    Container,
+    Row,
+    Column,
+    Text,
+    Button,
+    Input,
+    Image,
+    SecureForm,
+    EncryptedField,
+    WalletButton,
+    IIAuth,
+}
+
+impl ComponentKind {
+    /// Map a toolbox tile label to its kind (the tiles carry these labels).
+    pub fn from_label(label: &str) -> Option<ComponentKind> {
+        Some(match label {
+            "Container" => Self::Container,
+            "Row" => Self::Row,
+            "Column" => Self::Column,
+            "Text" => Self::Text,
+            "Button" => Self::Button,
+            "Input" => Self::Input,
+            "Image" => Self::Image,
+            "Secure form" => Self::SecureForm,
+            "Encrypted field" => Self::EncryptedField,
+            "Wallet button" => Self::WalletButton,
+            "II auth" => Self::IIAuth,
+            _ => return None,
+        })
+    }
+
+    /// The `.mview` snippet inserted as a child (the caller adds indentation). All
+    /// snippets parse + type-check WITHOUT extra `@code` except those with a
+    /// [`ComponentKind::handler`], whose handler is scaffolded by [`add_component`].
+    pub fn snippet(self) -> &'static str {
+        match self {
+            Self::Container => "<div class=\"mv-box\"></div>",
+            Self::Row => "<div class=\"mv-row\"></div>",
+            Self::Column => "<div class=\"mv-col\"></div>",
+            Self::Text => "<p>Text</p>",
+            Self::Button => "<button>Button</button>",
+            Self::Input => "<input name=\"field\" />",
+            Self::Image => "<img alt=\"image\" />",
+            // SECURE BY DEFAULT: a dropped form is `secure` (the deny-by-default
+            // lint would reject it otherwise) and its submit is wired to a
+            // scaffolded handler.
+            Self::SecureForm => "<form @submit=onSubmit secure>\n  <button type=\"submit\">Submit</button>\n</form>",
+            // Client-side encrypted field (vetKeys glue marker).
+            Self::EncryptedField => "<input name=\"secret\" data-mv-encrypt />",
+            Self::WalletButton => "<button>Authorize spend</button>",
+            Self::IIAuth => "<button>Sign in with Internet Identity</button>",
+        }
+    }
+
+    /// The `@code` handler this component needs scaffolded so the snippet compiles
+    /// (a secure form's `@submit`), or `None`.
+    pub fn handler(self) -> Option<&'static str> {
+        match self {
+            Self::SecureForm => Some("onSubmit"),
+            _ => None,
+        }
+    }
+
+    /// A short human label for status messages.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Container => "Container",
+            Self::Row => "Row",
+            Self::Column => "Column",
+            Self::Text => "Text",
+            Self::Button => "Button",
+            Self::Input => "Input",
+            Self::Image => "Image",
+            Self::SecureForm => "Secure form",
+            Self::EncryptedField => "Encrypted field",
+            Self::WalletButton => "Wallet button",
+            Self::IIAuth => "II auth",
+        }
+    }
+}
+
+/// Insert `kind`'s snippet into `source` as the first child of the element whose
+/// open tag ends at char offset `open_tag_end` (the selection bridge's span.end),
+/// indented by `indent`. Also scaffolds the component's `@code` handler if any.
+/// PURE (no IO) so it is unit-testable; [`add_component`] is the IO wrapper.
+pub fn splice_component(source: &str, open_tag_end: usize, kind: ComponentKind, indent: &str) -> String {
+    let mut chars: Vec<char> = source.chars().collect();
+    let at = open_tag_end.min(chars.len());
+    let snippet: String = format!("\n{indent}{}", kind.snippet());
+    let snip: Vec<char> = snippet.chars().collect();
+    chars.splice(at..at, snip);
+    let mut out: String = chars.into_iter().collect();
+    if let Some(h) = kind.handler() {
+        if let Some(scaffolded) = scaffold_handler(&out, h) {
+            out = scaffolded;
+        }
+    }
+    out
+}
+
+/// Insert `func <name>() : async () { };` just before the `@code` block's closing
+/// brace. Returns `None` if there is no `@code { ... }` block. Brace-matched so
+/// nested braces in the block are handled; idempotent (won't duplicate a handler).
+fn scaffold_handler(source: &str, name: &str) -> Option<String> {
+    if source.contains(&format!("func {}(", name)) {
+        return Some(source.to_string());
+    }
+    let code_at = source.find("@code")?;
+    let open = source[code_at..].find('{').map(|i| code_at + i)?;
+    let bytes = source.as_bytes();
+    let mut depth = 0i32;
+    let mut close = None;
+    let mut i = open;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let close = close?;
+    let handler = format!(
+        "\n  // scaffolded by the designer — wire its body\n  func {}() : async () {{ }};\n",
+        name
+    );
+    let mut out = String::with_capacity(source.len() + handler.len());
+    out.push_str(&source[..close]);
+    out.push_str(&handler);
+    out.push_str(&source[close..]);
+    Some(out)
+}
+
+/// Drop `kind` into the project file `file_rel` at char offset `at` (a drop
+/// target's open-tag end), validate with `check`, and REVERT on any error so a bad
+/// drop never leaves the source broken.
+pub fn add_component(
+    project_dir: &Path,
+    file_rel: &str,
+    at: usize,
+    kind: ComponentKind,
+    indent: &str,
+) -> Result<(), String> {
+    let path = project_dir.join(file_rel);
+    let original = read_file(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let updated = splice_component(&original, at, kind, indent);
+    write_file(&path, &updated).map_err(|e| format!("write {}: {e}", path.display()))?;
+    let report = run_check(project_dir);
+    if report.diagnostics.iter().any(|d| d.is_error()) {
+        let _ = write_file(&path, &original);
+        let msg = report
+            .diagnostics
+            .iter()
+            .find(|d| d.is_error())
+            .map(|d| format!("[{}] {}", d.rule, d.message))
+            .unwrap_or_else(|| "would not compile".to_string());
+        return Err(format!("reverted — {msg}"));
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // IR -> native widget DECISION logic (pure, testable; no egui types)
 // ---------------------------------------------------------------------------
 
@@ -1544,6 +1725,134 @@ mod tests {
             e.events.iter().any(|ev| ev.handler == "toggleCreate"),
             "resolved entry should carry the toggleCreate event"
         );
+        let _ = std::fs::remove_dir_all(&crm);
+    }
+
+    // ---- DRAG-AND-DROP (component insertion) -----------------------------
+
+    #[test]
+    fn splice_component_inserts_snippet_as_first_child() {
+        let out = splice_component("<div></div>", 5, ComponentKind::Button, "  ");
+        // The button is inserted right after the <div> open tag.
+        assert_eq!(out, "<div>\n  <button>Button</button></div>");
+        assert_eq!(ComponentKind::from_label("Container"), Some(ComponentKind::Container));
+        assert_eq!(ComponentKind::from_label("Secure form"), Some(ComponentKind::SecureForm));
+        assert_eq!(ComponentKind::from_label("nope"), None);
+        // out-of-range offset clamps (never panics).
+        let _ = splice_component("<a>", 999, ComponentKind::Text, "");
+    }
+
+    #[test]
+    fn secure_form_is_secure_and_scaffolds_its_handler() {
+        // The secure form snippet is `secure` (the deny-by-default lint requires it).
+        assert!(ComponentKind::SecureForm.snippet().contains("secure"));
+        assert_eq!(ComponentKind::SecureForm.handler(), Some("onSubmit"));
+        // Splicing a secure form scaffolds its @code handler so it compiles.
+        let page = "<div></div>\n@code {\n  var x : Nat = 0;\n}\n";
+        let out = splice_component(page, 5, ComponentKind::SecureForm, "  ");
+        assert!(out.contains("<form @submit=onSubmit secure>"), "out={out}");
+        assert!(out.contains("func onSubmit() : async ()"), "handler not scaffolded: {out}");
+        // Idempotent: scaffolding the same handler again does not duplicate it.
+        let again = scaffold_handler(&out, "onSubmit").expect("scaffold");
+        assert_eq!(again.matches("func onSubmit(").count(), 1);
+        // A page with no @code block: the snippet is still inserted (no scaffold).
+        let nocode = splice_component("<div></div>", 5, ComponentKind::SecureForm, "");
+        assert!(nocode.contains("<form @submit=onSubmit secure>"));
+    }
+
+    /// Find the first forest node carrying `class` (for picking a drop target).
+    fn find_by_class<'a>(nodes: &'a [UiNode], class: &str) -> Option<&'a UiNode> {
+        for n in nodes {
+            if let UiNode::El { attrs, children, .. } = n {
+                if attrs
+                    .get("class")
+                    .map(|c| c.split_whitespace().any(|w| w == class))
+                    .unwrap_or(false)
+                {
+                    return Some(n);
+                }
+                if let Some(f) = find_by_class(children, class) {
+                    return Some(f);
+                }
+            }
+        }
+        None
+    }
+
+    fn forest_has_button_text(nodes: &[UiNode], txt: &str) -> bool {
+        nodes.iter().any(|n| match n {
+            UiNode::El { tag, children, .. } => {
+                (tag == "button" && node_text(n).trim() == txt) || forest_has_button_text(children, txt)
+            }
+            _ => false,
+        })
+    }
+
+    #[test]
+    fn add_component_drops_a_button_into_the_crm_and_reappears() {
+        // END-TO-END: drop a Button into the (non-@for) crm-header container, prove
+        // it compiles (no revert) + the new button shows up in the re-preview.
+        if !motoview_available() {
+            eprintln!("SKIP: motoview binary not found");
+            return;
+        }
+        let Some(crm) = isolated_crm("dnd") else {
+            eprintln!("SKIP: examples/crm not present");
+            return;
+        };
+        let pr = run_preview(&crm, None);
+        if !pr.ok {
+            eprintln!("SKIP: preview not runnable here (moc?)");
+            let _ = std::fs::remove_dir_all(&crm);
+            return;
+        }
+        // Resolve the crm-header div's source id -> file + open-tag end (drop point).
+        let header = find_by_class(&pr.forest, "crm-header").expect("crm-header in forest");
+        let id = node_src_id(header).expect("header carries data-mv-src");
+        let e = pr.srcmap.get(id).expect("header srcmap entry");
+        let (file, at) = (e.file.clone(), e.span.end);
+        // Drop a Button — must compile (no revert).
+        add_component(&crm, &file, at, ComponentKind::Button, "    ")
+            .expect("dropping a Button should compile");
+        let updated = read_file(&crm.join(&file)).expect("read updated file");
+        assert!(updated.contains("<button>Button</button>"), "button not spliced");
+        // Re-preview: the new button is now in the forest.
+        let pr2 = run_preview(&crm, None);
+        assert!(pr2.ok, "re-preview failed after drop");
+        assert!(
+            forest_has_button_text(&pr2.forest, "Button"),
+            "the dropped Button is not in the re-rendered forest"
+        );
+        let _ = std::fs::remove_dir_all(&crm);
+    }
+
+    #[test]
+    fn add_secure_form_scaffolds_handler_and_compiles() {
+        // Dropping a Secure form inserts a `secure` form AND scaffolds its onSubmit
+        // handler, so the secure-by-construction component compiles.
+        if !motoview_available() {
+            eprintln!("SKIP: motoview binary not found");
+            return;
+        }
+        let Some(crm) = isolated_crm("dndform") else {
+            eprintln!("SKIP: examples/crm not present");
+            return;
+        };
+        let pr = run_preview(&crm, None);
+        if !pr.ok {
+            eprintln!("SKIP: preview not runnable here (moc?)");
+            let _ = std::fs::remove_dir_all(&crm);
+            return;
+        }
+        let header = find_by_class(&pr.forest, "crm-header").expect("crm-header");
+        let id = node_src_id(header).expect("src id");
+        let e = pr.srcmap.get(id).expect("entry");
+        let (file, at) = (e.file.clone(), e.span.end);
+        add_component(&crm, &file, at, ComponentKind::SecureForm, "    ")
+            .expect("a secure form (with scaffolded handler) should compile");
+        let updated = read_file(&crm.join(&file)).expect("read");
+        assert!(updated.contains("@submit=onSubmit secure>"), "form not secure");
+        assert!(updated.contains("func onSubmit("), "onSubmit not scaffolded");
         let _ = std::fs::remove_dir_all(&crm);
     }
 

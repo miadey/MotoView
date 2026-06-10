@@ -71,6 +71,74 @@ fn assert_board_loaded(app: &StudioApp) {
     );
 }
 
+/// Copy a project tree (skipping build/noise dirs) so a drag-drop snapshot can
+/// MUTATE the source without touching the real examples/crm.
+fn copy_tree(src: &Path, dst: &Path) {
+    std::fs::create_dir_all(dst).unwrap();
+    for e in std::fs::read_dir(src).unwrap().flatten() {
+        let p = e.path();
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if matches!(name, ".mvbuild" | ".dfx" | ".git" | "target" | "node_modules") {
+            continue;
+        }
+        let to = dst.join(name);
+        if p.is_dir() {
+            copy_tree(&p, &to);
+        } else {
+            std::fs::copy(&p, &to).unwrap();
+        }
+    }
+}
+
+/// An isolated copy of examples/crm (runtime package path absolutized) so a drop
+/// can rewrite Board.mview without corrupting the committed project.
+fn isolated_crm() -> PathBuf {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let dst = std::env::temp_dir().join(format!("mvstudio_snap_crm_{}_{}", std::process::id(), nanos));
+    copy_tree(&crm_dir(), &dst);
+    let dfx = dst.join("dfx.json");
+    if let Ok(txt) = std::fs::read_to_string(&dfx) {
+        let repo = crm_dir().parent().unwrap().parent().unwrap().to_path_buf();
+        let abs = repo.join("runtime/src");
+        let _ = std::fs::write(&dfx, txt.replace("../../runtime/src", &abs.to_string_lossy()));
+    }
+    dst
+}
+
+/// DRAG-AND-DROP: drop a Button into the CRM header on an isolated copy and render
+/// — the dropped component appears on the canvas (a Button below the Pipeline
+/// title). Proves the toolbox tiles add real components.
+#[test]
+fn designer_dropped() {
+    let dir = isolated_crm();
+    let mut app = StudioApp::new_headless();
+    app.open_project_path(&dir.display().to_string());
+    app.open_first_file();
+    app.run_preview();
+    if app.board_summary().columns < 1 {
+        eprintln!("SKIP: preview not runnable here (moc?)");
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+    let ok = app.drop_component_into_class("crm-header", motokostudio::backend::ComponentKind::Button);
+    assert!(ok, "should resolve + drop into the crm-header container");
+    // After the drop the source was re-checked + re-previewed; the new Button is
+    // now a real node in the forest.
+    assert!(
+        app.board_summary().columns >= 4,
+        "the board should still render after the drop"
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1480.0, 920.0))
+        .build_ui(move |ui| app.draw(ui));
+    harness.run();
+    harness.snapshot("designer_dropped");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn studio_crm_dark() {
     let mut app = studio_with_crm(true);

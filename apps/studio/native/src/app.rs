@@ -297,6 +297,19 @@ impl StudioApp {
         Some(format!("{}:{}:{}  <{}>", e.file, e.span.line, e.span.col, e.tag))
     }
 
+    /// Drop `kind` into the first preview node carrying `class` — the same path a
+    /// canvas drag-drop takes (resolve target -> add_component -> re-preview). A
+    /// designer/test helper. Returns true if a target was found + applied.
+    pub fn drop_component_into_class(&mut self, class: &str, kind: backend::ComponentKind) -> bool {
+        if self.select_node_by_class(class) {
+            if let Some(id) = self.selected_src {
+                self.add_component_at(id, kind);
+                return true;
+            }
+        }
+        false
+    }
+
     /// The first forest node whose `data-mv-src` id equals the current selection
     /// (the node the inspector reads attrs/events from). `@for`-expanded
     /// instances share the template id, so this returns the first instance.
@@ -582,6 +595,7 @@ impl StudioApp {
                 select_mode,
                 selected,
                 picked: None,
+                dropped: None,
             };
             match &self.preview {
                 Some(pr) if pr.ok => render_forest(ui, &p, &pr.forest, &mut sink, &mut sel),
@@ -963,9 +977,41 @@ impl StudioApp {
     /// centered DEVICE FRAME at the selected width, and the app rendered inside
     /// it via the existing `render_forest` (selection still works). Click
     /// dispatch (select / live-replay) is collected here and applied after.
+    /// Apply a drag-and-drop: insert `kind` as the first child of the node with
+    /// `target_id` (resolved through the selection side-map to its `.mview` file +
+    /// open-tag end), via backend::add_component (which validates + reverts on a
+    /// compile error), then reload the open editor file and re-preview.
+    fn add_component_at(&mut self, target_id: usize, kind: backend::ComponentKind) {
+        let (file, at) = match self.preview.as_ref().and_then(|pr| pr.srcmap.get(target_id)) {
+            Some(e) => (e.file.clone(), e.span.end),
+            None => return,
+        };
+        let Some(dir) = self.project_dir.clone() else {
+            return;
+        };
+        match backend::add_component(&dir, &file, at, kind, "    ") {
+            Ok(()) => {
+                self.status = format!("Added {} into {}", kind.label(), file);
+                self.selected_src = None; // the forest changed; clear stale selection
+                let target_path = dir.join(&file);
+                if self.open_file.as_deref() == Some(target_path.as_path()) {
+                    if let Ok(text) = backend::read_file(&target_path) {
+                        self.editor_text = text;
+                        self.dirty = false;
+                    }
+                }
+                self.run_preview();
+            }
+            Err(e) => {
+                self.status = format!("Drop failed: {e}");
+            }
+        }
+    }
+
     fn design_canvas(&mut self, ui: &mut Ui, p: &Palette) {
         let mut clicked: Option<SessionEvent> = None;
         let mut picked: Option<usize> = None;
+        let mut dropped: Option<(usize, backend::ComponentKind)> = None;
         let mut do_reset = false;
         let mut set_mode: Option<bool> = None;
         let select_mode = self.select_mode;
@@ -1087,11 +1133,13 @@ impl StudioApp {
                                         select_mode,
                                         selected,
                                         picked: None,
+                                        dropped: None,
                                     };
                                     device_frame(ui, p, device, |ui| {
                                         render_forest(ui, p, &pr.forest, &mut clicked, &mut sel);
                                     });
                                     picked = sel.picked;
+                                    dropped = sel.dropped;
                                 }
                             }
                         });
@@ -1104,6 +1152,9 @@ impl StudioApp {
         }
         if let Some(id) = picked {
             self.selected_src = Some(id);
+        }
+        if let Some((id, kind)) = dropped {
+            self.add_component_at(id, kind);
         }
         if do_reset {
             self.reset_session();
@@ -1368,9 +1419,15 @@ fn palette_tile(
 ) {
     debug_assert!(!label.is_empty(), "palette_tile label must be non-empty");
     let (id, rect) = ui.allocate_space(size);
-    let resp = ui.interact(rect, id, egui::Sense::click());
+    let resp = ui.interact(rect, id, egui::Sense::click_and_drag());
+    // DRAG SOURCE: the tile carries its ComponentKind; dropping it on a canvas
+    // node inserts the component there (see select_overlay + add_component_at).
+    if let Some(kind) = backend::ComponentKind::from_label(label) {
+        resp.dnd_set_drag_payload(kind);
+        resp.clone().on_hover_cursor(egui::CursorIcon::Grab);
+    }
 
-    let hovered = resp.hovered();
+    let hovered = resp.hovered() || resp.dragged();
     let (fill, stroke_c) = if secure {
         (
             if hovered { p.brand_subtle } else { p.brand_subtle.gamma_multiply(0.7) },
@@ -2086,6 +2143,9 @@ struct SelCtx {
     selected: Option<usize>,
     /// A node clicked for selection THIS frame (out; applied after render).
     picked: Option<usize>,
+    /// A component dropped onto a node THIS frame: (target src id, kind). Applied
+    /// after render — inserts the component as a child of the target.
+    dropped: Option<(usize, backend::ComponentKind)>,
 }
 
 /// A button was clicked: SELECT mode selects its source node; INTERACT mode
@@ -2126,7 +2186,20 @@ fn select_overlay(ui: &mut Ui, p: &Palette, node: &UiNode, sel: &mut SelCtx, rec
     if resp.clicked() {
         sel.picked = Some(id);
     }
-    if sel.selected == Some(id) {
+    // DROP TARGET: a component dragged from the Elements toolbox and released over
+    // this node is inserted as its first child. Highlight while a payload hovers.
+    if let Some(kind) = resp.dnd_release_payload::<backend::ComponentKind>() {
+        sel.dropped = Some((id, *kind));
+    }
+    let drop_hover = resp.dnd_hover_payload::<backend::ComponentKind>().is_some();
+    if drop_hover {
+        ui.painter().rect_stroke(
+            rect.shrink(0.5),
+            CornerRadius::same(RADIUS_CARD),
+            Stroke { width: 2.0, color: p.brand },
+            egui::StrokeKind::Inside,
+        );
+    } else if sel.selected == Some(id) {
         ui.painter().rect_stroke(
             rect.shrink(0.5),
             CornerRadius::same(RADIUS_CARD),
@@ -2231,8 +2304,50 @@ fn render_crm_header(
                 }
             });
         });
+        // AUTHORED EXTRAS: render any direct-child elements the specialized header
+        // above didn't show (e.g. a drag-dropped component) via the generic path,
+        // so a drop into the header is VISIBLE + selectable.
+        render_extra_children(ui, p, node, clicked, sel, &["h1", "toggleCreate"]);
     });
     select_overlay(ui, p, node, sel, r.response.rect);
+}
+
+/// Render the DIRECT child ELEMENTS of `node` that a specialized renderer didn't
+/// already show — so a drag-dropped component appears on the canvas. A child is
+/// skipped if it (or a descendant) is a known marker: a tag in `skip` (e.g. "h1"
+/// for the title wrapper) or a button wired to a handler named in `skip`.
+fn render_extra_children(
+    ui: &mut Ui,
+    p: &Palette,
+    node: &UiNode,
+    clicked: &mut Option<SessionEvent>,
+    sel: &mut SelCtx,
+    skip: &[&str],
+) {
+    let UiNode::El { children, .. } = node else {
+        return;
+    };
+    for c in children {
+        let UiNode::El { tag, events, .. } = c else {
+            continue;
+        };
+        let is_known_wrap = skip
+            .iter()
+            .any(|k| !k.is_empty() && find_class_or_tag(c, "", k).is_some());
+        let is_known_handler = events
+            .get("click")
+            .map(|h| skip.contains(&h.as_str()))
+            .unwrap_or(false)
+            || events
+                .get("submit")
+                .map(|h| skip.contains(&h.as_str()))
+                .unwrap_or(false);
+        // Skip the structural wrappers the kanban renderer handles itself.
+        if is_known_wrap || is_known_handler || tag == "section" {
+            continue;
+        }
+        render_node(ui, p, c, clicked, sel);
+    }
 }
 
 /// One Kanban column card: a header (stage name + count pill) + its deal cards.
