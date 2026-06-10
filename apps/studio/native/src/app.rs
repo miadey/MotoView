@@ -85,6 +85,15 @@ pub struct StudioApp {
     /// A last replay error to surface in the diagnostics area (cleared on the
     /// next successful dispatch / preview / reset).
     replay_error: Option<String>,
+
+    // --- GUI selection (the designer canvas) ------------------------------
+    /// The `data-mv-src` id of the currently-selected preview node, resolved to a
+    /// source location via [`PreviewResult::srcmap`]. `None` = nothing selected.
+    selected_src: Option<usize>,
+    /// Canvas mode: `true` = SELECT (designer — clicking a node highlights it +
+    /// shows its source; buttons select instead of fire); `false` = INTERACT
+    /// (LIVE replay — clicking a button dispatches its event).
+    select_mode: bool,
 }
 
 impl Default for StudioApp {
@@ -105,6 +114,8 @@ impl Default for StudioApp {
             session: Vec::new(),
             session_route: None,
             replay_error: None,
+            selected_src: None,
+            select_mode: true,
         }
     }
 }
@@ -151,6 +162,43 @@ impl StudioApp {
             self.dark = dark;
             self.theme_dirty = true;
         }
+    }
+
+    /// Select the first preview node carrying `class` (a designer/test helper for
+    /// the selection bridge). Returns true if a source-mapped node was selected.
+    /// Because a `@for` template shares ONE source id, selecting e.g. `deal-card`
+    /// highlights every rendered instance — the template's footprint.
+    pub fn select_node_by_class(&mut self, class: &str) -> bool {
+        fn find(nodes: &[UiNode], class: &str) -> Option<usize> {
+            for n in nodes {
+                if let UiNode::El { attrs, children, .. } = n {
+                    let hit = attrs
+                        .get("class")
+                        .map(|c| c.split_whitespace().any(|w| w == class))
+                        .unwrap_or(false);
+                    if hit {
+                        if let Some(id) = backend::node_src_id(n) {
+                            return Some(id);
+                        }
+                    }
+                    if let Some(id) = find(children, class) {
+                        return Some(id);
+                    }
+                }
+            }
+            None
+        }
+        let id = self.preview.as_ref().and_then(|pr| find(&pr.forest, class));
+        self.selected_src = id;
+        id.is_some()
+    }
+
+    /// The selected node's source location (`file:line:col  <tag>`), resolved
+    /// through the preview side-map. `None` if nothing is selected or unresolved.
+    pub fn selected_source_location(&self) -> Option<String> {
+        let id = self.selected_src?;
+        let e = self.preview.as_ref()?.srcmap.get(id)?;
+        Some(format!("{}:{}:{}  <{}>", e.file, e.span.line, e.span.col, e.tag))
     }
 
     /// A small, testable summary of the currently-previewed CRM board: column
@@ -400,12 +448,19 @@ impl StudioApp {
         let frame = Frame::new()
             .fill(p.window)
             .inner_margin(Margin::same(16));
+        let select_mode = self.select_mode;
+        let selected = self.selected_src;
         frame.show(ui, |ui| {
             section_title(ui, &p, "Preview · Kanban board");
             ui.add_space(SPACE);
             let mut sink: Option<SessionEvent> = None;
+            let mut sel = SelCtx {
+                select_mode,
+                selected,
+                picked: None,
+            };
             match &self.preview {
-                Some(pr) if pr.ok => render_forest(ui, &p, &pr.forest, &mut sink),
+                Some(pr) if pr.ok => render_forest(ui, &p, &pr.forest, &mut sink, &mut sel),
                 _ => empty_state(ui, &p, "▦", "No preview", "Load a project and run preview."),
             }
         });
@@ -593,10 +648,14 @@ impl StudioApp {
     }
 
     fn right_panel(&mut self, ui: &mut Ui, p: &Palette) {
-        // Event dispatched by a button click this frame (applied after render so
-        // we don't borrow `self` while egui borrows the forest).
+        // Collected during render, applied AFTER the panel closure so we never
+        // borrow `self` mutably while egui borrows the forest.
         let mut clicked: Option<SessionEvent> = None;
         let mut do_reset = false;
+        let mut picked: Option<usize> = None; // a node selected this frame
+        let mut set_mode: Option<bool> = None; // Select/Interact toggle
+        let select_mode = self.select_mode;
+        let selected = self.selected_src;
 
         let frame = Frame::new()
             .fill(p.window)
@@ -612,13 +671,49 @@ impl StudioApp {
                 ui.horizontal(|ui| {
                     section_title(ui, p, "Preview");
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(
-                            RichText::new("native egui · LIVE replay")
-                                .text_style(TextStyle::Small)
-                                .color(p.text_secondary),
-                        );
+                        // Canvas mode: Select (designer) vs Interact (LIVE replay).
+                        if ui.selectable_label(!select_mode, "Interact").clicked() {
+                            set_mode = Some(false);
+                        }
+                        if ui.selectable_label(select_mode, "Select").clicked() {
+                            set_mode = Some(true);
+                        }
                     });
                 });
+                // The selection bridge, made visible: the selected node's source.
+                {
+                    let loc = selected.and_then(|id| {
+                        self.preview
+                            .as_ref()
+                            .and_then(|pr| pr.srcmap.get(id))
+                            .map(|e| format!("{}:{}:{}  <{}>", e.file, e.span.line, e.span.col, e.tag))
+                    });
+                    ui.horizontal(|ui| match loc {
+                        Some(loc) => {
+                            ui.label(RichText::new("◉").color(p.brand));
+                            ui.label(
+                                RichText::new(loc)
+                                    .text_style(TextStyle::Button)
+                                    .color(p.text_primary)
+                                    .strong(),
+                            );
+                        }
+                        None if select_mode => {
+                            ui.label(
+                                RichText::new("Select mode — click a node to inspect its source")
+                                    .text_style(TextStyle::Small)
+                                    .color(p.text_secondary),
+                            );
+                        }
+                        None => {
+                            ui.label(
+                                RichText::new("Interact mode — click a button to dispatch (live replay)")
+                                    .text_style(TextStyle::Small)
+                                    .color(p.text_secondary),
+                            );
+                        }
+                    });
+                }
 
                 // Live-session controls.
                 ui.add_space(4.0);
@@ -677,15 +772,27 @@ impl StudioApp {
                         }
                     }
                     Some(pr) => {
+                        let mut sel = SelCtx {
+                            select_mode,
+                            selected,
+                            picked: None,
+                        };
                         egui::ScrollArea::both()
                             .auto_shrink([false, false])
                             .show(ui, |ui| {
-                                render_forest(ui, p, &pr.forest, &mut clicked);
+                                render_forest(ui, p, &pr.forest, &mut clicked, &mut sel);
                             });
+                        picked = sel.picked;
                     }
                 }
             });
 
+        if let Some(m) = set_mode {
+            self.select_mode = m;
+        }
+        if let Some(id) = picked {
+            self.selected_src = Some(id);
+        }
         if do_reset {
             self.reset_session();
         } else if let Some(ev) = clicked {
@@ -1155,7 +1262,79 @@ fn find_all_class<'a>(node: &'a UiNode, class: &str, out: &mut Vec<&'a UiNode>) 
 /// Render the whole forest. If it looks like the CRM board (has `kanban-col`
 /// columns), draw the polished Fluent Kanban; otherwise fall back to the
 /// generic recursive renderer so arbitrary pages still render.
-fn render_forest(ui: &mut Ui, p: &Palette, forest: &[UiNode], clicked: &mut Option<SessionEvent>) {
+/// Threaded through the preview renderers: the designer SELECTION context. In
+/// SELECT mode each source-mapped node is click-to-select with a brand outline; in
+/// INTERACT mode buttons dispatch (the LIVE replay path) as before.
+struct SelCtx {
+    select_mode: bool,
+    /// The selected node's `data-mv-src` id (outlined while rendering).
+    selected: Option<usize>,
+    /// A node clicked for selection THIS frame (out; applied after render).
+    picked: Option<usize>,
+}
+
+/// A button was clicked: SELECT mode selects its source node; INTERACT mode
+/// dispatches its event.
+fn button_action(
+    was_clicked: bool,
+    btn: &UiNode,
+    sel: &mut SelCtx,
+    clicked: &mut Option<SessionEvent>,
+) {
+    if !was_clicked {
+        return;
+    }
+    if sel.select_mode {
+        if let Some(id) = backend::node_src_id(btn) {
+            sel.picked = Some(id);
+        }
+    } else {
+        queue_click(btn, clicked);
+    }
+}
+
+/// In SELECT mode, make an already-rendered node `rect` click-to-select and paint
+/// a brand outline when it is the selected node (a faint one on hover). No-op in
+/// INTERACT mode or for a node with no source id.
+fn select_overlay(ui: &mut Ui, p: &Palette, node: &UiNode, sel: &mut SelCtx, rect: egui::Rect) {
+    if !sel.select_mode {
+        return;
+    }
+    let Some(id) = backend::node_src_id(node) else {
+        return;
+    };
+    let resp = ui.interact(
+        rect,
+        egui::Id::new(("mv-sel", id, rect.left() as i32, rect.top() as i32)),
+        egui::Sense::click(),
+    );
+    if resp.clicked() {
+        sel.picked = Some(id);
+    }
+    if sel.selected == Some(id) {
+        ui.painter().rect_stroke(
+            rect.shrink(0.5),
+            CornerRadius::same(RADIUS_CARD),
+            Stroke { width: 2.0, color: p.brand },
+            egui::StrokeKind::Inside,
+        );
+    } else if resp.hovered() {
+        ui.painter().rect_stroke(
+            rect.shrink(0.5),
+            CornerRadius::same(RADIUS_CARD),
+            Stroke { width: 1.0, color: p.text_secondary },
+            egui::StrokeKind::Inside,
+        );
+    }
+}
+
+fn render_forest(
+    ui: &mut Ui,
+    p: &Palette,
+    forest: &[UiNode],
+    clicked: &mut Option<SessionEvent>,
+    sel: &mut SelCtx,
+) {
     let mut columns: Vec<&UiNode> = Vec::new();
     let mut header: Option<&UiNode> = None;
     for node in forest {
@@ -1168,13 +1347,13 @@ fn render_forest(ui: &mut Ui, p: &Palette, forest: &[UiNode], clicked: &mut Opti
     if !columns.is_empty() {
         // Board header (Pipeline title + sub + "+ New deal").
         if let Some(h) = header {
-            render_crm_header(ui, p, h, clicked);
+            render_crm_header(ui, p, h, clicked, sel);
             ui.add_space(SPACE);
         }
         // Horizontal row of column cards.
         ui.horizontal_top(|ui| {
             for col in &columns {
-                render_kanban_column(ui, p, col, clicked);
+                render_kanban_column(ui, p, col, clicked, sel);
                 ui.add_space(SPACE);
             }
         });
@@ -1183,13 +1362,19 @@ fn render_forest(ui: &mut Ui, p: &Palette, forest: &[UiNode], clicked: &mut Opti
 
     // Generic fallback.
     for node in forest {
-        render_node(ui, p, node, clicked);
+        render_node(ui, p, node, clicked, sel);
     }
 }
 
 /// The CRM board header: the "Pipeline" title, the sub-line (open deals · value),
 /// and the primary "+ New deal" button.
-fn render_crm_header(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Option<SessionEvent>) {
+fn render_crm_header(
+    ui: &mut Ui,
+    p: &Palette,
+    node: &UiNode,
+    clicked: &mut Option<SessionEvent>,
+    sel: &mut SelCtx,
+) {
     let title = find_class_or_tag(node, "", "h1")
         .map(backend::node_text)
         .unwrap_or_else(|| "Pipeline".to_string());
@@ -1205,7 +1390,7 @@ fn render_crm_header(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Opti
             width: 1.0,
             color: p.stroke,
         });
-    card.show(ui, |ui| {
+    let r = card.show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
                 ui.label(
@@ -1226,13 +1411,13 @@ fn render_crm_header(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Opti
                 // The "+ New deal" primary button (mv-btn-primary).
                 if let Some(btn) = find_button_with_handler(node, "toggleCreate") {
                     let label = nonempty_label(&backend::node_text(btn), "+ New deal");
-                    if primary_button(ui, p, &label).clicked() {
-                        queue_click(btn, clicked);
-                    }
+                    let was = primary_button(ui, p, &label).clicked();
+                    button_action(was, btn, sel, clicked);
                 }
             });
         });
     });
+    select_overlay(ui, p, node, sel, r.response.rect);
 }
 
 /// One Kanban column card: a header (stage name + count pill) + its deal cards.
@@ -1241,6 +1426,7 @@ fn render_kanban_column(
     p: &Palette,
     col: &UiNode,
     clicked: &mut Option<SessionEvent>,
+    sel: &mut SelCtx,
 ) {
     let title = find_class(col, "kanban-col-title")
         .map(backend::node_text)
@@ -1266,7 +1452,7 @@ fn render_kanban_column(
     // be forced top-down (an explicit vertical layout) or the header + cards
     // would flow sideways. We allocate a fixed-width vertical region for it.
     const COL_W: f32 = 232.0;
-    col_frame.show(ui, |ui| {
+    let r = col_frame.show(ui, |ui| {
         ui.allocate_ui_with_layout(
             egui::vec2(COL_W, 0.0),
             Layout::top_down(Align::Min),
@@ -1296,18 +1482,25 @@ fn render_kanban_column(
                     );
                 }
                 for card in &cards {
-                    render_deal_card(ui, p, card, clicked);
+                    render_deal_card(ui, p, card, clicked, sel);
                     ui.add_space(SPACE);
                 }
             },
         );
     });
+    select_overlay(ui, p, col, sel, r.response.rect);
 }
 
 /// One deal card: title (semibold) + remove button, company (dim), a value chip,
 /// the contact, and a row of move action buttons. EVERY button shows a readable
 /// label — no empty glyph squares.
-fn render_deal_card(ui: &mut Ui, p: &Palette, card: &UiNode, clicked: &mut Option<SessionEvent>) {
+fn render_deal_card(
+    ui: &mut Ui,
+    p: &Palette,
+    card: &UiNode,
+    clicked: &mut Option<SessionEvent>,
+    sel: &mut SelCtx,
+) {
     let title = find_class(card, "deal-title")
         .map(backend::node_text)
         .unwrap_or_default();
@@ -1329,7 +1522,7 @@ fn render_deal_card(ui: &mut Ui, p: &Palette, card: &UiNode, clicked: &mut Optio
             width: 1.0,
             color: p.stroke,
         });
-    frame.show(ui, |ui| {
+    let r = frame.show(ui, |ui| {
       let w = ui.available_width().max(180.0);
       ui.allocate_ui_with_layout(egui::vec2(w, 0.0), Layout::top_down(Align::Min), |ui| {
         ui.set_width(w);
@@ -1343,9 +1536,8 @@ fn render_deal_card(ui: &mut Ui, p: &Palette, card: &UiNode, clicked: &mut Optio
             );
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if let Some(btn) = find_button_with_handler(card, "removeDeal") {
-                    if icon_action_button(ui, p, "Del", p.error).clicked() {
-                        queue_click(btn, clicked);
-                    }
+                    let was = icon_action_button(ui, p, "Del", p.error).clicked();
+                    button_action(was, btn, sel, clicked);
                 }
             });
         });
@@ -1377,19 +1569,18 @@ fn render_deal_card(ui: &mut Ui, p: &Palette, card: &UiNode, clicked: &mut Optio
         ui.horizontal(|ui| {
             let moves = find_buttons_with_handler(card, "moveBack");
             if let Some(btn) = moves.first() {
-                if icon_action_button(ui, p, "Back", p.text_secondary).clicked() {
-                    queue_click(btn, clicked);
-                }
+                let was = icon_action_button(ui, p, "Back", p.text_secondary).clicked();
+                button_action(was, btn, sel, clicked);
             }
             let fwd = find_buttons_with_handler(card, "moveFwd");
             if let Some(btn) = fwd.first() {
-                if icon_action_button(ui, p, "Fwd", p.brand).clicked() {
-                    queue_click(btn, clicked);
-                }
+                let was = icon_action_button(ui, p, "Fwd", p.brand).clicked();
+                button_action(was, btn, sel, clicked);
             }
         });
       });
     });
+    select_overlay(ui, p, card, sel, r.response.rect);
 }
 
 /// Queue a click event for replay dispatch (records the first click per frame).
@@ -1472,7 +1663,13 @@ fn find_class_or_tag<'a>(node: &'a UiNode, class: &str, tag: &str) -> Option<&'a
 /// Generic recursive renderer for arbitrary (non-CRM) forests. The widget
 /// CHOICE is the pure, tested `widget_kind`; this fn performs the chosen widget
 /// with Fluent styling. EVERY button shows a readable label.
-fn render_node(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Option<SessionEvent>) {
+fn render_node(
+    ui: &mut Ui,
+    p: &Palette,
+    node: &UiNode,
+    clicked: &mut Option<SessionEvent>,
+    sel: &mut SelCtx,
+) {
     match backend::widget_kind(node) {
         WidgetKind::Label => {
             if let UiNode::Text { value } = node {
@@ -1495,9 +1692,8 @@ fn render_node(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Option<Ses
         }
         WidgetKind::Button => {
             let label = nonempty_label(&backend::node_text(node), "Action");
-            if secondary_button(ui, p, &label).clicked() {
-                queue_click(node, clicked);
-            }
+            let was = secondary_button(ui, p, &label).clicked();
+            button_action(was, node, sel, clicked);
         }
         WidgetKind::Input => {
             if let UiNode::El { tag, attrs, .. } = node {
@@ -1526,7 +1722,7 @@ fn render_node(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Option<Ses
                 } else {
                     ui.horizontal_wrapped(|ui| {
                         for c in children {
-                            render_node(ui, p, c, clicked);
+                            render_node(ui, p, c, clicked, sel);
                         }
                     });
                 }
@@ -1547,13 +1743,14 @@ fn render_node(ui: &mut Ui, p: &Palette, node: &UiNode, clicked: &mut Option<Ses
                         width: 1.0,
                         color: p.stroke,
                     });
-                frame.show(ui, |ui| {
+                let r = frame.show(ui, |ui| {
                     ui.vertical(|ui| {
                         for c in children {
-                            render_node(ui, p, c, clicked);
+                            render_node(ui, p, c, clicked, sel);
                         }
                     });
                 });
+                select_overlay(ui, p, node, sel, r.response.rect);
             }
         }
     }

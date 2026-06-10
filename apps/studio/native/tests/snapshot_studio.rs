@@ -103,3 +103,26 @@ fn preview_kanban_dark() {
     harness.run();
     harness.snapshot("preview_kanban_dark");
 }
+
+/// The GUI SELECTION: select a node and render the full studio — the selected
+/// node's source location appears in the preview header and the node(s) get a
+/// brand outline. Selecting the `deal-card` template highlights every instance.
+#[test]
+fn studio_crm_selected() {
+    let mut app = studio_with_crm(true);
+    assert_board_loaded(&app);
+    assert!(
+        app.select_node_by_class("deal-card"),
+        "a source-mapped deal-card should be selectable (forest must carry data-mv-src)"
+    );
+    let loc = app
+        .selected_source_location()
+        .expect("the selected node resolves to a source location");
+    assert!(loc.contains("Board.mview"), "source location = {loc}");
+    assert!(loc.contains("<article>"), "source location = {loc}");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1440.0, 900.0))
+        .build_ui(move |ui| app.draw(ui));
+    harness.run();
+    harness.snapshot("studio_crm_selected");
+}
