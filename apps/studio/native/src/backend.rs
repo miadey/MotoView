@@ -299,16 +299,29 @@ pub struct PreviewResult {
     pub raw_json: String,
     pub note: Option<String>,
     pub ok: bool,
+    /// The node→span selection side-map (from `--srcmap`). Empty if unavailable;
+    /// resolve a clicked node with [`SrcMap::resolve`].
+    pub srcmap: SrcMap,
 }
 
 /// `motoview preview <dir> [--route <r>] --json` — render the page IR forest
 /// with NO deploy. Parses the forest into `Vec<UiNode>`.
 pub fn run_preview(project_dir: &Path, route: Option<&str>) -> PreviewResult {
-    let mut args: Vec<&str> = vec!["preview", ".", "--json"];
+    // `--srcmap` tags the forest with `data-mv-src` ids and writes the node→span
+    // side-map we read below (the selection bridge). Preview-only; production is
+    // unaffected.
+    let mut args: Vec<&str> = vec!["preview", ".", "--json", "--srcmap"];
     if let Some(r) = route {
         args.push("--route");
         args.push(r);
     }
+    // The selection side-map written by `--srcmap`, read after a successful render.
+    let read_srcmap = || -> SrcMap {
+        std::fs::read_to_string(project_dir.join(".mvbuild").join("preview.srcmap.json"))
+            .ok()
+            .map(|s| SrcMap::parse(&s))
+            .unwrap_or_default()
+    };
     match run_motoview(&args, Some(project_dir)) {
         Ok((stdout, stderr, ok)) => {
             // Find the JSON forest line (starts with `[`).
@@ -319,12 +332,14 @@ pub fn run_preview(project_dir: &Path, route: Option<&str>) -> PreviewResult {
                         raw_json: json_line.trim_start().to_string(),
                         note: None,
                         ok,
+                        srcmap: read_srcmap(),
                     },
                     Err(e) => PreviewResult {
                         forest: Vec::new(),
                         raw_json: json_line.to_string(),
                         note: Some(format!("forest parse error: {e}")),
                         ok: false,
+                        srcmap: SrcMap::default(),
                     },
                 }
             } else {
@@ -336,6 +351,7 @@ pub fn run_preview(project_dir: &Path, route: Option<&str>) -> PreviewResult {
                         first_meaningful_line(&stderr)
                     )),
                     ok: false,
+                    srcmap: SrcMap::default(),
                 }
             }
         }
@@ -344,6 +360,7 @@ pub fn run_preview(project_dir: &Path, route: Option<&str>) -> PreviewResult {
             raw_json: String::new(),
             note: Some(format!("failed to spawn motoview preview: {e}")),
             ok: false,
+            srcmap: SrcMap::default(),
         },
     }
 }
@@ -600,6 +617,142 @@ fn string_map(v: Option<&serde_json::Value>) -> BTreeMap<String, String> {
         }
     }
     m
+}
+
+// ---------------------------------------------------------------------------
+// SELECTION BRIDGE — node -> .mview source span
+// ---------------------------------------------------------------------------
+// `motoview preview --srcmap` tags each forest element with a `data-mv-src` id and
+// writes `.mvbuild/preview.srcmap.json` (a SIDE artifact; production main.mo is
+// untouched). This resolver maps a clicked forest node back to its exact `.mview`
+// open-tag span (and its attr/event spans), which is the prerequisite for
+// selection, the property grid, and the double-click-to-`@code`-handler move.
+
+/// A `.mview` source span: char offsets plus 1-based line/col (both endpoints).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SrcSpan {
+    pub start: usize,
+    pub end: usize,
+    pub line: u32,
+    pub col: u32,
+    pub end_line: u32,
+    pub end_col: u32,
+}
+
+/// One attribute's name + source span (for the property grid).
+#[derive(Debug, Clone, Default)]
+pub struct SrcAttr {
+    pub name: String,
+    pub span: SrcSpan,
+}
+
+/// One event binding's event/handler + source span (for double-click-to-handler).
+#[derive(Debug, Clone, Default)]
+pub struct SrcEvent {
+    pub event: String,
+    pub handler: String,
+    pub span: SrcSpan,
+}
+
+/// One source-mapped element: where its `.mview` open tag lives, plus its attrs
+/// and events. The array index in [`SrcMap`] is the node's `data-mv-src` id.
+#[derive(Debug, Clone, Default)]
+pub struct SrcEntry {
+    pub file: String,
+    pub tag: String,
+    pub secure: bool,
+    pub span: SrcSpan,
+    pub attrs: Vec<SrcAttr>,
+    pub events: Vec<SrcEvent>,
+}
+
+/// The node→span side-map: `entries[id]` is the element tagged `data-mv-src="id"`.
+#[derive(Debug, Clone, Default)]
+pub struct SrcMap {
+    pub entries: Vec<SrcEntry>,
+}
+
+impl SrcMap {
+    /// Parse the `.mvbuild/preview.srcmap.json` array. Malformed input yields an
+    /// empty map (selection simply doesn't light up) — never a panic.
+    pub fn parse(json: &str) -> SrcMap {
+        let v: serde_json::Value = match serde_json::from_str(json) {
+            Ok(v) => v,
+            Err(_) => return SrcMap::default(),
+        };
+        let arr = match v.as_array() {
+            Some(a) => a,
+            None => return SrcMap::default(),
+        };
+        let span_of = |o: Option<&serde_json::Value>| -> SrcSpan {
+            let g = |k: &str| o.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(0);
+            SrcSpan {
+                start: g("start") as usize,
+                end: g("end") as usize,
+                line: g("line") as u32,
+                col: g("col") as u32,
+                end_line: g("endLine") as u32,
+                end_col: g("endCol") as u32,
+            }
+        };
+        let entries = arr
+            .iter()
+            .map(|e| SrcEntry {
+                file: e.get("file").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                tag: e.get("tag").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                secure: e.get("secure").and_then(|x| x.as_bool()).unwrap_or(false),
+                span: span_of(e.get("span")),
+                attrs: e
+                    .get("attrs")
+                    .and_then(|x| x.as_array())
+                    .map(|a| {
+                        a.iter()
+                            .map(|at| SrcAttr {
+                                name: at.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                                span: span_of(at.get("span")),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                events: e
+                    .get("events")
+                    .and_then(|x| x.as_array())
+                    .map(|a| {
+                        a.iter()
+                            .map(|ev| SrcEvent {
+                                event: ev.get("event").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                                handler: ev.get("handler").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                                span: span_of(ev.get("span")),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            })
+            .collect();
+        SrcMap { entries }
+    }
+
+    /// The entry for a `data-mv-src` id, if any.
+    pub fn get(&self, id: usize) -> Option<&SrcEntry> {
+        self.entries.get(id)
+    }
+
+    /// Resolve a forest node to its source entry via its `data-mv-src` attr. A
+    /// `@for`-expanded instance carries its template's id, so every row resolves
+    /// back to the single template span.
+    pub fn resolve<'a>(&'a self, node: &UiNode) -> Option<&'a SrcEntry> {
+        self.get(node_src_id(node)?)
+    }
+}
+
+/// Read a node's `data-mv-src` id (preview `--srcmap` only). `None` for text/raw
+/// nodes, elements without the attr, or a non-numeric value.
+pub fn node_src_id(node: &UiNode) -> Option<usize> {
+    if let UiNode::El { attrs, .. } = node {
+        attrs.get("data-mv-src").and_then(|s| s.parse::<usize>().ok())
+    } else {
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1284,6 +1437,114 @@ mod tests {
             let _ = std::fs::write(&dfx, fixed);
         }
         Some(dst)
+    }
+
+    /// An isolated copy of examples/crm (build-noise dirs skipped), with the dfx
+    /// runtime package path absolutized so `moc -r` resolves it from /tmp.
+    fn isolated_crm(tag: &str) -> Option<PathBuf> {
+        let src = repo_root().join("examples/crm");
+        if !src.join("dfx.json").exists() {
+            return None;
+        }
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dst = std::env::temp_dir().join(format!("mvstudio_crm_{tag}_{}_{}", std::process::id(), nanos));
+        copy_tree(&src, &dst);
+        let dfx = dst.join("dfx.json");
+        if let Ok(txt) = std::fs::read_to_string(&dfx) {
+            let abs = repo_root().join("runtime/src");
+            let _ = std::fs::write(&dfx, txt.replace("../../runtime/src", &abs.to_string_lossy()));
+        }
+        Some(dst)
+    }
+
+    // ---- SELECTION BRIDGE ------------------------------------------------
+
+    #[test]
+    fn srcmap_resolves_node_to_its_source_span() {
+        // Pure (no binary): parse a side-map + resolve a forest node by its
+        // `data-mv-src` id back to its source span / attrs / events.
+        let json = r#"[
+          {"file":"src/Pages/Board.mview","tag":"div","secure":false,"span":{"start":0,"end":5,"line":6,"col":1,"endLine":6,"endCol":6},"attrs":[],"events":[]},
+          {"file":"src/Pages/Board.mview","tag":"button","secure":true,"span":{"start":40,"end":60,"line":11,"col":5,"endLine":11,"endCol":25},"attrs":[{"name":"class","span":{"start":48,"end":58,"line":11,"col":13,"endLine":11,"endCol":23}}],"events":[{"event":"click","handler":"toggleCreate","span":{"start":60,"end":80,"line":11,"col":25,"endLine":11,"endCol":45}}]}
+        ]"#;
+        let map = SrcMap::parse(json);
+        assert_eq!(map.entries.len(), 2);
+        let mut attrs = BTreeMap::new();
+        attrs.insert("data-mv-src".to_string(), "1".to_string());
+        let node = UiNode::El { tag: "button".into(), attrs, events: BTreeMap::new(), key: None, children: vec![] };
+        assert_eq!(node_src_id(&node), Some(1));
+        let e = map.resolve(&node).expect("button resolves to its source");
+        assert_eq!(e.tag, "button");
+        assert_eq!(e.file, "src/Pages/Board.mview");
+        assert_eq!(e.span.line, 11);
+        assert_eq!(e.span.col, 5);
+        assert!(e.secure);
+        assert_eq!(e.attrs[0].name, "class");
+        assert_eq!(e.events[0].event, "click");
+        assert_eq!(e.events[0].handler, "toggleCreate");
+        // non-element, missing-id, out-of-range, and bad JSON all resolve to None
+        // (selection just doesn't light up — never a panic).
+        assert_eq!(node_src_id(&UiNode::Text { value: "x".into() }), None);
+        let plain = UiNode::El { tag: "div".into(), attrs: BTreeMap::new(), events: BTreeMap::new(), key: None, children: vec![] };
+        assert!(map.resolve(&plain).is_none());
+        assert!(SrcMap::parse("not json at all").entries.is_empty());
+    }
+
+    #[test]
+    fn crm_srcmap_resolves_button_to_board_source() {
+        // End-to-end: run the REAL `preview --srcmap` on examples/crm, find the
+        // "+ New deal" (toggleCreate) button in the forest, and resolve it back to
+        // its exact Board.mview span via its `data-mv-src` id.
+        if !motoview_available() {
+            eprintln!("SKIP: motoview binary not found");
+            return;
+        }
+        let Some(crm) = isolated_crm("srcmap") else {
+            eprintln!("SKIP: examples/crm not present");
+            return;
+        };
+        let pr = run_preview(&crm, None);
+        if !pr.ok {
+            eprintln!("SKIP: preview not runnable here (moc?)");
+            let _ = std::fs::remove_dir_all(&crm);
+            return;
+        }
+        assert!(
+            !pr.srcmap.entries.is_empty(),
+            "--srcmap should populate the side-map (got 0 entries)"
+        );
+        fn find<'a>(nodes: &'a [UiNode], pred: &dyn Fn(&UiNode) -> bool) -> Option<&'a UiNode> {
+            for n in nodes {
+                if pred(n) {
+                    return Some(n);
+                }
+                if let UiNode::El { children, .. } = n {
+                    if let Some(f) = find(children, pred) {
+                        return Some(f);
+                    }
+                }
+            }
+            None
+        }
+        let btn = find(&pr.forest, &|n| {
+            matches!(n, UiNode::El { events, .. } if events.get("click").map(|h| h == "toggleCreate").unwrap_or(false))
+        })
+        .expect("the toggleCreate button is in the CRM forest");
+        let e = pr
+            .srcmap
+            .resolve(btn)
+            .expect("the button resolves to its source via data-mv-src");
+        assert_eq!(e.tag, "button");
+        assert!(e.file.ends_with("Board.mview"), "resolved file = {}", e.file);
+        assert!(e.span.line > 0, "resolved span should have a real line");
+        assert!(
+            e.events.iter().any(|ev| ev.handler == "toggleCreate"),
+            "resolved entry should carry the toggleCreate event"
+        );
+        let _ = std::fs::remove_dir_all(&crm);
     }
 
     #[test]

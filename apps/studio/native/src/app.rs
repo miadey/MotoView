@@ -320,6 +320,10 @@ impl StudioApp {
                     raw_json: String::new(),
                     note: None,
                     ok: true,
+                    // Replay (post-dispatch) doesn't emit a side-map in this slice;
+                    // selection resolves on the initial preview. Follow-up: thread
+                    // --srcmap through replay for post-click re-selection.
+                    srcmap: backend::SrcMap::default(),
                 });
                 self.replay_error = None;
                 self.status = format!(
@@ -1608,6 +1612,7 @@ mod tests {
             raw_json: String::new(),
             note: None,
             ok: true,
+            srcmap: backend::SrcMap::default(),
         });
         app
     }

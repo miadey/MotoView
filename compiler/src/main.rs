@@ -274,6 +274,8 @@ fn cmd_preview(args: &[String]) -> i32 {
     let dir = PathBuf::from(positional(args).unwrap_or("."));
     let route = opt(args, "--route");
     let serve = flag(args, "--serve");
+    // `--srcmap`: emit the node→span selection side-map (studio selection bridge).
+    let srcmap = flag(args, "--srcmap");
     let watch = flag(args, "--watch");
 
     // Resolve moc + the project's package args once (shared by every render).
@@ -303,7 +305,7 @@ fn cmd_preview(args: &[String]) -> i32 {
         return preview_watch(&dir, route, &moc, &base, &pkg_args, None);
     }
 
-    match render_preview(&dir, route, &moc, &base, &pkg_args) {
+    match render_preview(&dir, route, &moc, &base, &pkg_args, srcmap) {
         Ok((forest, info)) => {
             eprintln!(
                 "preview: {} ({}) — IR forest via moc -r, no deploy",
@@ -327,8 +329,9 @@ fn render_preview(
     moc: &PathBuf,
     base: &PathBuf,
     pkg_args: &[String],
+    source_ids: bool,
 ) -> Result<(String, project::PreviewBuild), String> {
-    render_preview_with_events(dir, route, moc, base, pkg_args, &[])
+    render_preview_with_events(dir, route, moc, base, pkg_args, &[], source_ids)
 }
 
 /// Like [`render_preview`], but applies a recorded event session through the page's
@@ -342,8 +345,11 @@ fn render_preview_with_events(
     base: &PathBuf,
     pkg_args: &[String],
     events: &[project::ReplayEvent],
+    // `--srcmap`: also write the `.mvbuild/preview.srcmap.json` selection side-map
+    // and tag the forest's elements with `data-mv-src` ids (studio selection).
+    source_ids: bool,
 ) -> Result<(String, project::PreviewBuild), String> {
-    let info = project::build_preview_with_events(dir, route, events)?;
+    let info = project::build_preview_with_events(dir, route, events, source_ids)?;
     let mut cmd = Command::new(moc);
     cmd.arg("-r").arg("--package").arg("base").arg(base);
     for a in pkg_args {
@@ -411,7 +417,7 @@ fn cmd_preview_replay(
             return 1;
         }
     };
-    match render_preview_with_events(dir, route, moc, base, pkg_args, &events) {
+    match render_preview_with_events(dir, route, moc, base, pkg_args, &events, false) {
         Ok((forest, info)) => {
             eprintln!(
                 "replay: {} ({}) — {} event(s) re-dispatched, then rendered (deterministic, no deploy)",
@@ -487,7 +493,7 @@ fn preview_watch(
     eprintln!("preview --watch: watching {} for .mview changes (Ctrl-C to stop)", src.display());
     let mut last = String::new();
     loop {
-        match render_preview(dir, route, moc, base, pkg_args) {
+        match render_preview(dir, route, moc, base, pkg_args, false) {
             Ok((forest, info)) => {
                 if forest != last {
                     last = forest.clone();
@@ -532,7 +538,7 @@ fn preview_serve(
     let version = Arc::new(Mutex::new(0u64));
 
     // Initial render so the very first page load shows something.
-    match render_preview(dir, route, moc, base, pkg_args) {
+    match render_preview(dir, route, moc, base, pkg_args, false) {
         Ok((forest, info)) => {
             *shared.lock().unwrap() = forest;
             *version.lock().unwrap() = 1;
@@ -554,7 +560,7 @@ fn preview_serve(
             let mut last = shared.lock().unwrap().clone();
             loop {
                 if let Ok((forest, _)) =
-                    render_preview(&dir, route.as_deref(), &moc, &base, &pkg_args)
+                    render_preview(&dir, route.as_deref(), &moc, &base, &pkg_args, false)
                 {
                     if forest != last {
                         last = forest.clone();

@@ -920,7 +920,7 @@ pub fn build_preview(
     project_dir: &Path,
     route: Option<&str>,
 ) -> Result<PreviewBuild, String> {
-    build_preview_with_events(project_dir, route, &[])
+    build_preview_with_events(project_dir, route, &[], false)
 }
 
 /// Like [`build_preview`], but BEFORE the final render it applies an ordered list
@@ -934,6 +934,12 @@ pub fn build_preview_with_events(
     project_dir: &Path,
     route: Option<&str>,
     events: &[ReplayEvent],
+    // SELECTION BRIDGE: when true (the studio's `--srcmap` path), each preview IR
+    // element is tagged with a `data-mv-src` id and a `.mvbuild/preview.srcmap.json`
+    // side-map (id -> .mview file + open-tag/attr/event spans) is written. PREVIEW
+    // ONLY — production `main.mo` / native IR bytes are never affected. Default
+    // false keeps `motoview preview` output unchanged.
+    source_ids: bool,
 ) -> Result<PreviewBuild, String> {
     let mut diagnostics: Vec<(String, lint::Diagnostic)> = Vec::new();
     let src = project_dir.join("src");
@@ -1017,6 +1023,9 @@ pub fn build_preview_with_events(
     let mut page_objects = String::new();
     let mut page_records = String::new();
     let mut routes: Vec<(String, String)> = Vec::new();
+    // SELECTION BRIDGE: one JSON object per element across ALL pages, the array
+    // index being the `data-mv-src` id (a global counter, so ids stay unique).
+    let mut srcmap_json: Vec<String> = Vec::new();
     for pf in &page_files {
         let name = file_stem(pf);
         let source = fs::read_to_string(pf).map_err(|e| format!("{}: {}", pf.display(), e))?;
@@ -1026,12 +1035,22 @@ pub fn build_preview_with_events(
             diagnostics.push((rel.clone(), d));
         }
         let mut cg = Codegen::new_with_emit(&models, &components, EmitMode::Ir);
+        if source_ids {
+            // base = ids already assigned, so this page's ids continue the count.
+            cg.enable_source_ids(srcmap_json.len());
+        }
         let pg = cg.gen_page(&file);
         page_objects.push_str(&format!("  // mv:src {}\n", rel_src(project_dir, pf)));
         page_objects.push_str(&pg.object_block);
         page_objects.push('\n');
         page_records.push_str(&pg.page_record);
         routes.push((pg.route.clone(), pg.name.clone()));
+        if source_ids {
+            let chars: Vec<char> = source.chars().collect();
+            for e in cg.take_src_spans() {
+                srcmap_json.push(src_entry_to_json(&rel, &chars, &e));
+            }
+        }
     }
 
     // ---- layouts (always Html-emitted) ----
@@ -1098,12 +1117,78 @@ pub fn build_preview_with_events(
     }
     fs::write(&out, &program).map_err(|e| format!("writing {}: {}", out.display(), e))?;
 
+    // SELECTION BRIDGE: write the node→span side-map next to preview.mo. It is a
+    // SIDE artifact (like main.mo.map) — nothing is added to preview.mo beyond the
+    // already-emitted `data-mv-src` attrs, and the production build is untouched.
+    if source_ids {
+        let map_path = out.with_file_name("preview.srcmap.json");
+        let body = format!("[{}]\n", srcmap_json.join(","));
+        let _ = fs::write(&map_path, body);
+    }
+
     Ok(PreviewBuild {
         driver_path: out,
         route: target_route,
         page_name: target_name,
         routes: sorted,
     })
+}
+
+/// Minimal JSON string escaper (the compiler stays serde-free).
+fn json_esc(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Serialize one [`crate::codegen::SrcEntry`] to a JSON object for the selection
+/// side-map: its `.mview` file + open-tag span (char offsets AND 1-based
+/// line/col) + per-attr and per-event spans. Array index = the `data-mv-src` id.
+fn src_entry_to_json(file: &str, chars: &[char], e: &crate::codegen::SrcEntry) -> String {
+    let span_json = |s: &crate::span::Span| {
+        let (sl, sc) = crate::span::line_col(chars, s.start);
+        let (el, ec) = crate::span::line_col(chars, s.end);
+        format!(
+            "{{\"start\":{},\"end\":{},\"line\":{},\"col\":{},\"endLine\":{},\"endCol\":{}}}",
+            s.start, s.end, sl, sc, el, ec
+        )
+    };
+    let attrs: Vec<String> = e
+        .attrs
+        .iter()
+        .map(|(n, sp)| format!("{{\"name\":\"{}\",\"span\":{}}}", json_esc(n), span_json(sp)))
+        .collect();
+    let events: Vec<String> = e
+        .events
+        .iter()
+        .map(|(ev, h, sp)| {
+            format!(
+                "{{\"event\":\"{}\",\"handler\":\"{}\",\"span\":{}}}",
+                json_esc(ev),
+                json_esc(h),
+                span_json(sp)
+            )
+        })
+        .collect();
+    format!(
+        "{{\"file\":\"{}\",\"tag\":\"{}\",\"secure\":{},\"span\":{},\"attrs\":[{}],\"events\":[{}]}}",
+        json_esc(file),
+        json_esc(&e.tag),
+        e.secure,
+        span_json(&e.span),
+        attrs.join(","),
+        events.join(",")
+    )
 }
 
 /// Assemble the preview DRIVER as a top-level Motoko PROGRAM (not an actor) that

@@ -149,6 +149,25 @@ impl Default for EmitMode {
     }
 }
 
+/// One source-mapped IR element for the studio's SELECTION BRIDGE: its `.mview`
+/// open-tag [`Span`] plus its attribute and event spans, so the designer can map
+/// a clicked forest node (carrying a `data-mv-src` id) back to its exact source
+/// region — the prerequisite for selection, the property grid, and the
+/// double-click-to-`@code`-handler move. ADDITIVE + PREVIEW-ONLY: recorded only
+/// when `Codegen::source_ids` is set (the preview build), never in production
+/// codegen, so production `main.mo` / native IR bytes are unchanged.
+#[derive(Debug, Clone)]
+pub struct SrcEntry {
+    pub tag: String,
+    /// Span of the open tag `<…>` (file-relative char offsets).
+    pub span: crate::span::Span,
+    /// `(attr-name, attr-span)` for the property grid.
+    pub attrs: Vec<(String, crate::span::Span)>,
+    /// `(event, handler, span)` for double-click-to-handler.
+    pub events: Vec<(String, String, crate::span::Span)>,
+    pub secure: bool,
+}
+
 pub struct Codegen<'a> {
     // name -> Motoko type (vars, params, func returns, and scoped @for loop
     // vars). RefCell so loop-var types can be pushed/popped during the otherwise
@@ -186,6 +205,16 @@ pub struct Codegen<'a> {
     // alignment but never mapped). It is ADDITIVE: codegen still emits the same
     // bytes (it never consults this list), so the golden actor is unchanged.
     expr_spans: std::cell::RefCell<Vec<Option<crate::span::Span>>>,
+    // SELECTION BRIDGE (preview-only). When `source_ids` is true (set ONLY by the
+    // preview build via `enable_source_ids`, never production), `gen_element_ir`
+    // emits a `data-mv-src="<id>"` attr per element and records its [`SrcEntry`]
+    // here; `id = src_id_base + src_spans.len()` so ids stay unique across a
+    // multi-page preview build. ADDITIVE + preview-only: production IR never sets
+    // the flag, so its bytes are unchanged. RefCell/Cell because the render walk
+    // (`gen_node_ir`) is `&self`.
+    source_ids: bool,
+    src_id_base: std::cell::Cell<usize>,
+    src_spans: std::cell::RefCell<Vec<SrcEntry>>,
 }
 
 impl<'a> Codegen<'a> {
@@ -203,7 +232,25 @@ impl<'a> Codegen<'a> {
             components,
             instrument: false,
             expr_spans: std::cell::RefCell::new(Vec::new()),
+            source_ids: false,
+            src_id_base: std::cell::Cell::new(0),
+            src_spans: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Enable the PREVIEW-ONLY source-id side-map (the selection bridge). `base`
+    /// is the running global id offset so ids stay unique across a multi-page
+    /// preview build. After `gen_page`, drain with [`take_src_spans`]. Never
+    /// called by the production build, so production bytes are unchanged.
+    pub fn enable_source_ids(&mut self, base: usize) {
+        self.source_ids = true;
+        self.src_id_base.set(base);
+    }
+
+    /// Drain the recorded [`SrcEntry`] list (the node→span side-map). Entry `i`
+    /// corresponds to the element emitted with `data-mv-src="{base + i}"`.
+    pub fn take_src_spans(&self) -> Vec<SrcEntry> {
+        std::mem::take(&mut self.src_spans.borrow_mut())
     }
 
     /// Like [`new`] but selects the emit backend. `EmitMode::Html` reproduces
@@ -801,6 +848,11 @@ impl<'a> Codegen<'a> {
             // children fallback; its expr spans are irrelevant (the page's real
             // accumulator drives the map), so it gets a fresh empty one.
             expr_spans: std::cell::RefCell::new(Vec::new()),
+            // The throwaway clone never emits source-ids (the page's real Codegen
+            // owns the side-map); a disabled, empty accumulator is correct.
+            source_ids: false,
+            src_id_base: std::cell::Cell::new(0),
+            src_spans: std::cell::RefCell::new(Vec::new()),
         };
         let mut tmp = String::new();
         html_cg.gen_nodes(nodes, &mut tmp, "");
@@ -915,6 +967,26 @@ impl<'a> Codegen<'a> {
 
     fn gen_element_ir(&self, el: &Element, out: &mut String, indent: &str) {
         out.push_str(&format!("{}ir.open({});\n", indent, mo_str(&el.tag)));
+        // SELECTION BRIDGE (preview-only): tag this element with a stable source-id
+        // and record its open-tag/attr/event spans, so the studio can map a clicked
+        // forest node back to its `.mview` region. Emitted in pre-order, so ids
+        // increase in document order. A `@for` body re-runs this call per row, so
+        // every runtime-expanded instance carries its template's id for free.
+        if self.source_ids {
+            let id = self.src_id_base.get() + self.src_spans.borrow().len();
+            self.src_spans.borrow_mut().push(SrcEntry {
+                tag: el.tag.clone(),
+                span: el.span,
+                attrs: el.attrs.iter().map(|a| (a.name.clone(), a.span)).collect(),
+                events: el
+                    .events
+                    .iter()
+                    .map(|e| (e.event.clone(), e.handler.clone(), e.span))
+                    .collect(),
+                secure: el.secure,
+            });
+            out.push_str(&format!("{}ir.attr(\"data-mv-src\", \"{}\");\n", indent, id));
+        }
         // Server-driven forms get `novalidate` so the submit reaches MotoView.
         if el.tag.eq_ignore_ascii_case("form") && el.events.iter().any(|e| e.event.eq_ignore_ascii_case("submit")) {
             out.push_str(&format!("{}ir.attr(\"novalidate\", \"\");\n", indent));
