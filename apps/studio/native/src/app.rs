@@ -1,19 +1,29 @@
-//! The egui/eframe GUI shell — a Fluent 2 desktop IDE for MotoView.
+//! The egui/eframe GUI shell — a Fluent 2 VISUAL DESIGNER for MotoView.
 //!
 //! Deliberately THIN: every decision of substance (which widget renders a node,
 //! how to parse diagnostics, file IO, spawning the compiler) lives in `backend`
 //! / `highlight` and is unit-tested headless. The LOOK comes from
 //! [`crate::theme`]: a Fluent token foundation (brand = MotoView `#6d28d9`).
 //!
-//! Layout:
+//! Layout (a Figma/VB-style designer, all on the Fluent tokens):
 //!   * top    : wordmark + brand dot, project-path input + Open, an action
 //!              cluster (Check / Lint / Preview / Save), the route field, and a
-//!              dark/light toggle.
-//!   * left   : a titled file panel — each `.mview` a selectable ROW.
-//!   * center : the code editor in a card (empty-state when nothing is open) +
-//!              the diagnostics list with severity chips.
-//!   * right  : the PREVIEW panel — a real Fluent KANBAN board built from the
-//!              page IR forest (the 4th renderer of the same IR).
+//!              dark/light toggle — THEN a design toolbar: a [Design | Code] view
+//!              toggle, a [Desktop | Web | Mobile] device switcher, and a grid
+//!              on/off toggle (active segments use the brand-subtle selection).
+//!   * left   : the component TOOLBOX — titled palette sections (Layout / Basic /
+//!              Secure) of draggable-looking rows, with a collapsible Pages/Files
+//!              list underneath. (Drag-drop is the NEXT slice; this is the visual
+//!              palette.)
+//!   * center : the DESIGN CANVAS — a scrollable surface with a painted designer
+//!              grid and a centered DEVICE FRAME (phone bezel / faux browser /
+//!              plain window) at the selected width; the app renders inside it via
+//!              the existing `render_forest` (selection still highlights). The
+//!              Code view swaps in the syntax-highlighted editor here instead. A
+//!              slim diagnostics strip lives at the bottom.
+//!   * right  : the INSPECTOR — the selected node's tag, source location, ATTRS
+//!              (name = value) and EVENTS (event -> handler). Read-only this slice
+//!              (editing is the NEXT one); an empty state when nothing is selected.
 //!
 //! Drawing is driven from `draw(&mut self, ui)` so the SAME code path renders
 //! both in the live eframe window (`App::ui`) and in the headless egui_kittest
@@ -33,6 +43,51 @@ use crate::backend::{
 };
 use crate::highlight::{classify_line, TokenClass};
 use crate::theme::{self, Palette, RADIUS_CARD, RADIUS_INPUT, SPACE};
+
+/// The device frame the design canvas renders the app inside. The chosen
+/// variant fixes the inner content width (a responsive preview) and the chrome
+/// painted around it (a phone bezel / a faux browser / a plain window).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Device {
+    /// A plain desktop window frame at ~1280px.
+    Desktop,
+    /// A faux browser (3 dots + an address pill) at ~1024px.
+    Web,
+    /// A phone bezel at ~390px.
+    Mobile,
+}
+
+impl Device {
+    /// The inner content width the app forest is constrained to.
+    pub fn content_width(self) -> f32 {
+        match self {
+            Device::Desktop => 1280.0,
+            Device::Web => 1024.0,
+            Device::Mobile => 390.0,
+        }
+    }
+    /// The on-canvas frame width (content + the chrome's side padding). The
+    /// canvas centers a frame this wide; an oversized desktop frame is allowed
+    /// to exceed the viewport (the canvas scrolls horizontally).
+    fn frame_width(self) -> f32 {
+        self.content_width() + 32.0
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Device::Desktop => "Desktop",
+            Device::Web => "Web",
+            Device::Mobile => "Mobile",
+        }
+    }
+}
+
+/// Which surface the CENTER shows: the visual DESIGN canvas (default) or the
+/// raw CODE editor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DesignView {
+    Design,
+    Code,
+}
 
 /// A testable summary of the previewed CRM Kanban board (see
 /// [`StudioApp::board_summary`]).
@@ -94,6 +149,17 @@ pub struct StudioApp {
     /// shows its source; buttons select instead of fire); `false` = INTERACT
     /// (LIVE replay — clicking a button dispatches its event).
     select_mode: bool,
+
+    // --- designer layout (the visual designer) ----------------------------
+    /// The device frame the design canvas renders the app inside (changes the
+    /// responsive content width + the painted chrome).
+    device: Device,
+    /// Center surface: the visual DESIGN canvas (default) or the CODE editor.
+    view: DesignView,
+    /// Whether the designer grid background is painted behind the device frame.
+    grid: bool,
+    /// Whether the collapsible Pages/Files list under the toolbox is expanded.
+    files_open: bool,
 }
 
 impl Default for StudioApp {
@@ -116,6 +182,10 @@ impl Default for StudioApp {
             replay_error: None,
             selected_src: None,
             select_mode: true,
+            device: Device::Desktop,
+            view: DesignView::Design,
+            grid: true,
+            files_open: false,
         }
     }
 }
@@ -164,6 +234,29 @@ impl StudioApp {
         }
     }
 
+    /// Select the canvas device frame (Desktop / Web / Mobile). Changes the
+    /// responsive content width the preview is constrained to and the chrome
+    /// painted around it. A designer/test setter (the device switcher).
+    pub fn set_device(&mut self, device: Device) {
+        self.device = device;
+    }
+
+    /// The current canvas device frame.
+    pub fn device(&self) -> Device {
+        self.device
+    }
+
+    /// Switch the center surface between the visual Design canvas and the Code
+    /// editor.
+    pub fn set_view(&mut self, view: DesignView) {
+        self.view = view;
+    }
+
+    /// Toggle the designer grid background behind the device frame.
+    pub fn set_grid(&mut self, on: bool) {
+        self.grid = on;
+    }
+
     /// Select the first preview node carrying `class` (a designer/test helper for
     /// the selection bridge). Returns true if a source-mapped node was selected.
     /// Because a `@for` template shares ONE source id, selecting e.g. `deal-card`
@@ -199,6 +292,28 @@ impl StudioApp {
         let id = self.selected_src?;
         let e = self.preview.as_ref()?.srcmap.get(id)?;
         Some(format!("{}:{}:{}  <{}>", e.file, e.span.line, e.span.col, e.tag))
+    }
+
+    /// The first forest node whose `data-mv-src` id equals the current selection
+    /// (the node the inspector reads attrs/events from). `@for`-expanded
+    /// instances share the template id, so this returns the first instance.
+    fn selected_node(&self) -> Option<&UiNode> {
+        let id = self.selected_src?;
+        let pr = self.preview.as_ref()?;
+        fn find<'a>(nodes: &'a [UiNode], id: usize) -> Option<&'a UiNode> {
+            for n in nodes {
+                if backend::node_src_id(n) == Some(id) {
+                    return Some(n);
+                }
+                if let UiNode::El { children, .. } = n {
+                    if let Some(f) = find(children, id) {
+                        return Some(f);
+                    }
+                }
+            }
+            None
+        }
+        find(&pr.forest, id)
     }
 
     /// A small, testable summary of the currently-previewed CRM board: column
@@ -428,11 +543,17 @@ impl StudioApp {
         }
         let p = Palette::of(self.dark);
 
+        // TOP: wordmark + actions, then the design toolbar (view / device / grid).
         self.top_bar(ui, &p);
+        self.design_toolbar(ui, &p);
+        // BOTTOM: a slim status strip (the diagnostics live under the canvas).
         self.bottom_bar(ui, &p);
-        self.left_panel(ui, &p);
-        self.right_panel(ui, &p);
-        self.central_editor(ui, &p);
+        // LEFT = the component TOOLBOX (with a collapsible Pages/Files list).
+        self.toolbox_panel(ui, &p);
+        // RIGHT = the INSPECTOR (selected node's tag / source / attrs / events).
+        self.inspector_panel(ui, &p);
+        // CENTER = the DESIGN CANVAS (device frame on a grid) — or the Code editor.
+        self.center_panel(ui, &p);
     }
 
     /// Draw ONLY the Kanban board for the current preview forest, filling `ui`.
@@ -568,6 +689,80 @@ impl StudioApp {
             });
     }
 
+    /// The DESIGN TOOLBAR (a second top row): a [Design | Code] view toggle, a
+    /// [Desktop | Web | Mobile] device switcher, and a grid on/off toggle. The
+    /// active segment uses the brand-subtle selection (via `seg_button`).
+    fn design_toolbar(&mut self, ui: &mut Ui, p: &Palette) {
+        let frame = Frame::new()
+            .fill(p.window)
+            .inner_margin(Margin::symmetric(14, 7))
+            .stroke(Stroke {
+                width: 1.0,
+                color: p.stroke,
+            });
+        egui::Panel::top("design-toolbar")
+            .frame(frame)
+            .show_inside(ui, |ui| {
+                ui.horizontal(|ui| {
+                    // [Design | Code] view toggle.
+                    ui.label(
+                        RichText::new("View")
+                            .text_style(TextStyle::Small)
+                            .color(p.text_secondary),
+                    );
+                    segmented(ui, |ui| {
+                        if seg_button(ui, p, "Design", self.view == DesignView::Design).clicked() {
+                            self.view = DesignView::Design;
+                        }
+                        if seg_button(ui, p, "Code", self.view == DesignView::Code).clicked() {
+                            self.view = DesignView::Code;
+                        }
+                    });
+
+                    ui.add_space(SPACE);
+                    vsep(ui, p);
+                    ui.add_space(SPACE);
+
+                    // [Desktop | Web | Mobile] device switcher.
+                    ui.label(
+                        RichText::new("Device")
+                            .text_style(TextStyle::Small)
+                            .color(p.text_secondary),
+                    );
+                    segmented(ui, |ui| {
+                        for d in [Device::Desktop, Device::Web, Device::Mobile] {
+                            if seg_button(ui, p, d.label(), self.device == d).clicked() {
+                                self.device = d;
+                            }
+                        }
+                    });
+
+                    ui.add_space(SPACE);
+                    vsep(ui, p);
+                    ui.add_space(SPACE);
+
+                    // Grid on/off toggle + the live content width readout.
+                    if seg_button(ui, p, "Grid", self.grid).clicked() {
+                        self.grid = !self.grid;
+                    }
+
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        chip(
+                            ui,
+                            p,
+                            &format!("{:.0}px", self.device.content_width()),
+                            p.brand,
+                        );
+                        ui.label(
+                            RichText::new(self.device.label())
+                                .text_style(TextStyle::Small)
+                                .color(p.text_secondary),
+                        );
+                    });
+                });
+            });
+    }
+
     fn bottom_bar(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
             .fill(p.panel)
@@ -594,7 +789,11 @@ impl StudioApp {
             });
     }
 
-    fn left_panel(&mut self, ui: &mut Ui, p: &Palette) {
+    /// LEFT = the component TOOLBOX: titled palette sections (Layout / Basic /
+    /// Secure) of draggable-looking rows, with a collapsible Pages/Files list
+    /// underneath. Drag-drop is NOT wired this slice — this is the visual palette
+    /// (the next slice makes the rows drop onto the canvas).
+    fn toolbox_panel(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
             .fill(p.panel)
             .inner_margin(Margin::same(12))
@@ -602,189 +801,287 @@ impl StudioApp {
                 width: 1.0,
                 color: p.stroke,
             });
-        egui::Panel::left("files")
-            .default_size(248.0)
+        egui::Panel::left("toolbox")
+            .default_size(244.0)
             .frame(frame)
             .show_inside(ui, |ui| {
-                section_title(ui, p, "Files");
-                ui.add_space(2.0);
+                section_title(ui, p, "Toolbox");
                 ui.label(
-                    RichText::new(
-                        self.project_dir
-                            .as_ref()
-                            .and_then(|d| d.file_name())
-                            .map(|n| n.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| "no project open".into()),
-                    )
-                    .text_style(TextStyle::Small)
-                    .color(p.text_secondary),
+                    RichText::new("drag a component onto the canvas")
+                        .text_style(TextStyle::Small)
+                        .color(p.text_secondary),
                 );
                 ui.add_space(SPACE);
 
-                if self.files.is_empty() {
-                    ui.label(
-                        RichText::new("No .mview files.")
-                            .color(p.text_disabled),
-                    );
-                }
-
-                let root = self.project_dir.clone();
-                let mut to_open: Option<PathBuf> = None;
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
+                    .id_salt("toolbox-scroll")
                     .show(ui, |ui| {
-                        ui.spacing_mut().item_spacing.y = 2.0;
-                        for f in &self.files {
-                            let selected = self.open_file.as_ref() == Some(f);
-                            if file_row(ui, p, &root, f, selected).clicked() {
-                                to_open = Some(f.clone());
+                        // Layout primitives.
+                        palette_section(ui, p, "Layout", false, &[
+                            ("▭", "Container"),
+                            ("≡", "Row"),
+                            ("‖", "Column"),
+                        ]);
+                        ui.add_space(SPACE);
+                        // Basic widgets.
+                        palette_section(ui, p, "Basic", false, &[
+                            ("T", "Text"),
+                            ("◉", "Button"),
+                            ("▢", "Input"),
+                            ("◭", "Image"),
+                        ]);
+                        ui.add_space(SPACE);
+                        // SECURE primitives — visually distinct (brand accent + lock).
+                        palette_section(ui, p, "Secure", true, &[
+                            ("⚿", "Secure form"),
+                            ("⚿", "Encrypted field"),
+                            ("⚿", "Wallet button"),
+                            ("⚿", "II auth"),
+                        ]);
+
+                        ui.add_space(SPACE);
+                        vsep_h(ui, p);
+                        ui.add_space(SPACE);
+
+                        // The collapsible Pages/Files list (secondary now that the
+                        // toolbox is the primary left content).
+                        self.files_open = collapsible_header(
+                            ui,
+                            p,
+                            "Pages & files",
+                            self.files_open,
+                            self.files.len(),
+                        );
+                        if self.files_open {
+                            ui.add_space(4.0);
+                            if self.files.is_empty() {
+                                ui.label(
+                                    RichText::new("No .mview files.")
+                                        .text_style(TextStyle::Small)
+                                        .color(p.text_disabled),
+                                );
+                            }
+                            let root = self.project_dir.clone();
+                            let mut to_open: Option<PathBuf> = None;
+                            ui.spacing_mut().item_spacing.y = 2.0;
+                            for f in &self.files {
+                                let selected = self.open_file.as_ref() == Some(f);
+                                if file_row(ui, p, &root, f, selected).clicked() {
+                                    to_open = Some(f.clone());
+                                }
+                            }
+                            if let Some(path) = to_open {
+                                self.open(path);
                             }
                         }
                     });
-                if let Some(p) = to_open {
-                    self.open(p);
-                }
             });
     }
 
-    fn right_panel(&mut self, ui: &mut Ui, p: &Palette) {
-        // Collected during render, applied AFTER the panel closure so we never
-        // borrow `self` mutably while egui borrows the forest.
-        let mut clicked: Option<SessionEvent> = None;
-        let mut do_reset = false;
-        let mut picked: Option<usize> = None; // a node selected this frame
-        let mut set_mode: Option<bool> = None; // Select/Interact toggle
-        let select_mode = self.select_mode;
-        let selected = self.selected_src;
-
+    /// RIGHT = the INSPECTOR. With a node selected it shows the tag, the source
+    /// location, then the node's ATTRIBUTES (name = value) and EVENTS
+    /// (event -> handler), read straight from the selected forest node. Read-only
+    /// this slice (editing is the next one). Nothing selected -> an empty state.
+    fn inspector_panel(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
-            .fill(p.window)
+            .fill(p.panel)
             .inner_margin(Margin::same(12))
             .stroke(Stroke {
                 width: 1.0,
                 color: p.stroke,
             });
-        egui::Panel::right("preview")
-            .default_size(440.0)
+        egui::Panel::right("inspector")
+            .default_size(312.0)
             .frame(frame)
             .show_inside(ui, |ui| {
-                ui.horizontal(|ui| {
-                    section_title(ui, p, "Preview");
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        // Canvas mode: Select (designer) vs Interact (LIVE replay).
-                        if ui.selectable_label(!select_mode, "Interact").clicked() {
-                            set_mode = Some(false);
-                        }
-                        if ui.selectable_label(select_mode, "Select").clicked() {
-                            set_mode = Some(true);
-                        }
+                section_title(ui, p, "Inspector");
+                ui.add_space(SPACE);
+
+                let node = self.selected_node().cloned();
+                let location = self.selected_source_location();
+                let Some(node) = node else {
+                    empty_state(
+                        ui,
+                        p,
+                        "◇",
+                        "Nothing selected",
+                        "Select a node on the canvas to inspect it.",
+                    );
+                    return;
+                };
+
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .id_salt("inspector-scroll")
+                    .show(ui, |ui| {
+                        inspector_body(ui, p, &node, location.as_deref());
                     });
-                });
-                // The selection bridge, made visible: the selected node's source.
-                {
-                    let loc = selected.and_then(|id| {
-                        self.preview
-                            .as_ref()
-                            .and_then(|pr| pr.srcmap.get(id))
-                            .map(|e| format!("{}:{}:{}  <{}>", e.file, e.span.line, e.span.col, e.tag))
-                    });
-                    ui.horizontal(|ui| match loc {
-                        Some(loc) => {
-                            ui.label(RichText::new("◉").color(p.brand));
-                            ui.label(
-                                RichText::new(loc)
-                                    .text_style(TextStyle::Button)
-                                    .color(p.text_primary)
-                                    .strong(),
-                            );
-                        }
-                        None if select_mode => {
-                            ui.label(
-                                RichText::new("Select mode — click a node to inspect its source")
-                                    .text_style(TextStyle::Small)
-                                    .color(p.text_secondary),
-                            );
-                        }
-                        None => {
-                            ui.label(
-                                RichText::new("Interact mode — click a button to dispatch (live replay)")
-                                    .text_style(TextStyle::Small)
-                                    .color(p.text_secondary),
-                            );
-                        }
-                    });
+            });
+    }
+
+    /// CENTER = the DESIGN CANVAS (default) or the CODE editor, by `self.view`.
+    /// The diagnostics strip lives at the BOTTOM of the central panel so it stays
+    /// reachable without dominating the surface.
+    fn center_panel(&mut self, ui: &mut Ui, p: &Palette) {
+        let frame = Frame::new()
+            .fill(p.window)
+            .inner_margin(Margin::ZERO);
+        egui::CentralPanel::default()
+            .frame(frame)
+            .show_inside(ui, |ui| {
+                // Diagnostics: a slim BOTTOM strip (reachable, not dominating).
+                if let Some(report) = self.diagnostics.clone() {
+                    let dframe = Frame::new()
+                        .fill(p.panel)
+                        .inner_margin(Margin::symmetric(12, 8))
+                        .stroke(Stroke {
+                            width: 1.0,
+                            color: p.stroke,
+                        });
+                    egui::Panel::bottom("diag-strip")
+                        .frame(dframe)
+                        .max_size(180.0)
+                        .show_inside(ui, |ui| {
+                            diagnostics_view(ui, p, &report);
+                        });
                 }
 
-                // Live-session controls.
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    let has_preview = matches!(&self.preview, Some(pr) if pr.ok);
-                    ui.add_enabled_ui(has_preview && !self.session.is_empty(), |ui| {
-                        if secondary_button(ui, p, "Reset").clicked() {
-                            do_reset = true;
+                match self.view {
+                    DesignView::Design => self.design_canvas(ui, p),
+                    DesignView::Code => self.code_view(ui, p),
+                }
+            });
+    }
+
+    /// The DESIGN CANVAS: a scrollable surface with a painted designer grid, a
+    /// centered DEVICE FRAME at the selected width, and the app rendered inside
+    /// it via the existing `render_forest` (selection still works). Click
+    /// dispatch (select / live-replay) is collected here and applied after.
+    fn design_canvas(&mut self, ui: &mut Ui, p: &Palette) {
+        let mut clicked: Option<SessionEvent> = None;
+        let mut picked: Option<usize> = None;
+        let mut do_reset = false;
+        let mut set_mode: Option<bool> = None;
+        let select_mode = self.select_mode;
+        let selected = self.selected_src;
+        let device = self.device;
+        let grid = self.grid;
+
+        let frame = Frame::new()
+            .fill(p.window)
+            .inner_margin(Margin::ZERO);
+        egui::CentralPanel::default()
+            .frame(frame)
+            .show_inside(ui, |ui| {
+                // The canvas toolbar: Select/Interact + the live-session controls.
+                let bar = Frame::new()
+                    .fill(p.window)
+                    .inner_margin(Margin::symmetric(14, 8));
+                bar.show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        // Canvas mode: Select (designer) vs Interact (LIVE replay).
+                        segmented(ui, |ui| {
+                            if seg_button(ui, p, "Select", select_mode).clicked() {
+                                set_mode = Some(true);
+                            }
+                            if seg_button(ui, p, "Interact", !select_mode).clicked() {
+                                set_mode = Some(false);
+                            }
+                        });
+                        ui.add_space(SPACE);
+                        let has_preview = matches!(&self.preview, Some(pr) if pr.ok);
+                        ui.add_enabled_ui(has_preview && !self.session.is_empty(), |ui| {
+                            if secondary_button(ui, p, "Reset").clicked() {
+                                do_reset = true;
+                            }
+                        });
+                        if !self.session.is_empty() {
+                            chip(ui, p, &format!("{} event(s)", self.session.len()), p.info);
                         }
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            ui.label(
+                                RichText::new(if select_mode {
+                                    "Select — click a node to inspect it"
+                                } else {
+                                    "Interact — click a button to dispatch (live replay)"
+                                })
+                                .text_style(TextStyle::Small)
+                                .color(p.text_secondary),
+                            );
+                        });
                     });
-                    if !self.session.is_empty() {
-                        chip(
-                            ui,
-                            p,
-                            &format!("{} event(s)", self.session.len()),
-                            p.info,
-                        );
-                    } else if has_preview {
+                });
+
+                if let Some(err) = &self.replay_error {
+                    ui.horizontal(|ui| {
+                        ui.add_space(14.0);
+                        ui.colored_label(p.error, "Replay failed (forest unchanged):");
                         ui.label(
-                            RichText::new("click a button to dispatch")
+                            RichText::new(err)
                                 .text_style(TextStyle::Small)
                                 .color(p.text_secondary),
                         );
-                    }
-                });
-                ui.add_space(SPACE);
-
-                if let Some(err) = &self.replay_error {
-                    ui.colored_label(p.error, "Replay failed (forest unchanged):");
-                    ui.label(
-                        RichText::new(err)
-                            .text_style(TextStyle::Small)
-                            .color(p.text_secondary),
-                    );
-                    ui.add_space(SPACE);
+                    });
                 }
 
-                match &self.preview {
-                    None => {
-                        empty_state(
-                            ui,
-                            p,
-                            "▦",
-                            "No preview yet",
-                            "Press Preview to render the page IR as a native board.",
-                        );
-                    }
-                    Some(pr) if !pr.ok => {
-                        ui.colored_label(p.error, "Preview failed.");
-                        if let Some(n) = &pr.note {
-                            ui.label(
-                                RichText::new(n)
-                                    .text_style(TextStyle::Small)
-                                    .color(p.text_secondary),
-                            );
+                // The scrollable canvas with the painted grid + the device frame.
+                egui::ScrollArea::both()
+                    .auto_shrink([false, false])
+                    .id_salt("design-canvas")
+                    .show(ui, |ui| {
+                        // Paint the designer grid behind everything in this canvas.
+                        if grid {
+                            paint_design_grid(ui, p);
                         }
-                    }
-                    Some(pr) => {
-                        let mut sel = SelCtx {
-                            select_mode,
-                            selected,
-                            picked: None,
-                        };
-                        egui::ScrollArea::both()
-                            .auto_shrink([false, false])
-                            .show(ui, |ui| {
-                                render_forest(ui, p, &pr.forest, &mut clicked, &mut sel);
-                            });
-                        picked = sel.picked;
-                    }
-                }
+                        // A generous canvas so the grid fills the viewport even when
+                        // the device frame is small (mobile).
+                        let min = ui.available_size();
+                        ui.set_min_size(egui::vec2(
+                            min.x.max(device.frame_width() + 96.0),
+                            min.y.max(560.0),
+                        ));
+                        ui.add_space(28.0);
+                        ui.vertical_centered(|ui| {
+                            match &self.preview {
+                                None => {
+                                    device_frame(ui, p, device, |ui| {
+                                        empty_state(
+                                            ui,
+                                            p,
+                                            "▦",
+                                            "No preview yet",
+                                            "Press Preview to render the page on the canvas.",
+                                        );
+                                    });
+                                }
+                                Some(pr) if !pr.ok => {
+                                    device_frame(ui, p, device, |ui| {
+                                        ui.colored_label(p.error, "Preview failed.");
+                                        if let Some(n) = &pr.note {
+                                            ui.label(
+                                                RichText::new(n)
+                                                    .text_style(TextStyle::Small)
+                                                    .color(p.text_secondary),
+                                            );
+                                        }
+                                    });
+                                }
+                                Some(pr) => {
+                                    let mut sel = SelCtx {
+                                        select_mode,
+                                        selected,
+                                        picked: None,
+                                    };
+                                    device_frame(ui, p, device, |ui| {
+                                        render_forest(ui, p, &pr.forest, &mut clicked, &mut sel);
+                                    });
+                                    picked = sel.picked;
+                                }
+                            }
+                        });
+                        ui.add_space(28.0);
+                    });
             });
 
         if let Some(m) = set_mode {
@@ -800,7 +1097,9 @@ impl StudioApp {
         }
     }
 
-    fn central_editor(&mut self, ui: &mut Ui, p: &Palette) {
+    /// The CODE view: the existing syntax-highlighted editor in a card. Shown in
+    /// the center when the [Design | Code] toggle is on Code.
+    fn code_view(&mut self, ui: &mut Ui, p: &Palette) {
         let frame = Frame::new()
             .fill(p.window)
             .inner_margin(Margin::same(14));
@@ -823,19 +1122,13 @@ impl StudioApp {
                     }
                     None => {
                         ui.label(
-                            RichText::new("Editor")
+                            RichText::new("Code")
                                 .size(theme::SUB_HEADING_SIZE)
                                 .color(p.text_secondary),
                         );
                     }
                 });
                 ui.add_space(SPACE);
-
-                // Diagnostics with severity chips.
-                if let Some(report) = &self.diagnostics {
-                    diagnostics_view(ui, p, report);
-                    ui.add_space(SPACE);
-                }
 
                 // The editor body.
                 if self.open_file.is_none() {
@@ -844,7 +1137,7 @@ impl StudioApp {
                         p,
                         "›",
                         "Select a file",
-                        "Pick a .mview file on the left to edit it here.",
+                        "Open a .mview file from Pages & files to edit it here.",
                     );
                     return;
                 }
@@ -911,6 +1204,20 @@ fn vsep(ui: &mut Ui, p: &Palette) {
     );
 }
 
+/// A thin HORIZONTAL divider spanning the available width.
+fn vsep_h(ui: &mut Ui, p: &Palette) {
+    let w = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(w, 1.0), egui::Sense::hover());
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        Stroke {
+            width: 1.0,
+            color: p.stroke,
+        },
+    );
+}
+
 /// A bold section title in the panel header style.
 fn section_title(ui: &mut Ui, p: &Palette, text: &str) {
     ui.label(
@@ -919,6 +1226,426 @@ fn section_title(ui: &mut Ui, p: &Palette, text: &str) {
             .strong()
             .color(p.text_primary),
     );
+}
+
+// ---------------------------------------------------------------------------
+// Designer chrome: segmented controls, the toolbox palette, the device frame,
+// the painted grid, and the inspector body.
+// ---------------------------------------------------------------------------
+
+/// Wrap a row of [`seg_button`]s in a tight group so they read as one segmented
+/// control (no gap between segments).
+fn segmented(ui: &mut Ui, add: impl FnOnce(&mut Ui)) {
+    ui.scope(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        ui.horizontal(add);
+    });
+}
+
+/// One segment of a segmented control. The active segment uses the brand-subtle
+/// selection (brand fill + brand text); the inactive ones the card style.
+fn seg_button(ui: &mut Ui, p: &Palette, label: &str, active: bool) -> Response {
+    debug_assert!(!label.is_empty(), "seg_button label must be non-empty");
+    let (fill, text, stroke) = if active {
+        (p.brand_subtle, p.brand, p.brand)
+    } else {
+        (p.card, p.text_secondary, p.stroke)
+    };
+    let btn = egui::Button::new(
+        RichText::new(label)
+            .text_style(TextStyle::Button)
+            .strong()
+            .color(text),
+    )
+    .fill(fill)
+    .corner_radius(CornerRadius::same(RADIUS_INPUT))
+    .stroke(Stroke { width: 1.0, color: stroke })
+    .min_size(egui::vec2(0.0, 26.0));
+    ui.add(btn)
+}
+
+/// A titled toolbox section (Layout / Basic / Secure) of draggable-looking rows.
+/// `secure` makes the section visually distinct (a brand-tinted card + a lock
+/// glyph header). Drag-drop is NOT wired this slice — rows are the visual
+/// palette (the grip glyph signals draggability).
+fn palette_section(ui: &mut Ui, p: &Palette, title: &str, secure: bool, rows: &[(&str, &str)]) {
+    // Section header (a lock glyph for the secure section).
+    ui.horizontal(|ui| {
+        if secure {
+            ui.label(RichText::new("⚿").color(p.brand));
+        }
+        ui.label(
+            RichText::new(title)
+                .text_style(TextStyle::Small)
+                .strong()
+                .color(if secure { p.brand } else { p.text_secondary }),
+        );
+    });
+    ui.add_space(4.0);
+
+    let card_fill = if secure { p.brand_subtle } else { p.card };
+    let card_stroke = if secure { p.brand } else { p.stroke };
+    Frame::new()
+        .fill(card_fill)
+        .inner_margin(Margin::same(6))
+        .corner_radius(CornerRadius::same(RADIUS_CARD))
+        .stroke(Stroke { width: 1.0, color: card_stroke })
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 3.0;
+            for (glyph, label) in rows {
+                palette_row(ui, p, glyph, label, secure);
+            }
+        });
+}
+
+/// One palette row: a grip (draggable affordance) + a glyph + a label. Hover
+/// raises the row. The grip is purely visual this slice.
+fn palette_row(ui: &mut Ui, p: &Palette, glyph: &str, label: &str, secure: bool) {
+    let resp = Frame::new()
+        .fill(Color32::TRANSPARENT)
+        .inner_margin(Margin::symmetric(6, 4))
+        .corner_radius(CornerRadius::same(RADIUS_INPUT))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                // Grip (two dotted columns) — the "draggable" affordance.
+                ui.label(
+                    RichText::new("⠿")
+                        .text_style(TextStyle::Small)
+                        .color(p.text_disabled),
+                );
+                ui.label(
+                    RichText::new(glyph)
+                        .color(if secure { p.brand } else { p.text_secondary }),
+                );
+                ui.label(RichText::new(label).color(p.text_primary));
+            });
+        })
+        .response;
+    let resp = resp.interact(egui::Sense::click());
+    if resp.hovered() {
+        ui.painter().rect_filled(
+            resp.rect,
+            CornerRadius::same(RADIUS_INPUT),
+            p.raised.gamma_multiply(0.7),
+        );
+    }
+}
+
+/// A clickable collapsible header (a ▸/▾ caret + a title + a count chip). Returns
+/// the new open state.
+fn collapsible_header(ui: &mut Ui, p: &Palette, title: &str, open: bool, count: usize) -> bool {
+    let resp = ui
+        .horizontal(|ui| {
+            ui.label(
+                RichText::new(if open { "▾" } else { "▸" })
+                    .text_style(TextStyle::Small)
+                    .color(p.text_secondary),
+            );
+            ui.label(
+                RichText::new(title)
+                    .text_style(TextStyle::Small)
+                    .strong()
+                    .color(p.text_secondary),
+            );
+            chip(ui, p, &count.to_string(), p.brand);
+        })
+        .response
+        .interact(egui::Sense::click());
+    if resp.clicked() {
+        !open
+    } else {
+        open
+    }
+}
+
+/// Paint a subtle dotted designer grid across the current `ui`'s clip rect, then
+/// reserve no space (it's a background). Uses a faint stroke color from the
+/// palette so it reads under the device frame without competing with it.
+fn paint_design_grid(ui: &mut Ui, p: &Palette) {
+    let rect = ui.clip_rect();
+    let painter = ui.painter();
+    const STEP: f32 = 24.0;
+    let dot = p.stroke.gamma_multiply(if p.dark { 0.9 } else { 1.0 });
+    // Cross-dots on a STEP grid: a tiny filled square at each lattice point.
+    let mut y = (rect.top() / STEP).floor() * STEP;
+    while y < rect.bottom() {
+        let mut x = (rect.left() / STEP).floor() * STEP;
+        while x < rect.right() {
+            painter.rect_filled(
+                egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(1.5, 1.5)),
+                CornerRadius::ZERO,
+                dot,
+            );
+            x += STEP;
+        }
+        y += STEP;
+    }
+}
+
+/// Render `content` inside a DEVICE FRAME at `device`'s width, centered: a phone
+/// bezel (Mobile), a faux browser with 3 dots + an address pill (Web), or a plain
+/// window (Desktop). The inner content is constrained to the device's content
+/// width so the preview is genuinely responsive.
+fn device_frame(ui: &mut Ui, p: &Palette, device: Device, content: impl FnOnce(&mut Ui)) {
+    let content_w = device.content_width();
+    let frame_w = device.frame_width();
+
+    let outer = Frame::new()
+        .fill(p.panel)
+        .inner_margin(Margin::same(if matches!(device, Device::Mobile) { 12 } else { 0 }))
+        .corner_radius(CornerRadius::same(if matches!(device, Device::Mobile) {
+            28
+        } else {
+            10
+        }))
+        .stroke(Stroke {
+            width: if matches!(device, Device::Mobile) { 6.0 } else { 1.0 },
+            color: p.stroke,
+        })
+        .shadow(theme::card_shadow(p));
+
+    outer.show(ui, |ui| {
+        ui.set_width(frame_w);
+        ui.allocate_ui_with_layout(
+            egui::vec2(frame_w, 0.0),
+            Layout::top_down(Align::Center),
+            |ui| {
+                ui.set_width(frame_w);
+                // Per-device chrome above the content.
+                match device {
+                    Device::Web => browser_chrome(ui, p, content_w),
+                    Device::Desktop => window_chrome(ui, p),
+                    Device::Mobile => phone_notch(ui, p),
+                }
+                // The content surface (the app), constrained to the content width.
+                let surface = Frame::new()
+                    .fill(p.window)
+                    .inner_margin(Margin::same(14))
+                    .corner_radius(CornerRadius::same(if matches!(device, Device::Mobile) {
+                        18
+                    } else {
+                        0
+                    }));
+                surface.show(ui, |ui| {
+                    ui.set_width(content_w);
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(content_w, 0.0),
+                        Layout::top_down(Align::Min),
+                        |ui| {
+                            ui.set_width(content_w);
+                            ui.set_max_width(content_w);
+                            content(ui);
+                        },
+                    );
+                });
+            },
+        );
+    });
+}
+
+/// The faux-browser top bar: 3 traffic-light dots + an address pill.
+fn browser_chrome(ui: &mut Ui, p: &Palette, content_w: f32) {
+    let bar = Frame::new()
+        .fill(p.card)
+        .inner_margin(Margin::symmetric(12, 8))
+        .stroke(Stroke { width: 1.0, color: p.stroke });
+    bar.show(ui, |ui| {
+        ui.set_width(content_w + 32.0);
+        ui.horizontal(|ui| {
+            for c in [p.error, p.warning, p.success] {
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+                ui.painter().circle_filled(rect.center(), 5.0, c);
+            }
+            ui.add_space(SPACE);
+            // The address pill.
+            Frame::new()
+                .fill(p.window)
+                .inner_margin(Margin::symmetric(10, 3))
+                .corner_radius(CornerRadius::same(12))
+                .stroke(Stroke { width: 1.0, color: p.stroke })
+                .show(ui, |ui| {
+                    ui.set_width(content_w * 0.6);
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("⚿").text_style(TextStyle::Small).color(p.success));
+                        ui.label(
+                            RichText::new("localhost · motoview preview")
+                                .text_style(TextStyle::Small)
+                                .color(p.text_secondary),
+                        );
+                    });
+                });
+        });
+    });
+}
+
+/// The plain desktop window chrome: a slim title bar with three window dots.
+fn window_chrome(ui: &mut Ui, p: &Palette) {
+    let bar = Frame::new()
+        .fill(p.card)
+        .inner_margin(Margin::symmetric(12, 6))
+        .stroke(Stroke { width: 1.0, color: p.stroke });
+    bar.show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            for c in [p.error, p.warning, p.success] {
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(11.0, 11.0), egui::Sense::hover());
+                ui.painter().circle_filled(rect.center(), 4.5, c);
+            }
+            ui.add_space(SPACE);
+            ui.label(
+                RichText::new("MotoView app — desktop")
+                    .text_style(TextStyle::Small)
+                    .color(p.text_secondary),
+            );
+        });
+    });
+}
+
+/// The phone notch: a centered pill at the top of the bezel.
+fn phone_notch(ui: &mut Ui, p: &Palette) {
+    ui.add_space(4.0);
+    ui.vertical_centered(|ui| {
+        Frame::new()
+            .fill(p.card)
+            .inner_margin(Margin::symmetric(22, 4))
+            .corner_radius(CornerRadius::same(8))
+            .show(ui, |ui| {
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(44.0, 5.0), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(rect, CornerRadius::same(3), p.stroke);
+            });
+    });
+    ui.add_space(4.0);
+}
+
+/// The INSPECTOR body for a selected node: the tag, the source location, then
+/// its ATTRIBUTES (name = value) and EVENTS (event -> handler). Read-only.
+fn inspector_body(ui: &mut Ui, p: &Palette, node: &UiNode, location: Option<&str>) {
+    let (tag, attrs, events) = match node {
+        UiNode::El { tag, attrs, events, .. } => (tag.as_str(), Some(attrs), Some(events)),
+        UiNode::Text { .. } => ("text", None, None),
+        UiNode::Raw { .. } => ("raw", None, None),
+    };
+
+    // Tag header — a brand chip with the element tag.
+    ui.horizontal(|ui| {
+        ui.label(RichText::new("◉").color(p.brand));
+        ui.label(
+            RichText::new(format!("<{tag}>"))
+                .size(theme::SUB_HEADING_SIZE)
+                .strong()
+                .color(p.text_primary),
+        );
+    });
+
+    // Source location (the selection bridge made visible).
+    if let Some(loc) = location {
+        ui.add_space(2.0);
+        ui.label(
+            RichText::new(loc)
+                .monospace()
+                .text_style(TextStyle::Small)
+                .color(p.text_secondary),
+        );
+    }
+    ui.add_space(SPACE);
+    vsep_h(ui, p);
+    ui.add_space(SPACE);
+
+    // ATTRIBUTES (skip the internal data-mv-src bookkeeping attr).
+    ui.label(
+        RichText::new("Attributes")
+            .text_style(TextStyle::Small)
+            .strong()
+            .color(p.text_secondary),
+    );
+    ui.add_space(4.0);
+    let real_attrs: Vec<(&String, &String)> = attrs
+        .map(|m| m.iter().filter(|(k, _)| k.as_str() != "data-mv-src").collect())
+        .unwrap_or_default();
+    if real_attrs.is_empty() {
+        ui.label(
+            RichText::new("— none —")
+                .text_style(TextStyle::Small)
+                .color(p.text_disabled),
+        );
+    } else {
+        let card = Frame::new()
+            .fill(p.card)
+            .inner_margin(Margin::same(8))
+            .corner_radius(CornerRadius::same(RADIUS_CARD))
+            .stroke(Stroke { width: 1.0, color: p.stroke });
+        card.show(ui, |ui| {
+            for (k, v) in real_attrs {
+                kv_row(ui, p, k, v, "=");
+            }
+        });
+    }
+
+    ui.add_space(SPACE);
+
+    // EVENTS.
+    ui.label(
+        RichText::new("Events")
+            .text_style(TextStyle::Small)
+            .strong()
+            .color(p.text_secondary),
+    );
+    ui.add_space(4.0);
+    let evs: Vec<(&String, &String)> = events.map(|m| m.iter().collect()).unwrap_or_default();
+    if evs.is_empty() {
+        ui.label(
+            RichText::new("— none —")
+                .text_style(TextStyle::Small)
+                .color(p.text_disabled),
+        );
+    } else {
+        let card = Frame::new()
+            .fill(p.card)
+            .inner_margin(Margin::same(8))
+            .corner_radius(CornerRadius::same(RADIUS_CARD))
+            .stroke(Stroke { width: 1.0, color: p.stroke });
+        card.show(ui, |ui| {
+            for (ev, handler) in evs {
+                kv_row(ui, p, ev, handler, "→");
+            }
+        });
+    }
+
+    ui.add_space(SPACE);
+    ui.label(
+        RichText::new("Read-only — editing arrives next slice.")
+            .text_style(TextStyle::Small)
+            .color(p.text_disabled),
+    );
+}
+
+/// One inspector key/value row: a brand-tinted key, a separator, a mono value.
+fn kv_row(ui: &mut Ui, p: &Palette, key: &str, value: &str, sep: &str) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label(
+            RichText::new(key)
+                .monospace()
+                .text_style(TextStyle::Small)
+                .strong()
+                .color(p.brand),
+        );
+        ui.label(
+            RichText::new(sep)
+                .text_style(TextStyle::Small)
+                .color(p.text_disabled),
+        );
+        let shown = if value.is_empty() { "\"\"" } else { value };
+        ui.label(
+            RichText::new(shown)
+                .monospace()
+                .text_style(TextStyle::Small)
+                .color(p.text_primary),
+        );
+    });
 }
 
 /// A small file glyph (a rounded rect) drawn before file names.

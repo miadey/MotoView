@@ -17,7 +17,7 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::Harness;
-use motokostudio::app::StudioApp;
+use motokostudio::app::{Device, StudioApp};
 
 /// Absolute path to the repo's `examples/crm` project (crate is at
 /// `<repo>/apps/studio/native`, so climb three levels to the repo root).
@@ -125,4 +125,69 @@ fn studio_crm_selected() {
         .build_ui(move |ui| app.draw(ui));
     harness.run();
     harness.snapshot("studio_crm_selected");
+}
+
+// ---------------------------------------------------------------------------
+// VISUAL DESIGNER snapshots — the new Figma/VB-style layout: a component toolbox
+// (left), the design canvas with a painted grid + a device frame (center), and
+// the inspector (right). Rendered large + dark for the human's visual review.
+// ---------------------------------------------------------------------------
+
+/// Render the full designer at a designer-review size (dark).
+fn designer_snapshot(app: StudioApp, name: &str) {
+    let mut app = app;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1480.0, 920.0))
+        .build_ui(move |ui| app.draw(ui));
+    harness.run();
+    harness.snapshot(name);
+}
+
+/// DESKTOP frame (the default): the widest device, a plain window chrome.
+#[test]
+fn designer_desktop() {
+    let mut app = studio_with_crm(true);
+    assert_board_loaded(&app);
+    app.set_device(Device::Desktop);
+    assert_eq!(app.device(), Device::Desktop);
+    designer_snapshot(app, "designer_desktop");
+}
+
+/// WEB frame: a faux browser (3 dots + an address pill) at ~1024px — the device
+/// switch visibly narrows the frame + changes the chrome.
+#[test]
+fn designer_web() {
+    let mut app = studio_with_crm(true);
+    assert_board_loaded(&app);
+    app.set_device(Device::Web);
+    assert_eq!(app.device(), Device::Web);
+    designer_snapshot(app, "designer_web");
+}
+
+/// MOBILE frame: a phone bezel at ~390px — the narrowest device, so the board
+/// columns reflow inside the bezel (a genuinely responsive preview).
+#[test]
+fn designer_mobile() {
+    let mut app = studio_with_crm(true);
+    assert_board_loaded(&app);
+    app.set_device(Device::Mobile);
+    assert_eq!(app.device(), Device::Mobile);
+    designer_snapshot(app, "designer_mobile");
+}
+
+/// INSPECTOR populated: select a node → the right inspector shows its tag,
+/// source location, attributes + events, and the node is outlined on the canvas.
+#[test]
+fn designer_inspector() {
+    let mut app = studio_with_crm(true);
+    assert_board_loaded(&app);
+    assert!(
+        app.select_node_by_class("deal-card"),
+        "a source-mapped deal-card should be selectable (forest must carry data-mv-src)"
+    );
+    let loc = app
+        .selected_source_location()
+        .expect("the selected node resolves to a source location");
+    assert!(loc.contains("Board.mview"), "source location = {loc}");
+    designer_snapshot(app, "designer_inspector");
 }
