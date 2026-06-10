@@ -2273,4 +2273,324 @@ mod r11_source_map {
         assert_eq!(diags2[0].col, 13, "no source dir -> column falls back to moc's, unchanged");
         assert_eq!(diags2[0].end_col, 25, "end col falls back too");
     }
+
+    // ---- R13: var-init + template-expr regions (real-moc, end-to-end) ------
+    //
+    // R11 mapped @code FUNC BODIES; R13 extends the SAME generated->source map to
+    // (1) `var`/`let`/`type` declaration lines in the page object block — so a type
+    // error in a var/let INITIALIZER lands on the var's `.mview` line+col — and
+    // (2) template `@(expr)`/`@raw(expr)` directives — so a type error inside the
+    // interpolated expression lands on the directive's `.mview` line+col. Both ride
+    // the R12 token-anchor for free (any newly-mapped line gets column accuracy).
+
+    /// Copy a project into a repo-local temp dir (so `../../runtime/src` resolves),
+    /// patch its Counter page by replacing whole lines via `edits` (find -> replace),
+    /// BUILD, run `moc --check`, and return the mapped JSON diagnostics + the patched
+    /// page text. Returns `None` when moc is unavailable (caller SKIPs, never fails).
+    fn moc_json_for_counter_edits(
+        tag: &str,
+        edits: &[(&str, &str)],
+    ) -> Option<(Vec<crate::lint::JsonDiagnostic>, Vec<String>)> {
+        let (moc, base) = find_moc()?;
+        let src = repo_root().join("examples").join("counter");
+        let tmp = repo_root()
+            .join("examples")
+            .join(format!("r13_{}_{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        copy_tree(&src, &tmp);
+
+        let page = tmp.join("src").join("Pages").join("Counter.mview");
+        let text = std::fs::read_to_string(&page).unwrap();
+        let mut lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
+        for (find, replace) in edits {
+            let mut hit = false;
+            for l in lines.iter_mut() {
+                if l.contains(find) {
+                    *l = replace.to_string();
+                    hit = true;
+                    break;
+                }
+            }
+            assert!(hit, "fixture must contain `{find}` to patch");
+        }
+        std::fs::write(&page, lines.join("\n") + "\n").unwrap();
+
+        let out = build(&tmp);
+        let main_mo = std::fs::read_to_string(&out).unwrap();
+        let source_map = project::load_source_map(&out);
+        let mut cmd = Command::new(&moc);
+        cmd.arg("--check").arg("--package").arg("base").arg(&base);
+        for a in dfx_package_args(&tmp) {
+            cmd.arg(a);
+        }
+        cmd.arg(&out);
+        let stderr =
+            String::from_utf8_lossy(&cmd.output().expect("running moc --check failed").stderr)
+                .into_owned();
+        let diags = project::map_moc_errors_json(&main_mo, &stderr, &source_map, Some(&tmp));
+        let _ = std::fs::remove_dir_all(&tmp);
+        Some((diags, lines))
+    }
+
+    /// 1-based CHAR column of the first occurrence of `needle` in `line` (R13 reuse
+    /// of the R12 helper convention; redeclared so this region is self-contained).
+    fn col_of_r13(line: &str, needle: &str) -> usize {
+        let byte = line.find(needle).unwrap_or_else(|| panic!("`{needle}` not in `{line}`"));
+        line[..byte].chars().count() + 1
+    }
+
+    /// HEADLINE (var-init): replace the `var count : Nat = 0;` initializer with a
+    /// TYPE error (`var count : Nat = "boom";`). moc reports a type error on the
+    /// GENERATED `var count` line; R13 must map it to the var's `.mview` LINE and
+    /// (via the R12 anchor) the COLUMN of the offending `"boom"` token.
+    #[test]
+    fn check_json_var_init_type_error_maps_to_mview_line_and_col() {
+        let Some((diags, patched)) = moc_json_for_counter_edits(
+            "varinit",
+            &[("var count : Nat = 0;", "    var count : Nat = \"boom\";")],
+        ) else {
+            eprintln!("skipping R13 var-init headline: moc not found");
+            return;
+        };
+        // The injected var line is line 20 in the .mview (Counter.mview); find it.
+        let injected_idx = patched
+            .iter()
+            .position(|l| l.contains("var count : Nat = \"boom\";"))
+            .expect("patched var line present");
+        let injected_line = injected_idx + 1; // 1-based
+        let injected_text = &patched[injected_idx];
+
+        let errs: Vec<_> = diags.iter().filter(|d| d.rule == "type-check").collect();
+        assert_eq!(
+            errs.len(),
+            1,
+            "expected exactly one type error, got: {diags:#?}"
+        );
+        let d = errs[0];
+        assert_eq!(d.file, "src/Pages/Counter.mview", "must name the .mview source");
+        assert_eq!(
+            d.line as usize, injected_line,
+            "THE R13 var-init HEADLINE: error must report the var's .mview LINE {injected_line}, got {}",
+            d.line
+        );
+        // R12 column anchor: the offending token is the `"boom"` string literal.
+        let src_col = col_of_r13(injected_text, "\"boom\"");
+        assert_eq!(
+            d.col as usize, src_col,
+            "var-init error must report the COLUMN of `\"boom\"` ({src_col}), got {}. line: {injected_text:?}",
+            d.col
+        );
+    }
+
+    /// HEADLINE (template expr): make the `@count` interpolation ill-typed by
+    /// referencing an UNDEFINED field/var `@(badField)` in the template. moc errors
+    /// inside the generated `b.text(...)` line for that interpolation; R13 must map
+    /// it to the `@(badField)` directive's `.mview` line and column.
+    #[test]
+    fn check_json_template_expr_type_error_maps_to_mview_line_and_col() {
+        // The counter template line 9 is:
+        //   `    <p class="counter-value">Current value: <strong>@count</strong></p>`
+        // Replace `@count` with `@(badField)` (an unbound identifier). The rest of
+        // the template (the @click handlers) is unchanged, so the only NEW error is
+        // the unbound `badField` inside the single `b.text(...)` interpolation —
+        // keeping the render region's emit-line count equal to the recorded span
+        // count (one), so R13 maps it (the reliability gate is satisfied).
+        let Some((diags, patched)) = moc_json_for_counter_edits(
+            "tmplexpr",
+            &[(
+                "<strong>@count</strong>",
+                "    <p class=\"counter-value\">Current value: <strong>@(badField)</strong></p>",
+            )],
+        ) else {
+            eprintln!("skipping R13 template-expr headline: moc not found");
+            return;
+        };
+        let injected_idx = patched
+            .iter()
+            .position(|l| l.contains("@(badField)"))
+            .expect("patched template line present");
+        let injected_line = injected_idx + 1;
+        let injected_text = &patched[injected_idx];
+
+        let errs: Vec<_> = diags
+            .iter()
+            .filter(|d| d.rule == "type-check" && d.message.contains("badField"))
+            .collect();
+        assert_eq!(
+            errs.len(),
+            1,
+            "expected exactly one `badField` type error, got: {diags:#?}"
+        );
+        let d = errs[0];
+        assert_eq!(d.file, "src/Pages/Counter.mview", "must name the .mview source");
+        assert_eq!(
+            d.line as usize, injected_line,
+            "THE R13 template-expr HEADLINE: `badField` must report the @() directive's \
+             .mview LINE {injected_line}, got {}",
+            d.line
+        );
+        // R12 column anchor: `badField` appears verbatim in the source line.
+        let src_col = col_of_r13(injected_text, "badField");
+        assert_eq!(
+            d.col as usize, src_col,
+            "template-expr error must report the COLUMN of `badField` ({src_col}), got {}. line: {injected_text:?}",
+            d.col
+        );
+    }
+
+    /// NO-WRONG-MAPPING: a page that MIXES mapped + unmapped regions. We inject TWO
+    /// independent type errors — one in a var INITIALIZER (mapped region) and one in
+    /// a FUNC body (R11-mapped region) — and assert EACH is reported on its OWN
+    /// correct `.mview` line. This guards the queue/region bookkeeping: a var error
+    /// must never steal a func's anchor (or vice-versa), and neither lands on the
+    /// page's file-marker fallback.
+    #[test]
+    fn check_json_mixed_regions_every_error_on_its_own_line() {
+        let Some((diags, patched)) = moc_json_for_counter_edits(
+            "mixed",
+            &[
+                // var-init error (mapped var region)
+                ("var count : Nat = 0;", "    var count : Nat = \"boom\";"),
+                // func-body error (R11 func region): assign a Text to the Nat count
+                ("count += by;", "        count := \"also not a Nat\";"),
+            ],
+        ) else {
+            eprintln!("skipping R13 mixed-regions: moc not found");
+            return;
+        };
+        let var_line = patched
+            .iter()
+            .position(|l| l.contains("var count : Nat = \"boom\";"))
+            .map(|i| i + 1)
+            .expect("var line present");
+        let func_body_line = patched
+            .iter()
+            .position(|l| l.contains("count := \"also not a Nat\";"))
+            .map(|i| i + 1)
+            .expect("func body line present");
+        assert_ne!(var_line, func_body_line, "two distinct injected lines");
+
+        let errs: Vec<_> = diags.iter().filter(|d| d.rule == "type-check").collect();
+        assert!(!errs.is_empty(), "errors reported: {diags:#?}");
+        // Every reported type error must sit on one of the two injected lines and
+        // name the .mview file — NEVER a wrong/fallback line.
+        for d in &errs {
+            assert_eq!(d.file, "src/Pages/Counter.mview", "error names the .mview file");
+            assert!(
+                d.line as usize == var_line || d.line as usize == func_body_line,
+                "every error must be on an injected line ({var_line} or {func_body_line}), \
+                 got {} (msg: {}) — a WRONG anchor is worse than fallback",
+                d.line,
+                d.message
+            );
+        }
+        // And BOTH injected lines must actually be hit (the var error AND the func
+        // error each map to their own region — proving mixed mapping works).
+        assert!(
+            errs.iter().any(|d| d.line as usize == var_line),
+            "the var-init error must land on the var line {var_line}: {errs:#?}"
+        );
+        assert!(
+            errs.iter().any(|d| d.line as usize == func_body_line),
+            "the func-body error must land on the func line {func_body_line}: {errs:#?}"
+        );
+    }
+}
+
+/// R13 build-level tests that do NOT need moc: they build a real project and
+/// assert the generated->source map gained the var-init + template-expr regions,
+/// that those regions resolve to the right `.mview` lines, and that building keeps
+/// `main.mo` byte-identical (the map is still a SIDE artifact).
+#[cfg(test)]
+mod r13_var_template_map {
+    use crate::project;
+    use std::path::PathBuf;
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("compiler/ has a parent")
+            .to_path_buf()
+    }
+
+    /// Build counter into a temp out and return the loaded source map (plus the
+    /// out path so the caller can clean up). `tag` keeps the temp path unique
+    /// across concurrently-running tests (the test harness runs them in parallel,
+    /// so a shared `process::id()`-only path would clobber).
+    fn build_counter_map(tag: &str) -> (crate::span::SourceMap, PathBuf) {
+        let counter = repo_root().join("examples").join("counter");
+        let out = std::env::temp_dir().join(format!("mv_r13_{}_{}.mo", tag, std::process::id()));
+        let opts = project::BuildOptions {
+            project_dir: counter.clone(),
+            app_name: "counter".to_string(),
+            out: out.clone(),
+            ..Default::default()
+        };
+        project::build(&opts).expect("counter build");
+        (project::load_source_map(&out), out)
+    }
+
+    /// The map gained a single-line region anchoring the `var count` decl line to
+    /// its `.mview` line (20 in examples/counter/src/Pages/Counter.mview).
+    #[test]
+    fn map_anchors_the_var_decl_line_to_its_mview_line() {
+        let (map, out) = build_counter_map("vardecl");
+        // src line 20 is `    var count : Nat = 0;` — find the entry anchored there.
+        let entry = map
+            .entries
+            .iter()
+            .find(|e| e.src_start_line == 20 && e.gen_start_line == e.gen_end_line)
+            .expect("a single-line region anchored at the var decl (src line 20)");
+        let (file, src_line) = map.resolve(entry.gen_start_line).expect("var line resolves");
+        assert_eq!(file, "src/Pages/Counter.mview");
+        assert_eq!(src_line, 20, "the var decl line maps to its .mview line");
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(project::source_map_path(&out));
+    }
+
+    /// The map gained a single-line region anchoring the `@count` interpolation's
+    /// generated `b.text(...)` line to its `.mview` line (9). This is the template-
+    /// expr region; counter has exactly ONE template expr, so the reliability gate
+    /// (emit-line count == recorded-span count) is satisfied and it is mapped.
+    #[test]
+    fn map_anchors_the_template_expr_emit_line_to_its_mview_line() {
+        let (map, out) = build_counter_map("tmplexpr");
+        // src line 9 carries `<strong>@count</strong>`.
+        let entry = map
+            .entries
+            .iter()
+            .find(|e| e.src_start_line == 9 && e.gen_start_line == e.gen_end_line)
+            .expect("a single-line region anchored at the @count interpolation (src line 9)");
+        let (file, src_line) = map.resolve(entry.gen_start_line).expect("expr line resolves");
+        assert_eq!(file, "src/Pages/Counter.mview");
+        assert_eq!(src_line, 9, "the @count interpolation maps to its .mview line");
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(project::source_map_path(&out));
+    }
+
+    /// BYTE-IDENTITY (R13): adding var + template-expr regions to the SIDE map must
+    /// not change a single byte of `main.mo`. Assert the fresh counter build equals
+    /// the committed golden artifact (same guard the R11 test uses, re-asserted now
+    /// that R13 records more regions).
+    #[test]
+    fn r13_keeps_counter_main_mo_byte_identical() {
+        let counter = repo_root().join("examples").join("counter");
+        let committed = std::fs::read(counter.join(".mvbuild").join("main.mo"))
+            .expect("committed counter main.mo exists");
+        let out = std::env::temp_dir().join(format!("mv_r13_bi_{}.mo", std::process::id()));
+        let opts = project::BuildOptions {
+            project_dir: counter.clone(),
+            app_name: "counter".to_string(),
+            out: out.clone(),
+            ..Default::default()
+        };
+        project::build(&opts).expect("counter build");
+        let fresh = std::fs::read(&out).expect("fresh main.mo");
+        assert_eq!(
+            fresh, committed,
+            "R13 must keep the generated main.mo byte-identical to the golden artifact"
+        );
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(project::source_map_path(&out));
+    }
 }

@@ -48,6 +48,215 @@ fn func_src_infos(file: &crate::ast::MviewFile, rel: &str, src: &[char]) -> Vec<
     out
 }
 
+/// One `@code` `var`/`let`/`type` declaration's source-line footprint (R13),
+/// matched against the emitted decl line in the page object block to extend the
+/// generated->source [`SourceMap`] to var/let/type INITIALIZERS. The `init` (and
+/// the rest of the decl) is copied VERBATIM by codegen, so the region is
+/// line-for-line — exactly like a `@code` func body.
+///
+/// `name` is the unique declaration identifier within its page region; the map
+/// pairs the i-th queued decl with this name to the i-th emitted decl line
+/// carrying it (an ordered queue, so a name that repeats is matched in order).
+/// `kind` records what the emitted line begins with (`var`/`let`/`type`/…) so the
+/// scanner only matches the right form and never collides with a same-named func.
+#[derive(Debug, Clone)]
+struct VarSrcInfo {
+    /// `.mview` source path (project-relative).
+    file: String,
+    /// The Motoko keyword the emitted decl line begins with (`var`/`let`/`type`/
+    /// `stable`/`class`/`module`/`object`/`public`). Used to filter the scan to
+    /// the matching emitted form so a func/render line is never matched.
+    kind: String,
+    /// The declaration identifier — matched against `    <kind> <name>` in the
+    /// emitted page object block.
+    name: String,
+    /// 1-based `.mview` line of the declaration's first source line.
+    src_start_line: usize,
+    /// Number of `.mview` lines the whole declaration spans (>= 1).
+    src_line_count: usize,
+}
+
+/// Compute the [`VarSrcInfo`] list for one parsed PAGE: each `@code` `var` and
+/// each `extra` (let/type/…) declaration's source line footprint. Vars carry a
+/// FILE-relative span (R11); `extra` strings do not, so they are located by
+/// matching their emitted text back to a `@code` line whose decl identifier is
+/// the same — see `extra_src_infos`. Only PAGES emit a `var <decl>` /
+/// `<extra>` object-field block (layouts/components do not), so this is called
+/// for pages only.
+fn var_src_infos(file: &crate::ast::MviewFile, rel: &str, src: &[char]) -> Vec<VarSrcInfo> {
+    let mut out = Vec::new();
+    for v in &file.code.vars {
+        // The emitted line is the var's `raw` (`var <name> : <ty> = <init>;` or
+        // `stable var …`). Codegen emits it verbatim, indented; we match by the
+        // keyword + the var's name. The src span (R11) gives the exact line range.
+        if v.span.is_empty() {
+            continue; // no span -> cannot anchor reliably; fall back.
+        }
+        let (start_line, _) = span::line_col(src, v.span.start);
+        let (end_line, _) = span::line_col(src, v.span.end.saturating_sub(1).max(v.span.start));
+        // The emitted keyword: `stable` for a stable var, else `var`. The scanner
+        // matches `    <kind> <name>` so the right emitted line is found.
+        let kind = if v.stable { "stable" } else { "var" }.to_string();
+        out.push(VarSrcInfo {
+            file: rel.to_string(),
+            kind,
+            name: v.name.clone(),
+            src_start_line: start_line as usize,
+            src_line_count: (end_line as usize).saturating_sub(start_line as usize) + 1,
+        });
+    }
+    // `extra` decls (let/type/…) carry no span, so we locate them by scanning the
+    // raw `@code` body for the same `<kw> <name>` head the emitted line shows. This
+    // keeps the pairing reliable (same identifier, same keyword) without inventing
+    // spans the parser never recorded.
+    out.extend(extra_src_infos(file, rel, src));
+    out
+}
+
+/// Locate each `extra` (let/type/object/class/module/stable-non-var) declaration
+/// in the raw `@code` source so its emitted line can be anchored (R13). The
+/// `CodeBlock::extra` strings are normalized (the parser trims + re-adds `;`), so
+/// instead of trusting a span we never recorded, we re-scan the FILE for the
+/// declaration's `<keyword> <name>` head — the same head the emitted object-field
+/// line carries — and record its source line. An extra whose head we cannot
+/// confidently locate is simply skipped (it then keeps today's fallback). This is
+/// reliability-over-coverage: we only map an extra when its identifier is found.
+fn extra_src_infos(file: &crate::ast::MviewFile, rel: &str, src: &[char]) -> Vec<VarSrcInfo> {
+    let mut out = Vec::new();
+    // Char offset of the `@code {` body in the file (so source lines are right).
+    // We scan within the whole file but only accept heads after the code block.
+    let src_str: String = src.iter().collect();
+    for e in &file.code.extra {
+        // Parse the emitted decl head: `<keyword> <name>`. We only handle the
+        // forms the page object block emits with a leading keyword + identifier.
+        let trimmed = e.trim_start();
+        let (kw, after) = match split_keyword(trimmed) {
+            Some(x) => x,
+            None => continue,
+        };
+        // For `stable <kw2> …` the emitted object-field line still begins `stable`.
+        let head_kw = kw;
+        let name = match decl_ident(after) {
+            Some(n) => n,
+            None => continue,
+        };
+        // Find a `<kw> <name>` occurrence in the file that starts a token (so we do
+        // not match it inside a larger word). We accept the FIRST such occurrence
+        // whose preceding char is whitespace/`{`/`;`/start — a heuristic that is
+        // robust for top-level @code decls. If the head appears more than once we
+        // still anchor to the first (the queue then matches emit-order to decl-
+        // order, which is source order — codegen preserves it).
+        let needle = format!("{} {}", kw, name);
+        if let Some(off) = find_decl_head(&src_str, &needle) {
+            let start_off = src_str[..off].chars().count();
+            let (start_line, _) = span::line_col(src, start_off);
+            out.push(VarSrcInfo {
+                file: rel.to_string(),
+                kind: head_kw.to_string(),
+                name,
+                src_start_line: start_line as usize,
+                // Extras are emitted on a single object-field line each (codegen
+                // joins the decl onto one line via `{};` ), so 1 line is the safe,
+                // never-wrong footprint. A multi-line extra still anchors its FIRST
+                // line correctly; only lines below the first fall back.
+                src_line_count: 1,
+            });
+        }
+    }
+    out
+}
+
+/// Split a trimmed declaration into `(keyword, rest)` when it begins with one of
+/// the decl keywords the page object block can emit. Returns `None` for anything
+/// else (so we never try to anchor an expression-only extra).
+fn split_keyword(trimmed: &str) -> Option<(&'static str, &str)> {
+    for kw in ["stable", "let", "type", "object", "class", "module", "var"] {
+        if let Some(rest) = trimmed.strip_prefix(kw) {
+            // Must be a real keyword boundary (`let x`, not `lettuce`).
+            if rest.starts_with(|c: char| c.is_whitespace()) {
+                return Some((kw, rest.trim_start()));
+            }
+        }
+    }
+    None
+}
+
+/// The declared identifier at the start of `after` (the text following the decl
+/// keyword): the leading run of identifier characters. Returns `None` when there
+/// is no plain identifier (e.g. a destructuring `let (a, b) = …`), so such a decl
+/// is left to fall back rather than be mis-paired.
+fn decl_ident(after: &str) -> Option<String> {
+    let after = after.trim_start();
+    let id: String = after
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if id.is_empty() {
+        None
+    } else {
+        Some(id)
+    }
+}
+
+/// Find a `<keyword> <name>` declaration head in `src` that starts a token (its
+/// preceding char is start-of-file or a non-identifier char), returning the BYTE
+/// offset of the keyword. Used to locate `extra` decls whose span the parser did
+/// not record. `None` when no such token-aligned occurrence exists.
+fn find_decl_head(src: &str, needle: &str) -> Option<usize> {
+    let bytes = src.as_bytes();
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find(needle) {
+        let at = from + rel;
+        let prev_ok = at == 0 || !(bytes[at - 1] as char).is_alphanumeric() && bytes[at - 1] != b'_';
+        // The char AFTER the name must also be a non-identifier char so we matched
+        // the WHOLE name (`let x` not the `x` in `let xy`).
+        let end = at + needle.len();
+        let next_ok = end >= bytes.len()
+            || !(bytes[end] as char).is_alphanumeric() && bytes[end] != b'_';
+        if prev_ok && next_ok {
+            return Some(at);
+        }
+        from = at + needle.len();
+    }
+    None
+}
+
+/// (R13) One page's ordered template-expr spans plus its source chars — the input
+/// the source-map builder uses to pair each `@(expr)`/`@raw(expr)` directive to a
+/// `b.text(...)`/`b.raw(<expr>)` emit LINE in that page's generated render region.
+struct PageExprSpans {
+    /// `.mview` source path (project-relative) — the map's file column.
+    file: String,
+    /// The page name (its object block is `<name>Page`), used to find the render
+    /// region in the assembled actor.
+    page_name: String,
+    /// Ordered spans, one per non-literal text/raw directive emitted (R13). A
+    /// `None` entry is counted for ALIGNMENT but never mapped (no parser span).
+    spans: Vec<Option<span::Span>>,
+    /// The page's `.mview` source chars, for `line_col` on each span.
+    src_chars: Vec<char>,
+}
+
+/// Whether a trimmed generated render line is a NON-LITERAL `b.text(...)` or
+/// `b.raw(<expr>)` emit site — i.e. a dynamic interpolation (what a template
+/// `@(expr)`/`@raw(expr)` compiles to), NOT a static `b.raw("…literal…")` chunk.
+/// These are the lines the R13 template-expr pairing counts, IN ORDER.
+fn is_nonliteral_text_or_raw(trimmed: &str) -> bool {
+    // `b.text(` is ALWAYS dynamic (a literal would have been a `b.raw("…")`).
+    if trimmed.starts_with("b.text(") {
+        return true;
+    }
+    // `b.raw(` is dynamic only when its arg is NOT a string literal. A literal
+    // chunk is `b.raw("…");`; anything else (`b.raw(expr)`, `b.raw(mvBody)`, …)
+    // is a non-literal raw. coalesce_raw only ever merges the literal form, so by
+    // the time we scan the FINAL actor the literal `b.raw("…")` lines are the
+    // coalesced static chunks — we must NOT count them.
+    if let Some(rest) = trimmed.strip_prefix("b.raw(") {
+        return !rest.starts_with('"');
+    }
+    false
+}
+
 /// Build the generated->source [`SourceMap`] by scanning the FINAL `main.mo`
 /// (post-coalesce, post-header) for each `@code` function's emitted
 /// `    func <name>(` header line, anchored within the `// mv:src <path>` region
@@ -59,7 +268,12 @@ fn func_src_infos(file: &crate::ast::MviewFile, rel: &str, src: &[char]) -> Vec<
 /// baked in — the recorded generated lines are the ones `moc` will actually
 /// report. The map is a SIDE artifact (`.mvbuild/main.mo.map`); nothing is added
 /// to `main.mo`, so the golden actor stays byte-identical.
-fn build_source_map(main_mo: &str, funcs: &[FuncSrcInfo]) -> SourceMap {
+fn build_source_map(
+    main_mo: &str,
+    funcs: &[FuncSrcInfo],
+    vars: &[VarSrcInfo],
+    page_exprs: &[PageExprSpans],
+) -> SourceMap {
     let mut map = SourceMap::new();
     // Index the funcs by their owning file for region-scoped matching.
     let lines: Vec<&str> = main_mo.lines().collect();
@@ -72,6 +286,13 @@ fn build_source_map(main_mo: &str, funcs: &[FuncSrcInfo]) -> SourceMap {
     let mut by_file: HashMap<String, std::collections::VecDeque<&FuncSrcInfo>> = HashMap::new();
     for f in funcs {
         by_file.entry(f.file.clone()).or_default().push_back(f);
+    }
+    // (R13) Per-file ordered queues of var/let/type decl footprints. Matched in
+    // emission order, which is source order (codegen emits user vars then extras,
+    // each in source order). Keyed by file so two pages don't cross-match.
+    let mut vars_by_file: HashMap<String, std::collections::VecDeque<&VarSrcInfo>> = HashMap::new();
+    for v in vars {
+        vars_by_file.entry(v.file.clone()).or_default().push_back(v);
     }
     for (i, raw) in lines.iter().enumerate() {
         let gen_line = i + 1; // 1-based, matches moc
@@ -94,9 +315,121 @@ fn build_source_map(main_mo: &str, funcs: &[FuncSrcInfo]) -> SourceMap {
                     }
                 }
             }
+            continue;
+        }
+        // (R13) Match an emitted page-object-block `var`/`let`/`type`/… decl line
+        // and anchor it to its `.mview` decl span. We pop the first QUEUED user
+        // decl with this `<kind> <name>` head (in source order). Framework-injected
+        // fields (`let mvErrors`, `var mvRedirect`, the effect helpers) are NEVER in
+        // the queue, so they are skipped — only USER decls are mapped.
+        if let Some(file) = &current_file {
+            if let Some((kind, name)) = parse_emitted_decl_head(trimmed) {
+                if let Some(queue) = vars_by_file.get_mut(file) {
+                    if let Some(pos) = queue.iter().position(|v| v.kind == kind && v.name == name) {
+                        let info = queue.remove(pos).unwrap();
+                        let gen_start = gen_line;
+                        let gen_end = gen_line + info.src_line_count.saturating_sub(1);
+                        map.push(file.clone(), gen_start, gen_end, info.src_start_line);
+                    }
+                }
+            }
         }
     }
+    // (R13) Template expressions: for each page, find its render region in the
+    // assembled actor, count the NON-LITERAL `b.text(...)`/`b.raw(<expr>)` emit
+    // LINES in ORDER, and pair the i-th with the i-th recorded directive span.
+    // The pairing is applied ONLY when the count of emit lines EQUALS the count of
+    // recorded spans — any mismatch means an emit site we didn't record (a
+    // component/chart/concat/bound-attr expansion), so we DO NOT map that page's
+    // template exprs at all (a wrong anchor is worse than the file-marker fallback).
+    map_template_exprs(&lines, page_exprs, &mut map);
     map
+}
+
+/// (R13) For each page, locate its render region (`public func mvRender` …
+/// `b.build();` / `ir.toJson();`) within `<page>Page = object {`, collect the
+/// ordered non-literal `b.text(...)`/`b.raw(<expr>)` emit LINES, and pair them
+/// 1:1 with the page's recorded directive spans — but only when the counts match
+/// EXACTLY. Each mapped emit line becomes a single-line region anchored to its
+/// directive's `.mview` line. Mismatches (or `None` spans) fall back silently.
+fn map_template_exprs(lines: &[&str], page_exprs: &[PageExprSpans], map: &mut SourceMap) {
+    for pe in page_exprs {
+        // Find this page's object block, then its render function within it.
+        let obj_open = format!("let {}Page = object {{", pe.page_name);
+        let obj_start = match lines.iter().position(|l| l.trim_start().starts_with(&obj_open)) {
+            Some(i) => i,
+            None => continue,
+        };
+        // The render function opener (a `public func mvRender(` line) after it.
+        let render_open = lines[obj_start..]
+            .iter()
+            .position(|l| l.trim_start().starts_with("public func mvRender("))
+            .map(|rel| obj_start + rel);
+        let render_open = match render_open {
+            Some(i) => i,
+            None => continue,
+        };
+        // The render body ends at the first `b.build();`/`ir.toJson();` after it.
+        let render_end = lines[render_open..]
+            .iter()
+            .position(|l| {
+                let t = l.trim_start();
+                t.starts_with("b.build();") || t.starts_with("ir.toJson();")
+            })
+            .map(|rel| render_open + rel);
+        let render_end = match render_end {
+            Some(i) => i,
+            None => continue,
+        };
+        // Collect the ordered emit-site LINES (1-based) within (render_open, render_end).
+        let mut emit_lines: Vec<usize> = Vec::new();
+        for (idx, l) in lines.iter().enumerate().take(render_end).skip(render_open + 1) {
+            if is_nonliteral_text_or_raw(l.trim_start()) {
+                emit_lines.push(idx + 1); // 1-based, matches moc
+            }
+        }
+        // RELIABILITY GATE: only pair when the counts agree exactly. Any mismatch
+        // means a non-recorded emit site (component/chart/concat/bound-attr/head),
+        // so we decline to map this page's template exprs (fall back).
+        if emit_lines.len() != pe.spans.len() {
+            continue;
+        }
+        for (gen_line, span_opt) in emit_lines.iter().zip(pe.spans.iter()) {
+            if let Some(span) = span_opt {
+                let (src_line, _) = span::line_col(&pe.src_chars, span.start);
+                // Single-line region: the directive's expr is on one source line in
+                // the common case; if it wraps, only the first line anchors (the
+                // emit site is one generated line, so a single-line region is exact).
+                map.push(pe.file.clone(), *gen_line, *gen_line, src_line as usize);
+            }
+        }
+    }
+}
+
+/// (R13) If `trimmed` (already left-trimmed) is an emitted page-object-block
+/// declaration line, return its `(kind, name)` head — e.g. `var count : … = …;`
+/// -> `("var", "count")`, `let x = …;` -> `("let","x")`, `stable var s …` ->
+/// `("stable","s")`. Only the decl keywords a page object block emits are
+/// recognised; anything else (a func, a `public func`, an expression) yields
+/// `None`. The `name` is the declared identifier (for `stable var` it is the var
+/// name, matching how [`var_src_infos`] records a stable var under kind `stable`).
+fn parse_emitted_decl_head(trimmed: &str) -> Option<(String, String)> {
+    let (kw, after) = split_keyword(trimmed)?;
+    // `stable var <name>` — the name is after the `var`. For a plain decl the
+    // name is the leading identifier of `after`.
+    let after = if kw == "stable" {
+        // expect `var <name>` (a stable var); skip the `var` keyword.
+        let a = after.trim_start();
+        match a.strip_prefix("var") {
+            Some(rest) if rest.starts_with(|c: char| c.is_whitespace()) => rest.trim_start(),
+            // `stable <other>` extra (rare) — fall back to the identifier as-is.
+            _ => a,
+        }
+    } else {
+        after
+    };
+    let name = decl_ident(after)?;
+    Some((kw.to_string(), name))
 }
 
 /// If `trimmed` (already left-trimmed) begins a Motoko function declaration
@@ -358,6 +691,12 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // (R11) Per-`@code` func source-line footprints, gathered across pages/
     // components/layouts; turned into the generated->source map after assembly.
     let mut func_infos: Vec<FuncSrcInfo> = Vec::new();
+    // (R13) Per-page `var`/`let`/`type` declaration footprints (anchored to the
+    // emitted page-object-block decl line), and the ordered template-expr spans
+    // recorded during each page's render walk (for the b.text/b.raw emit-line
+    // pairing). Both extend the same generated->source map after assembly.
+    let mut var_infos: Vec<VarSrcInfo> = Vec::new();
+    let mut page_expr_spans: Vec<PageExprSpans> = Vec::new();
     // Components were already parsed above; record their func footprints too.
     for (cf, file) in component_files.iter().zip(parsed_components.iter()) {
         let rel = rel_src(&opts.project_dir, cf);
@@ -376,6 +715,8 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         let rel = rel_src(&opts.project_dir, pf);
         let pchars: Vec<char> = source.chars().collect();
         func_infos.extend(func_src_infos(&file, &rel, &pchars));
+        // R13: page `var`/`let`/`type` decl footprints (object-block fields).
+        var_infos.extend(var_src_infos(&file, &rel, &pchars));
         for d in lint::lint_file(&file, &rel) {
             diagnostics.push((rel.clone(), d));
         }
@@ -385,6 +726,14 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         // shell / HTML fragments — see gen_layout / gen_app_component).
         let mut cg = Codegen::new_with_emit(&models, &components, opts.emit).with_instrument(opts.instrument);
         let pg = cg.gen_page(&file);
+        // R13: stash this page's ordered template-expr spans + source chars so the
+        // source-map builder can pair them with the render region's emit lines.
+        page_expr_spans.push(PageExprSpans {
+            file: rel.clone(),
+            page_name: pg.name.clone(),
+            spans: pg.expr_spans.clone(),
+            src_chars: pchars.clone(),
+        });
         page_objects.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, pf)));
         page_objects.push_str(&pg.object_block);
         page_objects.push('\n');
@@ -467,7 +816,7 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // actor as `<out>.map`; nothing is added to `main.mo` (so it stays byte-
     // identical). `check` reads this back to point `moc` type errors at the
     // originating `.mview` LINE — see `map_moc_errors[_json]`.
-    let source_map = build_source_map(&main, &func_infos);
+    let source_map = build_source_map(&main, &func_infos, &var_infos, &page_expr_spans);
     let map_path = source_map_path(&opts.out);
     let _ = fs::write(&map_path, source_map.to_text());
 
@@ -1894,6 +2243,87 @@ mod scan_tests {
         scan_types("type Color = { #red; #green }; type Id = Nat;", None, &mut m);
         // variant + alias have no `field : type` pairs we can use
         assert!(m.get("Id").is_none());
+    }
+}
+
+/// R13 unit tests for the pure decl/expr scan helpers — no IO, no moc. They lock
+/// the head-parsing + emit-site recognition the source-map builder relies on.
+#[cfg(test)]
+mod r13_helper_tests {
+    use super::*;
+
+    #[test]
+    fn split_keyword_recognises_decl_heads() {
+        assert_eq!(split_keyword("var count : Nat = 0;").map(|(k, _)| k), Some("var"));
+        assert_eq!(split_keyword("let x = 1;").map(|(k, _)| k), Some("let"));
+        assert_eq!(split_keyword("type T = { a : Nat };").map(|(k, _)| k), Some("type"));
+        assert_eq!(split_keyword("stable var s : Nat = 0;").map(|(k, _)| k), Some("stable"));
+        // Not a keyword boundary -> None (must not match a larger identifier).
+        assert_eq!(split_keyword("lettuce := 1;"), None);
+        assert_eq!(split_keyword("variable := 1;"), None);
+        // An expression / call is not a decl head.
+        assert_eq!(split_keyword("foo();"), None);
+    }
+
+    #[test]
+    fn decl_ident_extracts_the_leading_identifier() {
+        assert_eq!(decl_ident("count : Nat = 0").as_deref(), Some("count"));
+        assert_eq!(decl_ident("  spaced : Text").as_deref(), Some("spaced"));
+        // A destructuring binding has no plain leading identifier -> None.
+        assert_eq!(decl_ident("(a, b) = pair"), None);
+    }
+
+    #[test]
+    fn parse_emitted_decl_head_handles_var_let_type_and_stable() {
+        assert_eq!(
+            parse_emitted_decl_head("var count : Nat = 0;"),
+            Some(("var".to_string(), "count".to_string()))
+        );
+        assert_eq!(
+            parse_emitted_decl_head("let helper = 3;"),
+            Some(("let".to_string(), "helper".to_string()))
+        );
+        assert_eq!(
+            parse_emitted_decl_head("type Row = { id : Nat };"),
+            Some(("type".to_string(), "Row".to_string()))
+        );
+        // `stable var s …` -> kind `stable`, name is the VAR name (matches how
+        // var_src_infos records a stable var).
+        assert_eq!(
+            parse_emitted_decl_head("stable var s : Nat = 0;"),
+            Some(("stable".to_string(), "s".to_string()))
+        );
+        // A func / public func is NOT a decl head we anchor as a var.
+        assert_eq!(parse_emitted_decl_head("public func mvRender(ctx : MV.Ctx) : Text {"), None);
+        assert_eq!(parse_emitted_decl_head("func increment(by : Nat) : () {"), None);
+    }
+
+    #[test]
+    fn nonliteral_text_or_raw_distinguishes_dynamic_from_literal() {
+        // Dynamic interpolations (what @(expr)/@raw(expr) compile to).
+        assert!(is_nonliteral_text_or_raw("b.text(Nat.toText(count));"));
+        assert!(is_nonliteral_text_or_raw("b.raw(mvBody);"));
+        assert!(is_nonliteral_text_or_raw("b.raw(someExpr);"));
+        // A static literal chunk (a coalesced b.raw("…")) is NOT counted.
+        assert!(!is_nonliteral_text_or_raw("b.raw(\"<div>literal</div>\");"));
+        // Even a b.text with a string-literal arg IS counted as dynamic — b.text is
+        // only ever emitted for interpolations, never for static text (which is
+        // b.raw). The reliability gate handles any over/under-count by falling back.
+        assert!(is_nonliteral_text_or_raw("b.text(\"a builtin title literal\");"));
+        // Unrelated builder calls are not emit sites.
+        assert!(!is_nonliteral_text_or_raw("b.attr(\"value\", x);"));
+        assert!(!is_nonliteral_text_or_raw("b.build();"));
+    }
+
+    #[test]
+    fn find_decl_head_is_token_aligned() {
+        let src = "@code {\n  let helper = 3;\n  let helperX = 4;\n}";
+        // `let helper` must match the FIRST decl, not the prefix inside `helperX`.
+        let off = find_decl_head(src, "let helper").expect("found");
+        assert_eq!(&src[off..off + "let helper".len()], "let helper");
+        // The matched occurrence's following char is a space (whole-name match), so
+        // it is the `let helper = 3;` line, not `let helperX`.
+        assert_eq!(src.as_bytes()[off + "let helper".len()], b' ');
     }
 }
 

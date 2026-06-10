@@ -12,6 +12,14 @@ pub struct PageGen {
     pub object_block: String,
     pub page_record: String,
     pub route: String,
+    /// R13: the ordered FILE-relative spans of this page's template `@(expr)` /
+    /// `@raw(expr)` directives, captured during the render walk (one entry per
+    /// non-literal `b.text(...)`/`b.raw(<expr>)` directive emitted, in emission
+    /// order). The project orchestrator pairs the i-th span with the i-th
+    /// matching emit LINE in the generated render region — ONLY when the counts
+    /// agree exactly. A `None` entry is a directive with no usable parser span
+    /// (counted for alignment, never mapped). Empty when the page has no exprs.
+    pub expr_spans: Vec<Option<crate::span::Span>>,
 }
 
 /// What the codegen needs to know to call an app component: its ordered params
@@ -166,6 +174,18 @@ pub struct Codegen<'a> {
     // legacy path (no Debug.print, no perf counter, `ignore ctx`). The studio
     // log parser (tools/studio/log-parser.js) consumes the emitted format.
     instrument: bool,
+    // R13 template-expr source map accumulator: the ordered list of FILE-relative
+    // spans of the `@(expr)` / `@raw(expr)` template directives, recorded as the
+    // page render body is walked. `gen_page` resets it before walking the
+    // template, then hands it to the project orchestrator which pairs the i-th
+    // recorded span with the i-th non-literal `b.text(...)`/`b.raw(<expr>)` emit
+    // LINE in the generated render region — ONLY when the counts match exactly
+    // (else the whole page falls back; a wrong pairing is worse than fallback).
+    // RefCell because the render walk (`gen_node`) is `&self`. The span is
+    // `None` for a directive whose parser span is empty (so it is counted for
+    // alignment but never mapped). It is ADDITIVE: codegen still emits the same
+    // bytes (it never consults this list), so the golden actor is unchanged.
+    expr_spans: std::cell::RefCell<Vec<Option<crate::span::Span>>>,
 }
 
 impl<'a> Codegen<'a> {
@@ -182,6 +202,7 @@ impl<'a> Codegen<'a> {
             models,
             components,
             instrument: false,
+            expr_spans: std::cell::RefCell::new(Vec::new()),
         }
     }
 
@@ -392,8 +413,17 @@ impl<'a> Codegen<'a> {
         s.push_str(&format!("      {}", self.builder_decl()));
         s.push_str("      ignore ctx;\n");
         s.push_str(&set_params);
+        // R13: start a fresh template-expr span stream for THIS page's render so
+        // the recorded spans correspond exactly to this render region's emit
+        // lines (the title/head/onLoad emitted below do not walk the template).
+        self.expr_spans.borrow_mut().clear();
         let mut body = String::new();
         self.gen_nodes(&file.template, &mut body, "      ");
+        // R13: snapshot the render region's template-expr spans NOW, before the
+        // head/title generation below (which walks `@section "head"` nodes into a
+        // do-block and would otherwise append spans that have no standalone emit
+        // line in the render region).
+        let render_expr_spans = self.take_expr_spans();
         s.push_str(&body);
         s.push_str(&format!("      {}    }};\n", self.builder_build()));
 
@@ -527,6 +557,7 @@ impl<'a> Codegen<'a> {
             object_block: s,
             page_record: rec,
             route,
+            expr_spans: render_expr_spans,
         }
     }
 
@@ -584,6 +615,23 @@ impl<'a> Codegen<'a> {
         }
     }
 
+    /// R13: record a template `@(expr)`/`@raw(expr)` directive's FILE-relative
+    /// span at its emission point, in order. A zero-width/placeholder span is
+    /// recorded as `None` (counted for alignment, never mapped). The project
+    /// orchestrator consumes [`take_expr_spans`] after a page render.
+    fn record_expr_span(&self, span: crate::span::Span) {
+        let s = if span.is_empty() { None } else { Some(span) };
+        self.expr_spans.borrow_mut().push(s);
+    }
+
+    /// R13: take the ordered template-expr spans recorded during the last page
+    /// render walk, clearing the accumulator. Returns one entry per non-literal
+    /// `b.text(...)`/`b.raw(<expr>)` directive emitted, in emission order — the
+    /// list the source-map builder pairs against the render region's emit lines.
+    pub fn take_expr_spans(&self) -> Vec<Option<crate::span::Span>> {
+        std::mem::take(&mut self.expr_spans.borrow_mut())
+    }
+
     fn gen_node(&self, node: &Node, out: &mut String, indent: &str) {
         // The Ir backend has a parallel walker; the Html walker below is left
         // byte-identical to the original single-path codegen.
@@ -597,7 +645,12 @@ impl<'a> Codegen<'a> {
                     out.push_str(&format!("{}b.raw({});\n", indent, mo_str(t)));
                 }
             }
-            Node::Expr(e, _) => {
+            Node::Expr(e, span) => {
+                // R13: record this `@(expr)` directive's source span, in emission
+                // order, so the i-th non-literal `b.text(...)`/`b.raw(...)` emit
+                // LINE in the render region can be paired back to it (see
+                // project::build_source_map). Additive — bytes are unchanged.
+                self.record_expr_span(*span);
                 if self.is_component && e.trim() == "children" {
                     out.push_str(&format!("{}b.raw(mvChildren);\n", indent));
                 } else {
@@ -607,7 +660,10 @@ impl<'a> Codegen<'a> {
             // `@raw(expr)` — trusted HTML, emitted without escaping. The
             // expression is emitted verbatim and must be `Text` (else moc errors);
             // we deliberately do NOT route through as_text (no debug_show wrap).
-            Node::Raw(e, _) => {
+            Node::Raw(e, span) => {
+                // R13: a `@raw(expr)` also emits a non-literal `b.raw(<expr>)`
+                // LINE; record its span in the same ordered stream as @(expr).
+                self.record_expr_span(*span);
                 let e = e.trim();
                 // keep the layout `View.x` -> head-field convenience
                 let expr = if self.is_layout {
@@ -741,6 +797,10 @@ impl<'a> Codegen<'a> {
             models: self.models,
             components: self.components,
             instrument: self.instrument,
+            // The throwaway HTML-mode clone captures bytes for an `ir.raw(...)` /
+            // children fallback; its expr spans are irrelevant (the page's real
+            // accumulator drives the map), so it gets a fresh empty one.
+            expr_spans: std::cell::RefCell::new(Vec::new()),
         };
         let mut tmp = String::new();
         html_cg.gen_nodes(nodes, &mut tmp, "");
