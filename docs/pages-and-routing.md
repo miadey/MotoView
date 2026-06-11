@@ -65,7 +65,7 @@ Because `id` was declared `{id:Nat}`, it is already a `Nat` here — no manual `
 
 ## Authorization
 
-Add `@authorize` to require an authenticated caller before the page renders. Pass `role="..."` to require a specific role.
+Add `@authorize` to require an authenticated caller before the page renders. Pass `role="..."` to require a specific role, and `redirect="/welcome"` to send unauthorized callers to your sign-in route instead of `/` (so even `/` itself can gate without a loop). Always gate on the **page**, not the layout — a layout-only `@if (ctx.isAuthenticated)` gate is bypassed by the render-poll and event endpoints, which serve the page without its layout.
 
 ```razor
 @page "/admin"

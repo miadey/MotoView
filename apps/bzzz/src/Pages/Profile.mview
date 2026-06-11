@@ -1,6 +1,6 @@
 @page "/u/{handle}"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title pageTitle
 @description pageDesc
 

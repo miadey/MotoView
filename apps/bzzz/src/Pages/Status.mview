@@ -1,6 +1,6 @@
 @page "/status"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Status — ephemeral 24-hour updates on Bzzz"
 @description "Post a colorful 24-hour status update and see what everyone on Bzzz is sharing right now — disappearing automatically after a day."
 

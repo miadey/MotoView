@@ -1,6 +1,6 @@
 @page "/about"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "About Bzzz"
 @description "Bzzz is an open social super-app running entirely on the Internet Computer."
 <section class="bz-hero"><h1>About Bzzz</h1>

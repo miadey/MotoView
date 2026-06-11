@@ -1,6 +1,6 @@
 @page "/forum/t/{id:Nat}"
 @layout ForumLayout
-@authorize
+@authorize redirect="/welcome"
 @title (topicTitle # " — Bzzz Forum")
 @description topicDescription
 

@@ -68,6 +68,10 @@ impl MviewFile {
 #[derive(Debug, Clone)]
 pub struct Auth {
     pub role: Option<String>,
+    /// Where to send an unauthorized caller. `None` => the framework default
+    /// "/". Lets a route whose own path is the login target (or "/") gate
+    /// itself without a redirect loop, e.g. `@authorize redirect="/welcome"`.
+    pub redirect: Option<String>,
 }
 
 #[derive(Debug, Clone)]

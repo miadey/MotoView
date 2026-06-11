@@ -1,6 +1,6 @@
 @page "/forum/c/{id:Nat}"
 @layout ForumLayout
-@authorize
+@authorize redirect="/welcome"
 @title (catName # " — Bzzz forum category")
 @description catDescription
 

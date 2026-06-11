@@ -1,6 +1,6 @@
 @page "/messages"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Messages — end-to-end encrypted chats on Bzzz"
 @description "Your private WhatsApp-style conversations on Bzzz: encrypted 1:1 direct messages and group chats, running entirely on-chain on the Internet Computer."
 

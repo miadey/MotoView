@@ -218,6 +218,7 @@ Imperative client effects returned in a batch and applied by the WASM client.
 |---|---|---|
 | `@authorize` | `@authorize` | require an authenticated caller |
 | `@authorize` (role) | `@authorize role="Admin"` | require a role *(role stores: Roadmap)* |
+| `@authorize` (redirect) | `@authorize redirect="/welcome"` | send unauthorized callers here instead of `/` (lets any route, even `/`, gate itself loop-free) |
 
 ```razor
 @authorize role="Admin"

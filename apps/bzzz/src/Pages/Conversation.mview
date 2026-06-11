@@ -1,6 +1,6 @@
 @page "/messages/{id:Nat}"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Conversation — end-to-end encrypted on Bzzz"
 @description "A private, end-to-end encrypted conversation on Bzzz. Message bodies are stored as ciphertext envelopes and decrypted only in your client — never on-chain."
 

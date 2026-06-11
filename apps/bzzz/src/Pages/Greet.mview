@@ -1,6 +1,6 @@
 @page "/greet/{name}"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Hello"
 @description "A parameterized-route demo page (sign-in required, like all of Bzzz)."
 <section class="bz-hero"><h1>Hello, @name 👋</h1>

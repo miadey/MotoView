@@ -72,6 +72,8 @@ This single token gives you four protections at once:
 
 And there's no client-side-only validation to bypass — the `validate { … }` rules run in the handler. See [Forms & Validation](forms.md).
 
+**Verification is mandatory, not opt-in.** The compiler records which handlers are bound to a `secure` form and bakes that set into the page. On dispatch the server **requires** a valid token for any of those handlers — an attacker cannot skip the check by omitting the request's `__mv_secure` flag. A request to a secure handler with a missing or invalid token is rejected before the handler runs.
+
 ## Authentication — Internet Identity
 
 Sign-in uses **Internet Identity** (passkeys / WebAuthn) — **no passwords**, hand-rolled with no npm or `agent-js`:
@@ -93,6 +95,17 @@ Gate pages and handlers with `@authorize`, optionally scoped to a role:
 ```
 
 `@authorize` (no role) requires an authenticated caller; `role="Admin"` additionally requires the caller to **hold that role** in the runtime's persisted role store — otherwise the page redirects and its content never renders (server-side; not a hidden div).
+
+An unauthorized caller is sent to `/` by default. Point them somewhere else — your sign-in route — with `redirect`:
+
+```razor
+@page "/feed"
+@authorize redirect="/welcome"
+```
+
+Because the target is configurable, even `/` itself (or the login route) can carry `@authorize` without a redirect loop.
+
+> **Gate on the page, not the layout.** `@authorize` is enforced on *every* path that can serve a page: the full-document `GET`, the `/_motoview/render` poll, and the `/_motoview/event` dispatch. A layout that merely hides content behind `@if (ctx.isAuthenticated) { … @yield … }` is **presentation only** — the render-poll and event endpoints render the page *without* its layout, so a layout-only gate leaks the page body and lets its handlers run for unauthenticated callers. Always put `@authorize` on the page. The compiler emits a `layout-auth-gate` warning when a page relies on an auth-gating layout but declares no `@authorize` of its own.
 
 Manage roles from any handler via the request context — `hasRole(who, role)`, `callerRoles()`, `grantRole`, `revokeRole`, and `claimRole(role)` (first-come bootstrap for the first admin). The store is a `stable var`, so grants survive `dfx deploy --mode upgrade`.
 

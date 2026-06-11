@@ -581,19 +581,36 @@ impl<'a> Codegen<'a> {
         // Page record
         let route = file.route.clone().unwrap_or_else(|| "/".into());
         let layout = file.layout.clone().unwrap_or_default();
-        let (authorize, role) = match &file.authorize {
-            Some(a) => ("true", a.role.clone().unwrap_or_default()),
-            None => ("false", String::new()),
+        let (authorize, role, auth_redirect) = match &file.authorize {
+            Some(a) => (
+                "true",
+                a.role.clone().unwrap_or_default(),
+                a.redirect.clone().unwrap_or_default(),
+            ),
+            None => ("false", String::new(), String::new()),
         };
         let cacheable = if file.cacheable { "true" } else { "false" };
+        // Handlers bound to `secure` forms — the server REQUIRES a valid token
+        // for these regardless of what the request claims (CSRF/over-post guard).
+        let secure_handlers = collect_secure_handlers(&file.template);
+        let secure_arr = format!(
+            "[{}]",
+            secure_handlers
+                .iter()
+                .map(|h| format!("{:?}", h))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
         let rec = format!(
-            "  let {n}Def : MV.Page = {{\n    route = {route:?};\n    layout = {layout:?};\n    authorize = {auth};\n    role = {role:?};\n    cacheable = {cacheable};\n    onLoad = {o}.mvOnLoad;\n    render = {o}.mvRender;\n    title = {o}.mvTitle;\n    head = {o}.mvHead;\n    dispatch = {o}.mvDispatch;\n    takeErrors = {o}.mvTakeErrors;\n    takeRedirect = {o}.mvTakeRedirect;\n  }};\n",
+            "  let {n}Def : MV.Page = {{\n    route = {route:?};\n    layout = {layout:?};\n    authorize = {auth};\n    role = {role:?};\n    authRedirect = {authredir:?};\n    cacheable = {cacheable};\n    secureHandlers = {secure};\n    onLoad = {o}.mvOnLoad;\n    render = {o}.mvRender;\n    title = {o}.mvTitle;\n    head = {o}.mvHead;\n    dispatch = {o}.mvDispatch;\n    takeErrors = {o}.mvTakeErrors;\n    takeRedirect = {o}.mvTakeRedirect;\n  }};\n",
             n = file.name,
             route = route,
             layout = layout,
             auth = authorize,
             role = role,
+            authredir = auth_redirect,
             cacheable = cacheable,
+            secure = secure_arr,
             o = obj,
         );
         let rec = rec.replace(
@@ -3234,6 +3251,51 @@ fn collect_handlers(nodes: &[Node]) -> HashSet<String> {
     let mut out = HashSet::new();
     walk_handlers(nodes, &mut out);
     out
+}
+
+/// Handlers bound to a `secure` element (a `<form @submit=... secure>`). The
+/// server must require a valid HMAC token for these on dispatch — an attacker
+/// cannot opt out of verification by omitting `__mv_secure` from the request.
+/// Returned sorted + de-duped so the generated page record is deterministic.
+fn collect_secure_handlers(nodes: &[Node]) -> Vec<String> {
+    let mut out = Vec::new();
+    walk_secure_handlers(nodes, &mut out);
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn walk_secure_handlers(nodes: &[Node], out: &mut Vec<String>) {
+    for n in nodes {
+        match n {
+            Node::Element(e) => {
+                if e.secure {
+                    for ev in &e.events {
+                        out.push(ev.handler.clone());
+                    }
+                }
+                walk_secure_handlers(&e.children, out);
+            }
+            Node::Component(c) => {
+                walk_secure_handlers(&c.children, out);
+                for (_n, body) in &c.slots {
+                    walk_secure_handlers(body, out);
+                }
+            }
+            Node::If(branches) => {
+                for br in branches {
+                    walk_secure_handlers(&br.body, out);
+                }
+            }
+            Node::For { body, .. } => walk_secure_handlers(body, out),
+            Node::Switch { cases, .. } => {
+                for c in cases {
+                    walk_secure_handlers(&c.body, out);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn walk_handlers(nodes: &[Node], out: &mut HashSet<String>) {

@@ -1,6 +1,6 @@
 @page "/me"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Your profile — Bzzz"
 @description "Set your Bzzz handle, display name and bio, see your follower and following counts, and read back everything you have posted to the feed."
 

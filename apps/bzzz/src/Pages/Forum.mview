@@ -1,6 +1,6 @@
 @page "/forum"
 @layout ForumLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Forum — Bzzz community discussions"
 @description "Browse categories and the latest topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer."
 

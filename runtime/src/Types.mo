@@ -137,7 +137,13 @@ module {
     layout : Text; // layout name, or "" for none
     authorize : Bool; // requires an authenticated caller
     role : Text; // required role, or "" for any authenticated caller
+    authRedirect : Text; // where to send an unauthorized caller ("" => "/")
     cacheable : Bool; // serve as a certified query (no update round-trip)
+    // Handlers bound to a `secure` form. The server REQUIRES a valid HMAC token
+    // for any of these on dispatch, regardless of whether the request set
+    // `__mv_secure` — so an attacker cannot skip CSRF/replay/over-post checks by
+    // omitting the flag. Empty for pages with no secure forms.
+    secureHandlers : [Text];
     onLoad : (Ctx) -> (); // data-loading lifecycle (runs on GET renders)
     render : (Ctx) -> Text; // inner HTML of the page body
     title : (Ctx) -> Text; // document title

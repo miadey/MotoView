@@ -241,7 +241,8 @@ impl Parser {
             "canonical" => self.file.canonical = Some(expr_or_literal(&rest)),
             "authorize" => {
                 let role = extract_attr(&rest, "role");
-                self.file.authorize = Some(Auth { role });
+                let redirect = extract_attr(&rest, "redirect");
+                self.file.authorize = Some(Auth { role, redirect });
             }
             "meta" => self.file.head_extra.push(HeadMeta { raw: rest }),
             _ => {}

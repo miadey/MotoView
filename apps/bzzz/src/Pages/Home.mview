@@ -1,15 +1,9 @@
 @page "/"
 @layout AppLayout
+@authorize redirect="/welcome"
 @title "Bzzz — Home"
 @description "Your Bzzz dashboard: the latest from the feed, forum, servers, encrypted messages and status updates — all on-chain in one canister."
 
-@if (not canView) {
-    <!-- Server-side gate. "/" cannot carry @@authorize (its 302 target is "/",
-         a loop), so the PAGE body gates itself: load() bails and this stub is
-         all that page.render emits — including on the /_motoview/render poll
-         path, which never sees the layout's gate. -->
-    <div class="bz-gate-redirect">Taking you to sign in… <a href="/welcome">Continue →</a></div>
-} else {
 <div class="bz-banner">
     <div class="bz-banner-row">
         <span class="bz-banner-ico">@avatar</span>
@@ -159,7 +153,6 @@
     </section>
 
 </div>
-}
 
 @code {
     type SrvRow = { id : Nat; name : Text; summary : Text; activity : Text };
@@ -174,7 +167,6 @@
     var topicN : Nat = 0;
     var postN : Nat = 0;
     var unread : Nat = 0;
-    var canView : Bool = false;
     var showPersonalize : Bool = false;
     var newHandle : Text = "";
     var feedLatest : [Feed.FeedPost] = [];
@@ -186,12 +178,9 @@
     func onLoad(ctx : Context) { load(ctx); };
 
     func load(ctx : Context) {
-        // SERVER-side gate ("/" can't use @authorize — its 302 target is "/").
-        // Without it the /_motoview/render poll would hand this page's body,
-        // data included, to anonymous callers — the layout gate only covers
-        // full-document GETs.
-        canView := ctx.isAuthenticated and Identity.isBound(ctx.caller);
-        if (not canView) { return };
+        // `@authorize redirect="/welcome"` gates this route server-side on every
+        // path (full GET, /_motoview/render, /_motoview/event), so an anonymous
+        // caller is 302'd before render and never reaches this body.
         display := Identity.displayOf(ctx.caller);
         avatar := Identity.avatarOf(ctx.caller);
         myHandle := Identity.handleOf(ctx.caller);

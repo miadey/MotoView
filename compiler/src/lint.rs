@@ -159,6 +159,106 @@ fn json_string(s: &str) -> String {
     out
 }
 
+/// True if a LAYOUT conditionally renders the PAGE BODY (`@yield`) on the
+/// caller's auth state — an `@if` whose condition mentions `isAuthenticated`
+/// and whose branch contains `@yield`. Such a layout LOOKS like an access gate
+/// but only covers full-document GETs: the `/_motoview/render` and
+/// `/_motoview/event` endpoints render pages WITHOUT the layout, so real
+/// enforcement must live on the page (`@authorize`). Used by the project-level
+/// `layout-auth-gate` check.
+///
+/// We require `@yield` INSIDE the auth branch specifically (not merely any
+/// `isAuthenticated` reference) so we don't flag a layout that uses auth only to
+/// redirect already-onboarded users away or to toggle chrome while still
+/// rendering `@yield` unconditionally — neither is a content gate.
+pub fn layout_gates_on_auth(file: &MviewFile) -> bool {
+    fn contains_yield(nodes: &[Node]) -> bool {
+        nodes.iter().any(|n| match n {
+            Node::Yield => true,
+            Node::Element(e) => contains_yield(&e.children),
+            Node::Component(c) => {
+                contains_yield(&c.children) || c.slots.iter().any(|(_, b)| contains_yield(b))
+            }
+            Node::If(branches) => branches.iter().any(|br| contains_yield(&br.body)),
+            Node::For { body, .. } => contains_yield(body),
+            Node::Switch { cases, .. } => cases.iter().any(|c| contains_yield(&c.body)),
+            _ => false,
+        })
+    }
+    fn walk(nodes: &[Node]) -> bool {
+        for n in nodes {
+            match n {
+                Node::If(branches) => {
+                    let auth_conditioned = branches
+                        .iter()
+                        .any(|br| br.cond.as_deref().is_some_and(|c| c.contains("isAuthenticated")));
+                    // Flag only when an auth-conditioned @if actually controls
+                    // whether @yield (the page body) renders.
+                    if auth_conditioned && branches.iter().any(|br| contains_yield(&br.body)) {
+                        return true;
+                    }
+                    for br in branches {
+                        if walk(&br.body) {
+                            return true;
+                        }
+                    }
+                }
+                Node::Element(e) => {
+                    if walk(&e.children) {
+                        return true;
+                    }
+                }
+                Node::Component(c) => {
+                    if walk(&c.children) {
+                        return true;
+                    }
+                    for (_, body) in &c.slots {
+                        if walk(body) {
+                            return true;
+                        }
+                    }
+                }
+                Node::For { body, .. } => {
+                    if walk(body) {
+                        return true;
+                    }
+                }
+                Node::Switch { cases, .. } => {
+                    for c in cases {
+                        if walk(&c.body) {
+                            return true;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+    walk(&file.template)
+}
+
+/// Build the project-level `layout-auth-gate` warning for a page that uses an
+/// auth-gating layout but declares no `@authorize` of its own — so its body is
+/// reachable, unguarded, via the `/_motoview/render` and `/_motoview/event`
+/// endpoints (which never apply the layout). `path` is the page's `.mview` path.
+pub fn layout_gate_warning(path: &str, layout: &str) -> Diagnostic {
+    Diagnostic {
+        severity: Severity::Warning,
+        message: format!(
+            "this page uses layout `{layout}`, which gates content on \
+             `ctx.isAuthenticated` — but a layout gate only covers full-document \
+             GETs. The /_motoview/render and /_motoview/event endpoints serve this \
+             page WITHOUT its layout, so an unauthenticated caller can still reach \
+             its body and dispatch its handlers. Add `@authorize` (optionally \
+             `@authorize redirect=\"/login\"`) so the server enforces auth on every path."
+        ),
+        location: format!("{} (missing @authorize)", path),
+        rule: "layout-auth-gate".to_string(),
+        span: None,
+    }
+}
+
 /// Run all lint rules over a parsed file, returning every diagnostic found.
 /// `path` is the `.mview` source path, used to build the `location` string.
 pub fn lint_file(file: &MviewFile, path: &str) -> Vec<Diagnostic> {

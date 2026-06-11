@@ -7,7 +7,7 @@ use crate::codegen::{Codegen, EmitMode};
 use crate::lint::{self, Severity};
 use crate::parser;
 use crate::span::{self, SourceMap};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -697,6 +697,12 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // pairing). Both extend the same generated->source map after assembly.
     let mut var_infos: Vec<VarSrcInfo> = Vec::new();
     let mut page_expr_spans: Vec<PageExprSpans> = Vec::new();
+    // (layout-auth-gate lint) Per-page gate metadata + the set of layouts that
+    // gate content on `ctx.isAuthenticated`. Correlated after both loops: a page
+    // using an auth-gating layout but lacking `@authorize` is reachable unguarded
+    // via /_motoview/render + /_motoview/event (which skip the layout).
+    let mut page_gate_meta: Vec<(String, String, bool)> = Vec::new(); // (rel, layout, has_authorize)
+    let mut auth_gated_layouts: HashSet<String> = HashSet::new();
     // Components were already parsed above; record their func footprints too.
     for (cf, file) in component_files.iter().zip(parsed_components.iter()) {
         let rel = rel_src(&opts.project_dir, cf);
@@ -720,6 +726,11 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         for d in lint::lint_file(&file, &rel) {
             diagnostics.push((rel.clone(), d));
         }
+        page_gate_meta.push((
+            rel.clone(),
+            file.layout.clone().unwrap_or_default(),
+            file.authorize.is_some(),
+        ));
         // Pages honour the requested emit backend: Html (default, byte-identical)
         // or Ir (portable UINode forest, used by the no-deploy preview). Layouts
         // and components are always Html-emitted regardless (they are the document
@@ -757,11 +768,23 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
         for d in lint::lint_file(&file, &rel) {
             diagnostics.push((rel.clone(), d));
         }
+        if lint::layout_gates_on_auth(&file) {
+            auth_gated_layouts.insert(name.clone());
+        }
         let mut cg = Codegen::new(&models, &components);
         layout_funcs.push_str(&format!("  // mv:src {}\n", rel_src(&opts.project_dir, lf)));
         layout_funcs.push_str(&cg.gen_layout(&file));
         layout_funcs.push('\n');
         layout_entries.push((name.clone(), format!("mvLayout_{}", name)));
+    }
+
+    // (layout-auth-gate) Now that every layout's auth-gate status is known, flag
+    // pages that lean on a layout gate without their own `@authorize` — they are
+    // reachable unguarded via the layout-less /_motoview/render + /event endpoints.
+    for (rel, layout, has_authorize) in &page_gate_meta {
+        if !has_authorize && auth_gated_layouts.contains(layout) {
+            diagnostics.push((rel.clone(), lint::layout_gate_warning(rel, layout)));
+        }
     }
 
     // Lint gate: if ANY .mview produced an Error-severity diagnostic, abort the

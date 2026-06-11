@@ -1,6 +1,6 @@
 @page "/feed"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title "Feed — Bzzz"
 @description "Your Bzzz home timeline. Post short updates, follow people, repost and like — an X-style public feed running entirely on-chain on the Internet Computer."
 

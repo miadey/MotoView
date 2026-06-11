@@ -18,6 +18,16 @@ fn page(src: &str) -> String {
     cg.gen_page(&file).object_block
 }
 
+/// Parse + generate the page RECORD (the `MV.Page = { ... }` literal), which
+/// carries route/authorize/authRedirect/secureHandlers metadata.
+fn page_record(src: &str) -> String {
+    let models: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let comps: HashMap<String, CompInfo> = HashMap::new();
+    let file = parser::parse(src, "T", FileKind::Page).expect("parse failed");
+    let mut cg = Codegen::new(&models, &comps);
+    cg.gen_page(&file).page_record
+}
+
 /// Parse + generate a page object block via the IR (UINode) backend.
 fn page_ir(src: &str) -> String {
     let models: HashMap<String, HashMap<String, String>> = HashMap::new();
@@ -92,6 +102,78 @@ fn route_params_are_bound_and_typed() {
     assert!(g.contains("mvParamGet(ctx, \"id\")"), "id param not bound:\n{g}");
     assert!(g.contains("mvParamGet(ctx, \"tab\")"), "tab param not bound:\n{g}");
     assert!(g.contains("mvNat("), "typed {{id:Nat}} should convert via mvNat:\n{g}");
+}
+
+#[test]
+fn secure_form_handler_recorded_in_page_record() {
+    // #40: the server must REQUIRE a token for handlers bound to a `secure` form,
+    // not trust the request's `__mv_secure` flag — so the compiler bakes the
+    // secure-handler set into the page record for the runtime to enforce.
+    let g = page_record(
+        "@page \"/\"\n<form @submit=\"save\" secure><button>Go</button></form>\n@code { func save(ctx : Context) : async () {}; }",
+    );
+    assert!(
+        g.contains("secureHandlers = [\"save\"]"),
+        "secure form's submit handler must be in secureHandlers:\n{g}"
+    );
+}
+
+#[test]
+fn non_secure_handler_absent_from_secure_set() {
+    // A non-secure click handler must NOT be forced through token verification.
+    let g = page_record(
+        "@page \"/\"\n<button @click=\"ping\">x</button>\n@code { func ping(ctx : Context) {}; }",
+    );
+    assert!(
+        g.contains("secureHandlers = []"),
+        "a non-secure handler must leave secureHandlers empty:\n{g}"
+    );
+}
+
+#[test]
+fn authorize_redirect_is_emitted_in_page_record() {
+    // #40: `@authorize redirect="/welcome"` lets a route (even "/") gate itself
+    // without a 302 loop; the target rides into the page record.
+    let g = page_record("@page \"/\"\n@authorize redirect=\"/welcome\"\n<p>x</p>\n@code {}");
+    assert!(g.contains("authorize = true"), "authorize must be true:\n{g}");
+    assert!(
+        g.contains("authRedirect = \"/welcome\""),
+        "authRedirect must carry the configured target:\n{g}"
+    );
+    // Default (no redirect attr) is the empty string -> runtime falls back to "/".
+    let d = page_record("@page \"/x\"\n@authorize\n<p>x</p>\n@code {}");
+    assert!(
+        d.contains("authRedirect = \"\""),
+        "absent redirect attr -> empty authRedirect:\n{d}"
+    );
+}
+
+#[test]
+fn layout_auth_gate_detection_is_precise() {
+    // #40 lint: a layout that conditionally renders @yield on auth IS a (cosmetic)
+    // gate; one that renders @yield unconditionally (auth only redirects/chrome)
+    // is NOT — so /welcome-style login layouts aren't false-flagged.
+    let gated = parser::parse(
+        "@if (ctx.isAuthenticated) { <main>@yield</main> } else { <p>sign in</p> }",
+        "L",
+        FileKind::Layout,
+    )
+    .expect("parse gated layout");
+    assert!(
+        lint::layout_gates_on_auth(&gated),
+        "a layout gating @yield behind isAuthenticated must be detected"
+    );
+
+    let chrome_only = parser::parse(
+        "@if (ctx.isAuthenticated) { <meta http-equiv=\"refresh\" content=\"0;url=/\"> }\n<main>@yield</main>",
+        "L",
+        FileKind::Layout,
+    )
+    .expect("parse chrome layout");
+    assert!(
+        !lint::layout_gates_on_auth(&chrome_only),
+        "a layout that renders @yield unconditionally must NOT be flagged"
+    );
 }
 
 #[test]

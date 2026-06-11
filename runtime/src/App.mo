@@ -616,7 +616,7 @@ module {
       // page route -> server-side render of the full document
       switch (Router.find(pages, path)) {
         case (?(page, params)) {
-          if (not authorized(page, caller)) { return redirectDoc() };
+          if (not authorized(page, caller)) { return redirectDoc(authTarget(page)) };
           let ctx = makeCtx("GET", path, qp, params, [], caller, "");
           page.onLoad(ctx);
           ignore page.takeRedirect(); // ignore navigations during render
@@ -654,10 +654,14 @@ module {
 
       switch (Router.find(pages, pagePath)) {
         case (?(page, params)) {
-          if (not authorized(page, caller)) { return jsonResp(Json.encodeBatch(redirectBatch("/"))) };
+          if (not authorized(page, caller)) { return jsonResp(Json.encodeBatch(redirectBatch(authTarget(page)))) };
 
-          // secure form verification + replay protection
-          if (Url.getOr(form, "__mv_secure", "") == "1") {
+          // Secure-form verification + replay protection. Verification is forced
+          // for any handler bound to a `secure` form (isSecureHandler) — NOT just
+          // when the request says `__mv_secure=1` — so an attacker cannot bypass
+          // the CSRF/replay/over-post checks by simply omitting the flag. A forced
+          // request with no/invalid token fails verify() -> security error.
+          if (isSecureHandler(page, handlerId) or Url.getOr(form, "__mv_secure", "") == "1") {
             let token = Url.getOr(form, "__mv_token", "");
             let schema = Url.getOr(form, "__mv_schema", "");
             switch (
@@ -739,7 +743,7 @@ module {
     func renderBatch(target : Text, last : Text, caller : Principal, qp : [(Text, Text)]) : Batch {
       switch (Router.find(pages, target)) {
         case (?(page, params)) {
-          if (not authorized(page, caller)) { return redirectBatch("/") };
+          if (not authorized(page, caller)) { return redirectBatch(authTarget(page)) };
           let ctx = makeCtx("GET", target, qp, params, [], caller, last);
           page.onLoad(ctx);
           ignore page.takeRedirect();
@@ -894,13 +898,27 @@ module {
       );
     };
 
-    func redirectDoc() : HttpResponse {
+    func redirectDoc(location : Text) : HttpResponse {
       {
         status_code = 302;
-        headers = [("location", "/"), ("content-type", "text/html")];
-        body = Text.encodeUtf8("<a href=\"/\">/</a>");
+        headers = [("location", location), ("content-type", "text/html")];
+        body = Text.encodeUtf8("<a href=\"" # location # "\">" # location # "</a>");
         upgrade = null;
       };
+    };
+
+    // Where an unauthorized caller is sent for a given page: the page's
+    // `@authorize redirect="..."` target, or "/" when unset. Letting a route
+    // that IS the login target (or "/") gate itself without a redirect loop.
+    func authTarget(page : Page) : Text {
+      if (page.authRedirect == "") { "/" } else { page.authRedirect };
+    };
+
+    // True if `handler` is bound to a `secure` form on `page` — verification is
+    // then mandatory (the request cannot opt out by omitting `__mv_secure`).
+    func isSecureHandler(page : Page, handler : Text) : Bool {
+      for (h in page.secureHandlers.vals()) { if (h == handler) { return true } };
+      false;
     };
 
     // ---- batches ----------------------------------------------------------

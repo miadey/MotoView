@@ -1,6 +1,6 @@
 @page "/feed/p/{id:Nat}"
 @layout AppLayout
-@authorize
+@authorize redirect="/welcome"
 @title pageTitle
 @description pageDesc
 
