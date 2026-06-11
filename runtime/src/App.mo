@@ -502,6 +502,15 @@ module {
         case null { null };
         case (?(page, params)) {
           if (not page.cacheable) { return null };
+          // SECURITY (#42): never serve an `@authorize` page on the certified-
+          // query fast path. This path runs in the QUERY context, where `caller`
+          // is the anonymous gateway principal (the mv_session cookie is resolved
+          // only in the update path) AND it does not call `authorized()` — so a
+          // gated page with a caller-independent body would otherwise be served
+          // to unauthenticated callers. Fall back to null -> the update path,
+          // which resolves the session caller and enforces the gate. (`@cacheable`
+          // is therefore a no-op on gated pages; the compiler warns about it.)
+          if (page.authorize) { return null };
           switch (certEntryFor(page.route, path)) {
             case null { null }; // not safely certifiable -> update path
             case (?target) {

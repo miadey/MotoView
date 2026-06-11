@@ -149,6 +149,36 @@ fn authorize_redirect_is_emitted_in_page_record() {
 }
 
 #[test]
+fn cacheable_plus_authorize_warns() {
+    // #42: the two are contradictory — a gated page can't be a public certified
+    // query. The lint flags the no-op (the runtime also refuses to serve it on
+    // the certified fast path).
+    let file = parser::parse(
+        "@page \"/admin\"\n@authorize\n@cacheable\n<p>secret</p>\n@code {}",
+        "T",
+        FileKind::Page,
+    )
+    .expect("parse failed");
+    let diags = lint::lint_file(&file, "src/Pages/T.mview");
+    assert!(
+        diags.iter().any(|d| d.rule == "cacheable-authorize" && d.severity == lint::Severity::Warning),
+        "a page with both @cacheable and @authorize must warn:\n{:?}",
+        diags.iter().map(|d| &d.rule).collect::<Vec<_>>()
+    );
+    // A @cacheable page WITHOUT @authorize must NOT warn (public certified page).
+    let ok = parser::parse(
+        "@page \"/about\"\n@cacheable\n<p>public</p>\n@code {}",
+        "T",
+        FileKind::Page,
+    )
+    .expect("parse failed");
+    assert!(
+        !lint::lint_file(&ok, "src/Pages/T.mview").iter().any(|d| d.rule == "cacheable-authorize"),
+        "a public @cacheable page must not warn"
+    );
+}
+
+#[test]
 fn layout_auth_gate_detection_is_precise() {
     // #40 lint: a layout that conditionally renders @yield on auth IS a (cosmetic)
     // gate; one that renders @yield unconditionally (auth only redirects/chrome)

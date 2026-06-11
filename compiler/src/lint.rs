@@ -14,7 +14,7 @@
 //! nested anywhere in the tree (inside `@if`/`@for`/`@switch`/components/slots)
 //! are still seen.
 
-use crate::ast::{MviewFile, Node};
+use crate::ast::{FileKind, MviewFile, Node};
 use crate::span::{self, Span};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -263,6 +263,24 @@ pub fn layout_gate_warning(path: &str, layout: &str) -> Diagnostic {
 /// `path` is the `.mview` source path, used to build the `location` string.
 pub fn lint_file(file: &MviewFile, path: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
+    // RULE cacheable-authorize (#42): `@cacheable` + `@authorize` on the same
+    // page is contradictory. A gated page is always served via the consensus-
+    // checked update path (never as a public, anonymously-rendered certified
+    // query), so `@cacheable` has no effect — and the runtime refuses to serve a
+    // gated page on the certified fast path. Flag it so the no-op is visible.
+    if matches!(file.kind, FileKind::Page) && file.cacheable && file.authorize.is_some() {
+        diags.push(Diagnostic {
+            severity: Severity::Warning,
+            message: "`@cacheable` is ignored on an `@authorize` page: a gated page is \
+                      always served via the consensus-checked update path, never as a \
+                      public certified query (which renders anonymously). Remove one of \
+                      the two directives."
+                .to_string(),
+            location: format!("{} (@cacheable + @authorize)", path),
+            rule: "cacheable-authorize".to_string(),
+            span: None,
+        });
+    }
     walk_nodes(&file.template, path, &mut diags);
     for (_, body) in &file.sections {
         walk_nodes(body, path, &mut diags);
