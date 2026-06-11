@@ -13,6 +13,17 @@ It is a port of the C#/Wasp `bzzz` app onto MotoView, dogfooding the framework.
 
 ## Features
 
+- **Internet Identity only, one-click onboarding:** every route except
+  `/welcome` requires a signed-in, handle-bound II user (layout-level gate).
+  The first authenticated load auto-claims a handle derived from the caller's
+  II principal, so a brand-new user is **one click** ("Sign in with Internet
+  Identity" + the II ceremony) away from the app; the dashboard then offers a
+  one-field rename (handles are bind-or-update, changeable any time on `/me`).
+- **Dashboard (`/`):** the latest from every sub-app — feed posts, forum
+  topics by pure recency, per-server latest channel message, the caller's
+  conversations (metadata only: peer, time, unread — message bodies are never
+  shown on the dashboard), live statuses — plus member/server/topic/post
+  counts and a chat-presence count.
 - **Servers (Discord):** servers/guilds, channels, roles (Owner/Admin/Mod),
   moderation (pin/lock/mute), membership, messages with reactions, edits,
   replies and threads, typing/presence. — `Servers`, `Chat`
@@ -20,9 +31,11 @@ It is a port of the C#/Wasp `bzzz` app onto MotoView, dogfooding the framework.
   topics with tags/pinned/closed/solved, posts & replies, likes, accepted
   answers, Latest/New/Top/Categories tabs. — `Forum`
 - **Feed (X):** posts, follows, reposts, likes, replies, home timeline. — `Feed`
-- **Messages (WhatsApp):** 1:1 + group conversations storing E2EE ciphertext
-  envelopes, read receipts, typing; a public key directory (IK/SPK/OTPK per
-  device) for client-side X25519/AEAD. — `Messenger`, `Keys`
+- **Messages (WhatsApp):** 1:1 + group conversations with read receipts and
+  typing; messages travel in a ciphertext-envelope field and a public key
+  directory (IK/SPK/OTPK per device) exists for client-side X25519/AEAD —
+  but the browser client does **not** encrypt yet, so bodies are stored as
+  plaintext today (honest limitation). — `Messenger`, `Keys`
 - **Status:** 24-hour ephemeral colored statuses. — `Status`
 - **Identity & Admin:** handle/avatar/bio directory; admin allowlist. — `Identity`, `Admin`
 - **PWA + native shells:** installable web PWA (manifest + service worker served

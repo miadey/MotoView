@@ -1,5 +1,6 @@
 @page "/u/{handle}"
 @layout AppLayout
+@authorize
 @title pageTitle
 @description pageDesc
 

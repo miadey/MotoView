@@ -1,5 +1,6 @@
 @page "/forum/c/{id:Nat}"
 @layout ForumLayout
+@authorize
 @title (catName # " — Bzzz forum category")
 @description catDescription
 

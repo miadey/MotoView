@@ -75,7 +75,15 @@ module {
       let prof : Profile = {
         principal = caller;
         handle = h;
-        display = if (display == "") h else display;
+        // An empty display argument means "no change": a CUSTOM display name
+        // survives a rename (never silently reset to the handle). A display
+        // that just mirrored the old handle was never customized, so it
+        // follows the new handle; first-time binds fall back to the handle.
+        display = if (display != "") display
+                  else switch existing {
+                    case (?e) { if (e.display != "" and e.display != e.handle) e.display else h };
+                    case null h;
+                  };
         bio = switch existing { case (?e) e.bio; case null "" };
         avatar = switch existing { case (?e) e.avatar; case null avatarFor(h) };
         joined = switch existing { case (?e) e.joined; case null Time.now() };

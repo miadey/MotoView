@@ -1,5 +1,6 @@
 @page "/admin"
 @layout AppLayout
+@authorize
 @title "Admin Console — Bzzz"
 @description "The super-admin console for Bzzz: manage global staff roles, review app-wide stats, and administer every server. Gated to the on-chain global role allowlist."
 

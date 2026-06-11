@@ -1,15 +1,16 @@
 @page "/about"
 @layout AppLayout
+@authorize
 @title "About Bzzz"
 @description "Bzzz is an open social super-app running entirely on the Internet Computer."
 <section class="bz-hero"><h1>About Bzzz</h1>
-<p>A Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on-chain. This page is public and static, so it is served as a fast certified query — no consensus round-trip.</p></section>
+<p>A Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on-chain. Like every Bzzz page, it requires an Internet Identity sign-in.</p></section>
 <Card title="Open source. Your canister.">No backend to trust. Your messages live in your own canister.</Card>
 <MessageBar intent="info">Bzzz runs entirely on the Internet Computer — no servers, no middlemen.</MessageBar>
 <Accordion>
   <AccordionItem header="What is Bzzz?" open="true">A Discord × X × forum × WhatsApp super-app, built on MotoView and running entirely on-chain.</AccordionItem>
   <AccordionItem header="Where does my data live?">In your own canister. No backend to trust — your messages stay yours.</AccordionItem>
-  <AccordionItem header="Why is this page so fast?">It is public and static, so it is served as a certified query with no consensus round-trip.</AccordionItem>
+  <AccordionItem header="Is this page public?">No — all of Bzzz, this page included, requires an Internet Identity sign-in. (MotoView supports @@cacheable certified-query pages, but Bzzz does not use them since nothing here is public.)</AccordionItem>
   <AccordionItem header="Is Bzzz open source?">Yes. Bzzz is open source and runs entirely on the Internet Computer.</AccordionItem>
 </Accordion>
 @code { }

@@ -1,5 +1,6 @@
 @page "/me"
 @layout AppLayout
+@authorize
 @title "Your profile — Bzzz"
 @description "Set your Bzzz handle, display name and bio, see your follower and following counts, and read back everything you have posted to the feed."
 
@@ -51,15 +52,6 @@
         <div class="bz-card bz-prof-panel">
             <h2>Identity</h2>
             <p class="bz-panel-sub">Your handle is unique across all of Bzzz — feed, forum, servers and messages — and is linked to your Internet Identity.</p>
-            @if (not bound) {
-                <div class="bz-oneclick">
-                    <form @submit="useIIHandle" secure>
-                        <Button kind="primary" type="submit">⚡ Use my Internet Identity as my handle</Button>
-                    </form>
-                    <p class="bz-oneclick-sub">One click — claims <code>@@@suggested</code> from your II principal. You can change it anytime.</p>
-                </div>
-                <div class="bz-or"><span>or pick your own</span></div>
-            }
             <form @submit="saveIdentity" secure>
                 <ValidationSummary />
                 <InputText name="handle" label="Handle" bind="@handle" required />
@@ -166,13 +158,7 @@
     .bz-panel-sub { margin: 0 0 .9rem; color: var(--mv-text-soft); font-size: .85rem; }
     .bz-form-actions { margin-top: .7rem; }
 
-    /* one-click "use my Internet Identity" */
-    .bz-oneclick { margin: 0 0 .6rem; }
-    .bz-oneclick .mv-btn { width: 100%; justify-content: center; }
-    .bz-oneclick-sub { margin: .45rem 0 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .bz-oneclick-sub code, .bz-field-hint code { background: var(--colorNeutralBackground3); padding: .05rem .3rem; border-radius: 4px; }
-    .bz-or { display: flex; align-items: center; gap: .6rem; margin: .8rem 0; color: var(--colorNeutralForeground4); font-size: var(--fontSizeBase200); }
-    .bz-or::before, .bz-or::after { content: ""; flex: 1; height: 1px; background: var(--colorNeutralStroke2); }
+    .bz-field-hint code { background: var(--colorNeutralBackground3); padding: .05rem .3rem; border-radius: 4px; }
     .bz-field-hint { margin: .3rem 0 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
     .bz-linked { margin: .9rem 0 0; padding-top: .8rem; border-top: 1px solid var(--colorNeutralStroke2);
         color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
@@ -213,7 +199,6 @@
 @code {
     var bound : Bool = false;
     var isAnon : Bool = true;
-    var suggested : Text = "";      // a valid handle derived from the II principal
     var principalText : Text = "";  // the caller's II id (shown as the link)
     var handle : Text = "";
     var display : Text = "";
@@ -231,7 +216,6 @@
     func load(ctx : Context) {
         bound := Identity.isBound(ctx.caller);
         isAnon := Principal.isAnonymous(ctx.caller);
-        suggested := Identity.suggestHandle(ctx.caller);
         principalText := Principal.toText(ctx.caller);
         avatar := Identity.avatarOf(ctx.caller);
         followers := Feed.followerCount(ctx.caller);
@@ -261,17 +245,6 @@
         switch (Identity.bindChecked(ctx.caller, handle, display)) {
             case (#ok h) { toast("Profile saved — you're now @" # h # "."); };
             case (#taken) { toast("That handle is already taken — try another."); };
-            case (#invalid msg) { toast(msg); };
-        };
-        load(ctx);
-    };
-
-    // One-click: claim a valid handle derived from the caller's II principal.
-    func useIIHandle(ctx : Context) : async () {
-        let pick = Identity.suggestHandle(ctx.caller);
-        switch (Identity.bindChecked(ctx.caller, pick, "")) {
-            case (#ok h) { toast("Linked your Internet Identity — you're now @" # h # "."); };
-            case (#taken) { toast("Couldn't auto-pick a free handle — choose one above."); };
             case (#invalid msg) { toast(msg); };
         };
         load(ctx);

@@ -234,6 +234,18 @@ module {
       sortedTopics(buf);
     };
 
+    /// All topics purely by recency (bumpedAt desc) — NO pinned float, for
+    /// "latest activity" summaries like the dashboard where an old pinned
+    /// topic must not head the list.
+    public func topicsChronological() : [Topic] {
+      let buf = Buffer.Buffer<TopicRec>(topics_.size());
+      for (t in topics_.vals()) { buf.add(t) };
+      let sorted = Array.sort(Buffer.toArray(buf), func(a : TopicRec, b : TopicRec) : { #less; #equal; #greater } {
+        if (a.bumpedAt > b.bumpedAt) #less else if (a.bumpedAt < b.bumpedAt) #greater else #equal;
+      });
+      Array.map<TopicRec, Topic>(sorted, projectTopic);
+    };
+
     /// All topics ranked "top": by total like count, then reply count.
     public func topicsTop() : [Topic] {
       let buf = Buffer.Buffer<TopicRec>(topics_.size());

@@ -1,5 +1,6 @@
 @page "/forum/t/{id:Nat}"
 @layout ForumLayout
+@authorize
 @title (topicTitle # " — Bzzz Forum")
 @description topicDescription
 

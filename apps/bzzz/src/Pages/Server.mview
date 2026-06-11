@@ -1,5 +1,6 @@
 @page "/servers/{id:Nat}"
 @layout AppLayout
+@authorize
 @title serverName # " — Bzzz server"
 @description serverName # " on Bzzz — channels, members, roles and moderation for a Discord-style community running on the Internet Computer."
 

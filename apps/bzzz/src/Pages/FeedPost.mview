@@ -1,5 +1,6 @@
 @page "/feed/p/{id:Nat}"
 @layout AppLayout
+@authorize
 @title pageTitle
 @description pageDesc
 

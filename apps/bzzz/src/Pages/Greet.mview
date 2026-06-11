@@ -1,9 +1,10 @@
 @page "/greet/{name}"
 @layout AppLayout
+@authorize
 @title "Hello"
-@description "A public, parameterized page served as a certified query via a wildcard."
+@description "A parameterized-route demo page (sign-in required, like all of Bzzz)."
 <section class="bz-hero"><h1>Hello, @name 👋</h1>
-<p>This parameterized public page is certified with a wildcard (/greet/&lt;*&gt;) and served as a fast certified query — any name under /greet is covered by one cert entry.</p></section>
+<p>A parameterized-route demo (/greet/{name}). Like every Bzzz page it requires sign-in; MotoView's wildcard certified-query support (@@cacheable on a parameterized route) is demonstrated elsewhere, since nothing in Bzzz is public.</p></section>
 @code { }
 
 

@@ -1,5 +1,6 @@
 @page "/servers"
 @layout AppLayout
+@authorize
 @title "Servers — Bzzz"
 @description "Browse and create Bzzz servers (guilds) — Discord-style communities with channels, roles and moderation, running on-chain on the Internet Computer."
 

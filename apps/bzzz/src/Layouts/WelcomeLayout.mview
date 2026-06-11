@@ -7,10 +7,12 @@
     <link rel="apple-touch-icon" href="/favicon.svg">
     <title>@View.title</title>
     @head
-    <!-- Already onboarded? skip the welcome screen and go straight into the app
-         (no-JS redirect; only fires on a full GET of /welcome by a bound user). -->
+    <!-- Onboarded? straight into the app (no-JS redirect on a full GET of
+         /welcome by a bound user). Welcome.onLoad auto-claims a handle for any
+         signed-in caller BEFORE this layout renders, so this fires on the very
+         first load after sign-in — the dashboard is one sign-in click away. -->
     @if (ctx.isAuthenticated and Identity.isBound(ctx.caller)) {
-        <meta http-equiv="refresh" content="0; url=/feed">
+        <meta http-equiv="refresh" content="0; url=/">
     }
     <style>
         body { margin: 0; min-height: 100vh; box-sizing: border-box;

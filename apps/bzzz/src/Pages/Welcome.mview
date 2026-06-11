@@ -4,16 +4,19 @@
 @description "Sign in with Internet Identity and pick your handle to join Bzzz."
 
 @if (not authed) {
-    <p class="wl-sub">Your account is your <strong>Internet Identity</strong> — no email, no password. Sign in to join the conversation.</p>
+    <p class="wl-sub">Your account is your <strong>Internet Identity</strong> — no email, no password. One click and you're in.</p>
     <button data-mv-signin class="mv-btn mv-btn-primary wl-cta" type="button">Sign in with Internet Identity</button>
     <p class="wl-fine">New to the Internet Computer? You can create an Internet Identity during sign-in.</p>
-} else if (not bound) {
+} else if bound {
+    <h1 class="wl-h">You're in, @@@boundHandle</h1>
+    <p class="wl-sub">Taking you into Bzzz…</p>
+    <a class="mv-btn mv-btn-primary wl-cta" href="/">Enter Bzzz →</a>
+} else {
+    <!-- Fallback only: onLoad auto-claims a handle for every signed-in caller,
+         so this branch renders only if that bind failed (e.g. invalid derived
+         handle — not expected in practice). -->
     <h1 class="wl-h">Pick your handle</h1>
-    <p class="wl-sub">One last step. This is your name everywhere in Bzzz — feed, forum, servers and messages — and it's linked to your Internet Identity.</p>
-    <form @submit="useII" secure>
-        <button class="mv-btn mv-btn-primary wl-cta" type="submit">⚡ Use my Internet Identity (@@@suggested)</button>
-    </form>
-    <div class="wl-or"><span>or choose your own</span></div>
+    <p class="wl-sub">This is your name everywhere in Bzzz — feed, forum, servers and messages — linked to your Internet Identity.</p>
     <form @submit="claim" secure class="wl-form">
         <ValidationSummary />
         <InputText name="handle" label="Handle" bind="@handle" required />
@@ -21,47 +24,54 @@
         <button class="mv-btn mv-btn-primary wl-cta" type="submit">Create my handle</button>
     </form>
     <p class="wl-fine">Signed in as <code class="wl-pid">@principalText</code></p>
-} else {
-    <h1 class="wl-h">You're all set, @@@boundHandle</h1>
-    <p class="wl-sub">Taking you into Bzzz…</p>
-    <a class="mv-btn mv-btn-primary wl-cta" href="/feed">Enter Bzzz →</a>
 }
 
 @code {
     var authed : Bool = false;
     var bound : Bool = false;
-    var suggested : Text = "";
     var boundHandle : Text = "";
     var handle : Text = "";
     var principalText : Text = "";
 
-    func onLoad(ctx : Context) { load(ctx); };
-
-    func load(ctx : Context) {
-        authed := ctx.isAuthenticated;
-        bound := Identity.isBound(ctx.caller);
-        suggested := Identity.suggestHandle(ctx.caller);
-        boundHandle := Identity.handleOf(ctx.caller);
-        principalText := Principal.toText(ctx.caller);
-    };
-
-    // Manual handle — format + uniqueness validated by Identity.bindChecked.
-    func claim(ctx : Context) : async () {
-        validate { handle required "Choose a handle."; };
-        switch (Identity.bindChecked(ctx.caller, handle, "")) {
-            case (#ok h) { toast("Welcome to Bzzz, @" # h # "!"); };
-            case (#taken) { toast("That handle is already taken — try another."); };
-            case (#invalid m) { toast(m); };
+    // Zero-extra-click onboarding: the first authenticated load auto-claims a
+    // handle derived from the caller's II principal. The page renders AFTER
+    // this runs and the layout AFTER the page, so WelcomeLayout's bound-user
+    // meta-refresh fires on this very response — sign-in is the only click.
+    // The handle can be changed any time on /me (bindChecked is bind-or-update).
+    //
+    // Considered tradeoff: this is a write on a GET, outside the secure-form
+    // token gate (a lured top-level navigation could trigger it for a signed-in
+    // unbound victim). Accepted because the outcome is exactly the state the
+    // user reaches by onboarding anyway: deterministic from THEIR principal,
+    // attacker-uncontrollable, and renameable.
+    func onLoad(ctx : Context) {
+        if (ctx.isAuthenticated and not Identity.isBound(ctx.caller)) {
+            ignore Identity.bindChecked(ctx.caller, Identity.suggestHandle(ctx.caller), "");
         };
         load(ctx);
     };
 
-    // One-click: a valid, unique handle derived from the II principal.
-    func useII(ctx : Context) : async () {
-        let pick = Identity.suggestHandle(ctx.caller);
-        switch (Identity.bindChecked(ctx.caller, pick, "")) {
-            case (#ok h) { toast("Welcome to Bzzz, @" # h # "!"); };
-            case (#taken) { toast("Couldn't auto-pick a free handle — choose one below."); };
+    func load(ctx : Context) {
+        authed := ctx.isAuthenticated;
+        bound := Identity.isBound(ctx.caller);
+        boundHandle := Identity.handleOf(ctx.caller);
+        principalText := Principal.toText(ctx.caller);
+    };
+
+    // Manual fallback — format + uniqueness validated by Identity.bindChecked.
+    // On success, hop straight into the app (no "Enter Bzzz" click).
+    // Guarded: events dispatch even for anonymous callers, and binding the
+    // shared anonymous principal would squat a handle in the global namespace.
+    func claim(ctx : Context) : async () {
+        if (not ctx.isAuthenticated) {
+            toast("Sign in with Internet Identity first.");
+            load(ctx);
+            return;
+        };
+        validate { handle required "Choose a handle."; };
+        switch (Identity.bindChecked(ctx.caller, handle, "")) {
+            case (#ok _) { redirect("/"); };
+            case (#taken) { toast("That handle is already taken — try another."); };
             case (#invalid m) { toast(m); };
         };
         load(ctx);
@@ -76,8 +86,6 @@
     .wl-form { text-align: left; margin: 0; }
     .wl-form .wl-cta { margin-top: .6rem; }
     .wl-hint { color: var(--colorNeutralForeground3); font-size: .8rem; margin: .35rem 0 0; }
-    .wl-or { display: flex; align-items: center; gap: .6rem; margin: 1rem 0; color: var(--colorNeutralForeground4); font-size: .8rem; }
-    .wl-or::before, .wl-or::after { content: ""; flex: 1; height: 1px; background: var(--colorNeutralStroke2); }
     form { margin: 0; }
     .wl-pid { font-family: var(--fontFamilyMonospace, ui-monospace, Menlo, monospace); font-size: .72rem; background: var(--colorNeutralBackground3); padding: .12rem .4rem; border-radius: 4px; overflow-wrap: anywhere; }
 </style>

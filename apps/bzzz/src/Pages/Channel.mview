@@ -1,5 +1,6 @@
 @page "/channel/{rid:Nat}"
 @layout AppLayout
+@authorize
 @title "#" # roomName # " — Bzzz channel"
 @description "Live chat in #" # roomName # " on Bzzz — post messages, react, reply and thread in a Discord-style channel running on the Internet Computer."
 

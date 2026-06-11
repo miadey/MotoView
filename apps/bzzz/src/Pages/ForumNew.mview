@@ -1,5 +1,6 @@
 @page "/forum/new"
 @layout ForumLayout
+@authorize
 @title "New topic — Bzzz Forum"
 @description "Start a new discussion on the Bzzz forum: pick a category, add tags and write your post."
 

@@ -95,6 +95,17 @@ fn route_params_are_bound_and_typed() {
 }
 
 #[test]
+fn redirect_builtin_is_emitted_and_usable_from_handlers() {
+    let g = page("@page \"/\"\n<form @submit=\"go\"><button>Go</button></form>\n@code { func go(ctx : Context) : async () { redirect(\"/feed\"); }; }");
+    assert!(
+        g.contains("public func redirect(url : Text) { mvRedirect := url }"),
+        "redirect() builtin must be emitted on every page object:\n{g}"
+    );
+    assert!(g.contains("redirect(\"/feed\")"), "handler body should call redirect():\n{g}");
+    assert!(g.contains("mvTakeRedirect"), "redirect sink accessor missing:\n{g}");
+}
+
+#[test]
 fn handler_ctx_is_injected_when_first_param() {
     let g = page("@page \"/\"\n<button @click=\"go\">go</button>\n@code { func go(ctx : Context) : async () { ignore ctx; }; }");
     assert!(g.contains("case \"go\" { go(ctx) }"), "ctx not injected into handler:\n{g}");

@@ -45,6 +45,23 @@ Inside any `@code` function you can queue declarative effects that run on the cl
 
 Effects ride back in the render batch's `effects` array, so they fire exactly once per event — never on a poll.
 
+### Navigation from handlers
+
+- `redirect("/deals/42")` — finish the event with a client-side navigation
+  instead of an in-place re-render. The server answers the event with a
+  `{"status":"redirect","location":…}` batch and the browser does a full
+  `location.assign`, so the *whole document* (layout included) re-renders at
+  the target. Use it when a handler's outcome changes layout chrome (e.g. the
+  signed-in identity) or lands the user on another page (e.g. "create → open").
+  Note: a redirect batch carries no `effects` — a `toast(...)` queued in the
+  same handler is dropped, so make the destination page self-explanatory.
+  (`redirect(url)` is sugar for the long-standing `mvRedirect := url` sink;
+  both remain valid.)
+
+> Like `toast`/`animate`/`focusOn`/`scrollTo`, `redirect` is a **reserved
+> name** in `@code`: a page that declares its own `func redirect(...)` will
+> fail to compile with a duplicate-definition error.
+
 ## Animations
 
 MotoView ships a CSS animation library (transform/opacity only, GPU-friendly,

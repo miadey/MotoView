@@ -197,6 +197,25 @@ module {
     /// Look up a single message by id (returns tombstones too).
     public func message(msgId : Nat) : ?Message { msgIndex.get(msgId) };
 
+    /// The most recent LIVE message in a room (tombstones skipped), or null for
+    /// an empty/unknown room. Cheap: walks the per-room buffer from the end —
+    /// for "latest activity" summaries (e.g. the dashboard) without paging the
+    /// whole room.
+    public func lastMessageIn(roomId : Nat) : ?Message {
+      switch (roomMsgs.get(roomId)) {
+        case null { null };
+        case (?buf) {
+          var i = buf.size();
+          while (i > 0) {
+            i -= 1;
+            let m = buf.get(i);
+            if (m.deleted == 0) { return ?m };
+          };
+          null;
+        };
+      };
+    };
+
     /// Number of live (non-deleted) messages in a room.
     public func messageCount(roomId : Nat) : Nat {
       switch (roomMsgs.get(roomId)) {

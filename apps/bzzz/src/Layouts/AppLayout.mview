@@ -116,19 +116,19 @@
             .bz-banner { padding: var(--spacingVerticalXL) var(--spacingHorizontalL); }
         }
     </style>
-    <!-- Auth + onboarding gate: anyone who isn't signed in AND handle-bound is
-         sent to /welcome (no-JS meta redirect). /about and /greet stay public. -->
-    @if (not ((ctx.isAuthenticated and Identity.isBound(ctx.caller)) or (ctx.path == "/about") or Text.startsWith(ctx.path, #text "/greet"))) {
+    <!-- Auth gate: Bzzz requires Internet Identity — NO page under this layout
+         is public. Anyone not signed-in-and-handle-bound is sent to /welcome
+         (no-JS meta redirect), the only ungated route. -->
+    @if (not (ctx.isAuthenticated and Identity.isBound(ctx.caller))) {
         <meta http-equiv="refresh" content="0; url=/welcome">
     }
 </head>
 <body>
-@if ((ctx.isAuthenticated and Identity.isBound(ctx.caller)) or (ctx.path == "/about") or Text.startsWith(ctx.path, #text "/greet")) {
+@if (ctx.isAuthenticated and Identity.isBound(ctx.caller)) {
     <AppBar>
         <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
         <span class="mv-appbar-spacer"></span>
         <ThemePicker />
-        <button data-mv-signin class="mv-btn mv-btn-primary mv-btn-small" type="button">Sign in</button>
         <details class="mv-acct" data-mv-authed style="display:none">
             <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
             <div class="mv-acct-menu">

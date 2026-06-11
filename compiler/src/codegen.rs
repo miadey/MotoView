@@ -430,10 +430,12 @@ impl<'a> Codegen<'a> {
             s.push_str(&format!("    {}\n", e));
         }
         // error + redirect + effect sinks (and declarative effect helpers usable
-        // from @code: toast(...), animate("#sel","pulse"), focusOn(...), scrollTo(...))
+        // from @code: redirect("/path"), toast(...), animate("#sel","pulse"),
+        // focusOn(...), scrollTo(...))
         s.push_str("    let mvErrors = Buffer.Buffer<(Text, Text)>(0);\n");
         s.push_str("    var mvRedirect : Text = \"\";\n");
         s.push_str("    let mvEffects = Buffer.Buffer<MV.Effect>(0);\n");
+        s.push_str("    public func redirect(url : Text) { mvRedirect := url };\n");
         s.push_str("    public func toast(m : Text) { mvEffects.add({ kind = \"toast\"; target = m; value = \"\" }) };\n");
         s.push_str("    public func animate(sel : Text, name : Text) { mvEffects.add({ kind = \"animate\"; target = sel; value = name }) };\n");
         s.push_str("    public func focusOn(sel : Text) { mvEffects.add({ kind = \"focus\"; target = sel; value = \"\" }) };\n");
