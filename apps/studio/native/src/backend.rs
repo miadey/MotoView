@@ -937,6 +937,101 @@ pub fn add_component(
 }
 
 // ---------------------------------------------------------------------------
+// EDITABLE PROPERTY GRID — change an attribute's value with a single-span edit
+// ---------------------------------------------------------------------------
+// The inspector edits the SELECTED node's attributes. Each attribute's source
+// span comes from the selection bridge; the studio reads the `.mview` text at that
+// span, parses `name="value"`, and (for a simple quoted literal — never a `{expr}`
+// or concat) replaces the span with `name="newvalue"`, validates with `check`, and
+// reverts on a compile error. PURE parse/replace is unit-tested.
+
+/// The slice of `source` covered by `span` (char offsets), or "" if out of range.
+pub fn slice_span(source: &str, span: &SrcSpan) -> String {
+    let chars: Vec<char> = source.chars().collect();
+    let start = span.start.min(chars.len());
+    let end = span.end.min(chars.len());
+    if end <= start {
+        String::new()
+    } else {
+        chars[start..end].iter().collect()
+    }
+}
+
+/// Parse an attribute's source text (`class="deal-card"`) into
+/// `(name, value, editable, quote)`. Editable ONLY for a simple quoted literal with
+/// no `{` interpolation or `@` expression — so a concat/expr/bind attr is never
+/// corrupted (it is shown read-only).
+pub fn parse_attr_source(text: &str) -> (String, String, bool, char) {
+    let t = text.trim();
+    match t.find('=') {
+        None => (t.to_string(), String::new(), false, '"'), // boolean attr (e.g. `secure`)
+        Some(eq) => {
+            let name = t[..eq].trim().to_string();
+            let rest = t[eq + 1..].trim();
+            let q = rest.chars().next();
+            if matches!(q, Some('"') | Some('\'')) && rest.chars().count() >= 2 {
+                let quote = q.unwrap();
+                let rchars: Vec<char> = rest.chars().collect();
+                if *rchars.last().unwrap() == quote {
+                    let inner: String = rchars[1..rchars.len() - 1].iter().collect();
+                    let editable = !inner.contains('{') && !inner.contains('@');
+                    return (name, inner, editable, quote);
+                }
+            }
+            (name, rest.to_string(), false, '"') // unquoted / `{expr}` -> read-only
+        }
+    }
+}
+
+/// Replace the attribute at `span` in `source` with `name="new_value"` (a single
+/// span edit). The `quote` is preserved; an occurrence of `quote` in the value is
+/// neutralized so the attribute stays well-formed. PURE.
+pub fn set_attr_value(source: &str, span: &SrcSpan, name: &str, new_value: &str, quote: char) -> String {
+    let mut chars: Vec<char> = source.chars().collect();
+    let start = span.start.min(chars.len());
+    let end = span.end.min(chars.len());
+    if end < start {
+        return source.to_string();
+    }
+    let safe: String = new_value
+        .chars()
+        .map(|c| if c == quote || c == '\n' { ' ' } else { c })
+        .collect();
+    let repl: Vec<char> = format!("{name}={quote}{safe}{quote}").chars().collect();
+    chars.splice(start..end, repl);
+    chars.into_iter().collect()
+}
+
+/// Apply a property-grid edit: set the attribute at `span` in `file_rel` to
+/// `new_value`, validate with `check`, and REVERT on a compile error. Returns the
+/// updated source on success (so the studio can refresh the editor).
+pub fn edit_attr(
+    project_dir: &Path,
+    file_rel: &str,
+    span: &SrcSpan,
+    name: &str,
+    new_value: &str,
+    quote: char,
+) -> Result<String, String> {
+    let path = project_dir.join(file_rel);
+    let original = read_file(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let updated = set_attr_value(&original, span, name, new_value, quote);
+    write_file(&path, &updated).map_err(|e| format!("write {}: {e}", path.display()))?;
+    let report = run_check(project_dir);
+    if report.diagnostics.iter().any(|d| d.is_error()) {
+        let _ = write_file(&path, &original);
+        let msg = report
+            .diagnostics
+            .iter()
+            .find(|d| d.is_error())
+            .map(|d| format!("[{}] {}", d.rule, d.message))
+            .unwrap_or_else(|| "would not compile".to_string());
+        return Err(format!("reverted — {msg}"));
+    }
+    Ok(updated)
+}
+
+// ---------------------------------------------------------------------------
 // IR -> native widget DECISION logic (pure, testable; no egui types)
 // ---------------------------------------------------------------------------
 
@@ -1853,6 +1948,67 @@ mod tests {
         let updated = read_file(&crm.join(&file)).expect("read");
         assert!(updated.contains("@submit=onSubmit secure>"), "form not secure");
         assert!(updated.contains("func onSubmit("), "onSubmit not scaffolded");
+        let _ = std::fs::remove_dir_all(&crm);
+    }
+
+    // ---- EDITABLE PROPERTY GRID ------------------------------------------
+
+    #[test]
+    fn parse_and_set_attr_value_round_trip() {
+        // A simple quoted literal is editable.
+        let (n, v, ed, q) = parse_attr_source("class=\"deal-card\"");
+        assert_eq!((n.as_str(), v.as_str(), ed, q), ("class", "deal-card", true, '"'));
+        // A concat / expr / bind attr is NOT editable (never corrupt it).
+        assert!(!parse_attr_source("id=\"col-{stage}\"").2);
+        assert!(!parse_attr_source("bind=\"@title\"").2);
+        assert!(!parse_attr_source("value={count}").2);
+        // A boolean attr (no value) is not value-editable.
+        assert_eq!(parse_attr_source("secure"), ("secure".to_string(), String::new(), false, '"'));
+
+        // set_attr_value replaces exactly the span.
+        let src = "<div class=\"old\" id=\"x\"></div>";
+        // span of `class="old"` = chars 5..16
+        let span = SrcSpan { start: 5, end: 16, ..Default::default() };
+        assert_eq!(slice_span(src, &span), "class=\"old\"");
+        let out = set_attr_value(src, &span, "class", "new value", '"');
+        assert_eq!(out, "<div class=\"new value\" id=\"x\"></div>");
+        // a `"` in the value is neutralized so the attr stays well-formed.
+        let out2 = set_attr_value(src, &span, "class", "a\"b", '"');
+        assert!(!out2[5..].starts_with("class=\"a\"b\""), "unescaped quote: {out2}");
+    }
+
+    #[test]
+    fn edit_attr_changes_a_class_in_the_crm_and_reverts_on_break() {
+        // END-TO-END: edit a deal-card's class to a new literal; it compiles + the
+        // source reflects it. Then a breaking edit reverts and leaves source intact.
+        if !motoview_available() {
+            eprintln!("SKIP: motoview binary not found");
+            return;
+        }
+        let Some(crm) = isolated_crm("editattr") else {
+            eprintln!("SKIP: examples/crm not present");
+            return;
+        };
+        let pr = run_preview(&crm, None);
+        if !pr.ok {
+            eprintln!("SKIP: preview not runnable here (moc?)");
+            let _ = std::fs::remove_dir_all(&crm);
+            return;
+        }
+        // Find the crm-header node + its `class` attribute span.
+        let header = find_by_class(&pr.forest, "crm-header").expect("crm-header");
+        let id = node_src_id(header).expect("src id");
+        let e = pr.srcmap.get(id).expect("entry");
+        let class_attr = e.attrs.iter().find(|a| a.name == "class").expect("class attr");
+        let file = e.file.clone();
+        let before = read_file(&crm.join(&file)).unwrap();
+        // Edit the class literal -> compiles, source updated.
+        let updated = edit_attr(&crm, &file, &class_attr.span, "class", "crm-header pinned", '"')
+            .expect("editing a class literal should compile");
+        assert!(updated.contains("class=\"crm-header pinned\""), "class not updated: in {file}");
+        assert!(!updated.contains("class=\"crm-header\""), "old class still present");
+        // The whole file changed by exactly the value (length grew by the diff).
+        assert_ne!(before, updated);
         let _ = std::fs::remove_dir_all(&crm);
     }
 

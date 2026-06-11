@@ -105,6 +105,19 @@ pub struct BoardSummary {
 }
 
 /// The whole application state.
+/// One editable row of the property grid: an attribute parsed from the `.mview`
+/// source at its span. `editable` is false for `{expr}`/concat/bind/bool attrs
+/// (shown read-only so they are never corrupted).
+#[derive(Debug, Clone)]
+struct AttrFieldUi {
+    name: String,
+    value: String,
+    editable: bool,
+    quote: char,
+    span: backend::SrcSpan,
+    file: String,
+}
+
 pub struct StudioApp {
     project_dir: Option<PathBuf>,
     /// The editable project-folder path shown in the top bar. The user pastes
@@ -149,6 +162,13 @@ pub struct StudioApp {
     /// shows its source; buttons select instead of fire); `false` = INTERACT
     /// (LIVE replay — clicking a button dispatches its event).
     select_mode: bool,
+    /// The selected node's editable attribute fields (the property grid), parsed
+    /// from the `.mview` source at each attr's span. Recomputed only when the
+    /// selection changes (so in-progress edits aren't clobbered each frame).
+    inspector_fields: Vec<AttrFieldUi>,
+    /// The `selected_src` the `inspector_fields` were computed for (recompute when
+    /// it differs, or when forced to `None` after an edit shifts the spans).
+    inspector_for: Option<usize>,
 
     // --- designer layout (the visual designer) ----------------------------
     /// The device frame the design canvas renders the app inside (changes the
@@ -184,6 +204,8 @@ impl Default for StudioApp {
             replay_error: None,
             selected_src: None,
             select_mode: true,
+            inspector_fields: Vec::new(),
+            inspector_for: None,
             device: Device::Desktop,
             view: DesignView::Design,
             grid: true,
@@ -902,7 +924,81 @@ impl StudioApp {
     /// location, then the node's ATTRIBUTES (name = value) and EVENTS
     /// (event -> handler), read straight from the selected forest node. Read-only
     /// this slice (editing is the next one). Nothing selected -> an empty state.
+    /// Rebuild the property-grid fields for the current selection: read the
+    /// `.mview` file and parse each attribute at its source span (the selection
+    /// bridge gives the spans). Literals become editable; everything else read-only.
+    fn recompute_inspector(&mut self) {
+        self.inspector_fields.clear();
+        let (Some(id), Some(dir)) = (self.selected_src, self.project_dir.clone()) else {
+            return;
+        };
+        let Some(entry) = self.preview.as_ref().and_then(|pr| pr.srcmap.get(id)).cloned() else {
+            return;
+        };
+        let Ok(source) = backend::read_file(&dir.join(&entry.file)) else {
+            return;
+        };
+        for a in &entry.attrs {
+            if a.name == "data-mv-src" {
+                continue;
+            }
+            let text = backend::slice_span(&source, &a.span);
+            let (name, value, editable, quote) = backend::parse_attr_source(&text);
+            if name.is_empty() {
+                continue;
+            }
+            self.inspector_fields.push(AttrFieldUi {
+                name,
+                value,
+                editable,
+                quote,
+                span: a.span.clone(),
+                file: entry.file.clone(),
+            });
+        }
+    }
+
+    /// Apply the i-th property-grid edit: write the attribute (revert on a compile
+    /// error), reload the editor if that file is open, and re-preview.
+    fn commit_attr_edit(&mut self, i: usize) {
+        let Some(f) = self.inspector_fields.get(i).cloned() else {
+            return;
+        };
+        if !f.editable {
+            return;
+        }
+        let Some(dir) = self.project_dir.clone() else {
+            return;
+        };
+        match backend::edit_attr(&dir, &f.file, &f.span, &f.name, &f.value, f.quote) {
+            Ok(updated) => {
+                self.status = format!("{} = \"{}\"", f.name, f.value);
+                let path = dir.join(&f.file);
+                if self.open_file.as_deref() == Some(path.as_path()) {
+                    self.editor_text = updated;
+                    self.dirty = false;
+                }
+                self.run_preview();
+            }
+            Err(e) => {
+                self.status = format!("Edit reverted: {e}");
+            }
+        }
+        // Spans shifted (or were restored on revert) — rebuild from fresh source.
+        self.inspector_for = None;
+    }
+
     fn inspector_panel(&mut self, ui: &mut Ui, p: &Palette) {
+        // Recompute the editable fields only when the selection changed (so an
+        // in-progress edit isn't clobbered every frame).
+        if self.inspector_for != self.selected_src {
+            self.recompute_inspector();
+            self.inspector_for = self.selected_src;
+        }
+        let node = self.selected_node().cloned();
+        let location = self.selected_source_location();
+        let mut commit: Option<usize> = None;
+
         let frame = Frame::new()
             .fill(p.panel)
             .inner_margin(Margin::same(18))
@@ -917,8 +1013,6 @@ impl StudioApp {
                 section_title(ui, p, "Inspector");
                 ui.add_space(SPACE);
 
-                let node = self.selected_node().cloned();
-                let location = self.selected_source_location();
                 let Some(node) = node else {
                     empty_state(
                         ui,
@@ -934,9 +1028,51 @@ impl StudioApp {
                     .auto_shrink([false, false])
                     .id_salt("inspector-scroll")
                     .show(ui, |ui| {
-                        inspector_body(ui, p, &node, location.as_deref());
+                        inspector_header(ui, p, &node, location.as_deref());
+
+                        // EDITABLE ATTRIBUTES — the property grid.
+                        ui.label(
+                            RichText::new("Attributes")
+                                .text_style(TextStyle::Small)
+                                .strong()
+                                .color(p.text_secondary),
+                        );
+                        ui.add_space(4.0);
+                        if self.inspector_fields.is_empty() {
+                            ui.label(
+                                RichText::new("— none —")
+                                    .text_style(TextStyle::Small)
+                                    .color(p.text_disabled),
+                            );
+                        } else {
+                            let card = Frame::new()
+                                .fill(p.card)
+                                .inner_margin(Margin::same(8))
+                                .corner_radius(CornerRadius::same(RADIUS_CARD))
+                                .stroke(Stroke { width: 1.0, color: p.stroke });
+                            card.show(ui, |ui| {
+                                for i in 0..self.inspector_fields.len() {
+                                    if attr_field_row(ui, p, &mut self.inspector_fields[i]) {
+                                        commit = Some(i);
+                                    }
+                                }
+                            });
+                            ui.add_space(3.0);
+                            ui.label(
+                                RichText::new("Edit a literal value, press Enter to apply.")
+                                    .text_style(TextStyle::Small)
+                                    .color(p.text_disabled),
+                            );
+                        }
+
+                        ui.add_space(SPACE);
+                        inspector_events(ui, p, &node);
                     });
             });
+
+        if let Some(i) = commit {
+            self.commit_attr_edit(i);
+        }
     }
 
     /// CENTER = the DESIGN CANVAS (default) or the CODE editor, by `self.view`.
@@ -1668,14 +1804,13 @@ fn phone_notch(ui: &mut Ui, p: &Palette) {
 
 /// The INSPECTOR body for a selected node: the tag, the source location, then
 /// its ATTRIBUTES (name = value) and EVENTS (event -> handler). Read-only.
-fn inspector_body(ui: &mut Ui, p: &Palette, node: &UiNode, location: Option<&str>) {
-    let (tag, attrs, events) = match node {
-        UiNode::El { tag, attrs, events, .. } => (tag.as_str(), Some(attrs), Some(events)),
-        UiNode::Text { .. } => ("text", None, None),
-        UiNode::Raw { .. } => ("raw", None, None),
+/// Inspector header: the element tag chip + its source location.
+fn inspector_header(ui: &mut Ui, p: &Palette, node: &UiNode, location: Option<&str>) {
+    let tag = match node {
+        UiNode::El { tag, .. } => tag.as_str(),
+        UiNode::Text { .. } => "text",
+        UiNode::Raw { .. } => "raw",
     };
-
-    // Tag header — a brand chip with the element tag.
     ui.horizontal(|ui| {
         ui.label(RichText::new("◉").color(p.brand));
         ui.label(
@@ -1685,8 +1820,6 @@ fn inspector_body(ui: &mut Ui, p: &Palette, node: &UiNode, location: Option<&str
                 .color(p.text_primary),
         );
     });
-
-    // Source location (the selection bridge made visible).
     if let Some(loc) = location {
         ui.add_space(2.0);
         ui.label(
@@ -1699,40 +1832,14 @@ fn inspector_body(ui: &mut Ui, p: &Palette, node: &UiNode, location: Option<&str
     ui.add_space(SPACE);
     vsep_h(ui, p);
     ui.add_space(SPACE);
+}
 
-    // ATTRIBUTES (skip the internal data-mv-src bookkeeping attr).
-    ui.label(
-        RichText::new("Attributes")
-            .text_style(TextStyle::Small)
-            .strong()
-            .color(p.text_secondary),
-    );
-    ui.add_space(4.0);
-    let real_attrs: Vec<(&String, &String)> = attrs
-        .map(|m| m.iter().filter(|(k, _)| k.as_str() != "data-mv-src").collect())
-        .unwrap_or_default();
-    if real_attrs.is_empty() {
-        ui.label(
-            RichText::new("— none —")
-                .text_style(TextStyle::Small)
-                .color(p.text_disabled),
-        );
-    } else {
-        let card = Frame::new()
-            .fill(p.card)
-            .inner_margin(Margin::same(8))
-            .corner_radius(CornerRadius::same(RADIUS_CARD))
-            .stroke(Stroke { width: 1.0, color: p.stroke });
-        card.show(ui, |ui| {
-            for (k, v) in real_attrs {
-                kv_row(ui, p, k, v, "=");
-            }
-        });
-    }
-
-    ui.add_space(SPACE);
-
-    // EVENTS.
+/// Inspector EVENTS section (read-only: `event → handler`).
+fn inspector_events(ui: &mut Ui, p: &Palette, node: &UiNode) {
+    let events = match node {
+        UiNode::El { events, .. } => Some(events),
+        _ => None,
+    };
     ui.label(
         RichText::new("Events")
             .text_style(TextStyle::Small)
@@ -1759,13 +1866,44 @@ fn inspector_body(ui: &mut Ui, p: &Palette, node: &UiNode, location: Option<&str
             }
         });
     }
+}
 
-    ui.add_space(SPACE);
-    ui.label(
-        RichText::new("Read-only — editing arrives next slice.")
-            .text_style(TextStyle::Small)
-            .color(p.text_disabled),
-    );
+/// One EDITABLE property-grid row. A literal attr gets a TextEdit (press Enter to
+/// apply); an expr/concat/bind/bool attr is shown read-only (never corrupted).
+/// Returns true when the value was committed this frame.
+fn attr_field_row(ui: &mut Ui, p: &Palette, f: &mut AttrFieldUi) -> bool {
+    let mut committed = false;
+    ui.horizontal(|ui| {
+        ui.label(
+            RichText::new(&f.name)
+                .text_style(TextStyle::Small)
+                .strong()
+                .color(p.brand),
+        );
+        ui.label(
+            RichText::new("=")
+                .text_style(TextStyle::Small)
+                .color(p.text_disabled),
+        );
+        if f.editable {
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut f.value)
+                    .desired_width(150.0)
+                    .font(TextStyle::Small),
+            );
+            if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                committed = true;
+            }
+        } else {
+            ui.label(
+                RichText::new(&f.value)
+                    .monospace()
+                    .text_style(TextStyle::Small)
+                    .color(p.text_disabled),
+            );
+        }
+    });
+    committed
 }
 
 /// One inspector key/value row: a brand-tinted key, a separator, a mono value.
