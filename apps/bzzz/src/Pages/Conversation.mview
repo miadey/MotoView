@@ -79,7 +79,7 @@
                                 @if (showSender(m)) {
                                     <span class="wa-bubble-sender">@m.senderHandle</span>
                                 }
-                                <span class="wa-bubble-text" title="Stored ciphertext envelope — decrypted client-side">@m.ciphertext</span>
+                                <span class="wa-bubble-text" data-mv-decrypt="@(Messenger.envelopeFor(m, me))" title="End-to-end encrypted — decrypted in your browser">🔒</span>
                                 <span class="wa-bubble-meta">
                                     <span class="wa-bubble-time">@relTime(m)</span>
                                     @if (m.sender == me) {
@@ -93,12 +93,11 @@
             </div>
 
             <form class="wa-composer" @submit="sendMsg" secure>
-                <ValidationSummary />
                 <div class="wa-composer-row">
-                    <InputText name="draft" label="Type a message" bind="@draft" required />
+                    <textarea class="mv-textarea wa-composer-input" name="draft" data-mv-key="draft" data-mv-encrypt-to="@recipients" placeholder="Type a message" rows="1" required></textarea>
                     <Button kind="primary" type="submit">Send</Button>
                 </div>
-                <p class="wa-composer-note">🔒 In production this body is encrypted client-side (X25519 / AEAD) before sending; the canister stores only the ciphertext envelope.</p>
+                <p class="wa-composer-note">🔒 Encrypted in your browser with vetKeys (one envelope per recipient) before it leaves your device — the canister only ever stores ciphertext.</p>
             </form>
         </section>
     }
@@ -120,8 +119,8 @@
     var headerAvatar : Text = "🔒";
     var msgs : [Messenger.DmMessage] = [];
 
-    // Bound composer field.
-    var draft : Text = "";
+    // Space-joined member principals — the composer's encrypt-to recipient list.
+    var recipients : Text = "";
 
     func onLoad(ctx : Context) {
         me := ctx.caller;
@@ -130,6 +129,7 @@
         convos := Messenger.conversations(ctx.caller);
         member := Messenger.isMember(id, ctx.caller);
         if (member) {
+            recipients := Messenger.recipientList(id);
             // Title + subtitle: group name + member count, else peer handle + "online".
             switch (Messenger.directPeer(ctx.caller, id)) {
                 case (?p) {
@@ -195,38 +195,22 @@
         };
     };
 
+    // List previews are metadata-only by design: message BODIES are E2EE
+    // envelopes the server can't read, so the rail shows who/when + a lock,
+    // never plaintext. (The open thread decrypts in-browser via data-mv-decrypt.)
     func rowPreview(c : Messenger.Conversation) : Text {
         switch (Messenger.lastMessage(me, c.id)) {
             case null {
                 switch (c.kind) {
                     case (#Group) { Nat.toText(Messenger.memberCount(c.id)) # " members · encrypted" };
-                    case (#Direct) { "Direct message · encrypted" };
+                    case (#Direct) { "Encrypted conversation" };
                 };
             };
             case (?m) {
-                let body = previewBody(m.ciphertext);
-                switch (c.kind) {
-                    case (#Group) {
-                        let who = if (m.sender == me) "You" else m.senderHandle;
-                        who # ": " # body;
-                    };
-                    case (#Direct) {
-                        if (m.sender == me) "You: " # body else body;
-                    };
-                };
+                let who = if (m.sender == me) "You" else m.senderHandle;
+                who # ": 🔒 encrypted message";
             };
         };
-    };
-
-    func previewBody(t : Text) : Text {
-        if (Text.size(t) <= 38) { return t };
-        var out = "";
-        var i = 0;
-        for (ch in t.chars()) {
-            if (i < 36) { out #= Text.fromChar(ch) };
-            i += 1;
-        };
-        out # "…";
     };
 
     func rowTime(c : Messenger.Conversation) : Text { Messenger.relativeTime(c.lastAt) };
@@ -244,19 +228,43 @@
 
     // ---- composer handler -----------------------------------------------
 
-    func sendMsg(ctx : Context) : async () {
-        validate {
-            draft required "Type a message to send.";
+    func formGet(ctx : Context, k : Text) : Text {
+        for ((kk, vv) in ctx.form.vals()) { if (kk == k) { return vv } };
+        "";
+    };
+
+    // The composer field arrives already encrypted by the framework glue
+    // (data-mv-encrypt-to): newline-separated "<recipientPrincipal> <ciphertext>"
+    // lines — one IBE envelope per member. Parse it back into envelopes.
+    func parseEnvelopes(bundle : Text) : [(Text, Text)] {
+        var out : [(Text, Text)] = [];
+        for (line in Text.split(bundle, #char '\n')) {
+            var p : Text = "";
+            var c : Text = "";
+            var n : Nat = 0;
+            for (tok in Text.split(line, #char ' ')) {
+                if (n == 0) { p := tok } else if (n == 1) { c := tok };
+                n += 1;
+            };
+            if (p != "" and c != "") { out := Array.append(out, [(p, c)]) };
         };
-        // NOTE: a real client encrypts `draft` (X25519 + AEAD) into a base64
-        // envelope BEFORE calling send; here we store the text as the ciphertext
-        // field so the flow is honest end-to-end without a browser crypto stub.
+        out;
+    };
+
+    func sendMsg(ctx : Context) : async () {
+        let envs = parseEnvelopes(formGet(ctx, "draft"));
+        if (envs.size() == 0) {
+            toast("Type a message to send.");
+            return;
+        };
         let handle = Identity.handleOf(ctx.caller);
-        let id2 = Messenger.send(ctx.caller, id, handle, draft);
-        draft := "";
-        if (id2 == 0) {
+        let mid = Messenger.send(ctx.caller, id, handle, envs);
+        if (mid == 0) {
             toast("Couldn't send — you're not a member of this conversation.");
         } else {
+            // Refresh the stream so the new bubble (carrying MY envelope) renders
+            // and the glue decrypts it in place.
+            msgs := Messenger.messages(ctx.caller, id);
             scrollTo("#wa-thread-stream");
         };
     };
@@ -385,6 +393,11 @@
         padding: .7rem .9rem .55rem; }
     .wa-composer-row { display: flex; align-items: flex-end; gap: .6rem; }
     .wa-composer-row > :first-child { flex: 1; }
+    /* Raw composer textarea (carries data-mv-encrypt-to) styled like an input. */
+    .wa-composer-input { resize: none; min-height: 2.4rem; max-height: 8rem; padding: .55rem .75rem;
+        border: 1px solid var(--mv-border); border-radius: 999px; font: inherit; line-height: 1.3;
+        background: var(--mv-surface); color: var(--mv-text); box-sizing: border-box; }
+    .wa-composer-input:focus { outline: none; border-color: var(--bz-accent); }
     /* Accent-gradient the composer "Send" button. */
     .wa-composer-row .mv-btn {
         background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));

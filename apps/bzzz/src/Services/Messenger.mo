@@ -6,11 +6,13 @@
 /// framework's stateful-service convention: a service file exporting
 /// `public class <Name>()`.)
 ///
-/// IMPORTANT: This service stores CIPHERTEXT ONLY. Each `DmMessage.ciphertext`
-/// is a base64 E2EE envelope produced by the client; the canister NEVER
-/// decrypts it. Real cryptography (X25519 / AEAD) runs client-side against the
-/// public-key bundles served by the Keys service. The on-chain part is purely a
-/// key directory plus a ciphertext relay + read-receipt / typing bookkeeping.
+/// IMPORTANT: This service stores CIPHERTEXT ONLY. Each `DmMessage` carries
+/// `envelopes` — one base64 vetKeys-IBE ciphertext PER recipient principal,
+/// produced by the client (the framework's `data-mv-encrypt-to` glue). The
+/// canister NEVER decrypts: it relays opaque envelopes and keeps read-receipt /
+/// typing metadata. A recipient decrypts only the envelope addressed to THEIR
+/// principal, using a vetKey the IC will only derive for that same principal —
+/// so per-principal key derivation IS the access control (no shared secret).
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Text "mo:base/Text";
@@ -45,7 +47,10 @@ module {
     sender : Principal;
     senderHandle : Text; // handle snapshot supplied by the page at send time
     at : Int;
-    ciphertext : Text; // base64 E2EE envelope — opaque to the canister
+    // One opaque base64 IBE envelope per recipient: (recipientPrincipalText,
+    // ciphertext). The same plaintext encrypted separately to each member's
+    // principal, so each can decrypt their own copy. Never decrypted here.
+    envelopes : [(Text, Text)];
     readBy : [Principal];
   };
 
@@ -153,10 +158,13 @@ module {
 
     // ---- messages -------------------------------------------------------
 
-    /// Append a ciphertext message from `caller` to `convoId`; bumps `lastAt`.
-    /// `senderHandle` is a display snapshot supplied by the page (from Identity).
-    /// Returns 0 if the caller is not a member of the conversation.
-    public func send(caller : Principal, convoId : Nat, senderHandle : Text, ciphertext : Text) : Nat {
+    /// Append a per-recipient envelope message from `caller` to `convoId`;
+    /// bumps `lastAt`. `envelopes` is the client's `(recipientPrincipal, cipher)`
+    /// fan-out — stored verbatim, never inspected. `senderHandle` is a display
+    /// snapshot supplied by the page (from Identity). Returns 0 if the caller is
+    /// not a member, or if `envelopes` is empty (nothing to store).
+    public func send(caller : Principal, convoId : Nat, senderHandle : Text, envelopes : [(Text, Text)]) : Nat {
+      if (envelopes.size() == 0) { return 0 };
       switch (convos.get(convoId)) {
         case null { 0 };
         case (?c) {
@@ -170,7 +178,7 @@ module {
             sender = caller;
             senderHandle;
             at = now;
-            ciphertext;
+            envelopes;
             readBy = [caller]; // sender has implicitly read their own message
           };
           let buf = switch (msgs.get(convoId)) {
@@ -257,6 +265,32 @@ module {
       switch (msgs.get(convoId)) {
         case (?b) { if (b.size() == 0) null else ?b.get(b.size() - 1) };
         case null { null };
+      };
+    };
+
+    /// The base64 IBE envelope a given `viewer` can decrypt from a message, i.e.
+    /// the one encrypted to their principal. "" if the viewer has no envelope
+    /// (e.g. a message sent before they joined). The page hands this to the
+    /// client's `data-mv-decrypt`, which unwraps it with the viewer's vetKey.
+    public func envelopeFor(m : DmMessage, viewer : Principal) : Text {
+      let vt = Principal.toText(viewer);
+      for ((p, ct) in m.envelopes.vals()) { if (p == vt) { return ct } };
+      "";
+    };
+
+    /// The conversation's member principals as space-joined text — the recipient
+    /// list the page feeds to `data-mv-encrypt-to` so the composer fans out one
+    /// envelope per member. "" for unknown conversations.
+    public func recipientList(convoId : Nat) : Text {
+      switch (convos.get(convoId)) {
+        case null { "" };
+        case (?c) {
+          var out = "";
+          for (m in c.members.vals()) {
+            out := (if (out == "") "" else out # " ") # Principal.toText(m);
+          };
+          out;
+        };
       };
     };
 

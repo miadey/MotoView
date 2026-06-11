@@ -113,6 +113,14 @@ On submit, the glue IBE-encrypts every `[data-mv-encrypt]` field (so the caniste
 
 > **Verified end to end** in a real browser on a deployed canister: a note typed into the vault is encrypted before submit (the served HTML contains only the `IbeCiphertext`, never the plaintext), stored on-chain, then decrypted back to the exact text locally on render — `ok: true`.
 
+### Multiple readers: `data-mv-encrypt-to` (fan-out)
+
+`data-mv-encrypt` encrypts to the *session caller* — the single-reader vault case. For a value that **two or more** principals must read (a direct message, a group chat), mark the field `data-mv-encrypt-to="<space-separated principal texts>"` instead. On submit the glue produces **one IBE envelope per recipient principal** and sets the field value to newline-joined `"<principal> <ciphertext>"` lines. Your handler parses that into `[(recipientPrincipal, ciphertext)]` and stores it; on render, hand each viewer the envelope addressed to *their* principal via `data-mv-decrypt`.
+
+No shared key and no canister-side membership gate are needed: the IC only ever derives a principal's vetKey for *that* principal (cookie-bound, Pillar 1), so a recipient can decrypt only the envelope addressed to them — per-principal derivation **is** the access control. Cost: ciphertext grows linearly with the recipient set (ideal for DMs and small groups). The bzzz messenger (`apps/bzzz`) uses exactly this.
+
+> **Verified** against a live local canister with two real Internet Identity principals A and B: an envelope encrypted to A decrypts to the original plaintext under A's vetKey and **throws** under B's (and vice-versa) — using the same `motoview-crypto.wasm` and cookie-bound `/_motoview/vetkd/derive` endpoint the browser uses.
+
 ---
 
 ## End-to-end data flow

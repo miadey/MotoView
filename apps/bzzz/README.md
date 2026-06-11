@@ -32,10 +32,13 @@ It is a port of the C#/Wasp `bzzz` app onto MotoView, dogfooding the framework.
   answers, Latest/New/Top/Categories tabs. — `Forum`
 - **Feed (X):** posts, follows, reposts, likes, replies, home timeline. — `Feed`
 - **Messages (WhatsApp):** 1:1 + group conversations with read receipts and
-  typing; messages travel in a ciphertext-envelope field and a public key
-  directory (IK/SPK/OTPK per device) exists for client-side X25519/AEAD —
-  but the browser client does **not** encrypt yet, so bodies are stored as
-  plaintext today (honest limitation). — `Messenger`, `Keys`
+  typing, **end-to-end encrypted in the browser** with vetKeys IBE. The
+  composer fans out one ciphertext envelope per recipient principal (the
+  framework's `data-mv-encrypt-to` glue); the canister stores only ciphertext
+  and never sees plaintext; each member decrypts only the envelope addressed
+  to them — using a vetKey the IC releases solely to that principal, so
+  per-principal key derivation *is* the access control. List previews are
+  metadata-only by design. — `Messenger`
 - **Status:** 24-hour ephemeral colored statuses. — `Status`
 - **Identity & Admin:** handle/avatar/bio directory; admin allowlist. — `Identity`, `Admin`
 - **PWA + native shells:** installable web PWA (manifest + service worker served

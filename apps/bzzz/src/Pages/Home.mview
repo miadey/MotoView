@@ -135,7 +135,7 @@
         } else {
             <p class="bz-dash-empty">No conversations yet — say hi to someone.</p>
         }
-        <p class="bz-dash-foot">This card shows metadata only — who and when, never message bodies. (Client-side E2EE for the bodies themselves is designed but not wired in yet.)</p>
+        <p class="bz-dash-foot">Metadata only — who and when, never bodies. Messages are end-to-end encrypted; open a conversation to decrypt them in your browser.</p>
     </section>
 
     <section class="bz-card bz-card-accent bz-dash-card" style="--bz-accent:#f59e0b;--bz-accent-2:#ec4899">

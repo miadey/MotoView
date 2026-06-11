@@ -143,41 +143,21 @@
         };
     };
 
-    // Last-message preview: sender prefix for groups + the (ciphertext) body.
-    // Mirrors what the thread renders as the message body; no decrypt claim.
+    // Metadata-only preview: message BODIES are E2EE envelopes the server can't
+    // read, so the list shows who/when + a lock, never plaintext.
     func rowPreview(c : Messenger.Conversation) : Text {
         switch (Messenger.lastMessage(me, c.id)) {
             case null {
                 switch (c.kind) {
                     case (#Group) { Nat.toText(Messenger.memberCount(c.id)) # " members · encrypted" };
-                    case (#Direct) { "Direct message · encrypted" };
+                    case (#Direct) { "Encrypted conversation" };
                 };
             };
             case (?m) {
-                let body = previewBody(m.ciphertext);
-                switch (c.kind) {
-                    case (#Group) {
-                        let who = if (m.sender == me) "You" else m.senderHandle;
-                        who # ": " # body;
-                    };
-                    case (#Direct) {
-                        if (m.sender == me) "You: " # body else body;
-                    };
-                };
+                let who = if (m.sender == me) "You" else m.senderHandle;
+                who # ": 🔒 encrypted message";
             };
         };
-    };
-
-    // Truncate a preview so long bodies don't overflow the list row.
-    func previewBody(t : Text) : Text {
-        if (Text.size(t) <= 38) { return t };
-        var out = "";
-        var i = 0;
-        for (ch in t.chars()) {
-            if (i < 36) { out #= Text.fromChar(ch) };
-            i += 1;
-        };
-        out # "…";
     };
 
     func rowTime(c : Messenger.Conversation) : Text { Messenger.relativeTime(c.lastAt) };
