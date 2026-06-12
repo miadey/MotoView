@@ -22,38 +22,20 @@
            NO centered max-width box, NO empty left margin (matches Discourse).
            =================================================================== */
 
-        /* ---- Top bar ---- */
-        .fl-topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center;
-            gap: var(--spacingHorizontalM); height: 52px; box-sizing: border-box;
-            padding: 0 var(--spacingHorizontalL);
-            background: var(--colorNeutralBackground1); border-bottom: 1px solid var(--colorNeutralStroke2);
-            backdrop-filter: saturate(1.4) blur(2px); }
+        /* ---- Top bar: the SHARED AppBar (.mv-appbar, 48px) — same header as the
+           rest of Bzzz. The forum keeps a burger button INSIDE it to toggle its
+           category sidebar on mobile. ---- */
+        .bz-brand-logo { font-size: 1.15rem; }
         .fl-burger { display: none; }
         .fl-burger-btn { display: none; align-items: center; justify-content: center;
             width: 34px; height: 34px; border-radius: var(--borderRadiusMedium); cursor: pointer;
             color: var(--colorNeutralForeground2); font-size: 1.15rem; user-select: none; }
         .fl-burger-btn:hover { background: var(--colorNeutralBackground3); }
-        .fl-brand { display: inline-flex; align-items: center; gap: var(--spacingHorizontalSNudge);
-            text-decoration: none; color: var(--colorNeutralForeground1); font-weight: var(--fontWeightBold);
-            font-size: var(--fontSizeBase400); letter-spacing: -.01em; white-space: nowrap; }
-        .fl-brand-logo { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
-            background: var(--colorBrandBackground); color: #fff; font-size: 1rem; }
-        .fl-search { flex: 1; max-width: 520px; display: flex; align-items: center; gap: var(--spacingHorizontalXS);
-            background: var(--colorNeutralBackground3); border: 1px solid var(--colorNeutralStroke2);
-            border-radius: var(--borderRadiusCircular, 999px); padding: 0 var(--spacingHorizontalM);
-            height: 34px; box-sizing: border-box; }
-        .fl-search:focus-within { border-color: var(--colorBrandStroke1); background: var(--colorNeutralBackground1); }
-        .fl-search-ico { color: var(--colorNeutralForeground4); font-size: .95rem; }
-        .fl-search input { flex: 1; border: none; outline: none; background: transparent; min-width: 0;
-            color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); font-family: inherit; }
-        .fl-search input::placeholder { color: var(--colorNeutralForeground4); }
-        .fl-topbar-spacer { flex: 0 1 auto; }
-        .fl-topbar-actions { display: flex; align-items: center; gap: var(--spacingHorizontalS); white-space: nowrap; }
 
         /* ---- Shell layout: sidebar | content | (optional) right rail ---- */
         .fl-shell { display: flex; align-items: flex-start; }
 
-        .fl-sidebar { position: sticky; top: 52px; height: calc(100vh - 52px); width: 250px;
+        .fl-sidebar { position: sticky; top: 48px; height: calc(100vh - 48px); width: 250px;
             flex: 0 0 250px; box-sizing: border-box; overflow-y: auto; padding: var(--spacingVerticalM) 0 var(--spacingVerticalXXL);
             background: var(--colorNeutralBackground1); border-right: 1px solid var(--colorNeutralStroke2); }
 
@@ -97,7 +79,7 @@
         .fl-sb-foot button:hover { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground1); }
 
         /* ---- Content + right rail ---- */
-        .fl-content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
+        .fl-content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
         .fl-body { flex: 1; display: flex; align-items: flex-start; gap: 0; width: 100%; min-width: 0; }
 
         /* THE FIX: left-aligned, full-width content.
@@ -107,8 +89,8 @@
         .fl-main { flex: 1; min-width: 0; box-sizing: border-box; width: 100%;
             padding: var(--spacingVerticalXL) 40px var(--spacingVerticalXL) var(--spacingHorizontalXXL); }
 
-        .fl-rail { flex: 0 0 160px; box-sizing: border-box; position: sticky; top: 52px;
-            height: calc(100vh - 52px); padding: var(--spacingVerticalL) var(--spacingHorizontalM); }
+        .fl-rail { flex: 0 0 160px; box-sizing: border-box; position: sticky; top: 48px;
+            height: calc(100vh - 48px); padding: var(--spacingVerticalL) var(--spacingHorizontalM); }
         .fl-rail:empty { display: none; }
         .fl-foot { text-align: center; color: var(--colorNeutralForeground4); font-size: var(--fontSizeBase200);
             padding: var(--spacingVerticalL) var(--spacingHorizontalL) var(--spacingVerticalXXL); }
@@ -120,17 +102,15 @@
         /* ---- CSS-only responsive: collapse sidebar under 900px via the hamburger checkbox ---- */
         @media (max-width: 900px) {
             .fl-burger-btn { display: inline-flex; }
-            .fl-sidebar { position: fixed; top: 52px; left: 0; z-index: 35; transform: translateX(-100%);
+            .fl-sidebar { position: fixed; top: 48px; left: 0; z-index: 35; transform: translateX(-100%);
                 transition: transform var(--durationNormal, .2s) var(--curveEasyEase, ease);
                 box-shadow: var(--shadow16); }
             .fl-burger:checked ~ .fl-shell .fl-sidebar { transform: translateX(0); }
             /* still left-aligned + full-width, just symmetric 16px gutters */
             .fl-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
             .fl-rail { display: none; }
-            .fl-search { max-width: none; }
         }
         @media (max-width: 560px) {
-            .fl-brand-text { display: none; }
             .fl-main { padding: 16px; }
         }
     </style>
@@ -144,32 +124,24 @@
     <!-- CSS-only off-canvas toggle: the burger checkbox controls the sidebar under 900px -->
     <input type="checkbox" id="fl-burger" class="fl-burger" hidden>
 
-    <header class="fl-topbar">
-        <label class="fl-burger-btn" for="fl-burger" aria-label="Toggle menu">☰</label>
-        <a class="fl-brand" href="/">
-            <span class="fl-brand-logo">🐝</span>
-            <span class="fl-brand-text">Bzzz Forum</span>
-        </a>
-        <form class="fl-search" action="/forum" method="get" role="search">
-            <span class="fl-search-ico" aria-hidden="true">🔍</span>
-            <input type="search" name="q" placeholder="Search topics, categories, tags…" aria-label="Search the forum">
-        </form>
-        <span class="fl-topbar-spacer"></span>
-        <div class="fl-topbar-actions">
-            <ThemePicker />
-            <details class="mv-acct" data-mv-authed style="display:none">
-                <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
-                <div class="mv-acct-menu">
-                    <a class="mv-acct-item" href="/me">👤 My profile</a>
-                    <a class="mv-acct-item" href="/forum">🗨️ Forum home</a>
-                    <a class="mv-acct-item" href="/messages">✉️ Messages</a>
-                    <a class="mv-acct-item" href="/admin">🛡️ Admin console</a>
-                    <div class="mv-acct-sep"></div>
-                    <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>⎋ Sign out</button>
-                </div>
-            </details>
-        </div>
-    </header>
+    <AppBar>
+        <label class="fl-burger-btn" for="fl-burger" aria-label="Toggle forum menu">☰</label>
+        <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
+        <span class="mv-appbar-spacer"></span>
+        <ThemePicker />
+        <details class="mv-acct" data-mv-authed style="display:none">
+            <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
+            <div class="mv-acct-menu">
+                <a class="mv-acct-item" href="/me">👤 My profile</a>
+                <a class="mv-acct-item" href="/status">🟢 My status</a>
+                <a class="mv-acct-item" href="/messages">✉️ Messages</a>
+                <a class="mv-acct-item" href="/admin">🛡️ Admin console</a>
+                <a class="mv-acct-item" href="/about">ℹ️ About Bzzz</a>
+                <div class="mv-acct-sep"></div>
+                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>⎋ Sign out</button>
+            </div>
+        </details>
+    </AppBar>
 
     <div class="fl-shell">
         <aside class="fl-sidebar">
@@ -281,7 +253,7 @@
                 <div class="fl-rail" aria-hidden="true"></div>
             </div>
             <footer class="fl-foot">
-                Bzzz Forum — a Discourse-style board built on MotoView, running entirely on the Internet Computer. No frontend JavaScript framework.
+                🐝 Bzzz · <a href="/about" style="color:inherit;text-decoration:underline">About</a>
             </footer>
         </div>
     </div>

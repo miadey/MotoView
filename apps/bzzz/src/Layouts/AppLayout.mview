@@ -159,7 +159,7 @@
                 @yield
             </main>
             <footer class="bz-foot">
-                Bzzz — a Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on the Internet Computer. No frontend JavaScript framework.
+                🐝 Bzzz · <a href="/about" style="color:inherit;text-decoration:underline">About</a>
             </footer>
         </div>
     </div>
