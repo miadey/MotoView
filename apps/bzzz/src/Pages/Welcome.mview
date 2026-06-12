@@ -1,29 +1,55 @@
 @page "/welcome"
 @layout WelcomeLayout
 @title "Welcome to Bzzz"
-@description "Sign in with Internet Identity and pick your handle to join Bzzz."
+@description "Sign in with Internet Identity to join Bzzz — communities, a feed, forums and end-to-end-encrypted messages, all in one place."
 
 @if (not authed) {
-    <p class="wl-sub">Your account is your <strong>Internet Identity</strong> — no email, no password. One click and you're in.</p>
-    <button data-mv-signin class="mv-btn mv-btn-primary wl-cta" type="button">Sign in with Internet Identity</button>
-    <p class="wl-fine">New to the Internet Computer? You can create an Internet Identity during sign-in.</p>
+    <main class="wl">
+        <section class="wl-left">
+            <a class="wl-logo" href="/welcome"><span class="wl-logo-mark">🐝</span> Bzzz</a>
+            <h1 class="wl-title">One app.<br>Every conversation.</h1>
+            <p class="wl-lede">Communities, a public feed, forums and end-to-end-encrypted messages — all in one place, all yours.</p>
+            <div class="wl-actions">
+                <button data-mv-signin class="wl-signin" type="button">
+                    <span class="wl-signin-ico" aria-hidden="true">⬡</span> Sign in with Internet Identity
+                </button>
+                <p class="wl-note">No email, no password — your account <em>is</em> your Internet Identity. New here? You can create one in seconds during sign-in.</p>
+            </div>
+        </section>
+        <aside class="wl-art" aria-hidden="true">
+            <svg viewBox="0 0 400 420" class="wl-honey" preserveAspectRatio="xMidYMid meet">
+                <polygon class="wl-hex wl-hex-1" points="200,10 26.8,110 26.8,310 200,410 373.2,310 373.2,110"></polygon>
+                <polygon class="wl-hex wl-hex-2" points="200,46 58,131 58,289 200,374 342,289 342,131"></polygon>
+            </svg>
+        </aside>
+    </main>
 } else if bound {
-    <h1 class="wl-h">You're in, @@@boundHandle</h1>
-    <p class="wl-sub">Taking you into Bzzz…</p>
-    <a class="mv-btn mv-btn-primary wl-cta" href="/">Enter Bzzz →</a>
+    <main class="wl-center">
+        <div class="wl-card">
+            <div class="wl-card-mark">🐝</div>
+            <h1 class="wl-card-h">You're in, @@@boundHandle</h1>
+            <p class="wl-card-sub">Taking you into Bzzz…</p>
+            <a class="wl-signin" href="/">Enter Bzzz →</a>
+        </div>
+    </main>
 } else {
     <!-- Fallback only: onLoad auto-claims a handle for every signed-in caller,
          so this branch renders only if that bind failed (e.g. invalid derived
          handle — not expected in practice). -->
-    <h1 class="wl-h">Pick your handle</h1>
-    <p class="wl-sub">This is your name everywhere in Bzzz — feed, forum, servers and messages — linked to your Internet Identity.</p>
-    <form @submit="claim" secure class="wl-form">
-        <ValidationSummary />
-        <InputText name="handle" label="Handle" bind="@handle" required />
-        <p class="wl-hint">2–20 characters · lowercase letters, numbers and underscores · starts with a letter.</p>
-        <button class="mv-btn mv-btn-primary wl-cta" type="submit">Create my handle</button>
-    </form>
-    <p class="wl-fine">Signed in as <code class="wl-pid">@principalText</code></p>
+    <main class="wl-center">
+        <div class="wl-card">
+            <div class="wl-card-mark">🐝</div>
+            <h1 class="wl-card-h">Pick your handle</h1>
+            <p class="wl-card-sub">This is your name everywhere in Bzzz — feed, forum, servers and messages.</p>
+            <form @submit="claim" secure class="wl-cardform">
+                <ValidationSummary />
+                <InputText name="handle" label="Handle" bind="@handle" required />
+                <p class="wl-hint">2–20 characters · lowercase letters, numbers and underscores · starts with a letter.</p>
+                <button class="wl-signin" type="submit">Create my handle</button>
+            </form>
+            <p class="wl-note">Signed in as <code class="wl-pid">@principalText</code></p>
+        </div>
+    </main>
 }
 
 @code {
@@ -79,15 +105,82 @@
 }
 
 <style>
-    .wl-h { margin: .4rem 0 .3rem; font-size: 1.4rem; letter-spacing: -.02em; }
-    .wl-sub { color: var(--colorNeutralForeground3); margin: .2rem 0 1.2rem; font-size: .95rem; line-height: 1.5; }
-    .wl-cta { width: 100%; justify-content: center; font-size: 1rem; padding: .7rem 1rem; }
-    .wl-fine { color: var(--colorNeutralForeground4); font-size: .8rem; margin: 1.1rem 0 0; }
-    .wl-form { text-align: left; margin: 0; }
-    .wl-form .wl-cta { margin-top: .6rem; }
-    .wl-hint { color: var(--colorNeutralForeground3); font-size: .8rem; margin: .35rem 0 0; }
-    form { margin: 0; }
-    .wl-pid { font-family: var(--fontFamilyMonospace, ui-monospace, Menlo, monospace); font-size: .72rem; background: var(--colorNeutralBackground3); padding: .12rem .4rem; border-radius: 4px; overflow-wrap: anywhere; }
+    /* ============ split hero (signed-out front door) ============ */
+    .wl { min-height: 100vh; box-sizing: border-box; position: relative; overflow: hidden;
+        display: grid; grid-template-columns: 1.08fr .92fr; align-items: center; gap: 1rem; }
+
+    .wl-left { position: relative; z-index: 2; max-width: 640px;
+        padding: clamp(2rem, 6vw, 6rem) clamp(1.5rem, 5vw, 4rem);
+        animation: wl-rise .75s cubic-bezier(.2,.7,.2,1) both; }
+
+    .wl-logo { display: inline-flex; align-items: center; gap: .5rem; text-decoration: none;
+        color: #fff; font-weight: 800; font-size: 1.15rem; letter-spacing: -.01em; opacity: .92;
+        margin-bottom: clamp(1.6rem, 6vh, 3.4rem); }
+    .wl-logo-mark { font-size: 1.45rem; line-height: 1; filter: drop-shadow(0 2px 10px rgba(245,166,35,.4)); }
+
+    .wl-title { margin: 0 0 1.15rem; color: #fff; font-weight: 800; letter-spacing: -.045em;
+        line-height: .96; font-size: clamp(2.7rem, 6.6vw, 5.2rem); }
+    .wl-lede { margin: 0 0 2.3rem; max-width: 32ch; color: #9aa4b4;
+        font-size: clamp(1rem, 1.35vw, 1.2rem); line-height: 1.5; }
+
+    .wl-signin { display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+        width: 100%; max-width: 410px; box-sizing: border-box; cursor: pointer;
+        padding: .98rem 1.5rem; border-radius: 999px; border: none; text-decoration: none;
+        font-family: inherit; font-size: 1.03rem; font-weight: 700; letter-spacing: -.01em;
+        color: #07090e; background: #fff;
+        box-shadow: 0 12px 34px -14px rgba(255,255,255,.5);
+        transition: transform .16s ease, box-shadow .22s ease, background .22s ease; }
+    .wl-signin:hover { transform: translateY(-2px);
+        background: linear-gradient(180deg, #fff, #eef3fb);
+        box-shadow: 0 18px 44px -14px color-mix(in srgb, var(--colorBrandBackground) 75%, transparent); }
+    .wl-signin:active { transform: translateY(0); }
+    .wl-signin-ico { font-size: 1.15rem; line-height: 1; color: var(--colorBrandBackground); }
+
+    .wl-note { margin: 1.15rem 0 0; max-width: 410px; color: #707b8d; font-size: .82rem; line-height: 1.55; }
+    .wl-note em { color: #aab3c2; font-style: normal; font-weight: 600; }
+
+    /* ---- honeycomb mark, bleeding off the right edge (the X-style brand mark) ---- */
+    .wl-art { position: relative; z-index: 1; height: 100%; min-height: 100vh; }
+    .wl-honey { position: absolute; top: 50%; right: -14%; transform: translateY(-50%);
+        height: min(125vh, 1180px); width: auto; opacity: .9;
+        animation: wl-float 14s ease-in-out infinite; }
+    .wl-hex { fill: none; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+    .wl-hex-1 { stroke: rgba(255,255,255,.10); }
+    .wl-hex-2 { stroke: color-mix(in srgb, var(--colorBrandBackground) 50%, transparent); }
+
+    @keyframes wl-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    @keyframes wl-float { 0%,100% { transform: translateY(-50%); } 50% { transform: translateY(-53%); } }
+
+    /* ============ centered card (post-sign-in / fallback states) ============ */
+    .wl-center { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        padding: 2rem 1rem; box-sizing: border-box; }
+    .wl-card { width: 100%; max-width: 420px; box-sizing: border-box; text-align: center;
+        background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.09);
+        border-radius: 24px; padding: 2.5rem 2rem; backdrop-filter: blur(10px);
+        box-shadow: 0 40px 90px -40px rgba(0,0,0,.8); animation: wl-rise .55s ease both; }
+    .wl-card-mark { font-size: 2.7rem; line-height: 1; filter: drop-shadow(0 3px 14px rgba(245,166,35,.4)); }
+    .wl-card-h { margin: .55rem 0 .35rem; color: #fff; font-size: 1.55rem; font-weight: 800; letter-spacing: -.025em; }
+    .wl-card-sub { margin: 0 0 1.35rem; color: #9aa4b4; font-size: .96rem; line-height: 1.5; }
+    .wl-card .wl-signin { margin-top: .4rem; }
+    .wl-cardform { text-align: left; margin: 0; }
+    .wl-cardform .wl-signin { margin-top: .7rem; }
+    .wl-hint { color: #707b8d; font-size: .8rem; margin: .35rem 0 0; }
+    .wl-pid { font-family: var(--fontFamilyMonospace, ui-monospace, Menlo, monospace); font-size: .72rem;
+        background: rgba(255,255,255,.07); padding: .12rem .4rem; border-radius: 4px; overflow-wrap: anywhere; }
+    /* dark-fit the framework input used in the fallback */
+    .wl-card .mv-input, .wl-card .mv-textarea { background: rgba(255,255,255,.06); color: #fff;
+        border: 1px solid rgba(255,255,255,.14); }
+    .wl-card .mv-field label { color: #aab3c2; }
+
+    @media (max-width: 880px) {
+        .wl { grid-template-columns: 1fr; }
+        .wl-art { position: absolute; inset: 0; min-height: 0; opacity: .45; }
+        .wl-honey { right: -34%; height: 92vh; }
+        .wl-left { padding: clamp(1.8rem, 9vw, 3rem); }
+        .wl-lede, .wl-signin, .wl-note { max-width: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .wl-left, .wl-card { animation: none; }
+        .wl-honey { animation: none; }
+    }
 </style>
-
-
