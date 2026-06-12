@@ -855,7 +855,7 @@ module {
         d := Text.replace(
           d,
           #text "<head>",
-          "<head><script>(function(){try{var m=document.cookie.match(/(?:^|; )mv_theme=(web-light|web-dark|teams-light|teams-dark|hc|light|dark)/);if(m)document.documentElement.setAttribute('data-theme',m[1]);}catch(e){}})();</script>",
+          "<head><script>(function(){try{var m=document.cookie.match(/(?:^|; )mv_theme=(web-light|web-dark|teams-light|teams-dark|material-light|material-dark|hc|light|dark)/);if(m)document.documentElement.setAttribute('data-theme',m[1]);}catch(e){}})();</script>",
         );
       };
       // PWA: actually LINK the web manifest (it is served at /manifest.webmanifest

@@ -257,7 +257,7 @@ and **100** in dark.
 
 ### Apply a built-in theme package
 
-The framework ships five ready-made, accessibility-checked presets (WCAG-AA
+The framework ships seven ready-made, accessibility-checked presets (WCAG-AA
 contrast). Apply one by name:
 
 ```razor
@@ -326,7 +326,7 @@ by cookie, so the theme has to be applied client-side from the cookie):
 
 ```html
 <script>(function(){try{var m=document.cookie.match(
-  /(?:^|; )mv_theme=(web-light|web-dark|teams-light|teams-dark|hc|light|dark)/);
+  /(?:^|; )mv_theme=(web-light|web-dark|teams-light|teams-dark|material-light|material-dark|hc|light|dark)/);
   if(m)document.documentElement.setAttribute('data-theme',m[1]);}catch(e){}})();</script>
 ```
 
@@ -343,7 +343,7 @@ like the Fluent UI docs:
 <ThemePicker />
 ```
 
-It offers the five official themes:
+It offers the seven official themes:
 
 | Picker option | `data-theme` key | Brand |
 |---|---|---|
@@ -351,6 +351,8 @@ It offers the five official themes:
 | **Web Dark** | `web-dark` | Communication blue on the dark base |
 | **Teams Light** | `teams-light` | Teams purple (`#5b5fc7`) on the light base |
 | **Teams Dark** | `teams-dark` | Teams purple on the dark base |
+| **Material Light** | `material-light` | Google Material — white surfaces, Google blue (`#0b57d0`), Roboto, M3 rounder shape |
+| **Material Dark** | `material-dark` | Google Material — `#121212` base + elevated cards, lighter blue (`#8ab4f8`) |
 | **High Contrast** | `hc` | black / white / yellow (cyan hover) |
 
 **How it works end to end:**
