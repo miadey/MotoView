@@ -355,26 +355,39 @@
             channelName minLength 2 "Channel name must be at least 2 characters.";
         };
         let sid = paramNat(ctx, "id");
+        // Permission FIRST (before creating an orphan room): a moderator of THIS
+        // server, OR global staff acting cross-scope. Re-checked here because
+        // events dispatch even when the form isn't rendered.
+        let serverMod = Servers.canModerate(sid, ctx.caller);
+        if (not (serverMod or Admin.isMod(ctx.caller))) {
+            toast("You don't have permission to add a channel here.");
+            return;
+        };
         let newRid = Chat.createRoom(channelName, sid);
         if (newRid == 0) {
             toast("Pick a valid channel name (a-z, 0-9, - or _).");
             return;
         };
-        ignore Servers.addChannel(ctx.caller, sid, newRid);
+        // Attach via the server-mod path, or the privileged global-staff path.
+        let attached = if (serverMod) { Servers.addChannel(ctx.caller, sid, newRid) }
+                       else { Servers.forceAddChannel(sid, newRid) };
+        if (not attached) { toast("Couldn't add the channel."); return; };
         channelName := "";
         toast("Channel created.");
     };
 
     func lock(ctx : Context, rid : Nat) : async () {
         let sid = paramNat(ctx, "id");
-        ignore Servers.lock(ctx.caller, sid, rid, true);
-        toast("Channel locked.");
+        let ok = if (Servers.canModerate(sid, ctx.caller)) { Servers.lock(ctx.caller, sid, rid, true) }
+                 else if (Admin.isMod(ctx.caller)) { Servers.forceLock(rid, true) } else { false };
+        if (ok) { toast("Channel locked.") } else { toast("You don't have permission to lock channels here.") };
     };
 
     func unlock(ctx : Context, rid : Nat) : async () {
         let sid = paramNat(ctx, "id");
-        ignore Servers.lock(ctx.caller, sid, rid, false);
-        toast("Channel unlocked.");
+        let ok = if (Servers.canModerate(sid, ctx.caller)) { Servers.lock(ctx.caller, sid, rid, false) }
+                 else if (Admin.isMod(ctx.caller)) { Servers.forceLock(rid, false) } else { false };
+        if (ok) { toast("Channel unlocked.") } else { toast("You don't have permission to unlock channels here.") };
     };
 
     func makeMod(ctx : Context, targetText : Text) : async () {

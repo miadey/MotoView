@@ -263,6 +263,27 @@ module {
       };
     };
 
+    /// Privileged channel attach — NO server-level permission check; the PAGE
+    /// gates it (a global Moderator+ acting on a server they don't moderate).
+    /// Mirrors addChannel without the `canModerate` gate.
+    public func forceAddChannel(serverId : Nat, roomId : Nat) : Bool {
+      switch (servers_.get(serverId)) {
+        case null { false };
+        case (?srv) {
+          if (containsNat(srv.channelIds, roomId)) { return true };
+          servers_.put(serverId, { srv with channelIds = appendNat(srv.channelIds, roomId) });
+          true;
+        };
+      };
+    };
+
+    /// Privileged channel lock/unlock — NO permission check; the PAGE gates it.
+    /// (`locks` is keyed globally by roomId, so no serverId is needed.)
+    public func forceLock(roomId : Nat, on : Bool) : Bool {
+      if (on) { locks.put(roomId, true) } else { locks.delete(roomId) };
+      true;
+    };
+
     /// Privileged delete — NO caller authorization (the page gates on a global
     /// Admin/SuperAdmin). Mirrors deleteServer without the owner check.
     public func forceDelete(serverId : Nat) : Bool {
