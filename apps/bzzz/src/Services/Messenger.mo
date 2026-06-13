@@ -70,6 +70,10 @@ module {
     // Typing signals older than this (nanoseconds) are considered stale: 6s.
     let TYPING_TTL : Int = 6_000_000_000;
 
+    // Max stored messages per conversation (FIFO; oldest dropped past this), so
+    // state + read-path cost are bounded regardless of total messages sent.
+    let MAX_PER_CONVO : Nat = 1000;
+
     // ---- conversation creation ------------------------------------------
 
     /// Start (or reuse) a 1:1 conversation between `caller` and `peer`.
@@ -190,6 +194,12 @@ module {
             };
           };
           buf.add(m);
+          // FIFO retention cap: bound each conversation's stored messages so the
+          // service's state (the largest + fastest-growing — per-recipient
+          // ciphertext envelopes) cannot grow without limit, and so read paths
+          // (messages/markRead/unreadCount) stay O(MAX_PER_CONVO) instead of O(all
+          // messages ever sent). Drop the oldest once over capacity.
+          while (buf.size() > MAX_PER_CONVO) { ignore buf.remove(0) };
           convos.put(convoId, { c with lastAt = now });
           // sending clears the sender's typing flag for this convo
           clearTyping(convoId, caller);
