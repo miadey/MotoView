@@ -166,9 +166,9 @@
         border-radius: var(--borderRadiusMedium); }
 
     /* ---- shared square chip ---- */
-    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
+    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 2px; flex: none; }
     .fl-sq-sm { width: 10px; height: 10px; border-radius: 2px; }
-    .fl-sq-lg { width: 26px; height: 26px; border-radius: 4px; margin-top: 2px; }
+    .fl-sq-lg { width: 26px; height: 26px; border-radius: 2px; margin-top: 2px; }
 
     /* ---- tabs ---- */
     .fl-tabsbar { display: flex; align-items: flex-end; gap: var(--spacingHorizontalM);

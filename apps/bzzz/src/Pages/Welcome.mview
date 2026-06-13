@@ -125,7 +125,7 @@
 
     .wl-signin { display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
         width: 100%; max-width: 410px; box-sizing: border-box; cursor: pointer;
-        padding: .98rem 1.5rem; border-radius: 999px; border: none; text-decoration: none;
+        padding: .98rem 1.5rem; border-radius: 2px; border: none; text-decoration: none;
         font-family: inherit; font-size: 1.03rem; font-weight: 700; letter-spacing: -.01em;
         color: #07090e; background: #fff;
         box-shadow: 0 12px 34px -14px rgba(255,255,255,.5);
@@ -156,7 +156,7 @@
         padding: 2rem 1rem; box-sizing: border-box; }
     .wl-card { width: 100%; max-width: 420px; box-sizing: border-box; text-align: center;
         background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.09);
-        border-radius: 24px; padding: 2.5rem 2rem; backdrop-filter: blur(10px);
+        border-radius: 4px; padding: 2.5rem 2rem; backdrop-filter: blur(10px);
         box-shadow: 0 40px 90px -40px rgba(0,0,0,.8); animation: wl-rise .55s ease both; }
     .wl-card-mark { font-size: 2.7rem; line-height: 1; filter: drop-shadow(0 3px 14px rgba(245,166,35,.4)); }
     .wl-card-h { margin: .55rem 0 .35rem; color: #fff; font-size: 1.55rem; font-weight: 800; letter-spacing: -.025em; }
@@ -166,7 +166,7 @@
     .wl-cardform .wl-signin { margin-top: .7rem; }
     .wl-hint { color: #707b8d; font-size: .8rem; margin: .35rem 0 0; }
     .wl-pid { font-family: var(--fontFamilyMonospace, ui-monospace, Menlo, monospace); font-size: .72rem;
-        background: rgba(255,255,255,.07); padding: .12rem .4rem; border-radius: 4px; overflow-wrap: anywhere; }
+        background: rgba(255,255,255,.07); padding: .12rem .4rem; border-radius: 2px; overflow-wrap: anywhere; }
     /* dark-fit the framework input used in the fallback */
     .wl-card .mv-input, .wl-card .mv-textarea { background: rgba(255,255,255,.06); color: #fff;
         border: 1px solid rgba(255,255,255,.14); }

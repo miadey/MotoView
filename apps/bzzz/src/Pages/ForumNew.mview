@@ -95,7 +95,7 @@
     /* Native category select, styled to match the rest of the Discourse-y UI */
     .fn-select-wrap { position: relative; display: flex; align-items: center; }
     .fn-select-sq { position: absolute; left: var(--spacingHorizontalM); width: 14px; height: 14px;
-        border-radius: 3px; background: var(--c, #9aa0a6); pointer-events: none; }
+        border-radius: 2px; background: var(--c, #9aa0a6); pointer-events: none; }
     .fn-select { width: 100%; appearance: none; -webkit-appearance: none;
         padding: var(--spacingVerticalSNudge) var(--spacingHorizontalXXL) var(--spacingVerticalSNudge) calc(var(--spacingHorizontalM) + 22px);
         border: 1px solid var(--colorNeutralStroke1); border-radius: var(--borderRadiusMedium);

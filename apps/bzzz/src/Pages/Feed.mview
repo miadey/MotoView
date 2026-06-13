@@ -162,7 +162,7 @@
     .fd-head [role="tab"][aria-selected="true"], .fd-head .mv-tab.is-active, .fd-head [role="tab"].is-active {
         color: var(--bz-accent); font-weight: 800; }
     .fd-head [role="tab"][aria-selected="true"]::after, .fd-head .mv-tab.is-active::after, .fd-head [role="tab"].is-active::after {
-        background: linear-gradient(90deg, var(--bz-accent), var(--bz-accent-2)) !important; height: 3px; border-radius: 999px; }
+        background: linear-gradient(90deg, var(--bz-accent), var(--bz-accent-2)) !important; height: 3px; border-radius: 2px; }
 
     /* Compose box — accent ring + gradient sheen to make it pop */
     .fd-composer { position: relative; display: flex; gap: var(--spacingHorizontalM);

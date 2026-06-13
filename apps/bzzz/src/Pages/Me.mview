@@ -147,7 +147,7 @@
 
     .bz-prof-stats { display: flex; gap: .75rem; margin: 1rem 0 1.25rem; }
     .bz-stat { flex: 1; background: var(--mv-surface); border: 1px solid var(--mv-border);
-        border-radius: 12px; padding: .85rem 1rem; text-align: center; box-shadow: var(--mv-shadow); }
+        border-radius: 3px; padding: .85rem 1rem; text-align: center; box-shadow: var(--mv-shadow); }
     .bz-stat-n { display: block; font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
     .bz-stat-l { display: block; color: var(--mv-text-soft); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
 
@@ -158,12 +158,12 @@
     .bz-panel-sub { margin: 0 0 .9rem; color: var(--mv-text-soft); font-size: .85rem; }
     .bz-form-actions { margin-top: .7rem; }
 
-    .bz-field-hint code { background: var(--colorNeutralBackground3); padding: .05rem .3rem; border-radius: 4px; }
+    .bz-field-hint code { background: var(--colorNeutralBackground3); padding: .05rem .3rem; border-radius: 2px; }
     .bz-field-hint { margin: .3rem 0 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
     .bz-linked { margin: .9rem 0 0; padding-top: .8rem; border-top: 1px solid var(--colorNeutralStroke2);
         color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
     .bz-linked-id { display: inline-block; max-width: 100%; overflow-wrap: anywhere; font-family: var(--fontFamilyMonospace, ui-monospace, Menlo, monospace);
-        font-size: var(--fontSizeBase100); background: var(--colorNeutralBackground3); padding: .1rem .35rem; border-radius: 4px; }
+        font-size: var(--fontSizeBase100); background: var(--colorNeutralBackground3); padding: .1rem .35rem; border-radius: 2px; }
 
     .bz-posts { display: flex; flex-direction: column; gap: .25rem; }
     .bz-post { padding: .9rem .25rem; border-top: 1px solid var(--mv-border); }

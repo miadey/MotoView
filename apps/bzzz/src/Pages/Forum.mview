@@ -328,9 +328,9 @@
     .fl-newbtn-caret::-webkit-details-marker { display: none; }
 
     /* ---- shared square chip ---- */
-    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
+    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 2px; flex: none; }
     .fl-sq-sm { width: 10px; height: 10px; border-radius: 2px; }
-    .fl-sq-lg { width: 26px; height: 26px; border-radius: 4px; }
+    .fl-sq-lg { width: 26px; height: 26px; border-radius: 2px; }
 
     /* ---- topic table ---- */
     .fl-table { display: flex; flex-direction: column; }

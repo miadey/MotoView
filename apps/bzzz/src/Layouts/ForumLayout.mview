@@ -59,7 +59,7 @@
         .fl-item.is-active .fl-item-dot { background: var(--colorBrandForeground1); }
 
         /* category colored square + tag icon */
-        .fl-sq { width: 14px; height: 14px; border-radius: 3px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+        .fl-sq { width: 14px; height: 14px; border-radius: 2px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
         .fl-tag-ico { width: 18px; text-align: center; flex: none; color: var(--colorNeutralForeground4); font-size: .9rem; }
 
         .fl-sb-divider { height: 1px; background: var(--colorNeutralStroke2); margin: var(--spacingVerticalS) var(--spacingHorizontalM); }

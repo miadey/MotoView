@@ -276,7 +276,7 @@
     .wa-accent { --bz-accent: #25d366; --bz-accent-2: #0ea5e9; }
     .wa { display: grid; grid-template-columns: 360px 1fr; gap: 0;
         height: calc(100vh - 140px); min-height: 520px;
-        border: 1px solid var(--mv-border); border-radius: 14px; overflow: hidden;
+        border: 1px solid var(--mv-border); border-radius: 4px; overflow: hidden;
         background: var(--mv-surface); box-shadow: var(--mv-shadow); }
 
     /* ---- LEFT pane: chat list ------------------------------------------- */
@@ -293,11 +293,11 @@
         background: color-mix(in srgb, var(--bz-accent) 20%, var(--colorNeutralBackground1)); }
     .wa-e2ee-chip { align-self: flex-start; }
     .wa-list-back { text-decoration: none; font-size: 1.3rem; color: var(--mv-text-soft); line-height: 1;
-        width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 8px; }
+        width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 2px; }
     .wa-list-back:hover { background: var(--mv-surface); color: var(--mv-text); }
 
     .wa-search { display: flex; align-items: center; gap: .55rem; margin: .55rem .7rem;
-        padding: .5rem .75rem; background: var(--mv-muted); border-radius: 999px;
+        padding: .5rem .75rem; background: var(--mv-muted); border-radius: 2px;
         color: var(--mv-text-soft); font-size: .85rem; flex: none; }
     .wa-search-ico { font-size: .85rem; opacity: .7; }
 
@@ -334,7 +334,7 @@
     .wa-welcome-ico { font-size: 2.6rem; }
     /* Accent icon chip for empty-state panels. */
     .wa-welcome-ico-accent { display: inline-grid; place-items: center; width: 80px; height: 80px;
-        border-radius: 22px; font-size: 2.4rem; line-height: 1; margin-bottom: .4rem;
+        border-radius: 4px; font-size: 2.4rem; line-height: 1; margin-bottom: .4rem;
         color: #fff; background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
         box-shadow: 0 14px 30px -10px color-mix(in srgb, var(--bz-accent) 65%, transparent); }
     .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.6rem; font-weight: 800; letter-spacing: -.025em; }
@@ -362,13 +362,13 @@
     .wa-thread-stream { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .35rem;
         padding: 1rem; }
     .wa-thread-e2ee-note { align-self: center; max-width: 46ch; text-align: center; margin: 0 0 .75rem;
-        background: #fdf6dd; border: 1px solid #f6e7a8; color: #6b5e1a; border-radius: 10px;
+        background: #fdf6dd; border: 1px solid #f6e7a8; color: #6b5e1a; border-radius: 3px;
         padding: .5rem .75rem; font-size: .76rem; line-height: 1.4; }
 
     .wa-bubble-row { display: flex; max-width: 100%; }
     .wa-recv { justify-content: flex-start; }
     .wa-sent { justify-content: flex-end; }
-    .wa-bubble { max-width: 72%; padding: .45rem .62rem .32rem; border-radius: 14px;
+    .wa-bubble { max-width: 72%; padding: .45rem .62rem .32rem; border-radius: 4px;
         box-shadow: 0 1px 2px rgba(0,0,0,.1); position: relative; }
     .wa-recv .wa-bubble { background: var(--mv-surface); color: var(--mv-text); border-top-left-radius: 3px; }
     /* SENT bubbles: vivid WhatsApp-green accent gradient. */
@@ -395,7 +395,7 @@
     .wa-composer-row > :first-child { flex: 1; }
     /* Raw composer textarea (carries data-mv-encrypt-to) styled like an input. */
     .wa-composer-input { resize: none; min-height: 2.4rem; max-height: 8rem; padding: .55rem .75rem;
-        border: 1px solid var(--mv-border); border-radius: 999px; font: inherit; line-height: 1.3;
+        border: 1px solid var(--mv-border); border-radius: 2px; font: inherit; line-height: 1.3;
         background: var(--mv-surface); color: var(--mv-text); box-sizing: border-box; }
     .wa-composer-input:focus { outline: none; border-color: var(--bz-accent); }
     /* Accent-gradient the composer "Send" button. */

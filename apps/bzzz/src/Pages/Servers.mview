@@ -88,7 +88,7 @@
     .srv-create-grid { display:grid; grid-template-columns:2fr 1fr; gap:1rem; align-items:end; }
     .srv-field { display:flex; flex-direction:column; gap:.35rem; }
     .srv-label { font-size:.82rem; font-weight:600; color:var(--mv-text-soft); }
-    .srv-select { padding:.55rem .65rem; border:1px solid var(--mv-border); border-radius:10px;
+    .srv-select { padding:.55rem .65rem; border:1px solid var(--mv-border); border-radius:3px;
         background:var(--mv-surface); font-size:.92rem; color:var(--mv-text); }
     .srv-create-actions { margin-top:.9rem; }
 
@@ -99,7 +99,7 @@
     .srv-name:hover { color:var(--bz-accent); }
     .srv-summary { margin:0; color:var(--mv-text-soft); font-size:.88rem; }
 
-    .srv-badge { font-size:.72rem; font-weight:700; padding:.2rem .5rem; border-radius:999px; white-space:nowrap;
+    .srv-badge { font-size:.72rem; font-weight:700; padding:.2rem .5rem; border-radius:2px; white-space:nowrap;
         text-transform:uppercase; letter-spacing:.03em; }
     .srv-badge-discussion { background:#ede9fe; color:#6d28d9; }
     .srv-badge-forum { background:#dbeafe; color:#1d4ed8; }
@@ -108,10 +108,10 @@
     .srv-card-foot { display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin-top:.2rem;
         padding-top:.7rem; border-top:1px solid var(--mv-border); }
     .srv-role { font-size:.74rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted);
-        padding:.16rem .5rem; border-radius:999px; }
+        padding:.16rem .5rem; border-radius:2px; }
     .srv-owner-note { font-size:.78rem; color:var(--mv-text-soft); }
 
-    .srv-btn { font-size:.82rem; font-weight:700; padding:.4rem .75rem; border-radius:9px; cursor:pointer;
+    .srv-btn { font-size:.82rem; font-weight:700; padding:.4rem .75rem; border-radius:3px; cursor:pointer;
         border:1px solid transparent; text-decoration:none; }
     .srv-btn-primary { background:var(--bz-accent); color:#fff; }
     .srv-btn-primary:hover { filter:brightness(1.08); }

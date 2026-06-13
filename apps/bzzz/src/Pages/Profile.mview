@@ -97,7 +97,7 @@
 
     .bz-followform { margin: 0; flex: 0 0 auto; }
     .bz-followbtn { display: inline-block; border: 1px solid var(--bz-accent); background: var(--bz-accent);
-        color: #fff; font-weight: 700; font-size: .92rem; padding: .55rem 1.3rem; border-radius: 999px;
+        color: #fff; font-weight: 700; font-size: .92rem; padding: .55rem 1.3rem; border-radius: 2px;
         cursor: pointer; text-decoration: none; transition: background .12s ease, color .12s ease; }
     .bz-followbtn:hover { background: #5b21b6; border-color: #5b21b6; }
     .bz-followbtn-on { background: transparent; color: var(--bz-accent); }
@@ -107,7 +107,7 @@
 
     .bz-prof-stats { display: flex; gap: .75rem; margin: 1rem 0 1.25rem; }
     .bz-stat { flex: 1; background: var(--mv-surface); border: 1px solid var(--mv-border);
-        border-radius: 12px; padding: .85rem 1rem; text-align: center; box-shadow: var(--mv-shadow); }
+        border-radius: 3px; padding: .85rem 1rem; text-align: center; box-shadow: var(--mv-shadow); }
     .bz-stat-n { display: block; font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
     .bz-stat-l { display: block; color: var(--mv-text-soft); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
 

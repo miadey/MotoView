@@ -264,9 +264,9 @@
   /* ---- Border radius ---- */
   --borderRadiusNone: 0;
   --borderRadiusSmall: 2px;
-  --borderRadiusMedium: 4px;
-  --borderRadiusLarge: 6px;
-  --borderRadiusXLarge: 8px;
+  --borderRadiusMedium: 2px;
+  --borderRadiusLarge: 3px;
+  --borderRadiusXLarge: 4px;
   --borderRadiusCircular: 10000px;
 
   /* ---- Stroke width ---- */
@@ -3898,10 +3898,10 @@ label.mv-field-label {
   --shadow16Brand: 0 2px 3px rgba(11,87,208,0.30), 0 6px 10px 4px rgba(11,87,208,0.15);
   --shadow28Brand: 0 4px 4px rgba(11,87,208,0.30), 0 8px 12px 6px rgba(11,87,208,0.15);
   --shadow64Brand: 0 6px 10px 4px rgba(11,87,208,0.15), 0 2px 3px rgba(11,87,208,0.30);
-  --borderRadiusSmall: 8px;
-  --borderRadiusMedium: 12px;
-  --borderRadiusLarge: 16px;
-  --borderRadiusXLarge: 28px;
+  --borderRadiusSmall: 2px;
+  --borderRadiusMedium: 2px;
+  --borderRadiusLarge: 3px;
+  --borderRadiusXLarge: 4px;
   --borderRadiusCircular: 9999px;
   --fontFamilyBase: Roboto, 'Roboto Flex', 'Helvetica Neue', Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --fontFamilyNumeric: 'Google Sans', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -4016,10 +4016,10 @@ label.mv-field-label {
   --shadow16Brand: 0 2px 3px rgba(0,0,0,0.60), 0 6px 10px 4px rgba(138,180,248,0.20);
   --shadow28Brand: 0 4px 4px rgba(0,0,0,0.60), 0 8px 12px 6px rgba(138,180,248,0.20);
   --shadow64Brand: 0 6px 10px 4px rgba(138,180,248,0.20), 0 2px 3px rgba(0,0,0,0.60);
-  --borderRadiusSmall: 8px;
-  --borderRadiusMedium: 12px;
-  --borderRadiusLarge: 16px;
-  --borderRadiusXLarge: 28px;
+  --borderRadiusSmall: 2px;
+  --borderRadiusMedium: 2px;
+  --borderRadiusLarge: 3px;
+  --borderRadiusXLarge: 4px;
   --borderRadiusCircular: 9999px;
   --fontFamilyBase: Roboto, 'Roboto Flex', 'Helvetica Neue', Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --fontFamilyNumeric: 'Google Sans', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -4152,7 +4152,7 @@ label.mv-field-label {
 .mv-theme-opt:hover { background: var(--colorNeutralBackground3); }
 .mv-theme-opt-check { width: 14px; flex: none; color: var(--colorBrandForeground1); font-weight: 700; }
 .mv-theme-opt[aria-current="true"] { font-weight: var(--fontWeightSemibold); }
-.mv-theme-opt-sw { width: 16px; height: 16px; border-radius: 5px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.mv-theme-opt-sw { width: 16px; height: 16px; border-radius: 2px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
 .mv-theme-opt-label { flex: 1; }
 
 /* High Contrast purity: flatten the vibrant gradients to solid HC colors */

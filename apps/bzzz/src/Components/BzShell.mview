@@ -66,10 +66,10 @@ param path : Text = "/"
     .bz-cmdk-field { flex: 1; min-width: 0; border: none; outline: none; background: transparent;
         font-size: 1.05rem; color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase); }
     .bz-cmdk-esc { font-size: .68rem; color: var(--colorNeutralForeground4); border: 1px solid var(--colorNeutralStroke2);
-        border-radius: 4px; padding: 2px 6px; cursor: pointer; user-select: none; }
+        border-radius: 2px; padding: 2px 6px; cursor: pointer; user-select: none; }
     .bz-cmdk-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
         color: var(--colorNeutralForeground4); padding: 6px 12px 2px; font-weight: var(--fontWeightSemibold); }
-    .bz-cmdk-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px;
+    .bz-cmdk-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 2px;
         text-decoration: none; color: var(--colorNeutralForeground1); font-size: .95rem; }
     .bz-cmdk-row:hover { background: var(--colorSubtleBackgroundHover, var(--colorNeutralBackground3)); }
 </style>

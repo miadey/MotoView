@@ -163,15 +163,15 @@
         font-weight:700; }
     .sv-banner .bz-banner-actions { margin-top:0; }
 
-    .sv-badge { font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:999px;
+    .sv-badge { font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:2px;
         text-transform:uppercase; letter-spacing:.03em; }
     .sv-badge-discussion { background:#ede9fe; color:#6d28d9; }
     .sv-badge-forum { background:#dbeafe; color:#1d4ed8; }
     .sv-badge-feed { background:#fce7f3; color:#be185d; }
-    .sv-lockchip { font-size:.74rem; font-weight:600; color:#92400e; background:#fef3c7; padding:.16rem .45rem; border-radius:999px; }
+    .sv-lockchip { font-size:.74rem; font-weight:600; color:#92400e; background:#fef3c7; padding:.16rem .45rem; border-radius:2px; }
     .sv-lockchip-sm { font-size:.68rem; }
 
-    .sv-btn { font-size:.85rem; font-weight:700; padding:.5rem .9rem; border-radius:10px; cursor:pointer; border:1px solid transparent; }
+    .sv-btn { font-size:.85rem; font-weight:700; padding:.5rem .9rem; border-radius:3px; cursor:pointer; border:1px solid transparent; }
     .sv-btn-primary { background:var(--bz-accent); color:#fff; }
     .sv-btn-primary:hover { filter:brightness(1.08); }
     .sv-btn-ghost { background:transparent; border-color:var(--mv-border); color:var(--mv-text); }
@@ -194,11 +194,11 @@
     .sv-panel-head h2 { margin:0; font-size:1.1rem; }
     /* the accent-bar section titles sit flush in the panel head */
     .sv-panel-head .bz-sec-title { margin:0; font-size:1.15rem; font-weight:800; letter-spacing:-.02em; }
-    .sv-count { font-size:.78rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted); padding:.16rem .5rem; border-radius:999px; }
+    .sv-count { font-size:.78rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted); padding:.16rem .5rem; border-radius:2px; }
     .sv-empty { color:var(--mv-text-soft); font-size:.9rem; margin:0; }
 
     .sv-channels { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.2rem; }
-    .sv-channel { display:flex; align-items:center; gap:.6rem; padding:.5rem .6rem; border-radius:9px; }
+    .sv-channel { display:flex; align-items:center; gap:.6rem; padding:.5rem .6rem; border-radius:3px; }
     .sv-channel:hover { background:var(--mv-muted); }
     .sv-channel-link { display:flex; align-items:baseline; gap:.15rem; text-decoration:none; color:var(--mv-text); font-weight:600; }
     .sv-channel-link:hover .sv-cname { color:var(--bz-accent); }
@@ -215,7 +215,7 @@
     .sv-modnote { margin:0; color:var(--mv-text-soft); font-size:.88rem; }
 
     .sv-members { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.35rem; }
-    .sv-member { display:flex; align-items:center; gap:.55rem; padding:.4rem .35rem; border-radius:9px; }
+    .sv-member { display:flex; align-items:center; gap:.55rem; padding:.4rem .35rem; border-radius:3px; }
     .sv-member:hover { background:var(--mv-muted); }
     .sv-ava { width:30px; height:30px; border-radius:50%; background:var(--mv-muted); display:grid; place-items:center; font-size:1.05rem; flex:none; }
     .sv-member-main { display:flex; flex-direction:column; min-width:0; }
@@ -226,9 +226,9 @@
     .sv-role-moderator { color:#1d4ed8; }
     .sv-role-member { color:var(--mv-text-soft); }
     .sv-member-actions { margin-left:auto; display:flex; gap:.25rem; }
-    .sv-owner-pill { font-size:.7rem; font-weight:700; color:#b45309; background:#fef3c7; padding:.14rem .45rem; border-radius:999px; }
+    .sv-owner-pill { font-size:.7rem; font-weight:700; color:#b45309; background:#fef3c7; padding:.14rem .45rem; border-radius:2px; }
 
-    .sv-chip-btn { font-size:.72rem; font-weight:700; padding:.22rem .5rem; border-radius:7px; cursor:pointer;
+    .sv-chip-btn { font-size:.72rem; font-weight:700; padding:.22rem .5rem; border-radius:2px; cursor:pointer;
         border:1px solid var(--mv-border); background:var(--mv-surface); color:var(--mv-text); }
     .sv-chip-btn:hover { background:var(--bz-accent); color:#fff; border-color:var(--bz-accent); }
 
