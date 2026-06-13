@@ -1,8 +1,8 @@
 @page "/forum/t/{id:Nat}"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title (topicTitle # " — Bzzz Forum")
-@description topicDescription
+@title (topicTitle # " — Forum Pulse")
+@description ("Sujet de discussion : " # topicTitle # " sur le forum Pulse.")
 
 <div class="ft-wrap">
 
@@ -13,27 +13,42 @@
         <main class="ft-main">
 
             <Breadcrumb>
-                <BreadcrumbItem href="/">Home</BreadcrumbItem>
+                <BreadcrumbItem href="/">Accueil</BreadcrumbItem>
                 <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
                 <BreadcrumbItem href="/forum/c/@categoryId">@catName</BreadcrumbItem>
                 <BreadcrumbItem current="true">@topicTitle</BreadcrumbItem>
             </Breadcrumb>
 
             <header class="ft-head">
-                <h1 class="ft-title">
-                    @if pinned { <span class="ft-glyph" title="Pinned">📌</span> }
-                    @if closed { <span class="ft-glyph" title="Closed">🔒</span> }
-                    @if solved { <span class="ft-glyph" title="Solved">✅</span> }
-                    @topicTitle
-                </h1>
-                <div class="ft-cat">
+                <div class="ft-head-status">
                     <a class="ft-cat-badge" href="/forum/c/@categoryId" style="--c:@catColor">
                         <span class="ft-cat-sq"></span>
                         <span class="ft-cat-name">@catName</span>
                     </a>
-                    @for t in tags {
-                        <a class="ft-tag" href="/forum/c/@categoryId">@t</a>
+                    @if solved {
+                        <span class="ft-status ft-status-solved"><span class="ft-status-dot"></span>Résolu</span>
+                    } else {
+                        <span class="ft-status ft-status-open"><span class="ft-status-dot"></span>En discussion</span>
                     }
+                    @if pinned { <span class="ft-flag" title="Épinglé">📌 Épinglé</span> }
+                    @if closed { <span class="ft-flag ft-flag-closed" title="Fermé">🔒 Fermé</span> }
+                </div>
+                <h1 class="ft-title">@topicTitle</h1>
+                @if (tags.size() > 0) {
+                    <div class="ft-tags">
+                        @for t in tags {
+                            <a class="ft-tag" href="/forum/c/@categoryId">#@t</a>
+                        }
+                    </div>
+                }
+                <div class="ft-head-meta">
+                    <span class="ft-meta-stat">@views vues</span>
+                    <span class="ft-meta-dot">·</span>
+                    <span class="ft-meta-stat">@likeTotal j'aime</span>
+                    <span class="ft-meta-dot">·</span>
+                    <span class="ft-meta-stat">@participants participants</span>
+                    <span class="ft-meta-dot">·</span>
+                    <span class="ft-meta-stat">@readTime min de lecture</span>
                 </div>
             </header>
 
@@ -41,128 +56,176 @@
                 <div class="ft-mod">
                     <span class="ft-mod-label">@modLabel</span>
                     @if pinned {
-                        <button class="ft-mod-btn" @click="togglePin">Unpin</button>
+                        <button class="ft-mod-btn" @click="togglePin">Désépingler</button>
                     } else {
-                        <button class="ft-mod-btn" @click="togglePin">Pin</button>
+                        <button class="ft-mod-btn" @click="togglePin">Épingler</button>
                     }
                     @if closed {
-                        <button class="ft-mod-btn" @click="toggleClose">Reopen</button>
+                        <button class="ft-mod-btn" @click="toggleClose">Rouvrir</button>
                     } else {
-                        <button class="ft-mod-btn" @click="toggleClose">Close</button>
+                        <button class="ft-mod-btn" @click="toggleClose">Fermer</button>
                     }
                     @if (solved and isAuthor) {
-                        <button class="ft-mod-btn" @click="clearSolution">Clear solution</button>
+                        <button class="ft-mod-btn" @click="clearSolution">Retirer la solution</button>
                     }
                 </div>
             }
 
             <div class="ft-stream">
                 @for p in posts {
-                    <article class="ft-post @(postClass(p.id))" id="post-@p.id">
-                        @if isAccepted(p.id) {
-                            <div class="ft-solution-tag">✓ Solution</div>
-                        }
-                        <div class="ft-post-row">
-                            <div class="ft-avatar">@(avatarFor(p.author))</div>
-                            <div class="ft-post-main">
-                                <div class="ft-post-head">
-                                    <span class="ft-name">@p.authorHandle</span>
-                                    @if isOp(p.author) {
-                                        <span class="ft-op-badge" title="Original poster">OP</span>
-                                    }
-                                    <span class="ft-when">@(when(p.at))</span>
-                                </div>
-                                <div class="ft-body">@p.body</div>
-                                <div class="ft-actions">
-                                    <span class="ft-actions-left">
-                                        @if likedBy(p.id) {
-                                            <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Unlike">
-                                                <span class="ft-heart">♥</span>
-                                                <span class="ft-count">@p.likeCount</span>
-                                            </button>
-                                        } else {
-                                            <button class="ft-act" @click="toggleLike(p.id)" title="Like">
-                                                <span class="ft-heart">♡</span>
-                                                @if hasLikes(p.likeCount) {
+                    @if isAccepted(p.id) {
+                        <article class="ft-post is-accepted" id="post-@p.id">
+                            <div class="ft-solution-tag"><span class="ft-solution-check">✓</span>Meilleure réponse</div>
+                            <div class="ft-post-row">
+                                <div class="ft-avatar">@(avatarFor(p.author))</div>
+                                <div class="ft-post-main">
+                                    <div class="ft-post-head">
+                                        <span class="ft-name">@p.authorHandle</span>
+                                        @if isOp(p.author) {
+                                            <span class="ft-op-badge" title="Auteur du sujet">Auteur</span>
+                                        }
+                                        <span class="ft-when">@(when(p.at))</span>
+                                    </div>
+                                    <div class="ft-body">@p.body</div>
+                                    <div class="ft-actions">
+                                        <span class="ft-actions-left">
+                                            @if likedBy(p.id) {
+                                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Je n'aime plus">
+                                                    <span class="ft-heart">♥</span>
                                                     <span class="ft-count">@p.likeCount</span>
-                                                }
-                                            </button>
-                                        }
-                                    </span>
-                                    <span class="ft-actions-right">
-                                        @if isAccepted(p.id) {
-                                            @if isAuthor {
-                                                <button class="ft-act ft-act-accepted" @click="unaccept" title="Unmark solution">✓ Solution</button>
+                                                </button>
+                                            } else {
+                                                <button class="ft-act" @click="toggleLike(p.id)" title="J'aime">
+                                                    <span class="ft-heart">♡</span>
+                                                    @if hasLikes(p.likeCount) {
+                                                        <span class="ft-count">@p.likeCount</span>
+                                                    }
+                                                </button>
                                             }
-                                        } else if canAccept(p.author) {
-                                            <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title="Mark as solution">Accept answer</button>
-                                        }
-                                        <a class="ft-act" href="#reply" title="Reply">↩ Reply</a>
-                                    </span>
+                                        </span>
+                                        <span class="ft-actions-right">
+                                            @if isAuthor {
+                                                <button class="ft-act ft-act-accepted" @click="unaccept" title="Retirer la solution">✓ Solution</button>
+                                            }
+                                            <a class="ft-act" href="#reply" title="Répondre">↩ Répondre</a>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        @if isOp(p.author) {
-                            <div class="ft-summary">
-                                <span class="ft-sum-stat">@views views</span>
-                                <span class="ft-sum-dot">·</span>
-                                <span class="ft-sum-stat">@likeTotal likes</span>
-                                <span class="ft-sum-dot">·</span>
-                                <span class="ft-sum-stat">@participants participants</span>
-                                <span class="ft-sum-dot">·</span>
-                                <span class="ft-sum-stat">@readTime min read</span>
+                            @if isOp(p.author) {
+                                <div class="ft-summary">
+                                    <span class="ft-sum-stat">@views vues</span>
+                                    <span class="ft-sum-dot">·</span>
+                                    <span class="ft-sum-stat">@likeTotal j'aime</span>
+                                    <span class="ft-sum-dot">·</span>
+                                    <span class="ft-sum-stat">@participants participants</span>
+                                    <span class="ft-sum-dot">·</span>
+                                    <span class="ft-sum-stat">@readTime min de lecture</span>
+                                </div>
+                            }
+                        </article>
+                    } else {
+                        <article class="ft-post" id="post-@p.id">
+                            <div class="ft-post-row">
+                                <div class="ft-avatar">@(avatarFor(p.author))</div>
+                                <div class="ft-post-main">
+                                    <div class="ft-post-head">
+                                        <span class="ft-name">@p.authorHandle</span>
+                                        @if isOp(p.author) {
+                                            <span class="ft-op-badge" title="Auteur du sujet">Auteur</span>
+                                        }
+                                        <span class="ft-when">@(when(p.at))</span>
+                                    </div>
+                                    <div class="ft-body">@p.body</div>
+                                    <div class="ft-actions">
+                                        <span class="ft-actions-left">
+                                            @if likedBy(p.id) {
+                                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Je n'aime plus">
+                                                    <span class="ft-heart">♥</span>
+                                                    <span class="ft-count">@p.likeCount</span>
+                                                </button>
+                                            } else {
+                                                <button class="ft-act" @click="toggleLike(p.id)" title="J'aime">
+                                                    <span class="ft-heart">♡</span>
+                                                    @if hasLikes(p.likeCount) {
+                                                        <span class="ft-count">@p.likeCount</span>
+                                                    }
+                                                </button>
+                                            }
+                                        </span>
+                                        <span class="ft-actions-right">
+                                            @if canAccept(p.author) {
+                                                <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title="Marquer comme solution">Accepter la réponse</button>
+                                            }
+                                            <a class="ft-act" href="#reply" title="Répondre">↩ Répondre</a>
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                        }
-                    </article>
+                            @if isOp(p.author) {
+                                <div class="ft-summary">
+                                    <span class="ft-sum-stat">@views vues</span>
+                                    <span class="ft-sum-dot">·</span>
+                                    <span class="ft-sum-stat">@likeTotal j'aime</span>
+                                    <span class="ft-sum-dot">·</span>
+                                    <span class="ft-sum-stat">@participants participants</span>
+                                    <span class="ft-sum-dot">·</span>
+                                    <span class="ft-sum-stat">@readTime min de lecture</span>
+                                </div>
+                            }
+                        </article>
+                    }
                 }
             </div>
 
             @if (showNewer or showOlder) {
-                <nav class="ft-pager" aria-label="Thread pages">
-                    @if showNewer { <a class="ft-pager-btn" href="@(pageHref(page - 1))">← Previous</a> } else { <span class="ft-pager-sp"></span> }
+                <nav class="ft-pager" aria-label="Pages du sujet">
+                    @if showNewer { <a class="ft-pager-btn" href="@(pageHref(page - 1))">← Précédent</a> } else { <span class="ft-pager-sp"></span> }
                     <span class="ft-pager-at">Page @(page + 1)</span>
-                    @if showOlder { <a class="ft-pager-btn" href="@(pageHref(page + 1))">Next →</a> } else { <span class="ft-pager-sp"></span> }
+                    @if showOlder { <a class="ft-pager-btn" href="@(pageHref(page + 1))">Suivant →</a> } else { <span class="ft-pager-sp"></span> }
                 </nav>
             }
 
             @if closed {
                 <div class="ft-closed-note">
-                    🔒 This topic is closed. New replies are disabled.
+                    🔒 Ce sujet est fermé. Les nouvelles réponses sont désactivées.
                 </div>
             } else {
-                <div class="ft-composer bz-card" id="reply">
-                    <h3 class="ft-composer-title">Reply</h3>
+                <div class="ft-composer" id="reply">
+                    <h3 class="ft-composer-title">Répondre</h3>
                     @if signedIn {
                         <form @submit="submitReply" secure>
                             <ValidationSummary />
-                            <TextArea name="body" label="Your reply" bind="@body" required />
+                            <TextArea name="body" label="Votre réponse" bind="@body" required />
                             <div class="ft-composer-actions">
-                                <Button kind="primary" type="submit">Reply</Button>
+                                <Button kind="primary" type="submit">Publier la réponse</Button>
                             </div>
                         </form>
                     } else {
-                        <p class="ft-signin-note">Pick a handle on <a href="/me">your profile</a> to join the discussion.</p>
+                        <p class="ft-signin-note">Choisissez un pseudo sur <a href="/me">votre profil</a> pour rejoindre la discussion.</p>
                     }
                 </div>
             }
 
         </main>
 
-        <aside class="ft-timeline" aria-label="Topic timeline">
-            <div class="ft-tl-date">@lastActivity</div>
-            <div class="ft-tl-count">
-                <span class="ft-tl-now">@postTotal</span>
-                <span class="ft-tl-sep">/</span>
-                <span class="ft-tl-total">@postTotal</span>
+        <aside class="ft-timeline" aria-label="Chronologie du sujet">
+            <div class="ft-tl-card">
+                <div class="ft-tl-date">@lastActivity</div>
+                <div class="ft-tl-count">
+                    <span class="ft-tl-now">@postTotal</span>
+                    <span class="ft-tl-sep">/</span>
+                    <span class="ft-tl-total">@postTotal</span>
+                </div>
+                <div class="ft-tl-track">
+                    <span class="ft-tl-thumb"></span>
+                </div>
+                <div class="ft-tl-date ft-tl-start">@firstActivity</div>
+                <div class="ft-tl-read">@readTime min de lecture</div>
             </div>
-            <div class="ft-tl-track">
-                <span class="ft-tl-thumb"></span>
-            </div>
-            <div class="ft-tl-date ft-tl-start">@firstActivity</div>
-            <div class="ft-tl-read">@readTime min read</div>
             <div class="ft-tl-btns">
-                <a class="ft-tl-btn" href="#reply" title="Reply">↩</a>
-                <span class="ft-tl-btn ft-tl-bell" title="Notifications">🔔</span>
+                <a class="ft-tl-btn ft-tl-btn-primary" href="#reply" title="Répondre">↩ Répondre</a>
+                <span class="ft-tl-btn ft-tl-bell" title="Suivre ce sujet">🔔 Suivre</span>
             </div>
         </aside>
 
@@ -170,10 +233,11 @@
 
 } else {
 
-    <div class="ft-empty bz-card">
-        <h2>Topic not found</h2>
-        <p>This topic doesn't exist or may have been removed.</p>
-        <a class="ft-back" href="/forum">← Back to the forum</a>
+    <div class="ft-empty">
+        <div class="ft-empty-icon">🗂️</div>
+        <h2>Sujet introuvable</h2>
+        <p>Ce sujet n'existe pas ou a peut-être été supprimé.</p>
+        <a class="ft-back" href="/forum">← Retour au forum</a>
     </div>
 
 }
@@ -181,134 +245,159 @@
 </div>
 
 <style>
-    .ft-wrap { max-width: 1100px; margin: 0 auto; color: var(--colorNeutralForeground1); }
+    .ft-wrap { max-width: 1100px; margin: 0 auto; color: var(--pulse-text); }
 
-    /* Two-column shell: flat post stream + the iconic Discourse timeline scrubber. */
-    .ft-cols { display: flex; align-items: flex-start; gap: var(--spacingHorizontalXL); }
+    /* Deux colonnes : flux des messages + chronologie latérale. */
+    .ft-cols { display: flex; align-items: flex-start; gap: 1.75rem; }
     .ft-main { flex: 1; min-width: 0; }
 
-    .ft-head { padding: 0 0 var(--spacingVerticalM); border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
-    .ft-title { margin: 0 0 var(--spacingVerticalS); font-size: var(--fontSizeBase600, 1.7rem); line-height: 1.25; letter-spacing: -.01em; font-weight: var(--fontWeightBold); }
-    .ft-glyph { font-size: 1.15rem; margin-right: .2rem; }
-    .ft-cat { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalXS); }
-    .ft-cat-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS); text-decoration: none;
-        background: var(--colorNeutralBackground3); border-radius: var(--borderRadiusMedium);
-        padding: 2px var(--spacingHorizontalSNudge); font-size: var(--fontSizeBase200);
-        color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); }
-    .ft-cat-badge:hover { background: var(--colorBrandBackground160, #ebf3fc); }
-    .ft-cat-sq { width: 11px; height: 11px; border-radius: 2px; background: var(--c, #9aa0a6); flex: none; }
+    /* En-tete du sujet : statut, titre, tags, meta. */
+    .ft-head { background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px;
+        padding: 1.4rem 1.5rem; margin-bottom: 1.25rem; }
+    .ft-head-status { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin-bottom: .85rem; }
+    .ft-cat-badge { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none;
+        background: var(--pulse-surface-2); border: 1px solid var(--pulse-border); border-radius: 999px;
+        padding: 4px 12px; font-size: .78rem; color: var(--pulse-text-2); font-weight: 600; }
+    .ft-cat-badge:hover { color: var(--pulse-text); border-color: var(--pulse-primary); }
+    .ft-cat-sq { width: 9px; height: 9px; border-radius: 50%; background: var(--c, #9aa0a6); flex: none; }
+    .ft-status { display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem; font-weight: 700;
+        padding: 4px 12px; border-radius: 999px; letter-spacing: .01em; }
+    .ft-status-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .ft-status-solved { background: rgba(34,197,94,.14); color: var(--pulse-success); }
+    .ft-status-solved .ft-status-dot { background: var(--pulse-success); }
+    .ft-status-open { background: var(--pulse-primary-soft); color: var(--pulse-primary); }
+    .ft-status-open .ft-status-dot { background: var(--pulse-primary); }
+    .ft-flag { display: inline-flex; align-items: center; gap: .3rem; font-size: .76rem; font-weight: 600;
+        padding: 4px 11px; border-radius: 999px; background: var(--pulse-surface-2);
+        border: 1px solid var(--pulse-border); color: var(--pulse-text-2); }
+    .ft-flag-closed { color: var(--pulse-danger); }
+
+    .ft-title { margin: 0 0 .65rem; font-size: 1.7rem; line-height: 1.25; letter-spacing: -.01em;
+        font-weight: 800; color: var(--pulse-text); }
+
+    .ft-tags { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin-bottom: .9rem; }
     .ft-tag { display: inline-flex; align-items: center; text-decoration: none;
-        background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground3);
-        border-radius: var(--borderRadiusMedium); padding: 2px var(--spacingHorizontalSNudge);
-        font-size: var(--fontSizeBase200); font-weight: var(--fontWeightRegular, 400); }
-    .ft-tag:hover { color: var(--colorNeutralForeground1); }
+        background: var(--pulse-surface-2); color: var(--pulse-text-3); border: 1px solid var(--pulse-border);
+        border-radius: 999px; padding: 3px 11px; font-size: .74rem; font-weight: 500; }
+    .ft-tag:hover { color: var(--pulse-text); border-color: var(--pulse-primary); }
+
+    .ft-head-meta { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
+        color: var(--pulse-text-3); font-size: .8rem; }
+    .ft-meta-stat { font-weight: 600; color: var(--pulse-text-2); }
+    .ft-meta-dot { color: var(--pulse-text-3); }
 
     .ft-mod { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1.1rem;
-        background: #fff8f0; border: 1px solid #ffe2c2; border-radius: 3px; padding: .55rem .8rem; }
-    .ft-mod-label { font-size: .78rem; font-weight: 700; color: #b3621a; margin-right: .25rem; text-transform: uppercase; letter-spacing: .03em; }
-    .ft-mod-btn { background: #fff; border: 1px solid #e3a76a; color: #b3621a; border-radius: 2px;
-        padding: .32rem .7rem; font-size: .82rem; font-weight: 600; cursor: pointer; }
-    .ft-mod-btn:hover { background: #F15A24; border-color: #F15A24; color: #fff; }
+        background: var(--pulse-primary-soft); border: 1px solid var(--pulse-border); border-radius: 14px; padding: .7rem .9rem; }
+    .ft-mod-label { font-size: .72rem; font-weight: 700; color: var(--pulse-primary); margin-right: .25rem;
+        text-transform: uppercase; letter-spacing: .04em; }
+    .ft-mod-btn { background: var(--pulse-surface); border: 1px solid var(--pulse-border); color: var(--pulse-text);
+        border-radius: 10px; padding: .35rem .8rem; font-size: .82rem; font-weight: 600; cursor: pointer; }
+    .ft-mod-btn:hover { background: var(--pulse-primary); border-color: var(--pulse-primary); color: #fff; }
 
-    /* Flat vertical stream — hairline separators, NOT boxed cards. */
-    .ft-stream { display: flex; flex-direction: column; gap: 0; }
-    .ft-post { background: transparent; border-bottom: 1px solid var(--colorNeutralStroke2);
-        padding: var(--spacingVerticalL) 0; position: relative; }
-    .ft-post:first-child { padding-top: var(--spacingVerticalS); }
-    .ft-post.is-accepted { position: relative; }
-    .ft-post.is-accepted::before { content: ""; position: absolute; left: -.85rem; top: var(--spacingVerticalL); bottom: var(--spacingVerticalL);
-        width: 3px; border-radius: 2px; background: var(--colorStatusSuccessForeground1, #2e8b3d); }
+    /* Flux des messages : cartes Pulse. */
+    .ft-stream { display: flex; flex-direction: column; gap: 1rem; }
+    .ft-post { background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px;
+        padding: 1.25rem 1.4rem; position: relative; }
+    .ft-post.is-accepted { border-color: var(--pulse-success); box-shadow: 0 0 0 1px rgba(34,197,94,.25); }
 
-    .ft-solution-tag { display: inline-flex; align-items: center; gap: .3rem; color: #fff;
-        background: var(--colorStatusSuccessForeground1, #2e8b3d); font-size: var(--fontSizeBase200);
-        font-weight: var(--fontWeightBold); padding: 2px var(--spacingHorizontalS);
-        border-radius: var(--borderRadiusCircular, 999px); margin-bottom: var(--spacingVerticalS); letter-spacing: .02em; }
+    .ft-solution-tag { display: inline-flex; align-items: center; gap: .35rem; color: #fff;
+        background: var(--pulse-success); font-size: .74rem; font-weight: 700; padding: 4px 12px;
+        border-radius: 999px; margin-bottom: .9rem; letter-spacing: .01em; }
+    .ft-solution-check { font-size: .85rem; line-height: 1; }
 
-    .ft-post-row { display: flex; gap: var(--spacingHorizontalM); align-items: flex-start; }
-    .ft-avatar { width: 45px; height: 45px; border-radius: 50%; flex: 0 0 45px;
+    .ft-post-row { display: flex; gap: 1rem; align-items: flex-start; }
+    .ft-avatar { width: 46px; height: 46px; border-radius: 50%; flex: 0 0 46px;
         display: grid; place-items: center; font-size: 1.35rem;
-        background: linear-gradient(135deg, #ede7fb, #e2d9fa); box-shadow: inset 0 0 0 1px rgba(109,40,217,.12); }
+        background: var(--pulse-grad-profile); color: #fff;
+        box-shadow: inset 0 0 0 1px var(--pulse-border); }
     .ft-post-main { flex: 1; min-width: 0; }
-    .ft-post-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--spacingHorizontalXS); margin-bottom: var(--spacingVerticalXS); }
-    .ft-name { font-weight: var(--fontWeightBold); color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase300); }
-    .ft-handle { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .ft-op-badge { font-size: .66rem; font-weight: var(--fontWeightBold); color: #6d28d9; background: #ede7fb;
-        border-radius: var(--borderRadiusSmall, 4px); padding: .08rem .35rem; text-transform: uppercase; letter-spacing: .04em; }
-    .ft-when { margin-left: auto; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); white-space: nowrap; }
-    .ft-body { color: var(--colorNeutralForeground1); line-height: 1.62; font-size: var(--fontSizeBase300); white-space: pre-wrap; word-wrap: break-word; max-width: 70ch; }
+    .ft-post-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: .45rem; margin-bottom: .35rem; }
+    .ft-name { font-weight: 700; color: var(--pulse-text); font-size: .95rem; }
+    .ft-op-badge { font-size: .64rem; font-weight: 700; color: var(--pulse-primary); background: var(--pulse-primary-soft);
+        border-radius: 999px; padding: .12rem .5rem; text-transform: uppercase; letter-spacing: .04em; }
+    .ft-when { margin-left: auto; color: var(--pulse-text-3); font-size: .8rem; white-space: nowrap; }
+    .ft-body { color: var(--pulse-text); line-height: 1.62; font-size: .95rem; white-space: pre-wrap;
+        word-wrap: break-word; max-width: 70ch; }
 
-    .ft-actions { display: flex; align-items: center; justify-content: space-between; gap: .3rem; margin-top: .7rem; flex-wrap: wrap; }
-    .ft-actions-left, .ft-actions-right { display: inline-flex; align-items: center; gap: .15rem; }
-    .ft-act { display: inline-flex; align-items: center; gap: .28rem; background: transparent; border: none;
-        color: #8a9097; font-size: .84rem; font-weight: 600; padding: .3rem .55rem; border-radius: 2px;
+    .ft-actions { display: flex; align-items: center; justify-content: space-between; gap: .3rem; margin-top: .85rem; flex-wrap: wrap; }
+    .ft-actions-left, .ft-actions-right { display: inline-flex; align-items: center; gap: .25rem; }
+    .ft-act { display: inline-flex; align-items: center; gap: .3rem; background: transparent; border: none;
+        color: var(--pulse-text-2); font-size: .84rem; font-weight: 600; padding: .35rem .65rem; border-radius: 999px;
         cursor: pointer; text-decoration: none; }
-    .ft-act:hover { background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground2); }
+    .ft-act:hover { background: var(--pulse-surface-2); color: var(--pulse-text); }
     .ft-heart { font-size: 1rem; line-height: 1; }
-    .ft-act.ft-liked { color: #fa6c8d; }
-    .ft-act.ft-liked:hover { background: #fff0f3; }
+    .ft-act.ft-liked { color: var(--pulse-danger); }
+    .ft-act.ft-liked:hover { background: rgba(239,68,68,.12); }
     .ft-count { font-variant-numeric: tabular-nums; }
-    .ft-act-accept { color: #2e8b3d; }
-    .ft-act-accept:hover { background: #eafaea; color: #1f6e2c; }
-    .ft-act-accepted { color: #2e8b3d; }
+    .ft-act-accept { color: var(--pulse-success); }
+    .ft-act-accept:hover { background: rgba(34,197,94,.12); }
+    .ft-act-accepted { color: var(--pulse-success); }
 
-    /* Topic summary bar after the OP. */
-    .ft-summary { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacingHorizontalXS);
-        margin: var(--spacingVerticalM) 0 0 calc(45px + var(--spacingHorizontalM));
-        padding: var(--spacingVerticalS) var(--spacingHorizontalM);
-        background: var(--colorNeutralBackground2); border: 1px solid var(--colorNeutralStroke2);
-        border-radius: var(--borderRadiusMedium); color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .ft-sum-stat { font-weight: var(--fontWeightSemibold); }
-    .ft-sum-dot { color: var(--colorNeutralStroke2); }
+    /* Barre de resume sous le message d'origine. */
+    .ft-summary { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
+        margin: 1rem 0 0 calc(46px + 1rem); padding: .55rem .85rem;
+        background: var(--pulse-surface-2); border: 1px solid var(--pulse-border);
+        border-radius: 12px; color: var(--pulse-text-3); font-size: .8rem; }
+    .ft-sum-stat { font-weight: 600; color: var(--pulse-text-2); }
+    .ft-sum-dot { color: var(--pulse-text-3); }
 
-    .ft-closed-note { margin-top: 1.5rem; background: #fbf3f3; border: 1px solid #f0d6d6; color: #9a4040;
-        border-radius: 3px; padding: 1rem 1.2rem; font-weight: 600; text-align: center; }
+    .ft-closed-note { margin-top: 1.25rem; background: rgba(239,68,68,.1); border: 1px solid var(--pulse-border);
+        color: var(--pulse-danger); border-radius: 14px; padding: 1rem 1.2rem; font-weight: 600; text-align: center; }
 
-    .ft-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-top: 1px solid var(--colorNeutralStroke3); margin-top: .5rem; }
-    .ft-pager-btn { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold);
-        font-size: var(--fontSizeBase300); padding: var(--spacingVerticalXS) var(--spacingHorizontalM);
-        border-radius: var(--borderRadiusCircular, 999px); }
-    .ft-pager-btn:hover { background: var(--colorSubtleBackgroundHover); }
-    .ft-pager-at { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .ft-pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        padding: 1.1rem 1.2rem; border-top: 1px solid var(--pulse-border); margin-top: .5rem; }
+    .ft-pager-btn { color: var(--pulse-primary); text-decoration: none; font-weight: 600;
+        font-size: .9rem; padding: .4rem 1rem; border-radius: 999px; }
+    .ft-pager-btn:hover { background: var(--pulse-primary-soft); }
+    .ft-pager-at { color: var(--pulse-text-3); font-size: .8rem; }
     .ft-pager-sp { width: 1px; }
 
-    .ft-composer { margin-top: 1.75rem; padding: 1.2rem 1.3rem 1.4rem; }
-    .ft-composer-title { margin: 0 0 .7rem; font-size: 1.1rem; }
-    .ft-composer-actions { margin-top: .7rem; }
-    .ft-signin-note { color: var(--colorNeutralForeground3); margin: 0; }
-    .ft-signin-note a { color: var(--colorBrandForeground1); }
+    /* Composer de reponse. */
+    .ft-composer { margin-top: 1.5rem; background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 1.3rem 1.4rem 1.45rem; }
+    .ft-composer-title { margin: 0 0 .85rem; font-size: 1.1rem; color: var(--pulse-text); font-weight: 700; }
+    .ft-composer-actions { margin-top: .85rem; }
+    .ft-signin-note { color: var(--pulse-text-2); margin: 0; }
+    .ft-signin-note a { color: var(--pulse-primary); }
 
-    /* Right-side timeline scrubber (the iconic Discourse element). */
-    .ft-timeline { position: sticky; top: 64px; width: 150px; flex: 0 0 150px; align-self: flex-start;
-        display: flex; flex-direction: column; align-items: center; gap: var(--spacingVerticalS);
-        padding: var(--spacingVerticalM) 0; color: var(--colorNeutralForeground3); }
-    .ft-tl-date { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); white-space: nowrap; }
-    .ft-tl-count { font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground2);
+    /* Chronologie laterale (scrubber + actions). */
+    .ft-timeline { position: sticky; top: 64px; width: 170px; flex: 0 0 170px; align-self: flex-start;
+        display: flex; flex-direction: column; gap: .75rem; }
+    .ft-tl-card { background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px;
+        padding: 1rem .85rem; display: flex; flex-direction: column; align-items: center; gap: .5rem;
+        color: var(--pulse-text-3); }
+    .ft-tl-date { font-size: .76rem; color: var(--pulse-text-3); white-space: nowrap; }
+    .ft-tl-count { font-size: .95rem; font-weight: 600; color: var(--pulse-text-2);
         display: flex; align-items: baseline; gap: .15rem; font-variant-numeric: tabular-nums; }
-    .ft-tl-sep, .ft-tl-total { color: var(--colorNeutralForeground3); font-weight: var(--fontWeightRegular, 400); }
-    .ft-tl-track { width: 2px; height: 120px; background: var(--colorNeutralStroke2); border-radius: 2px; position: relative; }
+    .ft-tl-sep, .ft-tl-total { color: var(--pulse-text-3); font-weight: 400; }
+    .ft-tl-track { width: 2px; height: 120px; background: var(--pulse-border); border-radius: 2px; position: relative; }
     .ft-tl-thumb { position: absolute; left: 50%; top: 0; transform: translateX(-50%);
-        width: 12px; height: 12px; border-radius: 50%; background: var(--colorBrandBackground); box-shadow: 0 0 0 3px var(--colorNeutralBackground1); }
+        width: 12px; height: 12px; border-radius: 50%; background: var(--pulse-primary);
+        box-shadow: 0 0 0 3px var(--pulse-surface); }
     .ft-tl-start { margin-top: 0; }
-    .ft-tl-read { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); }
-    .ft-tl-btns { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); margin-top: var(--spacingVerticalXS); }
-    .ft-tl-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-        background: var(--colorNeutralBackground3); color: var(--colorNeutralForeground2); text-decoration: none;
-        font-size: 1rem; cursor: pointer; border: 1px solid var(--colorNeutralStroke2); }
-    .ft-tl-btn:hover { background: var(--colorNeutralBackground3Hover, #e8e8e8); }
+    .ft-tl-read { font-size: .76rem; color: var(--pulse-text-3); }
+    .ft-tl-btns { display: flex; flex-direction: column; gap: .5rem; }
+    .ft-tl-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+        padding: .55rem .8rem; border-radius: 10px; background: var(--pulse-surface-2); color: var(--pulse-text-2);
+        text-decoration: none; font-size: .82rem; font-weight: 600; cursor: pointer; border: 1px solid var(--pulse-border); }
+    .ft-tl-btn:hover { background: var(--pulse-surface); color: var(--pulse-text); }
+    .ft-tl-btn-primary { background: var(--pulse-primary); border-color: var(--pulse-primary); color: #fff; }
+    .ft-tl-btn-primary:hover { background: var(--pulse-primary-hover); color: #fff; }
 
-    .ft-empty { padding: 2.5rem 2rem; text-align: center; }
-    .ft-empty h2 { margin: 0 0 .5rem; }
-    .ft-empty p { color: var(--colorNeutralForeground3); margin: 0 0 1rem; }
-    .ft-back { color: var(--colorBrandForeground1); text-decoration: none; font-weight: 600; }
+    .ft-empty { background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px;
+        padding: 2.75rem 2rem; text-align: center; }
+    .ft-empty-icon { font-size: 2.4rem; margin-bottom: .75rem; }
+    .ft-empty h2 { margin: 0 0 .5rem; color: var(--pulse-text); }
+    .ft-empty p { color: var(--pulse-text-2); margin: 0 0 1.2rem; }
+    .ft-back { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
 
     @media (max-width: 920px) {
         .ft-timeline { display: none; }
     }
     @media (max-width: 640px) {
         .ft-title { font-size: 1.35rem; }
-        .ft-avatar { width: 38px; height: 38px; flex-basis: 38px; font-size: 1.1rem; }
-        .ft-post-row { gap: .65rem; }
+        .ft-avatar { width: 40px; height: 40px; flex-basis: 40px; font-size: 1.1rem; }
+        .ft-post-row { gap: .7rem; }
         .ft-summary { margin-left: 0; }
     }
 </style>

@@ -6,57 +6,79 @@
 
 @if exists {
     <Breadcrumb>
-        <BreadcrumbItem href="/feed">Home</BreadcrumbItem>
+        <BreadcrumbItem href="/feed">Accueil</BreadcrumbItem>
         <BreadcrumbItem current="true">@@@handleText</BreadcrumbItem>
     </Breadcrumb>
-    <section class="bz-prof-head bz-card mv-anim-fadein">
-        <Persona name="@display" secondary="@handleText" avatar="@avatar" />
-        <div class="bz-prof-id">
+
+    <section class="pp-card pp-head mv-anim-fadein">
+        <div class="pp-banner"></div>
+        <div class="pp-head-body">
+            <div class="pp-ava">@avatar</div>
+            <div class="pp-head-row">
+                <div class="pp-id">
+                    <h1 class="pp-name">@display</h1>
+                    <p class="pp-handle">@@@handleText</p>
+                </div>
+                @if isSelf {
+                    <a class="pp-btn pp-btn-self" href="/me">Modifier le profil</a>
+                } else {
+                    <form class="pp-followform" @submit="toggleFollow" secure>
+                        @if following {
+                            <button type="submit" class="pp-btn pp-btn-on">Abonné</button>
+                        } else {
+                            <button type="submit" class="pp-btn pp-btn-primary">Suivre</button>
+                        }
+                    </form>
+                }
+            </div>
             @if (Text.size(bio) > 0) {
-                <p class="bz-prof-bio">@bio</p>
+                <p class="pp-tagline">@bio</p>
             }
         </div>
-        @if isSelf {
-            <a class="bz-followbtn bz-followbtn-self" href="/me">Edit profile</a>
-        } else {
-            <form class="bz-followform" @submit="toggleFollow" secure>
-                @if following {
-                    <button type="submit" class="bz-followbtn bz-followbtn-on">Following</button>
-                } else {
-                    <button type="submit" class="bz-followbtn">Follow</button>
-                }
-            </form>
-        }
     </section>
 
-    <div class="bz-prof-stats">
-        <div class="bz-stat">
-            <span class="bz-stat-n">@postCount</span>
-            <span class="bz-stat-l">Posts</span>
+    <div class="pp-stats">
+        <div class="pp-stat">
+            <span class="pp-stat-n">@postCount</span>
+            <span class="pp-stat-l">Publications</span>
         </div>
-        <div class="bz-stat">
-            <span class="bz-stat-n">@followers</span>
-            <span class="bz-stat-l">Followers</span>
+        <div class="pp-stat">
+            <span class="pp-stat-n">@followers</span>
+            <span class="pp-stat-l">Abonnés</span>
         </div>
-        <div class="bz-stat">
-            <span class="bz-stat-n">@followingN</span>
-            <span class="bz-stat-l">Following</span>
+        <div class="pp-stat">
+            <span class="pp-stat-n">@followingN</span>
+            <span class="pp-stat-l">Abonnements</span>
         </div>
     </div>
 
-    <div class="bz-card bz-prof-panel">
-        <h2>Posts</h2>
+    <div class="pp-card pp-panel">
+        <h2 class="pp-panel-title">Badges</h2>
+        <p class="pp-soon">Bientôt disponible.</p>
+    </div>
+
+    @if (Text.size(bio) > 0) {
+        <div class="pp-card pp-panel">
+            <h2 class="pp-panel-title">À propos</h2>
+            <p class="pp-about">@bio</p>
+        </div>
+    }
+
+    <div class="pp-card pp-panel">
+        <h2 class="pp-panel-title">Publications</h2>
         @if (posts.size() > 0) {
-            <div class="bz-posts">
+            <div class="pp-posts">
                 @for p in posts {
-                    <article class="bz-post">
-                        <div class="bz-post-head">
-                            <Persona name="@display" secondary="@handleText" avatar="@avatar" />
-                            <span class="bz-post-dot">·</span>
-                            <span class="bz-post-time">@ago(p.at)</span>
+                    <article class="pp-post">
+                        <div class="pp-post-head">
+                            <div class="pp-post-ava">@avatar</div>
+                            <span class="pp-post-name">@display</span>
+                            <span class="pp-post-handle">@@@handleText</span>
+                            <span class="pp-post-dot">·</span>
+                            <span class="pp-post-time">@ago(p.at)</span>
                         </div>
-                        <p class="bz-post-text">@p.text</p>
-                        <div class="bz-post-meta">
+                        <p class="pp-post-text">@p.text</p>
+                        <div class="pp-post-meta">
                             <span>❤️ @p.likes</span>
                             <span>🔁 @p.reposts</span>
                             <span>💬 @p.replyCount</span>
@@ -65,73 +87,90 @@
                 }
             </div>
         } else {
-            <div class="bz-empty">
-                <div class="bz-empty-ico">⚡</div>
-                <p>@display hasn't posted anything yet.</p>
+            <div class="pp-empty">
+                <div class="pp-empty-ico">⚡</div>
+                <p>@display n'a encore rien publié.</p>
             </div>
         }
     </div>
 } else {
-    <section class="bz-prof-head bz-card mv-anim-fadein">
-        <div class="bz-prof-ava">❓</div>
-        <div class="bz-prof-id">
-            <h1>User not found</h1>
-            <p class="bz-prof-handle">No one on Bzzz has claimed @@@handleText yet.</p>
+    <section class="pp-card pp-head mv-anim-fadein">
+        <div class="pp-banner"></div>
+        <div class="pp-head-body">
+            <div class="pp-ava">❓</div>
+            <div class="pp-id">
+                <h1 class="pp-name">Utilisateur introuvable</h1>
+                <p class="pp-handle">Personne sur Pulse n'a encore revendiqué @@@handleText.</p>
+            </div>
         </div>
     </section>
-    <div class="bz-empty">
-        <a class="bz-link" href="/feed">← Back to the feed</a>
+    <div class="pp-empty">
+        <a class="pp-link" href="/feed">← Retour au fil</a>
     </div>
 }
 
 <style>
-    .bz-prof-head { display: flex; align-items: center; gap: 1.1rem; padding: 1.4rem 1.5rem; }
-    .bz-prof-ava { width: 76px; height: 76px; border-radius: 50%; flex: 0 0 auto;
-        background: linear-gradient(135deg, #6d28d9, #c026d3); color: #fff;
-        display: grid; place-items: center; font-size: 2.2rem;
-        box-shadow: 0 6px 18px rgba(109,40,217,.28); }
-    .bz-prof-id { flex: 1; }
-    .bz-prof-id h1 { margin: 0 0 .15rem; font-size: 1.55rem; letter-spacing: -.02em; }
-    .bz-prof-handle { margin: 0; color: var(--bz-accent); font-weight: 600; font-size: .95rem; }
-    .bz-prof-bio { margin: .5rem 0 0; color: var(--mv-text); font-size: .95rem; max-width: 60ch; }
+    .pp-card { background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; overflow: hidden; }
 
-    .bz-followform { margin: 0; flex: 0 0 auto; }
-    .bz-followbtn { display: inline-block; border: 1px solid var(--bz-accent); background: var(--bz-accent);
-        color: #fff; font-weight: 700; font-size: .92rem; padding: .55rem 1.3rem; border-radius: 2px;
-        cursor: pointer; text-decoration: none; transition: background .12s ease, color .12s ease; }
-    .bz-followbtn:hover { background: #5b21b6; border-color: #5b21b6; }
-    .bz-followbtn-on { background: transparent; color: var(--bz-accent); }
-    .bz-followbtn-on:hover { background: #fde8ec; color: #c80001; border-color: #c80001; }
-    .bz-followbtn-self { background: transparent; color: var(--mv-text); border-color: var(--mv-border); }
-    .bz-followbtn-self:hover { background: var(--mv-muted); border-color: var(--mv-border); color: var(--mv-text); }
+    .pp-head { margin-bottom: 1rem; }
+    .pp-banner { height: 120px; background: var(--pulse-grad-profile); }
+    .pp-head-body { padding: 0 1.5rem 1.4rem; }
 
-    .bz-prof-stats { display: flex; gap: .75rem; margin: 1rem 0 1.25rem; }
-    .bz-stat { flex: 1; background: var(--mv-surface); border: 1px solid var(--mv-border);
-        border-radius: 3px; padding: .85rem 1rem; text-align: center; box-shadow: var(--mv-shadow); }
-    .bz-stat-n { display: block; font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
-    .bz-stat-l { display: block; color: var(--mv-text-soft); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    .pp-ava { width: 96px; height: 96px; border-radius: 50%; margin-top: -48px;
+        background: var(--pulse-surface-2); border: 4px solid var(--pulse-surface);
+        display: grid; place-items: center; font-size: 2.6rem; color: var(--pulse-text);
+        box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 
-    .bz-prof-panel { padding: 1.2rem 1.3rem; }
-    .bz-prof-panel h2 { margin: 0 0 .6rem; font-size: 1.1rem; }
+    .pp-head-row { display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 1rem; margin-top: .6rem; flex-wrap: wrap; }
+    .pp-id { flex: 1; min-width: 0; }
+    .pp-name { margin: 0 0 .15rem; font-size: 1.5rem; letter-spacing: -.02em; color: var(--pulse-text); }
+    .pp-handle { margin: 0; color: var(--pulse-text-2); font-weight: 600; font-size: .95rem; }
+    .pp-tagline { margin: .75rem 0 0; color: var(--pulse-text); font-size: .95rem;
+        max-width: 60ch; line-height: 1.5; }
 
-    .bz-posts { display: flex; flex-direction: column; gap: .25rem; }
-    .bz-post { padding: .9rem .25rem; border-top: 1px solid var(--mv-border); }
-    .bz-post:first-child { border-top: none; padding-top: .25rem; }
-    .bz-post-head { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
-    .bz-post-ava { width: 30px; height: 30px; border-radius: 50%; background: var(--mv-muted);
+    .pp-followform { margin: 0; flex: 0 0 auto; }
+    .pp-btn { display: inline-block; border: 1px solid var(--pulse-border);
+        font-weight: 700; font-size: .92rem; padding: .55rem 1.4rem; border-radius: 10px;
+        cursor: pointer; text-decoration: none; transition: background .12s ease, border-color .12s ease; }
+    .pp-btn-primary { background: var(--pulse-primary); border-color: var(--pulse-primary); color: #fff; }
+    .pp-btn-primary:hover { background: var(--pulse-primary-hover); border-color: var(--pulse-primary-hover); }
+    .pp-btn-on { background: var(--pulse-primary-soft); border-color: var(--pulse-primary); color: var(--pulse-primary); }
+    .pp-btn-on:hover { background: transparent; color: var(--pulse-danger); border-color: var(--pulse-danger); }
+    .pp-btn-self { background: var(--pulse-surface-2); color: var(--pulse-text); border-color: var(--pulse-border); }
+    .pp-btn-self:hover { background: var(--pulse-border); }
+
+    .pp-stats { display: flex; gap: .75rem; margin: 0 0 1rem; }
+    .pp-stat { flex: 1; background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: .9rem 1rem; text-align: center; }
+    .pp-stat-n { display: block; font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; color: var(--pulse-text); }
+    .pp-stat-l { display: block; color: var(--pulse-text-2); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+
+    .pp-panel { padding: 1.2rem 1.4rem; margin-bottom: 1rem; }
+    .pp-panel-title { margin: 0 0 .7rem; font-size: 1.1rem; color: var(--pulse-text); }
+    .pp-soon { margin: 0; color: var(--pulse-text-3); font-size: .9rem; }
+    .pp-about { margin: 0; color: var(--pulse-text); font-size: .95rem; line-height: 1.55; white-space: pre-wrap; max-width: 70ch; }
+
+    .pp-posts { display: flex; flex-direction: column; gap: 0; }
+    .pp-post { padding: .95rem .1rem; border-top: 1px solid var(--pulse-border); }
+    .pp-post:first-child { border-top: none; padding-top: .1rem; }
+    .pp-post-head { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+    .pp-post-ava { width: 32px; height: 32px; border-radius: 50%; background: var(--pulse-surface-2);
         display: grid; place-items: center; font-size: 1rem; }
-    .bz-post-name { font-weight: 700; }
-    .bz-post-handle, .bz-post-time, .bz-post-dot { color: var(--mv-text-soft); font-size: .85rem; }
-    .bz-post-text { margin: .4rem 0 .5rem; white-space: pre-wrap; line-height: 1.45; }
-    .bz-post-meta { display: flex; gap: 1.1rem; color: var(--mv-text-soft); font-size: .85rem; }
+    .pp-post-name { font-weight: 700; color: var(--pulse-text); }
+    .pp-post-handle, .pp-post-time, .pp-post-dot { color: var(--pulse-text-2); font-size: .85rem; }
+    .pp-post-text { margin: .45rem 0 .55rem; white-space: pre-wrap; line-height: 1.5; color: var(--pulse-text); }
+    .pp-post-meta { display: flex; gap: 1.1rem; color: var(--pulse-text-2); font-size: .85rem; }
 
-    .bz-empty { text-align: center; padding: 2rem 1rem; color: var(--mv-text-soft); }
-    .bz-empty-ico { font-size: 2rem; margin-bottom: .4rem; }
-    .bz-link { color: var(--bz-accent); font-weight: 600; text-decoration: none; }
-    .bz-link:hover { text-decoration: underline; }
+    .pp-empty { text-align: center; padding: 2rem 1rem; color: var(--pulse-text-2); }
+    .pp-empty-ico { font-size: 2rem; margin-bottom: .4rem; }
+    .pp-link { color: var(--pulse-primary); font-weight: 600; text-decoration: none; }
+    .pp-link:hover { text-decoration: underline; }
 
     @media (max-width: 520px) {
-        .bz-prof-head { flex-direction: column; text-align: center; }
+        .pp-head-row { flex-direction: column; }
+        .pp-stats { flex-direction: column; }
     }
 </style>
 

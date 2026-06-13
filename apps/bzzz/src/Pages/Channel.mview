@@ -1,185 +1,214 @@
 @page "/channel/{rid:Nat}"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "#" # roomName # " — Bzzz channel"
-@description "Live chat in #" # roomName # " on Bzzz — post messages, react, reply and thread in a Discord-style channel running on the Internet Computer."
+@title "Chat en direct — #" # roomName
+@description "Discutez en direct dans le salon #" # roomName # " sur Bzzz : publiez des messages, réagissez, répondez et ouvrez des fils, dans un chat de style Discord propulsé par l'Internet Computer."
 
 @if not exists {
-    <div class="bz-card ch-missing">
-        <div class="ch-missing-ico">🚫</div>
-        <h2>Channel not found</h2>
-        <p>This channel does not exist. <a href="/servers">Browse servers</a>.</p>
+    <div class="pl-card pl-missing">
+        <div class="pl-missing-ico">🚫</div>
+        <h2>Salon introuvable</h2>
+        <p>Ce salon n'existe pas. <a href="/servers">Parcourir les serveurs</a>.</p>
     </div>
 } else {
-    <div class="dc bz-card" style="--bz-accent:#5865f2; --bz-accent-2:#7c3aed;">
-        <!-- ====================== LEFT: channel sidebar ====================== -->
-        <aside class="dc-rail">
-            <a class="dc-rail-head" href="/servers/@(serverId)">
-                <span class="dc-rail-name">@serverName</span>
-                <span class="dc-rail-chev">⌄</span>
-            </a>
-            <div class="dc-rail-scroll">
-                <div class="dc-rail-cat">
-                    <span>Text Channels</span>
-                </div>
-                <ul class="dc-chan-list">
+    <div class="pl-chat">
+        <!-- ====================== GAUCHE : rail des salons ====================== -->
+        <aside class="pl-rail">
+            <div class="pl-rail-top">
+                <h1 class="pl-rail-title">Chat en direct</h1>
+                <a class="pl-rail-server" href="/servers/@(serverId)" title="Retour au serveur">@serverName</a>
+            </div>
+
+            <div class="pl-search">
+                <span class="pl-search-ico">⌕</span>
+                <input class="pl-search-input" type="text" placeholder="Rechercher un salon" disabled />
+            </div>
+
+            <div class="pl-rail-scroll">
+                <div class="pl-rail-cat">Salons</div>
+                <ul class="pl-chan-list">
                     @for c in channels {
-                        <li>
-                            <a class="dc-chan @(activeClass(c.id))" href="/channel/@(c.id)">
-                                @if isLocked(c.id) {
-                                    <span class="dc-chan-ico dc-chan-lock">🔒</span>
-                                } else {
-                                    <span class="dc-chan-ico">#</span>
-                                }
-                                <span class="dc-chan-name">@c.name</span>
-                            </a>
-                        </li>
+                        @if isLocked(c.id) {
+                            <li>
+                                <a class="pl-chan @(activeClass(c.id))" href="/channel/@(c.id)">
+                                    <span class="pl-chan-ico pl-chan-lock">🔒</span>
+                                    <span class="pl-chan-name">@c.name</span>
+                                </a>
+                            </li>
+                        } else {
+                            <li>
+                                <a class="pl-chan @(activeClass(c.id))" href="/channel/@(c.id)">
+                                    <span class="pl-chan-ico">#</span>
+                                    <span class="pl-chan-name">@c.name</span>
+                                </a>
+                            </li>
+                        }
                     }
                 </ul>
+
+                <div class="pl-rail-cat">Salons vocaux</div>
+                <ul class="pl-voice-list">
+                    <!-- maquette visuelle — non interactif, aucune donnée réelle -->
+                    <li class="pl-voice">
+                        <span class="pl-voice-ico">🔊</span>
+                        <span class="pl-voice-name">Général</span>
+                    </li>
+                    <li class="pl-voice">
+                        <span class="pl-voice-ico">🔊</span>
+                        <span class="pl-voice-name">Développeurs</span>
+                        <span class="pl-voice-count">03/10</span>
+                    </li>
+                    <li class="pl-voice">
+                        <span class="pl-voice-ico">🔊</span>
+                        <span class="pl-voice-name">Salon de pause</span>
+                    </li>
+                </ul>
+                <p class="pl-voice-note">Les salons vocaux sont une maquette visuelle.</p>
             </div>
-            <div class="dc-rail-foot">
-                <span class="dc-rail-foot-ava">@meAvatar</span>
-                <span class="dc-rail-foot-id">
-                    <span class="dc-rail-foot-name">@meLabel</span>
-                    <span class="dc-rail-foot-state">@(onlineCount) online</span>
+
+            <div class="pl-rail-foot">
+                <span class="pl-rail-foot-ava">@meAvatar</span>
+                <span class="pl-rail-foot-id">
+                    <span class="pl-rail-foot-name">@meLabel</span>
+                    <span class="pl-rail-foot-state">@(onlineCount) en ligne</span>
                 </span>
-                <a class="dc-rail-foot-link" href="/me" title="Profile">⚙</a>
+                <a class="pl-rail-foot-link" href="/me" title="Profil">⚙</a>
             </div>
         </aside>
 
-        <!-- ====================== CENTER: the channel ====================== -->
-        <section class="dc-main">
-            <header class="dc-topbar">
-                <span class="dc-topbar-hash dc-accent-hash">#</span>
-                <span class="dc-topbar-name">@roomName</span>
-                <span class="dc-topbar-div"></span>
-                <span class="dc-topbar-topic">@(liveCount) @plural(liveCount, "message", "messages") · @(memberTotal) @plural(memberTotal, "member", "members")</span>
+        <!-- ====================== CENTRE : le salon ====================== -->
+        <section class="pl-main">
+            <header class="pl-topbar">
+                <span class="pl-topbar-hash">#</span>
+                <span class="pl-topbar-name">@roomName</span>
+                <span class="pl-topbar-div"></span>
+                <span class="pl-topbar-topic">@(liveCount) @plural(liveCount, "message", "messages") · @(memberTotal) @plural(memberTotal, "membre", "membres")</span>
                 @if locked {
-                    <span class="dc-topbar-lock">🔒 Locked</span>
+                    <span class="pl-topbar-lock">🔒 Verrouillé</span>
                 }
-                <a class="dc-topbar-back" href="/servers/@(serverId)" title="Back to server">↩</a>
+                <a class="pl-topbar-act" href="/servers/@(serverId)" title="Retour au serveur">↩</a>
             </header>
 
-            <div class="dc-stream" id="ch-stream">
+            <div class="pl-stream" id="ch-stream">
                 @if messages.size() == 0 {
-                    <div class="dc-welcome">
-                        <div class="dc-welcome-ico">#</div>
-                        <h2>Welcome to #@roomName!</h2>
-                        <p>This is the start of the <strong>#@roomName</strong> channel. Say hello.</p>
+                    <div class="pl-welcome">
+                        <div class="pl-welcome-ico">#</div>
+                        <h2>Bienvenue dans #@roomName !</h2>
+                        <p>C'est le tout début du salon <strong>#@roomName</strong>. Dites bonjour.</p>
                     </div>
                 } else {
                     @for m in messages {
                         @if grouped(m.id) {
-                            <!-- compact follow-on line (same author) -->
-                            <div class="dc-msg dc-msg-cont" id="msg-@(m.id)">
-                                <span class="dc-gutter">
-                                    @if not isDel(m.deleted) { <span class="dc-gutter-time">@(clockOf(m.at))</span> }
+                            <!-- ligne de suite compacte (même auteur) -->
+                            <div class="pl-msg pl-msg-cont" id="msg-@(m.id)">
+                                <span class="pl-gutter">
+                                    @if not isDel(m.deleted) { <span class="pl-gutter-time">@(clockOf(m.at))</span> }
                                 </span>
-                                <div class="dc-msg-body">
+                                <div class="pl-msg-body">
                                     @if m.replyTo != 0 {
-                                        <div class="dc-reply-ctx">↪ <span class="dc-reply-snip">@(replySnippet(m.replyTo))</span></div>
+                                        <div class="pl-reply-ctx">↪ <span class="pl-reply-snip">@(replySnippet(m.replyTo))</span></div>
                                     }
                                     @if isDel(m.deleted) {
-                                        <div class="dc-text dc-deleted">message deleted</div>
+                                        <div class="pl-text pl-deleted">message supprimé</div>
                                     } else if editingId == m.id {
-                                        <form class="dc-edit-form" @submit="saveEdit" secure>
-                                            <InputText name="editText" label="Edit message" bind="@editText" required />
-                                            <div class="dc-edit-actions">
-                                                <Button kind="primary" type="submit">Save</Button>
-                                                <button type="button" class="dc-mini-btn" @click="cancelEdit">Cancel</button>
+                                        <form class="pl-edit-form" @submit="saveEdit" secure>
+                                            <InputText name="editText" label="Modifier le message" bind="@editText" required />
+                                            <div class="pl-edit-actions">
+                                                <Button kind="primary" type="submit">Enregistrer</Button>
+                                                <button type="button" class="pl-mini-btn" @click="cancelEdit">Annuler</button>
                                             </div>
                                         </form>
                                     } else {
-                                        <div class="dc-text">@m.text@if m.edited != 0 { <span class="dc-edited">(edited)</span> }</div>
+                                        <div class="pl-text">@m.text@if m.edited != 0 { <span class="pl-edited">(modifié)</span> }</div>
                                     }
                                     @if not isDel(m.deleted) {
                                         @raw(bzReactRow(m.id))
                                     }
                                 </div>
                                 @if not isDel(m.deleted) {
-                                    <div class="dc-hover-actions">
-                                        <span class="dc-react-quick">
+                                    <div class="pl-hover-actions">
+                                        <span class="pl-react-quick">
                                             @for e in emojiSet {
-                                                <button class="dc-react-btn" @click="react(m.id, emo(e))" title="React">@e</button>
+                                                <button class="pl-react-btn" @click="react(m.id, emo(e))" title="Réagir">@e</button>
                                             }
                                         </span>
-                                        <button class="dc-act-btn" @click="startReply(m.id)" title="Reply">↩</button>
-                                        <button type="button" class="dc-act-btn" @click="openThread(m.id)" title="Thread">🧵</button>
+                                        <button class="pl-act-btn" @click="startReply(m.id)" title="Répondre">↩</button>
+                                        <button type="button" class="pl-act-btn" @click="openThread(m.id)" title="Fil">🧵</button>
                                         @if isMineP(m.author) {
-                                            <button class="dc-act-btn" @click="startEdit(m.id)" title="Edit">✏️</button>
-                                            <button class="dc-act-btn dc-act-danger" @click="del(m.id)" title="Delete">🗑</button>
+                                            <button class="pl-act-btn" @click="startEdit(m.id)" title="Modifier">✏️</button>
+                                            <button class="pl-act-btn pl-act-danger" @click="del(m.id)" title="Supprimer">🗑</button>
                                         }
                                     </div>
                                 }
                             </div>
                         } else {
-                            <!-- new author group: avatar + head line -->
-                            <div class="dc-msg dc-msg-lead" id="msg-@(m.id)">
-                                <div class="dc-ava">@(avatarFor(m.author))</div>
-                                <div class="dc-msg-body">
-                                    <div class="dc-msg-head">
-                                        <span class="dc-author dc-role-@(roleClassOf(m.author))">@(authorLabel(m.authorHandle, m.author))</span>
+                            <!-- nouveau groupe d'auteur : avatar + ligne d'en-tête -->
+                            <div class="pl-msg pl-msg-lead" id="msg-@(m.id)">
+                                <div class="pl-ava">@(avatarFor(m.author))</div>
+                                <div class="pl-msg-body">
+                                    <div class="pl-msg-head">
+                                        <span class="pl-author pl-role-@(roleClassOf(m.author))">@(authorLabel(m.authorHandle, m.author))</span>
                                         @if isStaff(m.author) {
-                                            <span class="dc-author-tag dc-role-@(roleClassOf(m.author))">@(roleOfP(m.author))</span>
+                                            <span class="pl-author-tag pl-role-@(roleClassOf(m.author))">@(roleOfP(m.author))</span>
                                         }
-                                        <span class="dc-time">@(timeOf(m.at))</span>
+                                        <span class="pl-time">@(timeOf(m.at))</span>
                                     </div>
                                     @if m.replyTo != 0 {
-                                        <div class="dc-reply-ctx">↪ <span class="dc-reply-snip">@(replySnippet(m.replyTo))</span></div>
+                                        <div class="pl-reply-ctx">↪ <span class="pl-reply-snip">@(replySnippet(m.replyTo))</span></div>
                                     }
                                     @if isDel(m.deleted) {
-                                        <div class="dc-text dc-deleted">message deleted</div>
+                                        <div class="pl-text pl-deleted">message supprimé</div>
                                     } else if editingId == m.id {
-                                        <form class="dc-edit-form" @submit="saveEdit" secure>
-                                            <InputText name="editText" label="Edit message" bind="@editText" required />
-                                            <div class="dc-edit-actions">
-                                                <Button kind="primary" type="submit">Save</Button>
-                                                <button type="button" class="dc-mini-btn" @click="cancelEdit">Cancel</button>
+                                        <form class="pl-edit-form" @submit="saveEdit" secure>
+                                            <InputText name="editText" label="Modifier le message" bind="@editText" required />
+                                            <div class="pl-edit-actions">
+                                                <Button kind="primary" type="submit">Enregistrer</Button>
+                                                <button type="button" class="pl-mini-btn" @click="cancelEdit">Annuler</button>
                                             </div>
                                         </form>
                                     } else {
-                                        <div class="dc-text">@m.text@if m.edited != 0 { <span class="dc-edited">(edited)</span> }</div>
+                                        <div class="pl-text">@m.text@if m.edited != 0 { <span class="pl-edited">(modifié)</span> }</div>
                                     }
                                     @if not isDel(m.deleted) {
                                         @raw(bzReactRow(m.id))
                                     }
                                 </div>
                                 @if not isDel(m.deleted) {
-                                    <div class="dc-hover-actions">
-                                        <span class="dc-react-quick">
+                                    <div class="pl-hover-actions">
+                                        <span class="pl-react-quick">
                                             @for e in emojiSet {
-                                                <button class="dc-react-btn" @click="react(m.id, emo(e))" title="React">@e</button>
+                                                <button class="pl-react-btn" @click="react(m.id, emo(e))" title="Réagir">@e</button>
                                             }
                                         </span>
-                                        <button class="dc-act-btn" @click="startReply(m.id)" title="Reply">↩</button>
-                                        <button type="button" class="dc-act-btn" @click="openThread(m.id)" title="Thread">🧵</button>
+                                        <button class="pl-act-btn" @click="startReply(m.id)" title="Répondre">↩</button>
+                                        <button type="button" class="pl-act-btn" @click="openThread(m.id)" title="Fil">🧵</button>
                                         @if isMineP(m.author) {
-                                            <button class="dc-act-btn" @click="startEdit(m.id)" title="Edit">✏️</button>
-                                            <button class="dc-act-btn dc-act-danger" @click="del(m.id)" title="Delete">🗑</button>
+                                            <button class="pl-act-btn" @click="startEdit(m.id)" title="Modifier">✏️</button>
+                                            <button class="pl-act-btn pl-act-danger" @click="del(m.id)" title="Supprimer">🗑</button>
                                         }
                                     </div>
                                 }
                             </div>
                         }
 
-                        <!-- thread drawer (rendered after either group/cont row) -->
+                        <!-- tiroir de fil (rendu après le groupe / la ligne de suite) -->
                         @if openThreadId == m.id and not isDel(m.deleted) {
-                            <div class="dc-thread">
-                                <div class="dc-thread-head">🧵 Thread · @(threadCountOf(m.id)) @plural(threadCountOf(m.id), "reply", "replies")</div>
+                            <div class="pl-thread">
+                                <div class="pl-thread-head">🧵 Fil · @(threadCountOf(m.id)) @plural(threadCountOf(m.id), "réponse", "réponses")</div>
                                 @if threadCountOf(m.id) == 0 {
-                                    <p class="dc-thread-empty">No replies yet — start the conversation.</p>
+                                    <p class="pl-thread-empty">Aucune réponse pour l'instant — lancez la conversation.</p>
                                 } else {
                                     @for t in Chat.thread(m.id) {
-                                        <div class="dc-thread-msg">
-                                            <span class="dc-thread-author">@t.handle</span>
-                                            <span class="dc-thread-time">@(timeOf(t.at))</span>
-                                            <div class="dc-thread-text">@t.text</div>
+                                        <div class="pl-thread-msg">
+                                            <span class="pl-thread-author">@t.handle</span>
+                                            <span class="pl-thread-time">@(timeOf(t.at))</span>
+                                            <div class="pl-thread-text">@t.text</div>
                                         </div>
                                     }
                                 }
-                                <form class="dc-thread-form" @submit="postThread" secure>
-                                    <InputText name="threadText" label="Reply in thread" bind="@threadText" required />
-                                    <Button kind="primary" type="submit">Send</Button>
+                                <form class="pl-thread-form" @submit="postThread" secure>
+                                    <InputText name="threadText" label="Répondre dans le fil" bind="@threadText" required />
+                                    <Button kind="primary" type="submit">Envoyer</Button>
                                 </form>
                             </div>
                         }
@@ -187,64 +216,65 @@
                 }
             </div>
 
-            <div class="dc-typing">
+            <div class="pl-typing">
                 @if typing.size() > 0 {
-                    <span class="dc-typing-dots"><span></span><span></span><span></span></span>
-                    <span class="dc-typing-text"><strong>@typingText</strong> is typing…</span>
+                    <span class="pl-typing-dots"><span></span><span></span><span></span></span>
+                    <span class="pl-typing-text"><strong>@typingText</strong> est en train d'écrire…</span>
                 }
             </div>
 
             @if replyingTo != 0 {
-                <div class="dc-replybar">
-                    <span>↪ Replying to <span class="dc-reply-snip">@(replySnippet(replyingTo))</span></span>
-                    <button class="dc-replybar-x" @click="cancelReply" title="Cancel">✕</button>
+                <div class="pl-replybar">
+                    <span>↪ Réponse à <span class="pl-reply-snip">@(replySnippet(replyingTo))</span></span>
+                    <button class="pl-replybar-x" @click="cancelReply" title="Annuler">✕</button>
                 </div>
             }
 
             @if locked and not canMod {
-                <div class="dc-composer-locked">🔒 This channel is locked. Only moderators can post right now.</div>
+                <div class="pl-composer-locked">🔒 Ce salon est verrouillé. Seuls les modérateurs peuvent publier pour le moment.</div>
             } else if muted {
-                <div class="dc-composer-locked">🔇 You are muted in this server and cannot post.</div>
+                <div class="pl-composer-locked">🔇 Vous êtes réduit au silence sur ce serveur et ne pouvez pas publier.</div>
             } else if not bound {
-                <div class="dc-composer-locked"><a href="/me">Claim a handle</a> to join the conversation.</div>
+                <div class="pl-composer-locked"><a href="/me">Choisissez un pseudo</a> pour rejoindre la conversation.</div>
             } else {
-                <form class="dc-composer" @submit="send" secure>
+                <form class="pl-composer" @submit="send" secure>
                     <ValidationSummary />
-                    <div class="dc-composer-row">
-                        <span class="dc-composer-plus">+</span>
-                        <InputText name="draft" label="Message #@roomName" bind="@draft" required />
-                        <button class="dc-send-btn" type="submit">Send ➤</button>
+                    <div class="pl-composer-row">
+                        <button type="button" class="pl-composer-attach" title="Joindre un fichier" disabled>＋</button>
+                        <InputText name="draft" label="Envoyer un message…" bind="@draft" required />
+                        <button type="button" class="pl-composer-emoji" title="Emoji" disabled>😊</button>
+                        <button class="pl-send-btn" type="submit" title="Envoyer">➤</button>
                     </div>
                 </form>
             }
         </section>
 
-        <!-- ====================== RIGHT: member list ====================== -->
-        <aside class="dc-members">
+        <!-- ====================== DROITE : liste des membres ====================== -->
+        <aside class="pl-members">
             @if staffMembers.size() > 0 {
-                <div class="dc-mem-cat dc-mem-cat-staff">Staff — @(staffMembers.size())</div>
-                <ul class="dc-mem-list">
+                <div class="pl-mem-cat pl-mem-cat-staff">Équipe — @(staffMembers.size())</div>
+                <ul class="pl-mem-list">
                     @for h in staffMembers {
-                        <li class="dc-mem">
-                            <span class="dc-mem-ava">@(avatarOfH(h))<span class="dc-mem-presence"></span></span>
-                            <span class="dc-mem-id">
-                                <span class="dc-mem-name dc-role-@(roleClassOfH(h))">@h</span>
+                        <li class="pl-mem">
+                            <span class="pl-mem-ava">@(avatarOfH(h))<span class="pl-mem-presence"></span></span>
+                            <span class="pl-mem-id">
+                                <span class="pl-mem-name pl-role-@(roleClassOfH(h))">@h</span>
                             </span>
-                            <span class="dc-mem-dot dc-role-@(roleClassOfH(h))" title="@(roleOfH(h))"></span>
+                            <span class="pl-mem-dot pl-role-@(roleClassOfH(h))" title="@(roleOfH(h))"></span>
                         </li>
                     }
                 </ul>
             }
-            <div class="dc-mem-cat">Online — @(onlineMembers.size())</div>
+            <div class="pl-mem-cat">En ligne — @(onlineMembers.size())</div>
             @if onlineMembers.size() == 0 {
-                <p class="dc-mem-empty">No one else is online right now.</p>
+                <p class="pl-mem-empty">Personne d'autre n'est en ligne pour l'instant.</p>
             } else {
-                <ul class="dc-mem-list">
+                <ul class="pl-mem-list">
                     @for h in onlineMembers {
-                        <li class="dc-mem">
-                            <span class="dc-mem-ava">@(avatarOfH(h))<span class="dc-mem-presence"></span></span>
-                            <span class="dc-mem-id">
-                                <span class="dc-mem-name">@h</span>
+                        <li class="pl-mem">
+                            <span class="pl-mem-ava">@(avatarOfH(h))<span class="pl-mem-presence"></span></span>
+                            <span class="pl-mem-id">
+                                <span class="pl-mem-name">@h</span>
                             </span>
                         </li>
                     }
@@ -255,226 +285,248 @@
 }
 
 <style>
-    .ch-missing { text-align:center; padding:2.5rem 1.2rem; }
-    .ch-missing-ico { font-size:2.4rem; }
-    .ch-missing a { color:var(--colorBrandForeground1); font-weight:600; }
+    .pl-missing { text-align:center; padding:2.5rem 1.2rem; background:var(--pulse-surface);
+        border:1px solid var(--pulse-border); border-radius:16px; color:var(--pulse-text); }
+    .pl-missing-ico { font-size:2.4rem; }
+    .pl-missing h2 { color:var(--pulse-text); margin:.6rem 0 .3rem; }
+    .pl-missing p { color:var(--pulse-text-2); }
+    .pl-missing a { color:var(--pulse-primary); font-weight:600; }
 
-    /* ---- Discord dark shell: three columns inside one card ---- */
-    .dc {
-        --dc-bg:        #313338;  /* center chat */
-        --dc-bg-rail:   #2b2d31;  /* channel sidebar */
-        --dc-bg-mem:    #2b2d31;  /* member list */
-        --dc-bg-head:   #1e1f22;  /* server head / composer wells */
-        --dc-text:      #dbdee1;
-        --dc-text-mut:  #949ba4;
-        --dc-text-bright:#f2f3f5;
-        --dc-hover:     #393c41;
-        --dc-active:    #404249;
-        --dc-stroke:    #1f2023;
-        --dc-link:      #00a8fc;
-        --bz-accent:    #5865f2;  /* Discord blurple — vibrant accent */
-        --bz-accent-2:  #7c3aed;  /* -> violet */
-        --dc-blurple:   var(--bz-accent);
-        --dc-online:    #23a55a;
-
-        display:grid; grid-template-columns:240px minmax(0,1fr) 240px;
+    /* ---- Pulse dark chat shell: three columns inside one card ---- */
+    .pl-chat {
+        display:grid; grid-template-columns:260px minmax(0,1fr) 240px;
         height:calc(100vh - 48px - 4.5rem); min-height:560px;
-        overflow:hidden; padding:0; background:var(--dc-bg);
-        color:var(--dc-text); border:1px solid var(--dc-stroke);
+        overflow:hidden; background:var(--pulse-surface);
+        color:var(--pulse-text); border:1px solid var(--pulse-border); border-radius:16px;
         font-size:15px; line-height:1.375;
     }
 
-    /* ====================== LEFT rail ====================== */
-    .dc-rail { display:flex; flex-direction:column; background:var(--dc-bg-rail); min-width:0; }
-    .dc-rail-head { display:flex; align-items:center; gap:.5rem; height:48px; padding:0 1rem;
-        box-shadow:0 1px 0 rgba(0,0,0,.3); flex:none; text-decoration:none; color:var(--dc-text-bright);
-        font-weight:800; font-size:.98rem; letter-spacing:-.01em;
-        background:linear-gradient(90deg, color-mix(in srgb, var(--bz-accent) 16%, transparent), transparent); }
-    .dc-rail-head:hover { background:linear-gradient(90deg, color-mix(in srgb, var(--bz-accent) 28%, var(--dc-hover)), var(--dc-hover)); }
-    .dc-rail-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dc-rail-chev { color:var(--dc-text-mut); font-size:1.1rem; line-height:1; }
+    /* ====================== rail GAUCHE ====================== */
+    .pl-rail { display:flex; flex-direction:column; background:var(--pulse-surface-2);
+        border-right:1px solid var(--pulse-border); min-width:0; }
+    .pl-rail-top { padding:1rem 1rem .6rem; border-bottom:1px solid var(--pulse-border); flex:none; }
+    .pl-rail-title { margin:0; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; color:var(--pulse-text); }
+    .pl-rail-server { display:inline-block; margin-top:.2rem; font-size:.8rem; font-weight:600;
+        color:var(--pulse-text-2); text-decoration:none; overflow:hidden; text-overflow:ellipsis;
+        white-space:nowrap; max-width:100%; }
+    .pl-rail-server:hover { color:var(--pulse-primary); }
 
-    .dc-rail-scroll { flex:1; overflow-y:auto; padding:.75rem .5rem; }
-    .dc-rail-cat { display:flex; align-items:center; gap:.3rem; padding:.3rem .5rem .15rem; text-transform:uppercase;
-        font-size:.72rem; font-weight:700; letter-spacing:.02em; color:var(--dc-text-mut); }
-    .dc-chan-list { list-style:none; margin:.15rem 0 0; padding:0; }
-    .dc-chan { position:relative; display:flex; align-items:center; gap:.4rem; padding:.35rem .5rem; margin:.1rem 0; border-radius:2px;
-        text-decoration:none; color:var(--dc-text-mut); font-weight:600; font-size:.93rem; }
-    .dc-chan:hover { background:var(--dc-hover); color:var(--dc-text); }
-    .dc-chan-ico { font-weight:600; font-size:1.05rem; opacity:.75; width:1.1rem; text-align:center; flex:none; }
-    .dc-chan-lock { font-size:.8rem; }
-    .dc-chan-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    /* active channel pill — vibrant blurple tint + accent edge bar */
-    .dc-chan.is-active { background:color-mix(in srgb, var(--bz-accent) 22%, var(--dc-active)); color:var(--dc-text-bright); }
-    .dc-chan.is-active::before { content:""; position:absolute; left:-.5rem; top:50%; transform:translateY(-50%);
-        width:4px; height:1.3rem; border-radius:0 3px 3px 0; background:linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
-    .dc-chan.is-active .dc-chan-ico { opacity:1; color:var(--bz-accent); }
+    .pl-search { display:flex; align-items:center; gap:.4rem; margin:.7rem .8rem .2rem;
+        padding:.4rem .6rem; background:var(--pulse-bg); border:1px solid var(--pulse-border);
+        border-radius:10px; flex:none; }
+    .pl-search-ico { color:var(--pulse-text-3); font-size:1rem; flex:none; }
+    .pl-search-input { flex:1; min-width:0; background:transparent; border:0; outline:none;
+        color:var(--pulse-text); font-size:.85rem; }
+    .pl-search-input::placeholder { color:var(--pulse-text-3); }
 
-    .dc-rail-foot { display:flex; align-items:center; gap:.5rem; padding:.5rem .6rem; background:var(--dc-bg-head); flex:none; }
-    .dc-rail-foot-ava { width:32px; height:32px; border-radius:50%; background:var(--dc-active); display:grid; place-items:center;
-        font-size:1.1rem; flex:none; }
-    .dc-rail-foot-id { display:flex; flex-direction:column; min-width:0; flex:1; }
-    .dc-rail-foot-name { font-weight:700; font-size:.82rem; color:var(--dc-text-bright); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dc-rail-foot-state { font-size:.72rem; color:var(--dc-text-mut); }
-    .dc-rail-foot-link { color:var(--dc-text-mut); text-decoration:none; font-size:1.05rem; padding:.2rem; border-radius:2px; }
-    .dc-rail-foot-link:hover { background:var(--dc-hover); color:var(--dc-text); }
+    .pl-rail-scroll { flex:1; overflow-y:auto; padding:.6rem .6rem; }
+    .pl-rail-cat { padding:.6rem .4rem .25rem; text-transform:uppercase;
+        font-size:.7rem; font-weight:700; letter-spacing:.04em; color:var(--pulse-text-3); }
+    .pl-chan-list, .pl-voice-list { list-style:none; margin:.1rem 0 .2rem; padding:0; }
+    .pl-chan { position:relative; display:flex; align-items:center; gap:.45rem; padding:.4rem .55rem;
+        margin:.12rem 0; border-radius:10px; text-decoration:none; color:var(--pulse-text-2);
+        font-weight:600; font-size:.92rem; }
+    .pl-chan:hover { background:var(--pulse-bg); color:var(--pulse-text); }
+    .pl-chan-ico { font-weight:700; font-size:1rem; color:var(--pulse-text-3); width:1.1rem; text-align:center; flex:none; }
+    .pl-chan-lock { font-size:.8rem; }
+    .pl-chan-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    .pl-chan.is-active { background:var(--pulse-primary-soft); color:var(--pulse-text); }
+    .pl-chan.is-active::before { content:""; position:absolute; left:-.6rem; top:50%; transform:translateY(-50%);
+        width:4px; height:1.3rem; border-radius:0 3px 3px 0; background:var(--pulse-primary); }
+    .pl-chan.is-active .pl-chan-ico { color:var(--pulse-primary); }
 
-    /* ====================== CENTER ====================== */
-    .dc-main { display:flex; flex-direction:column; min-width:0; background:var(--dc-bg); }
-    .dc-topbar { display:flex; align-items:center; gap:.5rem; height:48px; padding:0 1rem; flex:none;
-        box-shadow:0 1px 0 rgba(0,0,0,.2); }
-    .dc-topbar-hash { color:var(--dc-text-mut); font-size:1.3rem; font-weight:600; }
-    /* accent the channel header hash */
-    .dc-accent-hash { color:var(--bz-accent); font-weight:800; }
-    .dc-topbar-name { font-weight:800; color:var(--dc-text-bright); font-size:1.05rem; letter-spacing:-.01em; }
-    .dc-topbar-div { width:1px; height:1.1rem; background:var(--dc-text-mut); opacity:.4; margin:0 .35rem; }
-    .dc-topbar-topic { color:var(--dc-text-mut); font-size:.82rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dc-topbar-lock { margin-left:.4rem; font-size:.72rem; font-weight:700; color:#f0b232; background:rgba(240,178,50,.12);
-        padding:.12rem .45rem; border-radius:2px; flex:none; }
-    .dc-topbar-back { margin-left:auto; color:var(--dc-text-mut); text-decoration:none; font-size:1.1rem; padding:.2rem .35rem;
-        border-radius:2px; flex:none; }
-    .dc-topbar-back:hover { background:var(--dc-hover); color:var(--dc-text); }
+    /* salons vocaux — maquette visuelle, non interactive */
+    .pl-voice { display:flex; align-items:center; gap:.45rem; padding:.4rem .55rem; margin:.12rem 0;
+        border-radius:10px; color:var(--pulse-text-3); font-weight:600; font-size:.92rem; cursor:default; }
+    .pl-voice-ico { font-size:1rem; width:1.1rem; text-align:center; flex:none; opacity:.7; }
+    .pl-voice-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    .pl-voice-count { font-size:.72rem; font-weight:700; color:var(--pulse-text-3); flex:none; }
+    .pl-voice-note { margin:.3rem .55rem 0; font-size:.7rem; color:var(--pulse-text-3); font-style:italic; }
 
-    .dc-stream { flex:1; overflow-y:auto; padding:1rem 0 1.2rem; display:flex; flex-direction:column; }
+    .pl-rail-foot { display:flex; align-items:center; gap:.55rem; padding:.6rem .7rem;
+        background:var(--pulse-bg); border-top:1px solid var(--pulse-border); flex:none; }
+    .pl-rail-foot-ava { width:34px; height:34px; border-radius:50%; background:var(--pulse-grad-profile);
+        display:grid; place-items:center; font-size:1.1rem; flex:none; }
+    .pl-rail-foot-id { display:flex; flex-direction:column; min-width:0; flex:1; }
+    .pl-rail-foot-name { font-weight:700; font-size:.82rem; color:var(--pulse-text); overflow:hidden;
+        text-overflow:ellipsis; white-space:nowrap; }
+    .pl-rail-foot-state { font-size:.72rem; color:var(--pulse-success); }
+    .pl-rail-foot-link { color:var(--pulse-text-2); text-decoration:none; font-size:1.05rem; padding:.25rem;
+        border-radius:8px; }
+    .pl-rail-foot-link:hover { background:var(--pulse-surface-2); color:var(--pulse-text); }
 
-    .dc-welcome { margin:auto auto 1rem; padding:1.5rem; text-align:left; max-width:90%; }
-    .dc-welcome-ico { width:68px; height:68px; border-radius:50%;
-        background:linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2)); display:grid; place-items:center;
-        font-size:2.2rem; font-weight:800; color:#fff; margin-bottom:.6rem;
-        box-shadow:0 10px 24px -10px var(--bz-accent); }
-    .dc-welcome h2 { margin:.2rem 0; font-size:1.7rem; font-weight:800; letter-spacing:-.02em; color:var(--dc-text-bright); }
-    .dc-welcome p { margin:0; color:var(--dc-text-mut); }
+    /* ====================== CENTRE ====================== */
+    .pl-main { display:flex; flex-direction:column; min-width:0; background:var(--pulse-bg); }
+    .pl-topbar { display:flex; align-items:center; gap:.5rem; height:52px; padding:0 1.1rem; flex:none;
+        background:var(--pulse-surface); border-bottom:1px solid var(--pulse-border); }
+    .pl-topbar-hash { color:var(--pulse-primary); font-size:1.3rem; font-weight:800; }
+    .pl-topbar-name { font-weight:800; color:var(--pulse-text); font-size:1.05rem; letter-spacing:-.01em; }
+    .pl-topbar-div { width:1px; height:1.1rem; background:var(--pulse-border); margin:0 .35rem; }
+    .pl-topbar-topic { color:var(--pulse-text-2); font-size:.82rem; min-width:0; overflow:hidden;
+        text-overflow:ellipsis; white-space:nowrap; }
+    .pl-topbar-lock { margin-left:.4rem; font-size:.72rem; font-weight:700; color:var(--pulse-primary);
+        background:var(--pulse-primary-soft); padding:.15rem .5rem; border-radius:999px; flex:none; }
+    .pl-topbar-act { margin-left:auto; color:var(--pulse-text-2); text-decoration:none; font-size:1.1rem;
+        padding:.25rem .4rem; border-radius:8px; flex:none; }
+    .pl-topbar-act:hover { background:var(--pulse-surface-2); color:var(--pulse-text); }
 
-    .dc-msg { position:relative; display:flex; gap:1rem; padding:.1rem 1rem .1rem; }
-    .dc-msg:hover { background:rgba(2,2,2,.06); }
-    .dc-msg-lead { margin-top:.7rem; padding-top:.2rem; }
-    .dc-ava { width:40px; height:40px; border-radius:50%; background:var(--dc-active); display:grid; place-items:center;
-        font-size:1.3rem; flex:none; margin-top:.1rem; }
-    .dc-gutter { width:40px; flex:none; display:flex; justify-content:flex-end; }
-    .dc-gutter-time { font-size:.66rem; color:var(--dc-text-mut); opacity:0; line-height:1.5; padding-top:.18rem; }
-    .dc-msg-cont:hover .dc-gutter-time { opacity:1; }
-    .dc-msg-body { min-width:0; flex:1; }
+    .pl-stream { flex:1; overflow-y:auto; padding:1rem 0 1.2rem; display:flex; flex-direction:column; }
 
-    .dc-msg-head { display:flex; align-items:baseline; gap:.5rem; }
-    .dc-author { font-weight:600; color:var(--dc-text-bright); font-size:.97rem; }
-    .dc-author-tag { font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.02em;
-        padding:.05rem .35rem; border-radius:2px; color:#fff; }
-    .dc-time { font-size:.72rem; color:var(--dc-text-mut); }
-    .dc-edited { font-size:.66rem; color:var(--dc-text-mut); margin-left:.25rem; }
+    .pl-welcome { margin:auto auto 1rem; padding:1.5rem; text-align:left; max-width:90%; }
+    .pl-welcome-ico { width:68px; height:68px; border-radius:50%; background:var(--pulse-grad-profile);
+        display:grid; place-items:center; font-size:2.2rem; font-weight:800; color:#fff; margin-bottom:.6rem;
+        box-shadow:0 10px 24px -10px var(--pulse-primary); }
+    .pl-welcome h2 { margin:.2rem 0; font-size:1.7rem; font-weight:800; letter-spacing:-.02em; color:var(--pulse-text); }
+    .pl-welcome p { margin:0; color:var(--pulse-text-2); }
 
-    /* role colors (Discord-ish) for names, tags, dots */
-    .dc-role-owner   { color:#f0b232; } .dc-author-tag.dc-role-owner   { background:#f0b232; color:#1e1f22; }
-    .dc-role-admin   { color:#eb459e; } .dc-author-tag.dc-role-admin   { background:#eb459e; }
-    .dc-role-moderator{ color:var(--bz-accent); } .dc-author-tag.dc-role-moderator{ background:var(--bz-accent); }
-    .dc-role-member  { color:var(--dc-text-bright); }
-    .dc-mem-dot.dc-role-owner   { background:#f0b232; }
-    .dc-mem-dot.dc-role-admin   { background:#eb459e; }
-    .dc-mem-dot.dc-role-moderator{ background:var(--bz-accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--bz-accent) 30%, transparent); }
-    .dc-mem-name.dc-role-owner   { color:#f0b232; }
-    .dc-mem-name.dc-role-admin   { color:#eb459e; }
-    .dc-mem-name.dc-role-moderator{ color:var(--bz-accent); }
+    .pl-msg { position:relative; display:flex; gap:1rem; padding:.12rem 1.1rem; }
+    .pl-msg:hover { background:var(--pulse-surface); }
+    .pl-msg-lead { margin-top:.75rem; padding-top:.2rem; }
+    .pl-ava { width:40px; height:40px; border-radius:50%; background:var(--pulse-grad-profile);
+        display:grid; place-items:center; font-size:1.3rem; flex:none; margin-top:.1rem; }
+    .pl-gutter { width:40px; flex:none; display:flex; justify-content:flex-end; }
+    .pl-gutter-time { font-size:.66rem; color:var(--pulse-text-3); opacity:0; line-height:1.5; padding-top:.18rem; }
+    .pl-msg-cont:hover .pl-gutter-time { opacity:1; }
+    .pl-msg-body { min-width:0; flex:1; }
 
-    .dc-reply-ctx { font-size:.78rem; color:var(--dc-text-mut); margin:.05rem 0 .1rem; }
-    .dc-reply-snip { font-style:normal; }
+    .pl-msg-head { display:flex; align-items:baseline; gap:.5rem; }
+    .pl-author { font-weight:700; color:var(--pulse-text); font-size:.97rem; }
+    .pl-author-tag { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.02em;
+        padding:.08rem .4rem; border-radius:999px; color:#fff; }
+    .pl-time { font-size:.72rem; color:var(--pulse-text-3); }
+    .pl-edited { font-size:.66rem; color:var(--pulse-text-3); margin-left:.25rem; }
 
-    .dc-text { font-size:.97rem; line-height:1.4; word-wrap:break-word; overflow-wrap:anywhere; color:var(--dc-text); }
-    .dc-deleted { color:var(--dc-text-mut); font-style:italic; }
+    /* couleurs de rôle (noms, badges, pastilles) */
+    .pl-role-owner    { color:var(--pulse-primary); }
+    .pl-author-tag.pl-role-owner    { background:var(--pulse-grad-profile); }
+    .pl-role-admin    { color:var(--pulse-danger); }
+    .pl-author-tag.pl-role-admin    { background:var(--pulse-danger); }
+    .pl-role-moderator{ color:var(--pulse-verified); }
+    .pl-author-tag.pl-role-moderator{ background:var(--pulse-verified); }
+    .pl-role-member   { color:var(--pulse-text); }
+    .pl-mem-dot.pl-role-owner    { background:var(--pulse-primary); }
+    .pl-mem-dot.pl-role-admin    { background:var(--pulse-danger); }
+    .pl-mem-dot.pl-role-moderator{ background:var(--pulse-verified);
+        box-shadow:0 0 0 3px var(--pulse-primary-soft); }
+    .pl-mem-name.pl-role-owner    { color:var(--pulse-primary); }
+    .pl-mem-name.pl-role-admin    { color:var(--pulse-danger); }
+    .pl-mem-name.pl-role-moderator{ color:var(--pulse-verified); }
 
-    .dc-reactions { display:flex; flex-wrap:wrap; align-items:center; gap:.25rem; margin-top:.25rem; }
-    .dc-react-pill { display:inline-flex; align-items:center; gap:.25rem; font-size:.82rem; background:rgba(88,101,242,.12);
-        border:1px solid transparent; border-radius:2px; padding:.08rem .4rem; color:var(--dc-text); cursor:default; }
-    .dc-react-pill .dc-react-n { color:var(--dc-link); font-weight:700; font-size:.74rem; }
-    .dc-thread-pill { font-size:.76rem; color:var(--dc-link); cursor:default; }
+    .pl-reply-ctx { font-size:.78rem; color:var(--pulse-text-3); margin:.05rem 0 .1rem; }
+    .pl-reply-snip { font-style:normal; color:var(--pulse-text-2); }
 
-    .dc-hover-actions { position:absolute; top:-.7rem; right:1rem; display:none; align-items:center; gap:.1rem;
-        background:var(--dc-bg-rail); border:1px solid var(--dc-stroke); border-radius:2px; padding:.12rem .2rem;
-        box-shadow:0 2px 6px rgba(0,0,0,.25); }
-    .dc-msg:hover > .dc-hover-actions { display:flex; }
-    .dc-react-quick { display:inline-flex; gap:0; }
-    .dc-react-btn { font-size:1rem; background:transparent; border:0; border-radius:2px; padding:.15rem .25rem; cursor:pointer; line-height:1; }
-    .dc-react-btn:hover { background:var(--dc-hover); }
-    .dc-act-btn { font-size:.92rem; background:transparent; border:0; border-radius:2px; padding:.2rem .3rem; cursor:pointer;
-        color:var(--dc-text-mut); line-height:1; }
-    .dc-act-btn:hover { background:var(--dc-hover); color:var(--dc-text); }
-    .dc-act-danger:hover { color:#f23f42; }
+    .pl-text { font-size:.97rem; line-height:1.45; word-wrap:break-word; overflow-wrap:anywhere; color:var(--pulse-text); }
+    .pl-deleted { color:var(--pulse-text-3); font-style:italic; }
 
-    .dc-edit-form { margin:.25rem 0; }
-    .dc-edit-actions { display:flex; gap:.4rem; align-items:center; margin-top:.3rem; }
-    .dc-mini-btn { font-size:.74rem; font-weight:600; padding:.18rem .45rem; border-radius:2px; cursor:pointer;
-        border:1px solid var(--dc-stroke); background:var(--dc-active); color:var(--dc-text); }
-    .dc-mini-btn:hover { background:var(--dc-hover); }
+    /* réaction chips + fichier joint (les classes dc-* viennent du @raw bzReactRow) */
+    .dc-reactions { display:flex; flex-wrap:wrap; align-items:center; gap:.35rem; margin-top:.35rem; }
+    .dc-react-pill { display:inline-flex; align-items:center; gap:.3rem; font-size:.82rem;
+        background:var(--pulse-primary-soft); border:1px solid var(--pulse-border); border-radius:999px;
+        padding:.1rem .5rem; color:var(--pulse-text); cursor:default; }
+    .dc-react-pill .dc-react-n { color:var(--pulse-primary); font-weight:700; font-size:.74rem; }
+    .dc-thread-pill { font-size:.76rem; color:var(--pulse-verified); }
 
-    /* thread drawer */
-    .dc-thread { margin:.3rem 1rem .3rem 4rem; padding:.6rem .8rem; border-left:3px solid var(--dc-blurple);
-        background:rgba(88,101,242,.06); border-radius:0 8px 8px 0; }
-    .dc-thread-head { font-size:.78rem; font-weight:700; color:var(--dc-link); margin-bottom:.45rem; }
-    .dc-thread-empty { margin:0 0 .5rem; font-size:.82rem; color:var(--dc-text-mut); }
-    .dc-thread-msg { margin-bottom:.5rem; }
-    .dc-thread-author { font-weight:700; font-size:.84rem; color:var(--dc-text-bright); }
-    .dc-thread-time { font-size:.7rem; color:var(--dc-text-mut); margin-left:.4rem; }
-    .dc-thread-text { font-size:.88rem; line-height:1.4; }
-    .dc-thread-form { display:flex; gap:.5rem; align-items:end; margin-top:.4rem; }
+    /* carte de fichier joint (style disponible) */
+    .pl-attachment { display:flex; align-items:center; gap:.6rem; margin-top:.4rem; max-width:380px;
+        padding:.6rem .75rem; background:var(--pulse-surface-2); border:1px solid var(--pulse-border);
+        border-radius:12px; }
+    .pl-attachment-ico { width:36px; height:36px; border-radius:8px; background:var(--pulse-primary-soft);
+        display:grid; place-items:center; font-size:1.2rem; color:var(--pulse-primary); flex:none; }
+    .pl-attachment-meta { min-width:0; flex:1; }
+    .pl-attachment-name { font-weight:700; font-size:.85rem; color:var(--pulse-text); overflow:hidden;
+        text-overflow:ellipsis; white-space:nowrap; }
+    .pl-attachment-size { font-size:.72rem; color:var(--pulse-text-3); }
 
-    .dc-typing { height:1.3rem; padding:0 1rem; display:flex; align-items:center; gap:.4rem; flex:none; }
-    .dc-typing-dots { display:inline-flex; gap:3px; align-items:center; }
-    .dc-typing-dots span { width:5px; height:5px; border-radius:50%; background:var(--dc-text-mut); animation:dcBlink 1.2s infinite ease-in-out; }
-    .dc-typing-dots span:nth-child(2) { animation-delay:.2s; }
-    .dc-typing-dots span:nth-child(3) { animation-delay:.4s; }
-    .dc-typing-text { font-size:.76rem; color:var(--dc-text-mut); }
-    .dc-typing-text strong { color:var(--dc-text-bright); }
-    @keyframes dcBlink { 0%, 80%, 100% { opacity:.3; } 40% { opacity:1; } }
+    .pl-hover-actions { position:absolute; top:-.8rem; right:1.1rem; display:none; align-items:center; gap:.1rem;
+        background:var(--pulse-surface-2); border:1px solid var(--pulse-border); border-radius:10px;
+        padding:.15rem .25rem; box-shadow:0 4px 14px rgba(0,0,0,.4); }
+    .pl-msg:hover > .pl-hover-actions { display:flex; }
+    .pl-react-quick { display:inline-flex; gap:0; }
+    .pl-react-btn { font-size:1rem; background:transparent; border:0; border-radius:8px; padding:.18rem .28rem; cursor:pointer; line-height:1; }
+    .pl-react-btn:hover { background:var(--pulse-bg); }
+    .pl-act-btn { font-size:.92rem; background:transparent; border:0; border-radius:8px; padding:.22rem .32rem; cursor:pointer;
+        color:var(--pulse-text-2); line-height:1; }
+    .pl-act-btn:hover { background:var(--pulse-bg); color:var(--pulse-text); }
+    .pl-act-danger:hover { color:var(--pulse-danger); }
 
-    .dc-replybar { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:0 1rem;
-        padding:.4rem .8rem; font-size:.8rem; color:var(--dc-text-mut); background:var(--dc-bg-head);
-        border-radius:8px 8px 0 0; }
-    .dc-replybar-x { background:transparent; border:0; color:var(--dc-text-mut); cursor:pointer; font-size:.85rem; }
-    .dc-replybar-x:hover { color:var(--dc-text); }
+    .pl-edit-form { margin:.25rem 0; }
+    .pl-edit-actions { display:flex; gap:.4rem; align-items:center; margin-top:.3rem; }
+    .pl-mini-btn { font-size:.74rem; font-weight:600; padding:.2rem .55rem; border-radius:8px; cursor:pointer;
+        border:1px solid var(--pulse-border); background:var(--pulse-surface-2); color:var(--pulse-text); }
+    .pl-mini-btn:hover { background:var(--pulse-bg); }
 
-    .dc-composer { padding:0 1rem 1.1rem; flex:none; }
-    .dc-composer-row { display:flex; gap:.6rem; align-items:center; background:var(--dc-active); border-radius:2px;
-        padding:.35rem .75rem; }
-    .dc-composer-row .mv-field, .dc-composer-row .mv-input, .dc-composer-row input { background:transparent; }
-    .dc-composer-plus { width:24px; height:24px; border-radius:50%; background:var(--dc-text-mut); color:var(--dc-active);
-        display:grid; place-items:center; font-weight:700; font-size:1.1rem; flex:none; }
-    /* accent-gradient Send button */
-    .dc-send-btn { flex:none; font-size:.86rem; font-weight:800; letter-spacing:.01em; padding:.42rem .95rem; border-radius:2px;
-        cursor:pointer; border:0; color:#fff; background:linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
-        box-shadow:0 6px 16px -8px var(--bz-accent); transition:filter .15s ease, transform .15s ease; }
-    .dc-send-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
-    .dc-send-btn:active { transform:translateY(0); }
-    .dc-composer-locked { margin:0 1rem 1.1rem; padding:.7rem .9rem; background:var(--dc-active); border-radius:2px;
-        color:var(--dc-text-mut); font-size:.88rem; flex:none; }
-    .dc-composer-locked a { color:var(--dc-link); font-weight:600; }
+    /* tiroir de fil */
+    .pl-thread { margin:.3rem 1.1rem .3rem 4.1rem; padding:.7rem .9rem; border-left:3px solid var(--pulse-primary);
+        background:var(--pulse-surface); border:1px solid var(--pulse-border); border-left:3px solid var(--pulse-primary);
+        border-radius:0 12px 12px 0; }
+    .pl-thread-head { font-size:.78rem; font-weight:700; color:var(--pulse-verified); margin-bottom:.45rem; }
+    .pl-thread-empty { margin:0 0 .5rem; font-size:.82rem; color:var(--pulse-text-2); }
+    .pl-thread-msg { margin-bottom:.5rem; }
+    .pl-thread-author { font-weight:700; font-size:.84rem; color:var(--pulse-text); }
+    .pl-thread-time { font-size:.7rem; color:var(--pulse-text-3); margin-left:.4rem; }
+    .pl-thread-text { font-size:.88rem; line-height:1.4; color:var(--pulse-text-2); }
+    .pl-thread-form { display:flex; gap:.5rem; align-items:end; margin-top:.4rem; }
 
-    /* ====================== RIGHT member list ====================== */
-    .dc-members { background:var(--dc-bg-mem); overflow-y:auto; padding:1rem .5rem; min-width:0; }
-    .dc-mem-cat { padding:1.1rem .5rem .35rem; text-transform:uppercase; font-size:.72rem; font-weight:800;
-        letter-spacing:.04em; color:var(--dc-text-mut); }
-    .dc-mem-cat:first-child { padding-top:0; }
-    /* staff group header pops with the accent */
-    .dc-mem-cat-staff { color:var(--bz-accent); display:flex; align-items:center; gap:.35rem; }
-    .dc-mem-cat-staff::before { content:""; width:4px; height:.9em; border-radius:2px;
-        background:linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
-    .dc-mem-list { list-style:none; margin:0; padding:0; }
-    .dc-mem { display:flex; align-items:center; gap:.6rem; padding:.3rem .5rem; border-radius:2px; }
-    .dc-mem:hover { background:var(--dc-hover); }
-    .dc-mem-ava { position:relative; width:32px; height:32px; border-radius:50%; background:var(--dc-active);
+    .pl-typing { height:1.3rem; padding:0 1.1rem; display:flex; align-items:center; gap:.4rem; flex:none; }
+    .pl-typing-dots { display:inline-flex; gap:3px; align-items:center; }
+    .pl-typing-dots span { width:5px; height:5px; border-radius:50%; background:var(--pulse-text-3);
+        animation:plBlink 1.2s infinite ease-in-out; }
+    .pl-typing-dots span:nth-child(2) { animation-delay:.2s; }
+    .pl-typing-dots span:nth-child(3) { animation-delay:.4s; }
+    .pl-typing-text { font-size:.76rem; color:var(--pulse-text-2); }
+    .pl-typing-text strong { color:var(--pulse-text); }
+    @keyframes plBlink { 0%, 80%, 100% { opacity:.3; } 40% { opacity:1; } }
+
+    .pl-replybar { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:0 1.1rem;
+        padding:.45rem .85rem; font-size:.8rem; color:var(--pulse-text-2); background:var(--pulse-surface);
+        border:1px solid var(--pulse-border); border-bottom:0; border-radius:12px 12px 0 0; }
+    .pl-replybar-x { background:transparent; border:0; color:var(--pulse-text-2); cursor:pointer; font-size:.85rem; }
+    .pl-replybar-x:hover { color:var(--pulse-text); }
+
+    .pl-composer { padding:.6rem 1.1rem 1.1rem; flex:none; }
+    .pl-composer-row { display:flex; gap:.55rem; align-items:center; background:var(--pulse-surface-2);
+        border:1px solid var(--pulse-border); border-radius:12px; padding:.4rem .75rem; }
+    .pl-composer-row .mv-field, .pl-composer-row .mv-input, .pl-composer-row input { background:transparent; }
+    .pl-composer-attach, .pl-composer-emoji { width:30px; height:30px; border-radius:50%; flex:none;
+        background:transparent; border:0; color:var(--pulse-text-2); font-size:1.05rem; display:grid;
+        place-items:center; cursor:default; }
+    .pl-send-btn { flex:none; width:38px; height:38px; border-radius:10px; cursor:pointer; border:0; color:#fff;
+        background:var(--pulse-primary); font-size:1rem; display:grid; place-items:center;
+        transition:background .15s ease, transform .15s ease; }
+    .pl-send-btn:hover { background:var(--pulse-primary-hover); transform:translateY(-1px); }
+    .pl-send-btn:active { transform:translateY(0); }
+    .pl-composer-locked { margin:.6rem 1.1rem 1.1rem; padding:.75rem .9rem; background:var(--pulse-surface-2);
+        border:1px solid var(--pulse-border); border-radius:12px; color:var(--pulse-text-2); font-size:.88rem; flex:none; }
+    .pl-composer-locked a { color:var(--pulse-primary); font-weight:600; }
+
+    /* ====================== liste des membres DROITE ====================== */
+    .pl-members { background:var(--pulse-surface-2); border-left:1px solid var(--pulse-border);
+        overflow-y:auto; padding:1rem .55rem; min-width:0; }
+    .pl-mem-cat { padding:1.1rem .5rem .4rem; text-transform:uppercase; font-size:.7rem; font-weight:800;
+        letter-spacing:.04em; color:var(--pulse-text-3); }
+    .pl-mem-cat:first-child { padding-top:0; }
+    .pl-mem-cat-staff { color:var(--pulse-primary); display:flex; align-items:center; gap:.4rem; }
+    .pl-mem-cat-staff::before { content:""; width:4px; height:.9em; border-radius:2px; background:var(--pulse-primary); }
+    .pl-mem-list { list-style:none; margin:0; padding:0; }
+    .pl-mem { display:flex; align-items:center; gap:.6rem; padding:.35rem .5rem; border-radius:10px; }
+    .pl-mem:hover { background:var(--pulse-bg); }
+    .pl-mem-ava { position:relative; width:32px; height:32px; border-radius:50%; background:var(--pulse-grad-profile);
         display:grid; place-items:center; font-size:1.05rem; flex:none; }
-    .dc-mem-presence { position:absolute; right:-2px; bottom:-2px; width:11px; height:11px; border-radius:50%;
-        background:var(--dc-online); border:2px solid var(--dc-bg-mem); }
-    .dc-mem-id { min-width:0; flex:1; }
-    .dc-mem-name { font-weight:600; font-size:.9rem; color:var(--dc-text); overflow:hidden; text-overflow:ellipsis;
-        white-space:nowrap; display:block; }
-    .dc-mem-dot { width:9px; height:9px; border-radius:50%; flex:none; }
-    .dc-mem-empty { margin:0; padding:.2rem .5rem; color:var(--dc-text-mut); font-size:.82rem; }
+    .pl-mem-presence { position:absolute; right:-2px; bottom:-2px; width:11px; height:11px; border-radius:50%;
+        background:var(--pulse-success); border:2px solid var(--pulse-surface-2); }
+    .pl-mem-id { min-width:0; flex:1; }
+    .pl-mem-name { font-weight:600; font-size:.9rem; color:var(--pulse-text-2); overflow:hidden;
+        text-overflow:ellipsis; white-space:nowrap; display:block; }
+    .pl-mem-dot { width:9px; height:9px; border-radius:50%; flex:none; }
+    .pl-mem-empty { margin:0; padding:.2rem .5rem; color:var(--pulse-text-3); font-size:.82rem; }
 
     @media (max-width: 960px) {
-        .dc { grid-template-columns:200px minmax(0,1fr); }
-        .dc-members { display:none; }
+        .pl-chat { grid-template-columns:220px minmax(0,1fr); }
+        .pl-members { display:none; }
     }
     @media (max-width: 720px) {
-        .dc { grid-template-columns:1fr; height:auto; }
-        .dc-rail { display:none; }
+        .pl-chat { grid-template-columns:1fr; height:auto; }
+        .pl-rail { display:none; }
     }
 </style>
 

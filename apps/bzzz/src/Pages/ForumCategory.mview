@@ -1,89 +1,97 @@
 @page "/forum/c/{id:Nat}"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title (catName # " — Bzzz forum category")
+@title (catName # " — Catégorie du forum Bzzz")
 @description catDescription
 
-<div class="fl-col">
+<div class="pc-col">
 
     @if found {
 
         <Breadcrumb>
-            <BreadcrumbItem href="/">Home</BreadcrumbItem>
+            <BreadcrumbItem href="/">Accueil</BreadcrumbItem>
             <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
             <BreadcrumbItem current="true">@catName</BreadcrumbItem>
         </Breadcrumb>
 
-        <!-- category header: colored square + name + description + counts -->
-        <header class="fc-head">
-            <span class="fl-sq fl-sq-lg" style="background:@catColor"></span>
-            <div class="fc-head-body">
-                <h1 class="fc-head-name">@catName</h1>
-                <p class="fc-head-desc">@catDesc</p>
-                <p class="fc-head-counts">@(topicCount) sujets · @(postCount) messages</p>
+        <!-- en-tete de categorie : carre colore + nom + description + compteurs -->
+        <header class="pc-head">
+            <span class="pc-sq" style="background:@catColor"></span>
+            <div class="pc-head-body">
+                <h1 class="pc-head-name">@catName</h1>
+                <p class="pc-head-desc">@catDesc</p>
+                <p class="pc-head-counts">
+                    <span class="pc-count"><strong>@(topicCount)</strong> sujets</span>
+                    <span class="pc-dot">·</span>
+                    <span class="pc-count"><strong>@(postCount)</strong> messages</span>
+                </p>
             </div>
-            <a class="fl-newbtn fc-head-btn" href="/forum/new">✏ New Topic</a>
+            <a class="pc-newbtn" href="/forum/new">Nouveau sujet</a>
         </header>
 
-        <!-- tabs (Latest active for this category) -->
-        <nav class="fl-tabsbar">
-            <div class="fl-tabs">
-                <a class="fl-tab is-active" href="/forum/c/@(id)">Latest</a>
-                <a class="fl-tab" href="/forum?sort=categories">Categories</a>
-                <a class="fl-tab" href="/forum?sort=new">New</a>
-                <a class="fl-tab" href="/forum?sort=top">Top</a>
-            </div>
+        <!-- onglets (Recents actif pour cette categorie) -->
+        <nav class="pc-tabs">
+            <a class="pc-tab is-active" href="/forum/c/@(id)">Récents</a>
+            <a class="pc-tab" href="/forum?sort=categories">Catégories</a>
+            <a class="pc-tab" href="/forum?sort=new">Nouveaux</a>
+            <a class="pc-tab" href="/forum?sort=top">Populaires</a>
         </nav>
 
-        <!-- the topic table, scoped to this category -->
+        <!-- liste des sujets, limitee a cette categorie -->
         @if (topics.size() == 0) {
-            <div class="fl-empty">Aucun sujet dans cette catégorie pour l'instant. <a href="/forum/new">Créer le premier →</a></div>
+            <div class="pc-empty">
+                <p class="pc-empty-title">Aucun sujet ici pour l'instant.</p>
+                <a class="pc-empty-link" href="/forum/new">Créer le premier sujet →</a>
+            </div>
         } else {
-            <div class="fl-table">
-                <div class="fl-thead">
-                    <span class="fl-th fl-th-topic">Topic</span>
-                    <span class="fl-th fl-th-num">Replies</span>
-                    <span class="fl-th fl-th-num">Views</span>
-                    <span class="fl-th fl-th-act">Activity</span>
-                </div>
+            <div class="pc-list">
 
                 @for t in topics {
-                    <a class="fl-row" href="/forum/t/@(t.id)">
-                        <span class="fl-cell-topic">
-                            <span class="fl-title-line">
-                                @if pinned(t.id) { <span class="fl-glyph" title="Épinglé">📌</span> }
-                                @if closed(t.id) { <span class="fl-glyph" title="Fermé">🔒</span> }
-                                @if solved(t.id) { <span class="fl-glyph fl-glyph-ok" title="Résolu">✓</span> }
-                                <span class="fl-title @(titleClass(t.id))">@t.title</span>
-                                @if hasReplies(t.id) { <span class="fl-bubble">@replies(t.id)</span> }
-                            </span>
-                            <span class="fl-meta">
-                                <span class="fl-badge">
-                                    <span class="fl-sq fl-sq-sm" style="background:@catColorOf(t.categoryId)"></span>
-                                    <span class="fl-badge-name">@catNameOf(t.categoryId)</span>
+                    <a class="pc-topic" href="/forum/t/@(t.id)">
+
+                        <div class="pc-topic-main">
+                            <div class="pc-topic-title-line">
+                                @if pinned(t.id) { <span class="pc-glyph" title="Épinglé">📌</span> }
+                                @if closed(t.id) { <span class="pc-glyph" title="Fermé">🔒</span> }
+                                @if solved(t.id) { <span class="pc-glyph pc-glyph-ok" title="Résolu">✓</span> }
+                                @if pinned(t.id) {
+                                    <span class="pc-title is-unread">@t.title</span>
+                                } else {
+                                    <span class="pc-title">@t.title</span>
+                                }
+                            </div>
+
+                            <div class="pc-topic-meta">
+                                <span class="pc-badge">
+                                    <span class="pc-sq-sm" style="background:@catColorOf(t.categoryId)"></span>
+                                    <span class="pc-badge-name">@catNameOf(t.categoryId)</span>
                                 </span>
                                 @for tag in t.tags {
-                                    <span class="fl-tag">@tag</span>
+                                    <span class="pc-tag">@tag</span>
                                 }
-                            </span>
-                        </span>
-                        <span class="fl-cell-posters">
-                            <span class="fl-cluster">
-                                <span class="fl-ava">@authorAvatar(t.author)</span>
-                            </span>
-                        </span>
-                        <span class="fl-cell-num @(heatClass(replies(t.id)))">@replies(t.id)</span>
-                        <span class="fl-cell-num @(heatClass(t.views))">@views(t.views)</span>
-                        <span class="fl-cell-act">@activity(t.id)</span>
+                            </div>
+                        </div>
+
+                        <div class="pc-topic-side">
+                            @if (replies(t.id) >= 1000) {
+                                <span class="pc-stat is-hot" title="Réponses">@replies(t.id) rép.</span>
+                            } else {
+                                <span class="pc-stat" title="Réponses">@replies(t.id) rép.</span>
+                            }
+                            <span class="pc-stat pc-stat-views" title="Vues">@views(t.views) vues</span>
+                            <span class="pc-activity">@activity(t.id)</span>
+                            <span class="pc-ava" title="Auteur">@authorAvatar(t.author)</span>
+                        </div>
+
                     </a>
                 }
             </div>
         }
 
     } else {
-        <div class="fl-empty">
-            <p>Cette catégorie n'existe pas.</p>
-            <a href="/forum">← Retour au forum</a>
+        <div class="pc-empty">
+            <p class="pc-empty-title">Cette catégorie n'existe pas.</p>
+            <a class="pc-empty-link" href="/forum">← Retour au forum</a>
         </div>
     }
 </div>
@@ -148,112 +156,92 @@
 
 <style>
     /* The page renders only the MAIN COLUMN; ForumLayout owns the top bar + sidebar. */
-    .fl-col { max-width: 800px; color: var(--colorNeutralForeground1);
-        font-size: var(--fontSizeBase300); }
+    .pc-col { max-width: 820px; color: var(--pulse-text);
+        font-size: 14px; }
 
     /* ---- category header ---- */
-    .fc-head { display: flex; align-items: flex-start; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalM) 0 var(--spacingVerticalL);
-        border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
-    .fc-head-body { flex: 1; min-width: 0; }
-    .fc-head-name { margin: 0; font-size: var(--fontSizeHero700, 1.6rem); line-height: 1.2;
-        font-weight: var(--fontWeightBold); letter-spacing: -.01em; color: var(--colorNeutralForeground1); }
-    .fc-head-desc { margin: var(--spacingVerticalXS) 0 0; color: var(--colorNeutralForeground3);
-        font-size: var(--fontSizeBase300); }
-    .fc-head-counts { margin: var(--spacingVerticalSNudge) 0 0; color: var(--colorNeutralForeground4);
-        font-size: var(--fontSizeBase200); }
-    .fc-head-btn { flex: none; align-self: center;
-        border-radius: var(--borderRadiusMedium); }
+    .pc-head { display: flex; align-items: flex-start; gap: 16px;
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 20px; margin: 12px 0 18px; }
+    .pc-head-body { flex: 1; min-width: 0; }
+    .pc-head-name { margin: 0; font-size: 1.6rem; line-height: 1.2;
+        font-weight: 700; letter-spacing: -.01em; color: var(--pulse-text); }
+    .pc-head-desc { margin: 6px 0 0; color: var(--pulse-text-2); font-size: 14px; }
+    .pc-head-counts { margin: 12px 0 0; color: var(--pulse-text-3); font-size: 13px;
+        display: flex; align-items: center; gap: 8px; }
+    .pc-head-counts strong { color: var(--pulse-text); font-weight: 700; }
+    .pc-dot { color: var(--pulse-text-3); }
 
-    /* ---- shared square chip ---- */
-    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 2px; flex: none; }
-    .fl-sq-sm { width: 10px; height: 10px; border-radius: 2px; }
-    .fl-sq-lg { width: 26px; height: 26px; border-radius: 2px; margin-top: 2px; }
+    /* ---- colored squares ---- */
+    .pc-sq { display: inline-block; width: 28px; height: 28px; border-radius: 8px;
+        flex: none; margin-top: 2px; box-shadow: 0 0 0 1px var(--pulse-border) inset; }
+    .pc-sq-sm { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+    /* ---- new topic button ---- */
+    .pc-newbtn { flex: none; align-self: center; text-decoration: none;
+        background: var(--pulse-primary); color: #fff; font-weight: 600; font-size: 13px;
+        padding: 9px 16px; border-radius: 10px; white-space: nowrap;
+        display: inline-flex; align-items: center; transition: background .15s ease; }
+    .pc-newbtn:hover { background: var(--pulse-primary-hover); }
 
     /* ---- tabs ---- */
-    .fl-tabsbar { display: flex; align-items: flex-end; gap: var(--spacingHorizontalM);
-        border-bottom: 1px solid var(--colorNeutralStroke2); margin-bottom: var(--spacingVerticalM); }
-    .fl-tabs { display: flex; align-items: center; gap: var(--spacingHorizontalL);
-        flex: 1; min-width: 0; overflow-x: auto; }
-    .fl-tab { position: relative; text-decoration: none; color: var(--colorNeutralForeground2);
-        font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold);
-        padding: var(--spacingVerticalS) 0 var(--spacingVerticalSNudge); white-space: nowrap; }
-    .fl-tab:hover { color: var(--colorNeutralForeground1); }
-    .fl-tab.is-active { color: var(--colorBrandForeground1); }
-    .fl-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
-        height: 2px; background: var(--colorBrandForeground1); border-radius: 2px; }
+    .pc-tabs { display: flex; align-items: center; gap: 22px;
+        border-bottom: 1px solid var(--pulse-border); margin-bottom: 14px; overflow-x: auto; }
+    .pc-tab { position: relative; text-decoration: none; color: var(--pulse-text-2);
+        font-size: 14px; font-weight: 600; padding: 10px 0 9px; white-space: nowrap; }
+    .pc-tab:hover { color: var(--pulse-text); }
+    .pc-tab.is-active { color: var(--pulse-primary); }
+    .pc-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+        height: 2px; background: var(--pulse-primary); border-radius: 2px; }
 
-    .fl-newbtn { text-decoration: none; background: var(--colorNeutralBackground3);
-        color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold);
-        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM);
-        white-space: nowrap; display: inline-flex; align-items: center; }
-    .fl-newbtn:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); color: var(--colorNeutralForeground1); }
+    /* ---- topic list ---- */
+    .pc-list { display: flex; flex-direction: column; gap: 10px; }
 
-    /* ---- topic table (matches the latest list) ---- */
-    .fl-table { display: flex; flex-direction: column; }
-    .fl-thead { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalS) var(--spacingHorizontalXS);
-        border-bottom: 1px solid var(--colorNeutralStroke2); }
-    .fl-th { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
-        font-weight: var(--fontWeightSemibold); }
-    .fl-th-topic { flex: 1; min-width: 0; }
-    .fl-th-num { width: 64px; text-align: right; flex: none; }
-    .fl-th-act { width: 84px; text-align: right; flex: none; }
+    .pc-topic { display: flex; align-items: center; gap: 16px;
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 14px 16px; text-decoration: none; color: inherit;
+        transition: border-color .15s ease, background .15s ease; }
+    .pc-topic:hover { border-color: var(--pulse-primary); background: var(--pulse-surface-2); }
 
-    /* The WHOLE row is a single link into the topic. */
-    .fl-row { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalM) var(--spacingHorizontalXS);
-        border-bottom: 1px solid var(--colorNeutralStroke2);
-        text-decoration: none; color: inherit; }
-    .fl-row:hover { background: var(--colorNeutralBackground2); }
+    .pc-topic-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+    .pc-topic-title-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .pc-glyph { font-size: 14px; }
+    .pc-glyph-ok { color: var(--pulse-success); font-weight: 700; }
+    .pc-title { font-size: 15px; font-weight: 600; color: var(--pulse-text-2); line-height: 1.3; }
+    .pc-title.is-unread { color: var(--pulse-text); }
+    .pc-topic:hover .pc-title { color: var(--pulse-primary); }
 
-    .fl-cell-topic { flex: 1; min-width: 0; display: flex; flex-direction: column;
-        gap: var(--spacingVerticalXS); }
-    .fl-title-line { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
-    .fl-glyph { font-size: var(--fontSizeBase300); }
-    .fl-glyph-ok { color: var(--colorStatusSuccessForeground1, #0f7b0f); font-weight: var(--fontWeightBold); }
-    .fl-title { font-size: var(--fontSizeBase400); font-weight: var(--fontWeightSemibold);
-        color: var(--colorNeutralForeground3); line-height: 1.3; }
-    .fl-title.is-unread { color: var(--colorNeutralForeground1); }
-    .fl-row:hover .fl-title { color: var(--colorBrandForeground1); }
-    .fl-bubble { display: inline-flex; align-items: center; justify-content: center;
-        min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--borderRadiusCircular, 999px);
-        background: var(--colorBrandBackground); color: #fff; font-size: var(--fontSizeBase100);
-        font-weight: var(--fontWeightSemibold); font-variant-numeric: tabular-nums; }
+    .pc-topic-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .pc-badge { display: inline-flex; align-items: center; gap: 6px;
+        font-size: 12px; color: var(--pulse-text-2); font-weight: 600; }
+    .pc-tag { display: inline-flex; align-items: center;
+        background: var(--pulse-primary-soft); color: var(--pulse-primary);
+        border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
 
-    .fl-meta { display: flex; align-items: center; gap: var(--spacingHorizontalXS); flex-wrap: wrap; }
-    .fl-badge { display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS);
-        font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground2);
-        font-weight: var(--fontWeightSemibold); }
-    .fl-tag { display: inline-flex; align-items: center; background: var(--colorNeutralBackground3);
-        color: var(--colorNeutralForeground3); border-radius: var(--borderRadiusSmall);
-        padding: 1px var(--spacingHorizontalSNudge); font-size: var(--fontSizeBase100);
-        font-weight: var(--fontWeightRegular, 400); }
-
-    .fl-cell-posters { width: 120px; flex: none; }
-    .fl-cluster { display: inline-flex; align-items: center; }
-    .fl-cluster .fl-ava + .fl-ava { margin-left: -8px; }
-    .fl-ava { width: 25px; height: 25px; border-radius: 50%; display: inline-grid; place-items: center;
-        font-size: .9rem; background: linear-gradient(135deg, #ede7fb, #e2d9fa);
-        box-shadow: inset 0 0 0 1px rgba(15,108,189,.14), 0 0 0 2px var(--colorNeutralBackground1); }
-
-    .fl-cell-num { width: 64px; flex: none; text-align: right; color: var(--colorNeutralForeground2);
-        font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase300);
+    /* ---- side stats ---- */
+    .pc-topic-side { flex: none; display: flex; align-items: center; gap: 16px; }
+    .pc-stat { color: var(--pulse-text-2); font-weight: 600; font-size: 13px;
         font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .fl-cell-num.is-hot { color: #d13438; }
-    .fl-cell-act { width: 84px; flex: none; text-align: right; color: var(--colorNeutralForeground3);
-        font-size: var(--fontSizeBase200); white-space: nowrap; }
+    .pc-stat.is-hot { color: var(--pulse-danger); }
+    .pc-stat-views { color: var(--pulse-text-3); font-weight: 500; }
+    .pc-activity { color: var(--pulse-text-3); font-size: 12px; white-space: nowrap; }
+    .pc-ava { width: 30px; height: 30px; border-radius: 50%; flex: none;
+        display: inline-grid; place-items: center; font-size: 1rem;
+        background: var(--pulse-grad-profile); color: #fff;
+        box-shadow: 0 0 0 2px var(--pulse-surface); }
 
-    /* ---- empty ---- */
-    .fl-empty { padding: var(--spacingVerticalXXL); text-align: center;
-        color: var(--colorNeutralForeground3); }
-    .fl-empty a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
+    /* ---- empty state ---- */
+    .pc-empty { background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 48px 24px; text-align: center; margin-top: 14px; }
+    .pc-empty-title { margin: 0 0 8px; color: var(--pulse-text-2); font-size: 15px; }
+    .pc-empty-link { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
+    .pc-empty-link:hover { color: var(--pulse-primary-hover); }
 
     @media (max-width: 720px) {
-        .fc-head { flex-wrap: wrap; }
-        .fc-head-btn { align-self: flex-start; }
-        .fl-cell-posters { display: none; }
-        .fl-cell-num:nth-of-type(3) { display: none; } /* hide Views */
-        .fl-th-num + .fl-th-num { display: none; }
+        .pc-head { flex-wrap: wrap; }
+        .pc-newbtn { align-self: flex-start; }
+        .pc-topic { flex-wrap: wrap; }
+        .pc-topic-side { gap: 12px; flex-wrap: wrap; }
+        .pc-stat-views { display: none; }
     }
 </style>

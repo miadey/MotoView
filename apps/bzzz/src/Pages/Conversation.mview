@@ -1,89 +1,49 @@
 @page "/messages/{id:Nat}"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Conversation — end-to-end encrypted on Bzzz"
-@description "A private, end-to-end encrypted conversation on Bzzz. Message bodies are stored as ciphertext envelopes and decrypted only in your client — never on-chain."
+@title "Conversation privée"
+@description "Une conversation privée et chiffrée de bout en bout sur Bzzz. Les messages sont stockés sous forme d'enveloppes chiffrées et ne sont déchiffrés que dans votre client — jamais sur la chaîne."
 
-<div class="wa wa-accent">
-    <aside class="wa-list">
-        <header class="wa-list-head">
-            <a class="wa-list-back" href="/messages" aria-label="All conversations">←</a>
-            <div class="wa-list-id">
-                <Persona name="@meName" secondary="🔒 End-to-end encrypted" avatar="@meAvatar" />
-                <span class="bz-accent-chip wa-e2ee-chip">🔒 Encrypted</span>
-            </div>
-        </header>
-
-        <div class="wa-search" aria-hidden="true">
-            <span class="wa-search-ico">🔍</span>
-            <span class="wa-search-ph">Search or start a new chat</span>
-        </div>
-
-        <ul class="wa-chats">
-            @for c in convos {
-                <li>
-                    <a class="wa-chat @(activeClass(c))" href="/messages/@c.id">
-                        <span class="wa-chat-avatar">@rowAvatar(c)</span>
-                        <span class="wa-chat-main">
-                            <span class="wa-chat-top">
-                                <span class="wa-chat-name">@rowTitle(c)</span>
-                                <span class="wa-chat-time @(unreadClass(c))">@rowTime(c)</span>
-                            </span>
-                            <span class="wa-chat-bottom">
-                                <span class="wa-chat-preview">@rowPreview(c)</span>
-                                @if (rowUnread(c) > 0) {
-                                    <Badge color="brand">@rowUnread(c)</Badge>
-                                }
-                            </span>
-                        </span>
-                    </a>
-                </li>
-            }
-        </ul>
-    </aside>
-
+<div class="pdm">
     @if (not member) {
-        <section class="wa-pane wa-pane-empty">
-            <div class="wa-welcome">
-                <div class="wa-welcome-ico">🔒</div>
-                <h1>Conversation unavailable</h1>
-                <p>This conversation doesn't exist, or you're not a member of it. <a href="/messages">Back to Messages</a>.</p>
-            </div>
+        <section class="pdm-empty">
+            <div class="pdm-empty-ico">🔒</div>
+            <h1>Conversation indisponible</h1>
+            <p>Cette conversation n'existe pas, ou vous n'en êtes pas membre. <a href="/messages">Retour aux messages</a>.</p>
         </section>
     } else {
-        <section class="wa-pane wa-thread">
-            <header class="wa-thread-head">
-                <a class="wa-thread-back" href="/messages" aria-label="Back to conversations">←</a>
-                <span class="wa-thread-avatar">@headerAvatar</span>
-                <div class="wa-thread-titlewrap">
-                    <span class="wa-thread-title">@title</span>
-                    <span class="wa-thread-status">@subtitle</span>
+        <section class="pdm-thread">
+            <header class="pdm-head">
+                <a class="pdm-back" href="/messages" aria-label="Retour aux conversations">←</a>
+                <span class="pdm-avatar">@headerAvatar</span>
+                <div class="pdm-id">
+                    <span class="pdm-name">@title</span>
+                    <span class="pdm-e2ee"><span class="pdm-lock">🔒</span> Chiffré de bout en bout</span>
                 </div>
-                <span class="bz-accent-chip wa-thread-e2ee" title="End-to-end encrypted">🔒 E2E</span>
             </header>
 
-            <div class="wa-thread-stream" id="wa-thread-stream">
-                <div class="wa-thread-e2ee-note">
-                    🔒 Messages are end-to-end encrypted. The on-chain canister only stores opaque ciphertext envelopes — decryption happens entirely in your client.
+            <div class="pdm-stream" id="wa-thread-stream">
+                <div class="pdm-note">
+                    🔒 Les messages sont chiffrés de bout en bout. Le canister ne stocke que des enveloppes chiffrées opaques — le déchiffrement a lieu entièrement dans votre client.
                 </div>
 
                 @if (msgs.size() == 0) {
-                    <div class="wa-thread-empty">
-                        <div class="wa-welcome-ico wa-welcome-ico-accent">💬</div>
-                        <p>No messages yet. Say hello — your message is encrypted before it leaves your device.</p>
+                    <div class="pdm-blank">
+                        <div class="pdm-blank-ico">💬</div>
+                        <p>Aucun message pour l'instant. Dites bonjour — votre message est chiffré avant de quitter votre appareil.</p>
                     </div>
                 } else {
                     @for m in msgs {
-                        <div class="wa-bubble-row @bubbleSide(m)">
-                            <div class="wa-bubble">
+                        <div class="pdm-row @bubbleSide(m)">
+                            <div class="pdm-bubble">
                                 @if (showSender(m)) {
-                                    <span class="wa-bubble-sender">@m.senderHandle</span>
+                                    <span class="pdm-sender">@m.senderHandle</span>
                                 }
-                                <span class="wa-bubble-text" data-mv-decrypt="@(Messenger.envelopeFor(m, me))" title="End-to-end encrypted — decrypted in your browser">🔒</span>
-                                <span class="wa-bubble-meta">
-                                    <span class="wa-bubble-time">@relTime(m)</span>
+                                <span class="pdm-text" data-mv-decrypt="@(Messenger.envelopeFor(m, me))" title="Chiffré de bout en bout — déchiffré dans votre navigateur">🔒</span>
+                                <span class="pdm-meta">
+                                    <span class="pdm-time">@relTime(m)</span>
                                     @if (m.sender == me) {
-                                        <span class="wa-ticks @(tickClass(m))" title="Delivery / read receipt">✓✓</span>
+                                        <span class="pdm-ticks @(tickClass(m))" title="Accusé de réception / lecture">✓✓</span>
                                     }
                                 </span>
                             </div>
@@ -92,12 +52,12 @@
                 }
             </div>
 
-            <form class="wa-composer" @submit="sendMsg" secure>
-                <div class="wa-composer-row">
-                    <textarea class="mv-textarea wa-composer-input" name="draft" data-mv-key="draft" data-mv-encrypt-to="@recipients" placeholder="Type a message" rows="1" required></textarea>
-                    <Button kind="primary" type="submit">Send</Button>
+            <form class="pdm-composer" @submit="sendMsg" secure>
+                <div class="pdm-composer-row">
+                    <textarea class="mv-textarea pdm-input" name="draft" data-mv-key="draft" data-mv-encrypt-to="@recipients" placeholder="Envoyer un message…" rows="1" required></textarea>
+                    <Button kind="primary" type="submit">Envoyer</Button>
                 </div>
-                <p class="wa-composer-note">🔒 Encrypted in your browser with vetKeys (one envelope per recipient) before it leaves your device — the canister only ever stores ciphertext.</p>
+                <p class="pdm-composer-note">🔒 Chiffré dans votre navigateur avec vetKeys (une enveloppe par destinataire) avant de quitter votre appareil — le canister ne stocke que du texte chiffré.</p>
             </form>
         </section>
     }
@@ -271,145 +231,99 @@
 }
 
 <style>
-    /* ---- two-pane WhatsApp shell ---------------------------------------- */
-    /* WhatsApp surface accent: signature green -> teal (see AppLayout). */
-    .wa-accent { --bz-accent: #25d366; --bz-accent-2: #0ea5e9; }
-    .wa { display: grid; grid-template-columns: 360px 1fr; gap: 0;
-        height: calc(100vh - 140px); min-height: 520px;
-        border: 1px solid var(--mv-border); border-radius: 4px; overflow: hidden;
-        background: var(--mv-surface); box-shadow: var(--mv-shadow); }
+    /* ---- Pulse dark DM thread ------------------------------------------- */
+    .pdm { display: flex; flex-direction: column;
+        height: calc(100vh - 140px); min-height: 520px; min-width: 0;
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; overflow: hidden; color: var(--pulse-text); }
 
-    /* ---- LEFT pane: chat list ------------------------------------------- */
-    .wa-list { display: flex; flex-direction: column; min-width: 0;
-        border-right: 1px solid var(--mv-border); background: var(--mv-surface); }
-    .wa-list-head { display: flex; align-items: center; gap: .5rem;
-        padding: .7rem .85rem; border-bottom: 1px solid var(--mv-border);
-        background:
-            linear-gradient(120deg, color-mix(in srgb, var(--bz-accent) 12%, transparent), color-mix(in srgb, var(--bz-accent-2) 12%, transparent)),
-            var(--mv-muted); }
-    .wa-list-id { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
-    /* Green chip reads cleaner with a deeper-green text + brighter tint. */
-    .wa-accent .bz-accent-chip { color: #0a7d3e;
-        background: color-mix(in srgb, var(--bz-accent) 20%, var(--colorNeutralBackground1)); }
-    .wa-e2ee-chip { align-self: flex-start; }
-    .wa-list-back { text-decoration: none; font-size: 1.3rem; color: var(--mv-text-soft); line-height: 1;
-        width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 2px; }
-    .wa-list-back:hover { background: var(--mv-surface); color: var(--mv-text); }
+    /* ---- empty / unavailable state ------------------------------------- */
+    .pdm-empty { flex: 1; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; text-align: center; padding: 2rem; gap: .35rem;
+        background: var(--pulse-bg); }
+    .pdm-empty-ico { font-size: 2.6rem; }
+    .pdm-empty h1 { margin: .5rem 0 .25rem; font-size: 1.5rem; font-weight: 800;
+        letter-spacing: -.02em; color: var(--pulse-text); }
+    .pdm-empty p { margin: 0; max-width: 42ch; color: var(--pulse-text-2); }
+    .pdm-empty a { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
+    .pdm-empty a:hover { color: var(--pulse-primary-hover); text-decoration: underline; }
 
-    .wa-search { display: flex; align-items: center; gap: .55rem; margin: .55rem .7rem;
-        padding: .5rem .75rem; background: var(--mv-muted); border-radius: 2px;
-        color: var(--mv-text-soft); font-size: .85rem; flex: none; }
-    .wa-search-ico { font-size: .85rem; opacity: .7; }
+    /* ---- thread shell --------------------------------------------------- */
+    .pdm-thread { flex: 1; display: flex; flex-direction: column; min-width: 0;
+        background: var(--pulse-bg); }
 
-    .wa-chats { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
-    .wa-chat { display: flex; align-items: center; gap: .75rem; padding: .7rem .85rem;
-        text-decoration: none; color: inherit; border-bottom: 1px solid var(--mv-border);
-        transition: background .12s ease; }
-    .wa-chat { position: relative; }
-    .wa-chat:hover { background: var(--mv-muted); }
-    .wa-chat.is-active { background: color-mix(in srgb, var(--bz-accent) 10%, var(--mv-surface)); }
-    .wa-chat.is-active::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-        background: linear-gradient(var(--bz-accent), var(--bz-accent-2)); }
-    .wa-chat-avatar { flex: none; width: 48px; height: 48px; border-radius: 50%;
-        background: var(--mv-muted); display: grid; place-items: center; font-size: 1.45rem; }
-    .wa-chat.is-active .wa-chat-avatar { background: var(--mv-surface); }
-    .wa-chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
-    .wa-chat-top { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
-    .wa-chat-name { font-weight: 700; font-size: 1rem; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wa-chat-time { flex: none; color: var(--mv-text-soft); font-size: .72rem; }
-    .wa-chat-time.is-unread { color: var(--bz-accent); font-weight: 800; }
-    .wa-chat-bottom { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
-    /* Accent the unread-count badge with the WhatsApp green. */
-    .wa-chat-bottom .mv-badge {
-        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
-        color: #fff; border: none; font-weight: 700; }
-    .wa-chat-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden;
-        text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-
-    /* ---- RIGHT pane: thread --------------------------------------------- */
-    .wa-pane { display: flex; flex-direction: column; min-width: 0; }
-    .wa-pane-empty { align-items: center; justify-content: center; text-align: center; padding: 2rem;
-        background: var(--mv-muted); }
-    .wa-welcome { max-width: 42ch; }
-    .wa-welcome-ico { font-size: 2.6rem; }
-    /* Accent icon chip for empty-state panels. */
-    .wa-welcome-ico-accent { display: inline-grid; place-items: center; width: 80px; height: 80px;
-        border-radius: 4px; font-size: 2.4rem; line-height: 1; margin-bottom: .4rem;
-        color: #fff; background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
-        box-shadow: 0 14px 30px -10px color-mix(in srgb, var(--bz-accent) 65%, transparent); }
-    .wa-welcome h1 { margin: .5rem 0 .35rem; font-size: 1.6rem; font-weight: 800; letter-spacing: -.025em; }
-    .wa-welcome p { margin: 0 auto; color: var(--mv-text-soft); }
-
-    .wa-thread { background:
-        linear-gradient(180deg, rgba(0,0,0,.012), rgba(0,0,0,.012)), var(--mv-muted); }
-
-    .wa-thread-head { display: flex; align-items: center; gap: .7rem; flex: none;
-        padding: .6rem .9rem; border-bottom: 1px solid var(--mv-border);
-        background:
-            linear-gradient(120deg, color-mix(in srgb, var(--bz-accent) 12%, transparent), color-mix(in srgb, var(--bz-accent-2) 12%, transparent)),
-            var(--mv-muted); }
-    .wa-thread-back { display: none; text-decoration: none; font-size: 1.3rem; color: var(--mv-text-soft);
-        line-height: 1; width: 30px; flex: none; }
-    .wa-thread-avatar { flex: none; width: 44px; height: 44px; border-radius: 50%;
+    /* ---- header: back + peer avatar + name + e2ee note ----------------- */
+    .pdm-head { display: flex; align-items: center; gap: .75rem; flex: none;
+        padding: .7rem 1rem; border-bottom: 1px solid var(--pulse-border);
+        background: var(--pulse-surface); }
+    .pdm-back { flex: none; display: grid; place-items: center;
+        width: 36px; height: 36px; border-radius: 10px; text-decoration: none;
+        font-size: 1.3rem; line-height: 1; color: var(--pulse-text-2);
+        transition: background .12s ease, color .12s ease; }
+    .pdm-back:hover { background: var(--pulse-surface-2); color: var(--pulse-text); }
+    .pdm-avatar { flex: none; width: 44px; height: 44px; border-radius: 50%;
         display: grid; place-items: center; font-size: 1.3rem; color: #fff;
-        background: linear-gradient(135deg, var(--bz-accent), var(--bz-accent-2));
-        box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--bz-accent) 65%, transparent); }
-    .wa-thread-titlewrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .05rem; }
-    .wa-thread-title { font-weight: 800; font-size: 1.08rem; letter-spacing: -.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wa-thread-status { font-size: .76rem; color: color-mix(in srgb, var(--bz-accent) 78%, #0a6b3a); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wa-thread-e2ee { flex: none; }
+        background: var(--pulse-grad-profile); }
+    .pdm-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .12rem; }
+    .pdm-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -.015em;
+        color: var(--pulse-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdm-e2ee { display: inline-flex; align-items: center; gap: .3rem;
+        font-size: .76rem; font-weight: 600; color: var(--pulse-text-2); }
+    .pdm-lock { color: var(--pulse-verified); }
 
-    .wa-thread-stream { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .35rem;
-        padding: 1rem; }
-    .wa-thread-e2ee-note { align-self: center; max-width: 46ch; text-align: center; margin: 0 0 .75rem;
-        background: #fdf6dd; border: 1px solid #f6e7a8; color: #6b5e1a; border-radius: 3px;
-        padding: .5rem .75rem; font-size: .76rem; line-height: 1.4; }
+    /* ---- message stream ------------------------------------------------- */
+    .pdm-stream { flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+        gap: .4rem; padding: 1rem; }
+    .pdm-note { align-self: center; max-width: 48ch; text-align: center; margin: 0 0 .75rem;
+        padding: .55rem .8rem; border-radius: 12px; font-size: .76rem; line-height: 1.45;
+        color: var(--pulse-text-2);
+        background: var(--pulse-primary-soft); border: 1px solid var(--pulse-border); }
 
-    .wa-bubble-row { display: flex; max-width: 100%; }
+    .pdm-row { display: flex; max-width: 100%; }
     .wa-recv { justify-content: flex-start; }
     .wa-sent { justify-content: flex-end; }
-    .wa-bubble { max-width: 72%; padding: .45rem .62rem .32rem; border-radius: 4px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.1); position: relative; }
-    .wa-recv .wa-bubble { background: var(--mv-surface); color: var(--mv-text); border-top-left-radius: 3px; }
-    /* SENT bubbles: vivid WhatsApp-green accent gradient. */
-    .wa-sent .wa-bubble { border-top-right-radius: 3px; color: #fff;
-        background: linear-gradient(135deg, var(--bz-accent), color-mix(in srgb, var(--bz-accent) 60%, var(--bz-accent-2)));
-        box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--bz-accent) 70%, transparent); }
-    .wa-bubble-sender { display: block; font-size: .74rem; font-weight: 700; color: var(--bz-accent, #6d28d9); margin-bottom: .1rem; }
-    .wa-bubble-text { font-size: .92rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
-    .wa-bubble-meta { display: inline-flex; align-items: center; gap: .25rem; float: right;
-        margin: .15rem 0 0 .6rem; }
-    .wa-bubble-time { font-size: .68rem; color: rgba(0,0,0,.45); }
-    .wa-recv .wa-bubble-time { color: var(--mv-text-soft); }
-    .wa-sent .wa-bubble-time { color: rgba(255,255,255,.82); }
-    .wa-ticks { font-size: .72rem; color: rgba(255,255,255,.7); letter-spacing: -.05em; }
-    /* Read receipt: bright accent-teal ✓✓ once a peer has read it. */
-    .wa-ticks.is-read { color: #b8f5ff; text-shadow: 0 0 6px rgba(255,255,255,.4); }
+    .pdm-bubble { max-width: 72%; padding: .5rem .7rem .35rem; border-radius: 16px;
+        position: relative; }
+    /* PEER bubbles: left-aligned surface. */
+    .wa-recv .pdm-bubble { background: var(--pulse-surface); color: var(--pulse-text);
+        border: 1px solid var(--pulse-border); border-bottom-left-radius: 6px; }
+    /* OWN bubbles: right-aligned violet. */
+    .wa-sent .pdm-bubble { background: var(--pulse-primary); color: #fff;
+        border-bottom-right-radius: 6px; }
+    .pdm-sender { display: block; font-size: .74rem; font-weight: 700;
+        color: var(--pulse-primary); margin-bottom: .12rem; }
+    .pdm-text { font-size: .92rem; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+    .pdm-meta { display: inline-flex; align-items: center; gap: .3rem; float: right;
+        margin: .2rem 0 0 .7rem; }
+    .pdm-time { font-size: .68rem; color: var(--pulse-text-3); }
+    .wa-sent .pdm-time { color: rgba(255,255,255,.78); }
+    .pdm-ticks { font-size: .72rem; letter-spacing: -.05em; color: rgba(255,255,255,.7); }
+    .pdm-ticks.is-read { color: #d6c7ff; }
 
-    .wa-thread-empty { text-align: center; color: var(--mv-text-soft); margin: auto; padding: 2rem 1rem; }
-    .wa-thread-empty p { max-width: 36ch; margin: .5rem auto 0; }
+    /* ---- empty thread state -------------------------------------------- */
+    .pdm-blank { text-align: center; color: var(--pulse-text-2); margin: auto; padding: 2rem 1rem; }
+    .pdm-blank-ico { display: inline-grid; place-items: center; width: 80px; height: 80px;
+        border-radius: 18px; font-size: 2.2rem; line-height: 1; margin-bottom: .5rem;
+        color: #fff; background: var(--pulse-grad-profile); }
+    .pdm-blank p { max-width: 38ch; margin: 0 auto; }
 
-    .wa-composer { flex: none; background: var(--mv-muted); border-top: 1px solid var(--mv-border);
-        padding: .7rem .9rem .55rem; }
-    .wa-composer-row { display: flex; align-items: flex-end; gap: .6rem; }
-    .wa-composer-row > :first-child { flex: 1; }
-    /* Raw composer textarea (carries data-mv-encrypt-to) styled like an input. */
-    .wa-composer-input { resize: none; min-height: 2.4rem; max-height: 8rem; padding: .55rem .75rem;
-        border: 1px solid var(--mv-border); border-radius: 2px; font: inherit; line-height: 1.3;
-        background: var(--mv-surface); color: var(--mv-text); box-sizing: border-box; }
-    .wa-composer-input:focus { outline: none; border-color: var(--bz-accent); }
-    /* Accent-gradient the composer "Send" button. */
-    .wa-composer-row .mv-btn {
-        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
-        color: #fff; border: none; font-weight: 700;
-        box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--bz-accent) 70%, transparent); }
-    .wa-composer-row .mv-btn:hover { filter: brightness(1.06); }
-    .wa-composer-row .mv-btn:active { filter: brightness(.96); }
-    .wa-composer-note { margin: .4rem 0 0; font-size: .7rem; color: var(--mv-text-soft); }
+    /* ---- composer ------------------------------------------------------- */
+    .pdm-composer { flex: none; padding: .75rem 1rem .6rem;
+        border-top: 1px solid var(--pulse-border); background: var(--pulse-surface); }
+    .pdm-composer-row { display: flex; align-items: flex-end; gap: .65rem; }
+    .pdm-composer-row > :first-child { flex: 1; }
+    .pdm-input { resize: none; min-height: 2.5rem; max-height: 8rem; padding: .6rem .85rem;
+        border: 1px solid var(--pulse-border); border-radius: 12px; font: inherit; line-height: 1.35;
+        background: var(--pulse-surface-2); color: var(--pulse-text); box-sizing: border-box; }
+    .pdm-input::placeholder { color: var(--pulse-text-3); }
+    .pdm-input:focus { outline: none; border-color: var(--pulse-primary); }
+    .pdm-composer-row .mv-btn { background: var(--pulse-primary); color: #fff; border: none;
+        border-radius: 10px; font-weight: 700; }
+    .pdm-composer-row .mv-btn:hover { background: var(--pulse-primary-hover); }
+    .pdm-composer-note { margin: .45rem 0 0; font-size: .7rem; color: var(--pulse-text-3); }
 
     @media (max-width: 720px) {
-        .wa { grid-template-columns: 1fr; height: auto; min-height: 0; }
-        .wa-list { display: none; }
-        .wa-thread-back { display: block; }
+        .pdm { height: auto; min-height: 0; }
+        .pdm-bubble { max-width: 84%; }
     }
 </style>
