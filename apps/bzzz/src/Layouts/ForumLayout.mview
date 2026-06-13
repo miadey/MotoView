@@ -89,6 +89,16 @@
         .fl-main { flex: 1; min-width: 0; box-sizing: border-box; width: 100%;
             padding: var(--spacingVerticalXL) 40px var(--spacingVerticalXL) var(--spacingHorizontalXXL); }
 
+        /* Forum wayfinding breadcrumb (Home › Forum › Category › Topic): the
+           hierarchy trail with one-tap parents. First crumb is always Home. */
+        .fl-main .mv-breadcrumb { margin: 0 0 var(--spacingVerticalL); }
+        @media (max-width: 839px) {
+            /* don't wrap to two lines on a phone — scroll the trail horizontally */
+            .fl-main .mv-breadcrumb { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+            .fl-main .mv-breadcrumb::-webkit-scrollbar { display: none; }
+            .fl-main .mv-breadcrumb .mv-breadcrumb-item { white-space: nowrap; }
+        }
+
         .fl-rail { flex: 0 0 160px; box-sizing: border-box; position: sticky; top: 48px;
             height: calc(100vh - 48px); padding: var(--spacingVerticalL) var(--spacingHorizontalM); }
         .fl-rail:empty { display: none; }

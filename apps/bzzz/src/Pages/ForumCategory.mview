@@ -8,6 +8,12 @@
 
     @if found {
 
+        <Breadcrumb>
+            <BreadcrumbItem href="/">🏠 Home</BreadcrumbItem>
+            <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
+            <BreadcrumbItem current="true">@catName</BreadcrumbItem>
+        </Breadcrumb>
+
         <!-- category header: colored square + name + description + counts -->
         <header class="fc-head">
             <span class="fl-sq fl-sq-lg" style="background:@catColor"></span>

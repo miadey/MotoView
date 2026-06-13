@@ -6,6 +6,11 @@
 
 <div class="fl-col">
 
+    <Breadcrumb>
+        <BreadcrumbItem href="/">🏠 Home</BreadcrumbItem>
+        <BreadcrumbItem current="true">Forum</BreadcrumbItem>
+    </Breadcrumb>
+
     <!-- controls: category/tag/all pills + the latest/new/unread tabs share one row (Discourse) -->
     <div class="fl-controls">
         <div class="fl-pills">
