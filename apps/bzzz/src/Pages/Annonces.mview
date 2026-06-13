@@ -22,7 +22,7 @@
         @for a in announcements {
             <article class="an-card bz-card">
                 <header class="an-card-head">
-                    <Persona name="@("@" # a.authorHandle)" secondary="@(Status.relativeTime(a.at))" avatar="@(Identity.avatarOf(a.author))" />
+                    <Persona name="@(Identity.atHandleOf(a.author))" secondary="@(Status.relativeTime(a.at))" avatar="@(Identity.avatarOf(a.author))" />
                     <span class="an-badge">@(Status.kindLabel(a.kind))</span>
                 </header>
 
