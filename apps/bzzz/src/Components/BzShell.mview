@@ -1,0 +1,65 @@
+param path : Text = "/"
+
+<!-- BzShell — the persistent global navigation shell (bottom tab bar).
+     Always visible at every depth so Home / any pillar is one tap from
+     anywhere, including a deep forum thread. Rendered INSIDE the authed branch
+     of both layouts, so anonymous users never receive it. Pure SSR + CSS: the
+     active pillar is computed server-side from `path`. Desktop (>=840px) uses
+     the rails/sidebar, so the bar hides; below that it is a fixed bottom bar. -->
+<style>
+    /* Hidden by default (desktop rails handle nav >= 840px). */
+    .bz-tabbar { display: none; }
+
+    .bz-tab { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 2px; min-width: 0; text-decoration: none; padding: 6px 2px 4px;
+        color: var(--colorNeutralForeground3); font-size: 10px; font-weight: var(--fontWeightSemibold);
+        letter-spacing: .01em; line-height: 1; position: relative;
+        transition: color var(--durationFast, .1s) var(--curveEasyEase, ease); }
+    .bz-tab-ico { font-size: 21px; line-height: 1;
+        transition: transform var(--durationFast, .1s) var(--curveEasyEase, ease); }
+    .bz-tab:hover { color: var(--colorNeutralForeground2); }
+    .bz-tab.is-active { color: var(--colorBrandForeground1); }
+    .bz-tab.is-active .bz-tab-ico { transform: translateY(-1px) scale(1.06); }
+    /* the pinned-Home accent: a top indicator bar on the active tab */
+    .bz-tab.is-active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+        width: 26px; height: 3px; border-radius: 0 0 3px 3px; background: var(--colorBrandForeground1); }
+
+    @media (max-width: 839px) {
+        .bz-tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+            align-items: stretch; justify-content: space-around;
+            min-height: 56px; padding-bottom: env(safe-area-inset-bottom, 0px);
+            background: color-mix(in srgb, var(--colorNeutralBackground1) 88%, transparent);
+            -webkit-backdrop-filter: saturate(1.6) blur(12px); backdrop-filter: saturate(1.6) blur(12px);
+            border-top: 1px solid var(--colorNeutralStroke2);
+            box-shadow: 0 -2px 16px -8px rgba(0,0,0,.18); }
+        /* keep page content clear of the fixed bar (footers, last rows) */
+        body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+    }
+</style>
+<nav class="bz-tabbar" aria-label="Primary">
+    @if (path == "/") {
+        <a class="bz-tab is-active" href="/" aria-current="page"><span class="bz-tab-ico">🏠</span>Home</a>
+    } else {
+        <a class="bz-tab" href="/"><span class="bz-tab-ico">🏠</span>Home</a>
+    }
+    @if (Text.startsWith(path, #text "/feed")) {
+        <a class="bz-tab is-active" href="/feed" aria-current="page"><span class="bz-tab-ico">📰</span>Feed</a>
+    } else {
+        <a class="bz-tab" href="/feed"><span class="bz-tab-ico">📰</span>Feed</a>
+    }
+    @if (Text.startsWith(path, #text "/servers")) {
+        <a class="bz-tab is-active" href="/servers" aria-current="page"><span class="bz-tab-ico">💬</span>Servers</a>
+    } else {
+        <a class="bz-tab" href="/servers"><span class="bz-tab-ico">💬</span>Servers</a>
+    }
+    @if (Text.startsWith(path, #text "/forum")) {
+        <a class="bz-tab is-active" href="/forum" aria-current="page"><span class="bz-tab-ico">🗨️</span>Forum</a>
+    } else {
+        <a class="bz-tab" href="/forum"><span class="bz-tab-ico">🗨️</span>Forum</a>
+    }
+    @if (Text.startsWith(path, #text "/messages")) {
+        <a class="bz-tab is-active" href="/messages" aria-current="page"><span class="bz-tab-ico">✉️</span>Messages</a>
+    } else {
+        <a class="bz-tab" href="/messages"><span class="bz-tab-ico">✉️</span>Messages</a>
+    }
+</nav>

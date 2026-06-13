@@ -110,7 +110,9 @@
             border-radius: var(--borderRadiusXLarge) var(--borderRadiusXLarge) 0 0;
             background: linear-gradient(90deg, var(--bz-accent), var(--bz-accent-2)); }
 
-        @media (max-width: 860px) {
+        /* Below 840px the desktop rail hands off to the persistent BzShell bottom
+           tab bar (clean handoff: rail >=840px, bottom bar <=839px — no gap). */
+        @media (max-width: 839px) {
             .mv-nav { display: none; }
             .bz-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
             .bz-banner { padding: var(--spacingVerticalXL) var(--spacingHorizontalL); }
@@ -154,6 +156,7 @@
         <details class="mv-acct" data-mv-authed style="display:none">
             <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
             <div class="mv-acct-menu">
+                <a class="mv-acct-item" href="/">🏠 Home</a>
                 <a class="mv-acct-item" href="/me">👤 My profile</a>
                 <a class="mv-acct-item" href="/status">🟢 My status</a>
                 <a class="mv-acct-item" href="/messages">✉️ Messages</a>
@@ -185,6 +188,7 @@
             </footer>
         </div>
     </div>
+    <BzShell path="@ctx.path" />
 } else {
     <div class="bz-gate-redirect">Taking you to sign in… <a href="/welcome">Continue →</a></div>
 }

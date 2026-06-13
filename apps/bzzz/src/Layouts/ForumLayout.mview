@@ -132,6 +132,7 @@
         <details class="mv-acct" data-mv-authed style="display:none">
             <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
             <div class="mv-acct-menu">
+                <a class="mv-acct-item" href="/">🏠 Home</a>
                 <a class="mv-acct-item" href="/me">👤 My profile</a>
                 <a class="mv-acct-item" href="/status">🟢 My status</a>
                 <a class="mv-acct-item" href="/messages">✉️ Messages</a>
@@ -228,8 +229,10 @@
             <!-- Bzzz app-switcher: keep the super-app reachable from the forum -->
             <div class="fl-apps-label">Bzzz apps</div>
             <div class="fl-apps">
+                <a class="fl-app" href="/" title="Home">🏠</a>
                 <a class="fl-app" href="/feed" title="Feed">📰</a>
                 <a class="fl-app" href="/servers" title="Servers">💬</a>
+                <a class="fl-app" href="/forum" title="Forum">🗨️</a>
                 <a class="fl-app" href="/messages" title="Messages">✉️</a>
                 <a class="fl-app" href="/status" title="Status">🟢</a>
             </div>
@@ -257,6 +260,7 @@
             </footer>
         </div>
     </div>
+    <BzShell path="@ctx.path" />
 } else {
     <div class="bz-gate-redirect" style="min-height:70vh;display:flex;align-items:center;justify-content:center;gap:.4rem;color:var(--colorNeutralForeground3);font-family:var(--fontFamilyBase)">Taking you to sign in… <a href="/welcome" style="color:var(--colorBrandForeground1);font-weight:600">Continue →</a></div>
 }
