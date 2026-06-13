@@ -4017,6 +4017,49 @@ label.mv-field-label {
   --fontWeightSemibold: 500;
 }
 
+/* ===========================================================================
+   Google Material — COMPONENT SKIN. The [data-theme="material-*"] token blocks
+   above recolor/reshape via variables; these rules give the COMPONENTS Material's
+   signature so a Material theme reads as Material, not just a recolored Fluent:
+   full-pill filled buttons with elevation, an M3 nav pill, filled text fields,
+   a flat app bar, fully-rounded chips.
+   =========================================================================== */
+[data-theme="material-light"] .mv-btn, [data-theme="material-dark"] .mv-btn {
+  border-radius: 9999px; height: 40px; min-width: 0; padding: 0 24px;
+  font-weight: 500; letter-spacing: .01em;
+  transition: box-shadow .2s var(--curveEasyEase, ease), background .2s var(--curveEasyEase, ease);
+}
+[data-theme="material-light"] .mv-btn-primary, [data-theme="material-dark"] .mv-btn-primary { box-shadow: var(--shadow2); }
+[data-theme="material-light"] .mv-btn-primary:hover, [data-theme="material-dark"] .mv-btn-primary:hover { box-shadow: var(--shadow8); }
+[data-theme="material-light"] .mv-btn-small, [data-theme="material-dark"] .mv-btn-small { height: 32px; padding: 0 16px; }
+
+[data-theme="material-light"] .mv-nav-item, [data-theme="material-dark"] .mv-nav-item {
+  border-radius: 9999px; margin: 2px var(--spacingHorizontalS); font-weight: 500;
+}
+[data-theme="material-light"] .mv-nav-item.is-active, [data-theme="material-dark"] .mv-nav-item.is-active {
+  background: var(--colorBrandBackground2); color: var(--colorBrandForeground1);
+}
+[data-theme="material-light"] .mv-nav-item.is-active::before, [data-theme="material-dark"] .mv-nav-item.is-active::before { display: none; }
+
+[data-theme="material-light"] .mv-input, [data-theme="material-light"] .mv-textarea,
+[data-theme="material-dark"] .mv-input, [data-theme="material-dark"] .mv-textarea {
+  background: var(--colorNeutralBackground3); border: 1px solid transparent;
+  border-bottom: 1px solid var(--colorNeutralStrokeAccessible);
+  border-radius: var(--borderRadiusSmall) var(--borderRadiusSmall) 0 0;
+}
+[data-theme="material-light"] .mv-input:focus, [data-theme="material-light"] .mv-textarea:focus,
+[data-theme="material-dark"] .mv-input:focus, [data-theme="material-dark"] .mv-textarea:focus {
+  border-bottom: 2px solid var(--colorBrandBackground); outline: none;
+}
+
+[data-theme="material-light"] .mv-appbar, [data-theme="material-dark"] .mv-appbar {
+  box-shadow: none; border-bottom: 1px solid var(--colorNeutralStroke3);
+  background: var(--colorNeutralBackground1);
+}
+[data-theme="material-light"] .mv-badge, [data-theme="material-dark"] .mv-badge,
+[data-theme="material-light"] .mv-tag, [data-theme="material-dark"] .mv-tag,
+[data-theme="material-light"] .mv-counter-badge, [data-theme="material-dark"] .mv-counter-badge { border-radius: 9999px; }
+
 /* Teams — purple brand on the LIGHT neutral base */
 [data-theme="teams-light"] {
   --colorBrandBackground: #5b5fc7 !important;

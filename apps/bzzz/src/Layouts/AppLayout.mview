@@ -115,6 +115,28 @@
             .bz-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
             .bz-banner { padding: var(--spacingVerticalXL) var(--spacingHorizontalL); }
         }
+
+        /* === Material themes: swap the purple/rainbow accents for Google blue,
+           and lean into clean Material elevation (no rainbow card edges, no
+           card borders). Banner becomes a solid Material-blue gradient. === */
+        [data-theme="material-light"] .bz-banner { background: linear-gradient(135deg, #0b57d0, #1a73e8); color: #fff; }
+        [data-theme="material-dark"]  .bz-banner { background: linear-gradient(135deg, #0842a0, #1a73e8); color: #e8f0fe; }
+        [data-theme="material-light"] .bz-hero { background: linear-gradient(135deg, #0b57d0, #1a73e8); }
+        [data-theme="material-dark"]  .bz-hero { background: linear-gradient(135deg, #0842a0, #1a73e8); }
+        /* unify every sub-app's accent to Material blue (kills the rainbow) */
+        [data-theme="material-light"] .bz-content, [data-theme="material-dark"] .bz-content,
+        [data-theme="material-light"] .bz-dash-card, [data-theme="material-dark"] .bz-dash-card,
+        [data-theme="material-light"] .wa-accent, [data-theme="material-dark"] .wa-accent {
+            --bz-accent: var(--colorBrandBackground) !important;
+            --bz-accent-2: var(--colorCompoundBrandForeground1, var(--colorBrandForeground1)) !important;
+        }
+        /* clean Material cards: drop the colored top-edge, drop the border, keep elevation */
+        [data-theme="material-light"] .bz-card-accent::before, [data-theme="material-dark"] .bz-card-accent::before { display: none; }
+        [data-theme="material-light"] .bz-card, [data-theme="material-dark"] .bz-card { border-color: transparent; box-shadow: var(--shadow4); }
+        [data-theme="material-light"] .bz-tile, [data-theme="material-dark"] .bz-tile { border-color: transparent; box-shadow: var(--shadow4); }
+        /* dashboard accent links/edges -> Material blue */
+        [data-theme="material-light"] .bz-dash-more, [data-theme="material-dark"] .bz-dash-more,
+        [data-theme="material-light"] .bz-dash-row .bz-dash-line strong, [data-theme="material-dark"] .bz-dash-row .bz-dash-line strong { color: inherit; }
     </style>
     <!-- Auth gate: Bzzz requires Internet Identity — NO page under this layout
          is public. Anyone not signed-in-and-handle-bound is sent to /welcome
