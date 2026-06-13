@@ -200,44 +200,44 @@
                 @if (Text.startsWith(ctx.path, #text "/forum") and not Text.startsWith(ctx.path, #text "/forum/c/")) {
                     <a class="fl-item is-active" href="/forum">
                         <span class="fl-item-ico">≡</span>
-                        <span class="fl-item-label">Topics</span>
+                        <span class="fl-item-label">Sujets</span>
                     </a>
                 } else {
                     <a class="fl-item" href="/forum">
                         <span class="fl-item-ico">≡</span>
-                        <span class="fl-item-label">Topics</span>
+                        <span class="fl-item-label">Sujets</span>
                     </a>
                 }
                 <a class="fl-item" href="/forum?view=mine">
                     <span class="fl-item-ico">👤</span>
-                    <span class="fl-item-label">My posts</span>
+                    <span class="fl-item-label">Mes publications</span>
                 </a>
                 <a class="fl-item" href="/messages">
                     <span class="fl-item-ico">✉</span>
-                    <span class="fl-item-label">My messages</span>
+                    <span class="fl-item-label">Mes messages</span>
                 </a>
                 <a class="fl-item" href="/forum?view=more">
                     <span class="fl-item-ico">⋯</span>
-                    <span class="fl-item-label">More</span>
+                    <span class="fl-item-label">Plus</span>
                 </a>
             </nav>
 
             <!-- Resources -->
             <div class="fl-sb-section">
-                <div class="fl-sb-head">Resources <span class="fl-sb-head-caret">▾</span></div>
+                <div class="fl-sb-head">Ressources <span class="fl-sb-head-caret">▾</span></div>
                 <a class="fl-item" href="/about">
                     <span class="fl-item-ico">📘</span>
-                    <span class="fl-item-label">Developer Docs</span>
+                    <span class="fl-item-label">Docs développeur</span>
                 </a>
                 <a class="fl-item" href="/feed">
                     <span class="fl-item-ico">&lt;/&gt;</span>
-                    <span class="fl-item-label">Learn Hub</span>
+                    <span class="fl-item-label">Centre d'apprentissage</span>
                 </a>
             </div>
 
             <!-- Categories (real data: Forum.categories()) -->
             <div class="fl-sb-section">
-                <div class="fl-sb-head">Categories <span class="fl-sb-head-caret">▾</span></div>
+                <div class="fl-sb-head">Catégories <span class="fl-sb-head-caret">▾</span></div>
                 @for c in Forum.categories() {
                     @if (ctx.path == "/forum/c/" # Nat.toText(c.id)) {
                         <a class="fl-item is-active" href="/forum/c/@(c.id)">
@@ -255,13 +255,13 @@
                 }
                 <a class="fl-item" href="/forum#categories">
                     <span class="fl-item-ico">≡</span>
-                    <span class="fl-item-label">All categories</span>
+                    <span class="fl-item-label">Toutes les catégories</span>
                 </a>
             </div>
 
             <!-- Tags (real data: tags pulled from the latest topics) -->
             <div class="fl-sb-section">
-                <div class="fl-sb-head">Tags <span class="fl-sb-head-caret">▾</span></div>
+                <div class="fl-sb-head">Étiquettes <span class="fl-sb-head-caret">▾</span></div>
                 @for t in Forum.topicsLatest() {
                     @for tg in t.tags {
                         <a class="fl-item" href="/forum/c/@(t.categoryId)">
@@ -276,7 +276,7 @@
             <div class="fl-sb-divider"></div>
 
             <!-- Bzzz app-switcher: keep the super-app reachable from the forum -->
-            <div class="fl-apps-label">Bzzz apps</div>
+            <div class="fl-apps-label">Apps Pulse</div>
             <div class="fl-apps">
                 <a class="fl-app" href="/" title="Home">🏠</a>
                 <a class="fl-app" href="/feed" title="Feed">📰</a>
