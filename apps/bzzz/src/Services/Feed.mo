@@ -103,6 +103,20 @@ module {
       sortDesc(Buffer.toArray(buf));
     };
 
+    /// A bounded PAGE of the feed (newest-first). `following` selects the home
+    /// timeline vs every top-level post. Returns the window plus the total count,
+    /// so a page paginates WITHOUT rendering thousands of rows (which would blow
+    /// the IC ~2 MB response cap and the render instruction budget).
+    public func feedPage(caller : Principal, following : Bool, offset : Nat, limit : Nat) : {
+      items : [FeedPost];
+      total : Nat;
+    } {
+      let all = if (following) { homeTimeline(caller) } else { posts() };
+      let total = all.size();
+      if (limit == 0 or offset >= total) { return { items = []; total } };
+      { items = Array.subArray(all, offset, Nat.min(limit, total - offset)); total };
+    };
+
     /// A single post by id (top-level or reply).
     public func get(id : Nat) : ?FeedPost { postsById.get(id) };
 

@@ -107,6 +107,30 @@ module {
     let topics_ = HashMap.HashMap<Nat, TopicRec>(64, Nat.equal, Hash.hash);
     let posts_ = HashMap.HashMap<Nat, PostRec>(256, Nat.equal, Hash.hash);
 
+    // O(1) counters maintained incrementally on mutation, so reply/post/score
+    // reads are O(1) instead of full posts_ scans per topic row (the audit's
+    // top scale blocker: O(topics × posts) per forum render). Derived from
+    // posts_, so NOT persisted — rebuilt once from posts_ after an upgrade.
+    let postCountByTopic = HashMap.HashMap<Nat, Nat>(64, Nat.equal, Hash.hash);
+    let likeCountByTopic = HashMap.HashMap<Nat, Nat>(64, Nat.equal, Hash.hash);
+    func cntGet(m : HashMap.HashMap<Nat, Nat>, k : Nat) : Nat { switch (m.get(k)) { case (?n) n; case null 0 } };
+    func cntBump(m : HashMap.HashMap<Nat, Nat>, k : Nat, delta : Int) {
+      let cur : Int = cntGet(m, k);
+      let next = cur + delta;
+      m.put(k, if (next < 0) 0 else Int.abs(next));
+    };
+    // Recompute both counters from posts_ in one pass — after the constructor
+    // seed and after mvStableLoad (which refills posts_ without going through
+    // makePost/like).
+    func rebuildCounters() {
+      for (k in Iter.toArray(postCountByTopic.keys()).vals()) { postCountByTopic.delete(k) };
+      for (k in Iter.toArray(likeCountByTopic.keys()).vals()) { likeCountByTopic.delete(k) };
+      for (p in posts_.vals()) {
+        postCountByTopic.put(p.topicId, cntGet(postCountByTopic, p.topicId) + 1);
+        if (p.likers.size() > 0) { likeCountByTopic.put(p.topicId, cntGet(likeCountByTopic, p.topicId) + p.likers.size()) };
+      };
+    };
+
     // ---- Categories ----
 
     func addCategory(id : Nat, name : Text, color : Text, description : Text) {
@@ -290,13 +314,8 @@ module {
     };
 
     func topicScore(topicId : Nat) : Nat {
-      var likes : Nat = 0;
-      for (p in posts_.vals()) {
-        if (p.topicId == topicId) { likes += p.likers.size() };
-      };
-      // replies = total posts minus the OP
-      let replies = replyCount(topicId);
-      likes * 3 + replies;
+      // O(1): likes*3 + replies, from the incremental counters.
+      cntGet(likeCountByTopic, topicId) * 3 + replyCount(topicId);
     };
 
     // ---- Posts ----
@@ -328,6 +347,7 @@ module {
         likers = Buffer.Buffer<Principal>(4);
       };
       posts_.put(id, rec);
+      cntBump(postCountByTopic, topicId, 1);
       id;
     };
 
@@ -371,11 +391,7 @@ module {
       switch (posts_.get(id)) { case (?p) ?projectPost(p); case null null };
     };
 
-    func postCountOf(topicId : Nat) : Nat {
-      var n : Nat = 0;
-      for (p in posts_.vals()) { if (p.topicId == topicId) { n += 1 } };
-      n;
-    };
+    func postCountOf(topicId : Nat) : Nat { cntGet(postCountByTopic, topicId) };
 
     /// Number of replies in a topic (total posts minus the OP).
     public func replyCount(topicId : Nat) : Nat {
@@ -400,8 +416,8 @@ module {
         case null { false };
         case (?p) {
           switch (likerIndex(p, caller)) {
-            case (?idx) { ignore p.likers.remove(idx); false };
-            case null { p.likers.add(caller); true };
+            case (?idx) { ignore p.likers.remove(idx); cntBump(likeCountByTopic, p.topicId, -1); false };
+            case null { p.likers.add(caller); cntBump(likeCountByTopic, p.topicId, 1); true };
           };
         };
       };
@@ -694,6 +710,9 @@ module {
               },
             );
           };
+          // posts_ was refilled outside makePost/like, so recompute the O(1)
+          // reply/like counters from the restored posts in one pass.
+          rebuildCounters();
         };
         case null {};
       };

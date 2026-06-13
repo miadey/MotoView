@@ -78,6 +78,13 @@
                     </article>
                 }
             </div>
+            @if (showOlder or page > 0) {
+                <nav class="fd-pager" aria-label="Feed pages">
+                    @if (page > 0) { <a class="fd-pager-btn" href="@(pageHref(page - 1))">← Newer</a> } else { <span class="fd-pager-sp"></span> }
+                    <span class="fd-pager-info">Page @(page + 1)</span>
+                    @if showOlder { <a class="fd-pager-btn" href="@(pageHref(page + 1))">Older →</a> } else { <span class="fd-pager-sp"></span> }
+                </nav>
+            }
         } else {
             <div class="fd-empty">
                 <span class="fd-empty-ico">⚡</span>
@@ -267,6 +274,15 @@
     .fd-trend-tag { font-weight: 800; font-size: var(--fontSizeBase300); letter-spacing: -.01em; }
     .fd-trend-n { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
 
+    .fd-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-top: 1px solid var(--colorNeutralStroke3); }
+    .fd-pager-btn { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold);
+        font-size: var(--fontSizeBase300); padding: var(--spacingVerticalXS) var(--spacingHorizontalM);
+        border-radius: var(--borderRadiusCircular, 999px); }
+    .fd-pager-btn:hover { background: var(--colorSubtleBackgroundHover); }
+    .fd-pager-info { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .fd-pager-sp { width: 1px; }
+
     @media (max-width: 1000px) {
         .fd-wrap { grid-template-columns: minmax(0, 600px); }
         .fd-rail { display: none; }
@@ -290,6 +306,14 @@
     var postCount : Nat = 0;
     var memberCount : Nat = 0;
 
+    // Pagination: render at most `perPage` posts per page (?page=N), so the feed
+    // stays well under the IC response/instruction limits no matter how many
+    // posts exist. `total` drives the "Older →" control.
+    let perPage : Nat = 25;
+    var page : Nat = 0;
+    var total : Nat = 0;
+    var showOlder : Bool = false;
+
     var suggestions : [Identity.Profile] = [];
     var hasSuggestions : Bool = false;
     var followingCount : Nat = 0;
@@ -302,18 +326,18 @@
         bound := Identity.isBound(ctx.caller);
         meAvatar := Identity.avatarOf(ctx.caller);
         followingTab := queryFlag(ctx, "tab", "following");
+        page := queryNat(ctx, "page", 0);
         load(ctx);
     };
 
     // Refresh page vars from the services. Also used by mutating handlers, since
     // the runtime renders right after dispatch without re-running onLoad.
     func load(ctx : Context) {
-        if (followingTab) {
-            timeline := Feed.homeTimeline(ctx.caller);
-        } else {
-            timeline := Feed.posts();
-        };
+        let pg = Feed.feedPage(ctx.caller, followingTab, page * perPage, perPage);
+        timeline := pg.items;
+        total := pg.total;
         hasPosts := timeline.size() > 0;
+        showOlder := (page + 1) * perPage < total;
         postCount := Feed.postCount();
         memberCount := Identity.count();
 
@@ -327,6 +351,20 @@
     func queryFlag(ctx : Context, key : Text, val : Text) : Bool {
         for ((k, v) in ctx.queryParams.vals()) { if (k == key and v == val) { return true } };
         false;
+    };
+
+    // A Nat from the query string (e.g. ?page=3), or `def` if absent/invalid.
+    func queryNat(ctx : Context, key : Text, def : Nat) : Nat {
+        for ((k, v) in ctx.queryParams.vals()) {
+            if (k == key) { switch (Nat.fromText(v)) { case (?n) { return n }; case null {} } };
+        };
+        def;
+    };
+
+    // Build a /feed page link, preserving the active tab.
+    func pageHref(p : Nat) : Text {
+        let base = "/feed?page=" # Nat.toText(p);
+        if (followingTab) { base # "&tab=following" } else { base };
     };
 
     // People other than the caller, newest joiners first, capped at 5.
