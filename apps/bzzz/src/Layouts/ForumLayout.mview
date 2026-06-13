@@ -1,15 +1,50 @@
-@theme brand="#0f6cbd"
+@theme brand="#8b5cf6"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <link rel="apple-touch-icon" href="/favicon.svg">
-    <meta name="apple-mobile-web-app-title" content="Bzzz Forum">
+    <meta name="apple-mobile-web-app-title" content="Pulse">
     <title>@View.title</title>
     @head
     <style>
         body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1); font-family: var(--fontFamilyBase); }
+
+        /* ===== PULSE design tokens (dark) — see AppLayout + docs/pulse-design-spec.md ===== */
+        :root {
+            --pulse-bg: #0a0a0f; --pulse-bg-sidebar: #0d0d15; --pulse-surface: #15151e;
+            --pulse-surface-2: #1c1c27; --pulse-border: #232331;
+            --pulse-primary: #8b5cf6; --pulse-primary-hover: #7c3aed; --pulse-primary-soft: rgba(139,92,246,.14);
+            --pulse-text: #f3f4f6; --pulse-text-2: #9ca3af; --pulse-text-3: #6b7280;
+            --pulse-success: #22c55e; --pulse-warning: #f59e0b; --pulse-danger: #ef4444; --pulse-verified: #3b82f6;
+            --pulse-grad-logo: linear-gradient(135deg, #fb3b5c, #e23b7a 45%, #a855f7);
+            color-scheme: dark;
+            --colorNeutralBackground1: var(--pulse-surface);
+            --colorNeutralBackground2: var(--pulse-bg);
+            --colorNeutralBackground3: var(--pulse-surface-2);
+            --colorNeutralBackground1Hover: var(--pulse-surface-2);
+            --colorNeutralBackground3Hover: var(--pulse-surface-2);
+            --colorSubtleBackgroundHover: rgba(255,255,255,.05);
+            --colorNeutralForeground1: var(--pulse-text);
+            --colorNeutralForeground2: var(--pulse-text);
+            --colorNeutralForeground3: var(--pulse-text-2);
+            --colorNeutralForeground4: var(--pulse-text-3);
+            --colorNeutralStroke1: var(--pulse-border);
+            --colorNeutralStroke2: var(--pulse-border);
+            --colorNeutralStroke3: var(--pulse-border);
+            --colorBrandBackground: var(--pulse-primary);
+            --colorBrandBackground2: var(--pulse-primary-soft);
+            --colorBrandForeground1: var(--pulse-primary);
+            --colorBrandStroke1: var(--pulse-primary);
+            --colorCompoundBrandForeground1: var(--pulse-primary);
+            --borderRadiusXLarge: 16px; --borderRadiusLarge: 12px; --borderRadiusMedium: 10px;
+            --fontFamilyBase: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+        .pl-logo { width: 30px; height: 30px; flex: none; display: inline-grid; place-items: center; border-radius: 9px;
+            background: var(--pulse-grad-logo); vertical-align: middle; }
+        .pl-logo svg { width: 18px; height: 18px; }
+        .pl-wordmark { font-weight: 800; letter-spacing: .12em; color: #fff; }
 
         /* ===================================================================
            ForumLayout — a faithful Discourse shell (forum.dfinity.org):
@@ -139,7 +174,7 @@
 
     <AppBar>
         <label class="fl-burger-btn" for="fl-burger" aria-label="Toggle forum menu">☰</label>
-        <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
+        <a class="mv-appbar-brand" href="/"><span class="pl-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"></path></svg></span> <span class="pl-wordmark">PULSE</span></a>
         <span class="mv-appbar-spacer"></span>
         <label class="bz-cmdk-trigger" for="bz-cmdk" title="Search — jump to anything" aria-label="Search">🔍</label>
         <ThemePicker />
@@ -270,7 +305,7 @@
                 <div class="fl-rail" aria-hidden="true"></div>
             </div>
             <footer class="fl-foot">
-                🐝 Bzzz · <a href="/about" style="color:inherit;text-decoration:underline">About</a>
+                Pulse · <a href="/about" style="color:inherit;text-decoration:underline">À propos</a>
             </footer>
         </div>
     </div>

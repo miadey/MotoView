@@ -1,17 +1,125 @@
-@theme brand="#0f6cbd"
+@theme brand="#8b5cf6"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <link rel="apple-touch-icon" href="/favicon.svg">
-    <meta name="apple-mobile-web-app-title" content="Bzzz">
+    <meta name="apple-mobile-web-app-title" content="Pulse">
     <title>@View.title</title>
     @head
     <style>
         body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1);
             font-family: var(--fontFamilyBase); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility; }
+
+        /* ===================================================================
+           PULSE design tokens (dark, default). App-layer: remaps the Fluent
+           color tokens to the Pulse palette so every existing bz- and mv-
+           component adopts the dark look with no per-rule edits. Brand ramp is
+           emitted by @theme brand="#8b5cf6". See docs/pulse-design-spec.md.
+           =================================================================== */
+        :root {
+            --pulse-bg: #0a0a0f; --pulse-bg-sidebar: #0d0d15; --pulse-surface: #15151e;
+            --pulse-surface-2: #1c1c27; --pulse-border: #232331;
+            --pulse-primary: #8b5cf6; --pulse-primary-hover: #7c3aed; --pulse-primary-soft: rgba(139,92,246,.14);
+            --pulse-text: #f3f4f6; --pulse-text-2: #9ca3af; --pulse-text-3: #6b7280;
+            --pulse-success: #22c55e; --pulse-warning: #f59e0b; --pulse-danger: #ef4444; --pulse-verified: #3b82f6;
+            --pulse-grad-logo: linear-gradient(135deg, #fb3b5c, #e23b7a 45%, #a855f7);
+            --pulse-grad-profile: linear-gradient(135deg, #7c3aed, #3b82f6);
+            color-scheme: dark;
+            /* Remap Fluent surfaces/text/brand → Pulse (forces dark default) */
+            --colorNeutralBackground1: var(--pulse-surface);
+            --colorNeutralBackground2: var(--pulse-bg);
+            --colorNeutralBackground3: var(--pulse-surface-2);
+            --colorNeutralBackground1Hover: var(--pulse-surface-2);
+            --colorNeutralBackground3Hover: var(--pulse-surface-2);
+            --colorSubtleBackground: transparent;
+            --colorSubtleBackgroundHover: rgba(255,255,255,.05);
+            --colorNeutralForeground1: var(--pulse-text);
+            --colorNeutralForeground2: var(--pulse-text);
+            --colorNeutralForeground3: var(--pulse-text-2);
+            --colorNeutralForeground4: var(--pulse-text-3);
+            --colorNeutralStroke1: var(--pulse-border);
+            --colorNeutralStroke2: var(--pulse-border);
+            --colorNeutralStroke3: var(--pulse-border);
+            --colorBrandBackground: var(--pulse-primary);
+            --colorBrandBackground2: var(--pulse-primary-soft);
+            --colorBrandForeground1: var(--pulse-primary);
+            --colorBrandStroke1: var(--pulse-primary);
+            --colorCompoundBrandForeground1: var(--pulse-primary);
+            --borderRadiusXLarge: 16px; --borderRadiusLarge: 12px; --borderRadiusMedium: 10px;
+            --fontFamilyBase: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+
+        /* ---- Pulse app shell: full-height sidebar + content (topbar+main) ---- */
+        .pl-shell { display: flex; align-items: stretch; min-height: 100vh; }
+        .pl-sidebar { position: sticky; top: 0; height: 100vh; width: 248px; flex: 0 0 248px;
+            box-sizing: border-box; display: flex; flex-direction: column; gap: var(--spacingVerticalS);
+            padding: 18px 14px; background: var(--pulse-bg-sidebar); border-right: 1px solid var(--pulse-border);
+            overflow-y: auto; }
+        .pl-brand { display: flex; align-items: center; gap: 11px; padding: 6px 8px 14px; text-decoration: none; }
+        .pl-logo { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 10px;
+            background: var(--pulse-grad-logo); box-shadow: 0 6px 18px -6px rgba(168,85,247,.5); }
+        .pl-logo svg { width: 21px; height: 21px; }
+        .pl-wordmark { font-size: 1.16rem; font-weight: 800; letter-spacing: .14em; color: #fff; }
+
+        .pl-nav { display: flex; flex-direction: column; gap: 2px; }
+        .pl-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+            text-decoration: none; color: var(--pulse-text-2); font-size: var(--fontSizeBase300); font-weight: 600;
+            line-height: 1.1; transition: background .12s ease, color .12s ease; }
+        .pl-nav-item:hover { background: rgba(255,255,255,.05); color: var(--pulse-text); }
+        .pl-nav-item.is-active { background: var(--pulse-primary-soft); color: var(--pulse-text); }
+        .pl-nav-item.is-active .pl-nav-ico { color: var(--pulse-primary); }
+        .pl-nav-ico { width: 20px; height: 20px; flex: none; color: var(--pulse-text-3); }
+        .pl-nav-item:hover .pl-nav-ico { color: var(--pulse-text-2); }
+
+        .pl-usercard { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+            border-radius: 12px; background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+            text-decoration: none; }
+        .pl-usercard:hover { background: var(--pulse-surface-2); }
+        .pl-uc-ava { position: relative; width: 36px; height: 36px; flex: none; display: grid; place-items: center;
+            border-radius: 50%; background: var(--pulse-surface-2); font-size: 1.1rem; }
+        .pl-uc-dot { position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%;
+            background: var(--pulse-success); border: 2px solid var(--pulse-bg-sidebar); }
+        .pl-uc-main { min-width: 0; display: flex; flex-direction: column; }
+        .pl-uc-name { color: var(--pulse-text); font-size: var(--fontSizeBase300); font-weight: 700;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pl-uc-handle { color: var(--pulse-text-3); font-size: var(--fontSizeBase200);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .pl-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .pl-topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px;
+            height: 64px; padding: 0 24px; box-sizing: border-box;
+            background: color-mix(in srgb, var(--pulse-bg) 82%, transparent);
+            -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px);
+            border-bottom: 1px solid var(--pulse-border); }
+        .pl-topbar-title { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; color: var(--pulse-text);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pl-topbar-spacer { flex: 1; }
+        .pl-search { display: flex; align-items: center; gap: 8px; width: clamp(180px, 26vw, 320px);
+            background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 10px; padding: 8px 12px; }
+        .pl-search svg { width: 16px; height: 16px; color: var(--pulse-text-3); flex: none; }
+        .pl-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+            color: var(--pulse-text); font-family: var(--fontFamilyBase); font-size: var(--fontSizeBase300); }
+        .pl-search input::placeholder { color: var(--pulse-text-3); }
+        .pl-iconbtn { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 10px;
+            color: var(--pulse-text-2); text-decoration: none; position: relative; }
+        .pl-iconbtn:hover { background: var(--pulse-surface); color: var(--pulse-text); }
+        .pl-iconbtn svg { width: 20px; height: 20px; }
+        .pl-iconbtn .pl-badge-dot { position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 50%;
+            background: var(--pulse-danger); border: 2px solid var(--pulse-bg); }
+        .pl-foot { color: var(--pulse-text-3); font-size: var(--fontSizeBase200);
+            padding: var(--spacingVerticalL) 24px var(--spacingVerticalXXL); border-top: 1px solid var(--pulse-border);
+            margin-top: var(--spacingVerticalXL); display: flex; align-items: center; gap: 8px; }
+        .pl-foot a { color: inherit; }
+
+        @media (max-width: 839px) {
+            .pl-sidebar { display: none; }
+            .pl-topbar { padding: 0 14px; height: 56px; }
+            .pl-topbar-title { font-size: 1.2rem; }
+            .pl-search { width: auto; flex: 1; }
+        }
 
         /* App bar (Fluent) — translucent, blurred, hairline under */
         .mv-appbar { overflow: visible;
@@ -149,49 +257,54 @@
 </head>
 <body>
 @if (ctx.isAuthenticated and Identity.isBound(ctx.caller)) {
-    <AppBar>
-        <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
-        <span class="mv-appbar-spacer"></span>
-        <label class="bz-cmdk-trigger" for="bz-cmdk" title="Search — jump to anything" aria-label="Search">🔍</label>
-        <ThemePicker />
-        <details class="mv-acct" data-mv-authed style="display:none">
-            <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
-            <div class="mv-acct-menu">
-                <a class="mv-acct-item" href="/">Home</a>
-                <a class="mv-acct-item" href="/me">My profile</a>
-                <a class="mv-acct-item" href="/status">My status</a>
-                <a class="mv-acct-item" href="/messages">Messages</a>
-                <a class="mv-acct-item" href="/admin">Admin console</a>
-                <a class="mv-acct-item" href="/about">About Bzzz</a>
-                <div class="mv-acct-sep"></div>
-                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>Sign out</button>
-            </div>
-        </details>
-    </AppBar>
-    <div class="bz-shell">
-        <Nav>
-            <div class="mv-nav-cat">Bzzz</div>
-            <NavItem href="/" match="/" icon="🏠">Home</NavItem>
-            <NavItem href="/feed" match="/feed" icon="📰">Feed</NavItem>
-            <NavItem href="/servers" match="/servers" icon="💬">Servers</NavItem>
-            <NavItem href="/forum" match="/forum" icon="🗨️">Forum</NavItem>
-            <NavItem href="/messages" match="/messages" icon="✉️">Messages</NavItem>
-            <NavItem href="/status" match="/status" icon="🟢">Status</NavItem>
-            <Divider />
-            <NavItem href="/me" match="/me" icon="👤">Me</NavItem>
-        </Nav>
-        <div class="bz-content">
-            <main class="bz-main">
+    <div class="pl-shell">
+        <aside class="pl-sidebar">
+            <a class="pl-brand" href="/">
+                <span class="pl-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg></span>
+                <span class="pl-wordmark">PULSE</span>
+            </a>
+            <PulseNav path="@ctx.path" />
+            <a class="pl-usercard" href="/me">
+                <span class="pl-uc-ava">@(Identity.avatarOf(ctx.caller))<span class="pl-uc-dot"></span></span>
+                <span class="pl-uc-main">
+                    <span class="pl-uc-name">@(Identity.displayOf(ctx.caller))</span>
+                    <span class="pl-uc-handle">@(Identity.atHandleOf(ctx.caller))</span>
+                </span>
+            </a>
+        </aside>
+        <div class="pl-content">
+            <header class="pl-topbar">
+                <h1 class="pl-topbar-title">@View.title</h1>
+                <span class="pl-topbar-spacer"></span>
+                <form class="pl-search" action="/search" method="get" role="search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                    <input type="search" name="q" placeholder="Rechercher…" autocomplete="off">
+                </form>
+                <a class="pl-iconbtn" href="/annonces" title="Annonces" aria-label="Annonces"><span class="pl-badge-dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></a>
+                <details class="mv-acct" data-mv-authed style="display:none">
+                    <summary title="Compte"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span></summary>
+                    <div class="mv-acct-menu">
+                        <a class="mv-acct-item" href="/me">Mon profil</a>
+                        <a class="mv-acct-item" href="/parametres">Paramètres</a>
+                        <a class="mv-acct-item" href="/admin">Administration</a>
+                        <a class="mv-acct-item" href="/about">À propos de Pulse</a>
+                        <div class="mv-acct-sep"></div>
+                        <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>Déconnexion</button>
+                    </div>
+                </details>
+            </header>
+            <main class="bz-main pl-main">
                 @yield
             </main>
-            <footer class="bz-foot">
-                🐝 Bzzz · <a href="/about" style="color:inherit;text-decoration:underline">About</a>
+            <footer class="pl-foot">
+                <span class="pl-logo" style="width:22px;height:22px;border-radius:7px"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"></path></svg></span>
+                Pulse · <a href="/about">À propos</a>
             </footer>
         </div>
     </div>
     <BzShell path="@ctx.path" />
 } else {
-    <div class="bz-gate-redirect">Taking you to sign in… <a href="/welcome">Continue →</a></div>
+    <div class="bz-gate-redirect">On vous redirige vers la connexion… <a href="/welcome">Continuer →</a></div>
 }
 </body>
 </html>

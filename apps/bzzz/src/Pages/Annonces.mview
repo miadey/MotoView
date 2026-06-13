@@ -1,0 +1,10 @@
+@page "/annonces"
+@layout AppLayout
+@authorize redirect="/welcome"
+@title "Annonces"
+@description "Annonces officielles de vos communautés sur Pulse."
+
+<section class="bz-card" style="padding:2.75rem 2rem;text-align:center;border:1px solid var(--pulse-border);border-radius:16px;">
+    <h2 style="color:var(--pulse-text);margin:0 0 .4rem;font-size:1.3rem;">Annonces</h2>
+    <p style="color:var(--pulse-text-2);margin:0;">Bientôt disponible — cette section arrive dans une prochaine mise à jour de Pulse.</p>
+</section>
