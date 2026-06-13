@@ -590,29 +590,44 @@ pub fn build(opts: &BuildOptions) -> Result<String, String> {
     // its live state in non-stable collections; on `--mode upgrade` we snapshot
     // it to a `stable var` Blob (preupgrade) and restore it (postupgrade), so
     // state survives upgrades. See is_stateful_service for the service convention.
+    // Upgrade hooks. `preupgrade` ALWAYS emits, because every app has security
+    // state (epochs/roles/consumed-nonces/velocity) that must be snapshotted to
+    // its stable var at the upgrade boundary. Those four maps live in the App
+    // instance's in-memory stores during normal operation and are synced here
+    // ONCE — at upgrade — rather than after every update call (which copied all
+    // four whole maps to stable vars on every request: O(security state)/request
+    // overhead that grew with the consumed-nonce store). The matching restore is
+    // the eager `mvApp.setEpochs(mvEpochs)` … block that runs on every actor
+    // init (fresh install AND post-upgrade), so postupgrade only reloads the
+    // per-service state blobs. `preupgrade`/`mvApp` forward-reference fields
+    // declared later in the actor body — legal because the bodies run at upgrade
+    // time, long after init completes.
     let mut persistence = String::new();
-    if !persistent_services.is_empty() {
-        persistence.push_str("  // ---- upgrade-stable persistence ----\n");
-        for n in &persistent_services {
-            persistence.push_str(&format!("  stable var {n}__state : Blob = \"\" : Blob;\n", n = n));
-        }
-        persistence.push_str("  system func preupgrade() {\n");
-        for n in &persistent_services {
-            persistence.push_str(&format!("    {n}__state := {n}.mvStableSave();\n", n = n));
-        }
-        persistence.push_str("  };\n  system func postupgrade() {\n");
-        for n in &persistent_services {
-            // Skip an empty snapshot — `from_candid` traps on a zero-length blob,
-            // which is exactly the value the stable var holds the first time an
-            // app WITHOUT persistence is upgraded to one WITH it. Skipping keeps
-            // the freshly-seeded state.
-            persistence.push_str(&format!(
-                "    if ({n}__state.size() > 0) {{ {n}.mvStableLoad({n}__state) }};\n",
-                n = n
-            ));
-        }
-        persistence.push_str("  };\n");
+    persistence.push_str("  // ---- upgrade-stable persistence ----\n");
+    for n in &persistent_services {
+        persistence.push_str(&format!("  stable var {n}__state : Blob = \"\" : Blob;\n", n = n));
     }
+    persistence.push_str("  system func preupgrade() {\n");
+    // Security maps: snapshot once, at the upgrade boundary (not per request).
+    persistence.push_str("    mvEpochs := mvApp.dumpEpochs();\n");
+    persistence.push_str("    mvRoles := mvApp.dumpRoles();\n");
+    persistence.push_str("    mvConsumed := mvApp.dumpConsumed();\n");
+    persistence.push_str("    mvVelocity := mvApp.dumpVelocity();\n");
+    for n in &persistent_services {
+        persistence.push_str(&format!("    {n}__state := {n}.mvStableSave();\n", n = n));
+    }
+    persistence.push_str("  };\n  system func postupgrade() {\n");
+    for n in &persistent_services {
+        // Skip an empty snapshot — `from_candid` traps on a zero-length blob,
+        // which is exactly the value the stable var holds the first time an
+        // app WITHOUT persistence is upgraded to one WITH it. Skipping keeps
+        // the freshly-seeded state.
+        persistence.push_str(&format!(
+            "    if ({n}__state.size() > 0) {{ {n}.mvStableLoad({n}__state) }};\n",
+            n = n
+        ));
+    }
+    persistence.push_str("  };\n");
     for f in list_mo(&src.join("Models")) {
         let n = file_stem(&f);
         extra_imports.push_str(&format!("import {} \"{prefix}Models/{}\";\n", n, n));
@@ -1608,12 +1623,11 @@ actor {{
         return {{ status_code = 200; headers = mvVetHdrs; body = ek; upgrade = null }};
       }};
     }};
-    let mvResp = mvApp.httpRequestUpdate(req, msg.caller);
-    mvEpochs := mvApp.dumpEpochs(); // persist any logout-bump
-    mvRoles := mvApp.dumpRoles(); // persist any role grant/revoke
-    mvConsumed := mvApp.dumpConsumed(); // persist any consumed secure-form nonce
-    mvVelocity := mvApp.dumpVelocity(); // persist any wallet spend-velocity record
-    mvResp;
+    // Security state (epochs/roles/consumed-nonces/velocity) is held in the App
+    // instance and snapshotted to its stable var in `preupgrade`, NOT here — so a
+    // normal update no longer copies all four whole maps to stable vars every
+    // call. mvSecret is still installed lazily above (one-time, then a no-op).
+    mvApp.httpRequestUpdate(req, msg.caller);
   }};
 
   // Internet Identity login bridge: an authenticated update call whose caller
