@@ -1,169 +1,127 @@
 @page "/"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Bzzz — Home"
-@description "Your Bzzz dashboard: the latest from the feed, forum, servers, encrypted messages and status updates — all on-chain in one canister."
-
-<div class="bz-banner">
-    <div class="bz-banner-row">
-        <span class="bz-banner-ico">@avatar</span>
-        <div>
-            @if showPersonalize {
-                <h1>Welcome, @display</h1>
-            } else {
-                <h1>Welcome back, @display</h1>
-            }
-            <p>Here's what's happening across Bzzz right now.</p>
-        </div>
+@title "Accueil"
+@description "Votre fil Bzzz : les dernières publications de votre communauté, en direct et entièrement on-chain dans un seul canister."
+<div class="pl-home-wrap">
+ <div class="pl-home-main">
+  @if showPersonalize {
+   <section class="pl-home-personalize">
+    <header class="pl-home-personalize-head">
+     <h2>✨ Personnalisez votre profil</h2>
+     <a class="pl-home-personalize-more" href="/me">Profil →</a>
+    </header>
+    <p class="pl-home-personalize-sub">Nous vous avons connecté en tant que <strong>@@@myHandle</strong> — un pseudo dérivé de votre Internet Identity. Choisissez-en un plus convivial (il se met à jour partout sur Bzzz, à tout moment).</p>
+    <form @submit="rename" secure class="pl-home-personalize-form">
+     <ValidationSummary />
+     <InputText name="newHandle" label="Votre pseudo" bind="@newHandle" required />
+     <button class="pl-home-btn-primary" type="submit">Valider</button>
+    </form>
+   </section>
+  }
+  <section class="pl-home-composer">
+   <div class="pl-home-composer-row">
+    <span class="pl-home-ava">@avatar</span>
+    <div class="pl-home-composer-input">Quoi de neuf dans votre communauté ?</div>
+   </div>
+   <div class="pl-home-composer-foot">
+    <span class="pl-home-composer-tools">🖼 Image · 📊 Sondage · 📎 Fichier · @@ Mention</span>
+    <a class="pl-home-btn-primary" href="/feed">Publier</a>
+   </div>
+  </section>
+  <nav class="pl-home-tabs" aria-label="Filtres du fil">
+   <a class="pl-home-tab pl-home-tab-active" href="/">Pour vous</a>
+   <a class="pl-home-tab" href="/feed?tab=following">Abonnements</a>
+   <a class="pl-home-tab" href="/feed">Tendances</a>
+   <a class="pl-home-tab" href="/status">Annonces</a>
+  </nav>
+  <section class="pl-home-feed">
+   @if (feedLatest.size() > 0) {
+    @for p in feedLatest {
+     <article class="pl-home-post">
+      <a class="pl-home-post-link" href="/feed/p/@(p.id)" aria-label="Ouvrir la publication"></a>
+      <span class="pl-home-ava">@(Identity.avatarOf(p.author))</span>
+      <div class="pl-home-post-body">
+       <div class="pl-home-post-head">
+        <span class="pl-home-post-name">@(Identity.displayOf(p.author))</span>
+        <span class="pl-home-post-handle">@@@(p.authorHandle)</span>
+        <span class="pl-home-post-dot">·</span>
+        <span class="pl-home-post-time">@(Feed.relativeTime(p.at))</span>
+        <a class="pl-home-post-more" href="/feed/p/@(p.id)" title="Plus" aria-label="Plus d'options">⋯</a>
+       </div>
+       <div class="pl-home-post-text">@p.text</div>
+       <div class="pl-home-post-actions">
+        <a class="pl-home-act pl-home-act-reply" href="/feed/p/@(p.id)" title="Répondre">
+         <span class="pl-home-act-ico">💬</span>
+         <span class="pl-home-act-n">@(p.replyCount)</span>
+        </a>
+        <a class="pl-home-act pl-home-act-repost" href="/feed/p/@(p.id)" title="Reposter">
+         <span class="pl-home-act-ico">🔁</span>
+         <span class="pl-home-act-n">@(p.reposts)</span>
+        </a>
+        <a class="pl-home-act pl-home-act-like" href="/feed/p/@(p.id)" title="Aimer">
+         <span class="pl-home-act-ico">❤️</span>
+         <span class="pl-home-act-n">@(p.likes)</span>
+        </a>
+        <a class="pl-home-act pl-home-act-save" href="/feed/p/@(p.id)" title="Sauvegarder">
+         <span class="pl-home-act-ico">🔖</span>
+        </a>
+       </div>
+      </div>
+     </article>
+    }
+    <a class="pl-home-feed-more" href="/feed">Voir tout le fil →</a>
+   } else {
+    <div class="pl-home-empty">
+     <span class="pl-home-empty-ico">⚡</span>
+     <h3>Aucune publication pour l'instant</h3>
+     <p>Soyez le premier à publier et lancez la conversation sur Bzzz.</p>
+     <a class="pl-home-btn-primary" href="/feed">Écrire une publication</a>
     </div>
-    <div class="bz-dash-stats">
-        <span class="bz-dash-stat">👥 @members @(plural(members, "member", "members"))</span>
-        <span class="bz-dash-stat">🟢 @online active in chat</span>
-        <span class="bz-dash-stat">💬 @serverN @(plural(serverN, "server", "servers"))</span>
-        <span class="bz-dash-stat">🗨️ @topicN @(plural(topicN, "topic", "topics"))</span>
-        <span class="bz-dash-stat">📰 @postN @(plural(postN, "post", "posts"))</span>
-        @if (unread > 0) {
-            <span class="bz-dash-stat bz-dash-stat-hot">✉️ @unread unread</span>
-        }
-    </div>
-    <div class="bz-banner-actions">
-        <a class="mv-btn mv-btn-small bz-banner-btn" href="/feed">⚡ New post</a>
-        <a class="mv-btn mv-btn-small bz-banner-btn" href="/forum/new">＋ New topic</a>
-        <a class="mv-btn mv-btn-small bz-banner-btn" href="/messages">✉️ New message</a>
-    </div>
-</div>
-
-@if showPersonalize {
-    <section class="bz-card bz-card-accent bz-dash-card bz-personalize" style="--bz-accent:#ec4899;--bz-accent-2:#7c3aed">
-        <header class="bz-dash-head">
-            <h2>✨ Make it yours</h2>
-            <a class="bz-dash-more" href="/me">Profile →</a>
-        </header>
-        <p class="bz-personalize-sub">We signed you in as <strong>@@@myHandle</strong> — a handle derived from your Internet Identity. Pick a friendlier one (it updates everywhere on Bzzz, any time). Happy with it as is? Set a display name on <a href="/me">your profile</a> and this card goes away.</p>
-        <form @submit="rename" secure class="bz-personalize-form">
-            <ValidationSummary />
-            <InputText name="newHandle" label="Your handle" bind="@newHandle" required />
-            <button class="mv-btn mv-btn-primary" type="submit">Claim it</button>
-        </form>
-    </section>
-
-    <section class="bz-card bz-dash-card bz-navtip" style="--bz-accent:#0f6cbd;--bz-accent-2:#479ef5">
-        <header class="bz-dash-head">
-            <h2>Finding your way around</h2>
-        </header>
-        <ul class="bz-navtip-list">
-            <li><b>Home is one tap from anywhere</b> — the tab bar along the bottom on phones, the rail on the left on desktop.</li>
-            <li><b>Switch apps</b> — Feed, Servers, Forum and Messages all live on that same bar.</li>
-            <li><b>Jump anywhere</b> — tap Search in the top bar to find a topic, person or server in a flash.</li>
-            <li><b>Inside the forum</b> — the breadcrumb (Home › Forum › …) walks you back, one step at a time.</li>
-        </ul>
-    </section>
-}
-
-<div class="bz-dash-grid">
-
-    <section class="bz-card bz-card-accent bz-dash-card" style="--bz-accent:#0ea5e9;--bz-accent-2:#1d9bf0">
-        <header class="bz-dash-head">
-            <h2>📰 Feed</h2>
-            <a class="bz-dash-more" href="/feed">Open feed →</a>
-        </header>
-        @if (feedLatest.size() > 0) {
-            @for p in feedLatest {
-                <a class="bz-dash-row" href="/feed/p/@(p.id)">
-                    <span class="bz-dash-ava">@(Identity.avatarOf(p.author))</span>
-                    <span class="bz-dash-main">
-                        <span class="bz-dash-line"><strong>@(Identity.atHandleOf(p.author))</strong> <span class="bz-dash-dim">· @(Feed.relativeTime(p.at))</span></span>
-                        <span class="bz-dash-text">@p.text</span>
-                    </span>
-                    <span class="bz-dash-meta">❤️ @p.likes</span>
-                </a>
-            }
-        } else {
-            <p class="bz-dash-empty">No posts yet — write the first one.</p>
-        }
-    </section>
-
-    <section class="bz-card bz-card-accent bz-dash-card" style="--bz-accent:#0f6cbd;--bz-accent-2:#7c3aed">
-        <header class="bz-dash-head">
-            <h2>🗨️ Forum</h2>
-            <a class="bz-dash-more" href="/forum">Open forum →</a>
-        </header>
-        @if (forumLatest.size() > 0) {
-            @for t in forumLatest {
-                <a class="bz-dash-row" href="/forum/t/@(t.id)">
-                    <span class="bz-dash-main">
-                        <span class="bz-dash-line"><strong>@t.title</strong></span>
-                        <span class="bz-dash-dim"><span class="bz-dash-sq" style="background:@(Forum.categoryColor(t.categoryId))"></span> @(Forum.categoryName(t.categoryId)) · @(Forum.replyCount(t.id)) @(plural(Forum.replyCount(t.id), "reply", "replies")) · @(Forum.topicActivity(t.id))</span>
-                    </span>
-                </a>
-            }
-        } else {
-            <p class="bz-dash-empty">No topics yet — start a discussion.</p>
-        }
-    </section>
-
-    <section class="bz-card bz-card-accent bz-dash-card" style="--bz-accent:#5865f2;--bz-accent-2:#7c3aed">
-        <header class="bz-dash-head">
-            <h2>💬 Servers</h2>
-            <a class="bz-dash-more" href="/servers">All servers →</a>
-        </header>
-        @if (serverRows.size() > 0) {
-            @for s in serverRows {
-                <a class="bz-dash-row" href="/servers/@(s.id)">
-                    <span class="bz-dash-main">
-                        <span class="bz-dash-line"><strong>@s.name</strong> <span class="bz-dash-dim">· @s.summary</span></span>
-                        <span class="bz-dash-dim">@s.activity</span>
-                    </span>
-                </a>
-            }
-        } else {
-            <p class="bz-dash-empty">No servers yet — create the first community.</p>
-        }
-    </section>
-
-    <section class="bz-card bz-card-accent bz-dash-card" style="--bz-accent:#25d366;--bz-accent-2:#0ea5e9">
-        <header class="bz-dash-head">
-            <h2>✉️ Messages</h2>
-            <a class="bz-dash-more" href="/messages">All messages →</a>
-        </header>
-        @if (dmRows.size() > 0) {
-            @for d in dmRows {
-                <a class="bz-dash-row" href="/messages/@(d.id)">
-                    <span class="bz-dash-main">
-                        <span class="bz-dash-line"><strong>@d.title</strong> <span class="bz-dash-dim">· @d.when</span></span>
-                        <span class="bz-dash-dim">Private conversation</span>
-                    </span>
-                    @if (d.unread > 0) {
-                        <span class="bz-dash-unread">@d.unread</span>
-                    }
-                </a>
-            }
-        } else {
-            <p class="bz-dash-empty">No conversations yet — say hi to someone.</p>
-        }
-        <p class="bz-dash-foot">Metadata only — who and when, never bodies. Messages are end-to-end encrypted; open a conversation to decrypt them in your browser.</p>
-    </section>
-
-    <section class="bz-card bz-card-accent bz-dash-card" style="--bz-accent:#f59e0b;--bz-accent-2:#ec4899">
-        <header class="bz-dash-head">
-            <h2>🟢 Status</h2>
-            <a class="bz-dash-more" href="/status">All status →</a>
-        </header>
-        @if (statusLatest.size() > 0) {
-            @for s in statusLatest {
-                <a class="bz-dash-row" href="/status">
-                    <span class="bz-dash-dot" style="background:@s.color"></span>
-                    <span class="bz-dash-main">
-                        <span class="bz-dash-line"><strong>@(Identity.atHandleOf(s.author))</strong> <span class="bz-dash-dim">· @(Status.kindLabel(s.kind)) · @(Status.relativeTime(s.at))</span></span>
-                        <span class="bz-dash-text">@s.text</span>
-                    </span>
-                </a>
-            }
-        } else {
-            <p class="bz-dash-empty">No status updates in the last 24 hours.</p>
-        }
-    </section>
-
+   }
+  </section>
+ </div>
+ <aside class="pl-home-rail">
+  <section class="pl-home-panel">
+   <h3 class="pl-home-panel-title">Tendances</h3>
+   <a class="pl-home-trend" href="/feed">
+    <span class="pl-home-trend-cat">On Bzzz · En direct</span>
+    <span class="pl-home-trend-tag">#ICP</span>
+    <span class="pl-home-trend-n">@postN @(plural(postN, "publication", "publications"))</span>
+   </a>
+   <a class="pl-home-trend" href="/forum">
+    <span class="pl-home-trend-cat">Communauté · Tendance</span>
+    <span class="pl-home-trend-tag">#Forum</span>
+    <span class="pl-home-trend-n">@topicN @(plural(topicN, "sujet", "sujets"))</span>
+   </a>
+   <a class="pl-home-trend" href="/servers">
+    <span class="pl-home-trend-cat">Communautés</span>
+    <span class="pl-home-trend-tag">#Serveurs</span>
+    <span class="pl-home-trend-n">@serverN @(plural(serverN, "serveur", "serveurs"))</span>
+   </a>
+   <a class="pl-home-showmore" href="/feed">Voir plus</a>
+  </section>
+  <section class="pl-home-panel">
+   <h3 class="pl-home-panel-title">Membres actifs</h3>
+   @if (statusLatest.size() > 0) {
+    <ul class="pl-home-members">
+     @for s in statusLatest {
+      <li class="pl-home-member">
+       <span class="pl-home-ava pl-home-ava-sm">@(Identity.avatarOf(s.author))</span>
+       <span class="pl-home-member-main">
+        <span class="pl-home-member-name">@(Identity.atHandleOf(s.author))</span>
+        <span class="pl-home-member-on"><span class="pl-home-online-dot"></span> En ligne</span>
+       </span>
+      </li>
+     }
+    </ul>
+    <a class="pl-home-showmore" href="/status">Voir plus</a>
+   } else {
+    <p class="pl-home-panel-empty">Aucun membre actif dans les dernières 24 heures.</p>
+   }
+   <p class="pl-home-panel-foot">👥 @members @(plural(members, "membre", "membres")) · 🟢 @online actifs</p>
+  </section>
+ </aside>
 </div>
 
 @code {
@@ -280,53 +238,70 @@
 }
 
 <style>
-    .bz-dash-stats { display: flex; flex-wrap: wrap; gap: var(--spacingHorizontalS); margin-top: var(--spacingVerticalM); }
-    .bz-dash-stat { display: inline-flex; align-items: center; gap: .3rem; padding: .24rem .66rem;
-        border-radius: 2px; font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold);
-        color: #fff; background: rgba(255,255,255,.16); backdrop-filter: blur(4px); }
-    .bz-dash-stat-hot { background: rgba(255,255,255,.32); }
-    .bz-banner-btn { background: rgba(255,255,255,.92); color: var(--bz-accent); border: none; text-decoration: none; }
-    .bz-banner-btn:hover { background: #fff; }
-
-    .bz-dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-        gap: var(--spacingHorizontalL); align-items: start; }
-    .bz-dash-card { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
-    .bz-dash-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem;
-        margin: 0 0 var(--spacingVerticalS); }
-    .bz-dash-head h2 { margin: 0; font-size: var(--fontSizeBase400); font-weight: var(--fontWeightBold); letter-spacing: -.01em; }
-    .bz-dash-more { color: var(--bz-accent); text-decoration: none; font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold); white-space: nowrap; }
-    .bz-dash-more:hover { text-decoration: underline; }
-
-    .bz-dash-row { display: flex; align-items: flex-start; gap: .6rem; padding: .55rem .45rem;
-        margin: 0 -.45rem; border-radius: var(--borderRadiusMedium); text-decoration: none; color: inherit; }
-    .bz-dash-row:hover { background: var(--colorNeutralBackground3); }
-    .bz-dash-row + .bz-dash-row { border-top: 1px solid var(--colorNeutralStroke3); }
-    .bz-dash-ava { width: 30px; height: 30px; flex: none; border-radius: 50%;
-        background: var(--colorNeutralBackground3); display: grid; place-items: center; font-size: 1rem; }
-    .bz-dash-dot { width: 12px; height: 12px; flex: none; border-radius: 50%; margin-top: .3rem;
-        box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
-    .bz-dash-sq { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: baseline; }
-    .bz-dash-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .12rem; }
-    .bz-dash-line { font-size: var(--fontSizeBase300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bz-dash-dim { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); font-weight: var(--fontWeightRegular); }
-    .bz-dash-text { color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase200); line-height: 1.4;
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .bz-dash-meta { flex: none; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .bz-dash-unread { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 2px;
-        background: var(--bz-accent); color: #fff; font-size: var(--fontSizeBase100); font-weight: var(--fontWeightBold);
-        display: grid; place-items: center; }
-    .bz-dash-empty { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); padding: .8rem 0; margin: 0; }
-    .bz-dash-foot { color: var(--colorNeutralForeground4); font-size: var(--fontSizeBase100);
-        border-top: 1px solid var(--colorNeutralStroke3); margin: .6rem 0 0; padding-top: .6rem; }
-
-    .bz-personalize { margin-bottom: var(--spacingVerticalL); }
-    .bz-personalize-sub { margin: 0 0 .7rem; color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); }
-    .bz-navtip-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--spacingVerticalM); }
-    .bz-navtip-list li { color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); line-height: 1.45;
-        padding-left: var(--spacingHorizontalM); border-left: 2px solid var(--colorNeutralStroke2); }
-    .bz-navtip-list b { color: var(--colorNeutralForeground1); font-weight: var(--fontWeightSemibold); }
-    .bz-personalize-form { display: flex; align-items: flex-end; gap: .6rem; flex-wrap: wrap; margin: 0; }
-    .bz-personalize-form .mv-field { flex: 1; min-width: 220px; margin: 0; }
-
-    .bz-banner { margin-bottom: var(--spacingVerticalL); }
+.pl-home-wrap{display:grid;grid-template-columns:minmax(0,600px) 300px;gap:24px;justify-content:start;align-items:start}
+.pl-home-main{min-width:0;display:flex;flex-direction:column;gap:16px}
+.pl-home-ava{width:44px;height:44px;flex:0 0 44px;border-radius:50%;background:var(--pulse-surface-2);display:grid;place-items:center;font-size:1.3rem;border:1px solid var(--pulse-border)}
+.pl-home-ava-sm{width:36px;height:36px;flex:0 0 36px;font-size:1.05rem}
+.pl-home-btn-primary{display:inline-flex;align-items:center;justify-content:center;background:var(--pulse-primary);color:#fff;border:0;cursor:pointer;font:inherit;font-weight:600;font-size:.92rem;text-decoration:none;padding:.55rem 1.15rem;border-radius:10px;line-height:1}
+.pl-home-btn-primary:hover{background:var(--pulse-primary-hover)}
+.pl-home-personalize,.pl-home-composer,.pl-home-feed,.pl-home-panel{background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px}
+.pl-home-personalize{padding:18px 20px}
+.pl-home-composer,.pl-home-panel{padding:16px 18px}
+.pl-home-feed{overflow:hidden}
+.pl-home-personalize-head{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;margin:0 0 .5rem}
+.pl-home-personalize-head h2,.pl-home-panel-title{margin:0;font-size:1.02rem;font-weight:700;color:var(--pulse-text);letter-spacing:-.01em}
+.pl-home-panel-title{margin:0 0 14px}
+.pl-home-personalize-more,.pl-home-showmore{color:var(--pulse-primary);text-decoration:none;font-weight:600}
+.pl-home-personalize-more{font-size:.82rem}
+.pl-home-personalize-sub{margin:0 0 .8rem;color:var(--pulse-text-2);font-size:.9rem;line-height:1.45}
+.pl-home-personalize-form{display:flex;align-items:flex-end;gap:.6rem;flex-wrap:wrap;margin:0}
+.pl-home-personalize-form .mv-field{flex:1;min-width:220px;margin:0}
+.pl-home-composer-row{display:flex;align-items:center;gap:12px}
+.pl-home-composer-input{flex:1;min-width:0;color:var(--pulse-text-3);font-size:1rem;background:var(--pulse-surface-2);border:1px solid var(--pulse-border);border-radius:12px;padding:.7rem .9rem}
+.pl-home-composer-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--pulse-border)}
+.pl-home-composer-tools{color:var(--pulse-text-3);font-size:.84rem}
+.pl-home-tabs{display:flex;gap:4px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:14px;padding:4px}
+.pl-home-tab{flex:1;text-align:center;text-decoration:none;color:var(--pulse-text-2);font-size:.9rem;font-weight:600;padding:.55rem .4rem;border-radius:10px;position:relative}
+.pl-home-tab:hover{color:var(--pulse-text);background:var(--pulse-surface-2)}
+.pl-home-tab-active{color:var(--pulse-primary)}
+.pl-home-tab-active::after{content:"";position:absolute;left:22%;right:22%;bottom:3px;height:3px;border-radius:2px;background:var(--pulse-primary)}
+.pl-home-post{position:relative;display:flex;gap:12px;padding:16px 18px}
+.pl-home-post+.pl-home-post{border-top:1px solid var(--pulse-border)}
+.pl-home-post:hover{background:var(--pulse-surface-2)}
+.pl-home-post-link{position:absolute;inset:0;z-index:0}
+.pl-home-post .pl-home-ava,.pl-home-post-body{position:relative;z-index:1}
+.pl-home-post-body{flex:1;min-width:0}
+.pl-home-post-head{display:flex;align-items:baseline;gap:6px;font-size:.92rem}
+.pl-home-post-name{font-weight:700;color:var(--pulse-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:42%}
+.pl-home-post-handle,.pl-home-post-dot,.pl-home-post-time{color:var(--pulse-text-3);font-size:.86rem}
+.pl-home-post-more{margin-left:auto;position:relative;z-index:1;color:var(--pulse-text-3);text-decoration:none;font-size:1.1rem;padding:0 .35rem}
+.pl-home-post-text{margin:4px 0 10px;color:var(--pulse-text);line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.pl-home-post-actions{display:flex;align-items:center;gap:28px;color:var(--pulse-text-3)}
+.pl-home-act{position:relative;z-index:1;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:inherit;font-size:.82rem;padding:.25rem .35rem;border-radius:999px}
+.pl-home-act-ico{font-size:.95rem}
+.pl-home-act-n{font-variant-numeric:tabular-nums}
+.pl-home-act-reply:hover{color:var(--pulse-verified)}
+.pl-home-act-repost:hover{color:var(--pulse-success)}
+.pl-home-act-like:hover{color:var(--pulse-danger)}
+.pl-home-act-save:hover{color:var(--pulse-primary)}
+.pl-home-feed-more{display:block;text-align:center;padding:14px;color:var(--pulse-primary);text-decoration:none;font-weight:600;font-size:.9rem;border-top:1px solid var(--pulse-border)}
+.pl-home-empty{text-align:center;padding:48px 24px}
+.pl-home-empty-ico{font-size:2.2rem;display:block}
+.pl-home-empty h3{margin:14px 0 6px;color:var(--pulse-text);font-size:1.05rem}
+.pl-home-empty p{margin:0 0 16px;color:var(--pulse-text-2);font-size:.92rem}
+.pl-home-rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:16px}
+.pl-home-panel-empty{margin:0;color:var(--pulse-text-3);font-size:.9rem}
+.pl-home-panel-foot{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--pulse-border);color:var(--pulse-text-3);font-size:.8rem}
+.pl-home-trend{display:flex;flex-direction:column;gap:2px;text-decoration:none;padding:.55rem .45rem;margin:0 -.45rem;border-radius:10px}
+.pl-home-trend:hover{background:var(--pulse-surface-2)}
+.pl-home-trend-cat,.pl-home-trend-n{color:var(--pulse-text-3);font-size:.78rem}
+.pl-home-trend-tag{color:var(--pulse-text);font-weight:700;font-size:.95rem}
+.pl-home-showmore{display:inline-block;margin-top:12px;font-size:.88rem}
+.pl-home-members{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.pl-home-member{display:flex;align-items:center;gap:10px}
+.pl-home-member-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pl-home-member-name{color:var(--pulse-text);font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-home-member-on{display:inline-flex;align-items:center;gap:6px;color:var(--pulse-text-3);font-size:.78rem}
+.pl-home-online-dot{width:8px;height:8px;border-radius:50%;background:var(--pulse-success);box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+@media (max-width:900px){.pl-home-wrap{grid-template-columns:minmax(0,600px)}.pl-home-rail{display:none}}
 </style>

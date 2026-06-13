@@ -79,43 +79,43 @@ param path : Text = "/"
     <div class="bz-cmdk-panel" role="dialog" aria-label="Search and jump to">
         <form class="bz-cmdk-form" action="/search" method="get" role="search">
             <span aria-hidden="true">🔍</span>
-            <input class="bz-cmdk-field" type="search" name="q" data-mv-cmdk-focus placeholder="Search topics, people, servers…" autocomplete="off">
-            <label class="bz-cmdk-esc" for="bz-cmdk" title="Close">esc</label>
+            <input class="bz-cmdk-field" type="search" name="q" data-mv-cmdk-focus placeholder="Rechercher dans Pulse…" autocomplete="off">
+            <label class="bz-cmdk-esc" for="bz-cmdk" title="Fermer">esc</label>
         </form>
-        <div class="bz-cmdk-label">Jump to</div>
-        <a class="bz-cmdk-row" href="/">Home</a>
-        <a class="bz-cmdk-row" href="/feed">Feed</a>
-        <a class="bz-cmdk-row" href="/servers">Servers</a>
-        <a class="bz-cmdk-row" href="/forum">Forum</a>
+        <div class="bz-cmdk-label">Aller à</div>
+        <a class="bz-cmdk-row" href="/">Accueil</a>
+        <a class="bz-cmdk-row" href="/communautes">Communautés</a>
+        <a class="bz-cmdk-row" href="/forum">Forums</a>
+        <a class="bz-cmdk-row" href="/chat">Chat en direct</a>
         <a class="bz-cmdk-row" href="/messages">Messages</a>
-        <a class="bz-cmdk-row" href="/status">Status</a>
-        <a class="bz-cmdk-row" href="/me">My profile</a>
+        <a class="bz-cmdk-row" href="/annonces">Annonces</a>
+        <a class="bz-cmdk-row" href="/me">Profil</a>
     </div>
 </div>
-<nav class="bz-tabbar" aria-label="Primary">
-    @if (path == "/") {
-        <a class="bz-tab is-active" href="/" aria-current="page"><span class="bz-tab-ico">🏠</span>Home</a>
+<nav class="bz-tabbar" aria-label="Navigation principale">
+    @if (path == "/" or Text.startsWith(path, #text "/feed")) {
+        <a class="bz-tab is-active" href="/" aria-current="page"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Accueil</a>
     } else {
-        <a class="bz-tab" href="/"><span class="bz-tab-ico">🏠</span>Home</a>
+        <a class="bz-tab" href="/"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Accueil</a>
     }
-    @if (Text.startsWith(path, #text "/feed")) {
-        <a class="bz-tab is-active" href="/feed" aria-current="page"><span class="bz-tab-ico">📰</span>Feed</a>
+    @if (Text.startsWith(path, #text "/communautes") or Text.startsWith(path, #text "/servers")) {
+        <a class="bz-tab is-active" href="/communautes" aria-current="page"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="8" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>Communautés</a>
     } else {
-        <a class="bz-tab" href="/feed"><span class="bz-tab-ico">📰</span>Feed</a>
-    }
-    @if (Text.startsWith(path, #text "/servers") or Text.startsWith(path, #text "/channel")) {
-        <a class="bz-tab is-active" href="/servers" aria-current="page"><span class="bz-tab-ico">💬</span>Servers</a>
-    } else {
-        <a class="bz-tab" href="/servers"><span class="bz-tab-ico">💬</span>Servers</a>
+        <a class="bz-tab" href="/communautes"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="8" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>Communautés</a>
     }
     @if (Text.startsWith(path, #text "/forum")) {
-        <a class="bz-tab is-active" href="/forum" aria-current="page"><span class="bz-tab-ico">🗨️</span>Forum</a>
+        <a class="bz-tab is-active" href="/forum" aria-current="page"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Forums</a>
     } else {
-        <a class="bz-tab" href="/forum"><span class="bz-tab-ico">🗨️</span>Forum</a>
+        <a class="bz-tab" href="/forum"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Forums</a>
     }
     @if (Text.startsWith(path, #text "/messages")) {
-        <a class="bz-tab is-active" href="/messages" aria-current="page"><span class="bz-tab-ico">✉️</span>Messages</a>
+        <a class="bz-tab is-active" href="/messages" aria-current="page"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>Messages</a>
     } else {
-        <a class="bz-tab" href="/messages"><span class="bz-tab-ico">✉️</span>Messages</a>
+        <a class="bz-tab" href="/messages"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>Messages</a>
+    }
+    @if (Text.startsWith(path, #text "/me") or Text.startsWith(path, #text "/profil") or Text.startsWith(path, #text "/u/")) {
+        <a class="bz-tab is-active" href="/me" aria-current="page"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Profil</a>
+    } else {
+        <a class="bz-tab" href="/me"><span class="bz-tab-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Profil</a>
     }
 </nav>

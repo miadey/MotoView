@@ -1,131 +1,154 @@
 @page "/servers"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Servers — Bzzz"
-@description "Browse and create Bzzz servers (guilds) — Discord-style communities with channels, roles and moderation, running on-chain on the Internet Computer."
+@title "Communautés — Bzzz"
+@description "Parcourez et créez des communautés Bzzz — des espaces avec salons, rôles et modération, exécutés on-chain sur l'Internet Computer."
 
-<div class="srv-head">
-    <div>
-        <h1>Servers</h1>
-        <p class="srv-sub">@(serverList.size()) @plural(serverList.size(), "community", "communities") on Bzzz · pick one to jump into its channels.</p>
-    </div>
-</div>
+<div class="pl-srv">
 
-@if not bound {
-    <div class="bz-card srv-notice">
-        <p>You are browsing as a guest. <a href="/me">Claim a handle</a> to create servers and join the conversation.</p>
-    </div>
-}
-
-<div class="bz-card srv-create">
-    <h3>Create a server</h3>
-    <form @submit="create" secure>
-        <ValidationSummary />
-        <div class="srv-create-grid">
-            <InputText name="name" label="Server name" bind="@name" required />
-            <div class="srv-field">
-                <span class="srv-label">Kind</span>
-                <select name="kind" class="srv-select">
-                    <option value="Discussion">Discussion (channels &amp; chat)</option>
-                    <option value="Forum">Forum (topics &amp; replies)</option>
-                    <option value="Feed">Feed (timeline)</option>
-                </select>
-            </div>
+    <div class="pl-srv-head">
+        <div>
+            <h1 class="pl-srv-title">Mes communautés</h1>
+            <p class="pl-srv-sub">@(serverList.size()) @plural(serverList.size(), "communauté", "communautés") sur Bzzz</p>
         </div>
-        <div class="srv-create-actions">
-            <Button kind="primary" type="submit">Create server</Button>
-        </div>
-    </form>
-</div>
-
-@if serverList.size() == 0 {
-    <div class="bz-card srv-empty">
-        <div class="srv-empty-ico">💬</div>
-        <h3>No servers yet</h3>
-        <p>Be the first to start a community. Create a server above.</p>
-    </div>
-} else {
-    <div class="srv-grid">
-        @for s in serverList {
-            <article class="bz-card srv-card">
-                <div class="srv-card-top">
-                    <a class="srv-name" href="/servers/@(s.id)">@s.name</a>
-                    @switch s.kind {
-                        case (#Discussion) { <Badge color="brand">Discussion</Badge> }
-                        case (#Forum) { <Badge color="brand">Forum</Badge> }
-                        case (#Feed) { <Badge color="brand">Feed</Badge> }
-                    }
-                </div>
-                <p class="srv-summary">@(summaryOf(s.id))</p>
-                <div class="srv-card-foot">
-                    <span class="srv-role">@(roleOf(s.id))</span>
-                    @if isMemberOf(s.id) {
-                        @if isOwnerOf(s.id) {
-                            <span class="srv-owner-note">You own this server</span>
-                        } else {
-                            <button class="srv-btn srv-btn-ghost" @click="leave(s.id)">Leave</button>
-                        }
-                    } else {
-                        <button class="srv-btn srv-btn-primary" @click="join(s.id)">Join</button>
-                    }
-                    <a class="srv-btn srv-btn-link" href="/servers/@(s.id)">Open →</a>
-                </div>
-            </article>
+        @if bound {
+            <a class="pl-srv-add" href="#pl-srv-create" aria-label="Créer une communauté">+</a>
         }
     </div>
-}
+
+    @if not bound {
+        <div class="pl-srv-notice">
+            <p>Vous naviguez en tant qu'invité. <a href="/me">Réservez un pseudo</a> pour créer des communautés et rejoindre la conversation.</p>
+        </div>
+    }
+
+    @if serverList.size() == 0 {
+        <div class="pl-srv-empty">
+            <div class="pl-srv-empty-ico">💬</div>
+            <h3 class="pl-srv-empty-title">Vous n'avez pas encore de communauté</h3>
+            <p class="pl-srv-empty-text">Soyez le premier à lancer un espace pour votre communauté.</p>
+            @if bound {
+                <a class="pl-srv-cta" href="#pl-srv-create">Créer une communauté</a>
+            } else {
+                <a class="pl-srv-cta" href="/me">Réserver un pseudo</a>
+            }
+        </div>
+    } else {
+        <div class="pl-srv-list">
+            @for s in serverList {
+                <a class="pl-srv-row" href="/servers/@(s.id)">
+                    <span class="pl-srv-avatar">@s.name</span>
+                    <span class="pl-srv-main">
+                        <span class="pl-srv-name">@s.name</span>
+                        <span class="pl-srv-meta">
+                            @switch s.kind {
+                                case (#Discussion) { <span class="pl-srv-chip">Discussion</span> }
+                                case (#Forum) { <span class="pl-srv-chip">Forum</span> }
+                                case (#Feed) { <span class="pl-srv-chip">Flux</span> }
+                            }
+                            <span class="pl-srv-summary">@(summaryOf(s.id))</span>
+                        </span>
+                    </span>
+                    <span class="pl-srv-chevron">›</span>
+                </a>
+            }
+        </div>
+    }
+
+    @if bound {
+        <div class="pl-srv-create" id="pl-srv-create">
+            <h3 class="pl-srv-create-title">Créer une communauté</h3>
+            <form @submit="create" secure>
+                <ValidationSummary />
+                <div class="pl-srv-create-grid">
+                    <InputText name="name" label="Nom de la communauté" bind="@name" required />
+                    <div class="pl-srv-field">
+                        <span class="pl-srv-label">Type</span>
+                        <select name="kind" class="pl-srv-select">
+                            <option value="Discussion">Discussion (salons &amp; chat)</option>
+                            <option value="Forum">Forum (sujets &amp; réponses)</option>
+                            <option value="Feed">Flux (chronologie)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pl-srv-create-actions">
+                    <Button kind="primary" type="submit">Créer</Button>
+                </div>
+            </form>
+        </div>
+    }
+
+</div>
 
 <style>
-    .srv-head { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
-    .srv-head h1 { margin:0 0 .2rem; font-size:1.7rem; letter-spacing:-.02em; }
-    .srv-sub { margin:0; color:var(--mv-text-soft); }
-    .srv-notice { padding:.85rem 1.1rem; margin-bottom:1rem; }
-    .srv-notice p { margin:0; color:var(--mv-text-soft); }
-    .srv-notice a { color:var(--bz-accent); font-weight:600; }
+    .pl-srv { max-width:720px; margin:0 auto; }
 
-    .srv-create { padding:1.1rem 1.2rem; margin-bottom:1.5rem; }
-    .srv-create h3 { margin:0 0 .8rem; font-size:1.1rem; }
-    .srv-create-grid { display:grid; grid-template-columns:2fr 1fr; gap:1rem; align-items:end; }
-    .srv-field { display:flex; flex-direction:column; gap:.35rem; }
-    .srv-label { font-size:.82rem; font-weight:600; color:var(--mv-text-soft); }
-    .srv-select { padding:.55rem .65rem; border:1px solid var(--mv-border); border-radius:3px;
-        background:var(--mv-surface); font-size:.92rem; color:var(--mv-text); }
-    .srv-create-actions { margin-top:.9rem; }
+    .pl-srv-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; }
+    .pl-srv-title { margin:0 0 .2rem; font-size:1.5rem; font-weight:800; letter-spacing:-.02em; color:var(--pulse-text); }
+    .pl-srv-sub { margin:0; color:var(--pulse-text-2); font-size:.9rem; }
 
-    .srv-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1rem; }
-    .srv-card { padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.6rem; }
-    .srv-card-top { display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
-    .srv-name { font-size:1.12rem; font-weight:800; color:var(--mv-text); text-decoration:none; letter-spacing:-.01em; }
-    .srv-name:hover { color:var(--bz-accent); }
-    .srv-summary { margin:0; color:var(--mv-text-soft); font-size:.88rem; }
+    .pl-srv-add { flex:0 0 auto; width:40px; height:40px; border-radius:10px; display:inline-flex;
+        align-items:center; justify-content:center; background:var(--pulse-primary); color:#fff;
+        font-size:1.4rem; line-height:1; font-weight:600; text-decoration:none; transition:background .15s; }
+    .pl-srv-add:hover { background:var(--pulse-primary-hover); }
 
-    .srv-badge { font-size:.72rem; font-weight:700; padding:.2rem .5rem; border-radius:2px; white-space:nowrap;
-        text-transform:uppercase; letter-spacing:.03em; }
-    .srv-badge-discussion { background:#ede9fe; color:#6d28d9; }
-    .srv-badge-forum { background:#dbeafe; color:#1d4ed8; }
-    .srv-badge-feed { background:#fce7f3; color:#be185d; }
+    .pl-srv-notice { background:var(--pulse-surface); border:1px solid var(--pulse-border); border-radius:16px;
+        padding:.9rem 1.1rem; margin-bottom:1.25rem; }
+    .pl-srv-notice p { margin:0; color:var(--pulse-text-2); font-size:.9rem; }
+    .pl-srv-notice a { color:var(--pulse-primary); font-weight:600; text-decoration:none; }
+    .pl-srv-notice a:hover { color:var(--pulse-primary-hover); }
 
-    .srv-card-foot { display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin-top:.2rem;
-        padding-top:.7rem; border-top:1px solid var(--mv-border); }
-    .srv-role { font-size:.74rem; font-weight:700; color:var(--mv-text-soft); background:var(--mv-muted);
-        padding:.16rem .5rem; border-radius:2px; }
-    .srv-owner-note { font-size:.78rem; color:var(--mv-text-soft); }
+    /* ---- community list ---- */
+    .pl-srv-list { background:var(--pulse-surface); border:1px solid var(--pulse-border); border-radius:16px;
+        overflow:hidden; margin-bottom:1.5rem; }
+    .pl-srv-row { display:flex; align-items:center; gap:.85rem; padding:.85rem 1rem;
+        text-decoration:none; border-top:1px solid var(--pulse-border); transition:background .12s; }
+    .pl-srv-row:first-child { border-top:none; }
+    .pl-srv-row:hover { background:var(--pulse-surface-2); }
 
-    .srv-btn { font-size:.82rem; font-weight:700; padding:.4rem .75rem; border-radius:3px; cursor:pointer;
-        border:1px solid transparent; text-decoration:none; }
-    .srv-btn-primary { background:var(--bz-accent); color:#fff; }
-    .srv-btn-primary:hover { filter:brightness(1.08); }
-    .srv-btn-ghost { background:transparent; border-color:var(--mv-border); color:var(--mv-text); }
-    .srv-btn-ghost:hover { background:var(--mv-muted); }
-    .srv-btn-link { margin-left:auto; background:transparent; color:var(--bz-accent); padding:.4rem .3rem; }
+    .pl-srv-avatar { flex:0 0 auto; width:44px; height:44px; border-radius:50%;
+        background:var(--pulse-grad-profile); color:#fff; display:inline-flex; align-items:center;
+        justify-content:center; font-size:1.05rem; font-weight:800; text-transform:uppercase;
+        overflow:hidden; white-space:nowrap; }
 
-    .srv-empty { text-align:center; padding:2.5rem 1.2rem; }
-    .srv-empty-ico { font-size:2.4rem; }
-    .srv-empty h3 { margin:.5rem 0 .3rem; }
-    .srv-empty p { margin:0; color:var(--mv-text-soft); }
+    .pl-srv-main { display:flex; flex-direction:column; gap:.18rem; min-width:0; flex:1 1 auto; }
+    .pl-srv-name { font-size:1rem; font-weight:700; color:var(--pulse-text); letter-spacing:-.01em;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pl-srv-meta { display:flex; align-items:center; gap:.5rem; min-width:0; }
+    .pl-srv-summary { font-size:.82rem; color:var(--pulse-text-2); white-space:nowrap; overflow:hidden;
+        text-overflow:ellipsis; }
+
+    .pl-srv-chip { flex:0 0 auto; font-size:.68rem; font-weight:700; padding:.12rem .5rem; border-radius:999px;
+        background:var(--pulse-primary-soft); color:var(--pulse-primary); text-transform:uppercase;
+        letter-spacing:.03em; }
+
+    .pl-srv-chevron { flex:0 0 auto; color:var(--pulse-text-3); font-size:1.5rem; line-height:1; font-weight:400; }
+    .pl-srv-row:hover .pl-srv-chevron { color:var(--pulse-primary); }
+
+    /* ---- empty state ---- */
+    .pl-srv-empty { background:var(--pulse-surface); border:1px solid var(--pulse-border); border-radius:16px;
+        text-align:center; padding:2.75rem 1.25rem; margin-bottom:1.5rem; }
+    .pl-srv-empty-ico { font-size:2.4rem; }
+    .pl-srv-empty-title { margin:.6rem 0 .35rem; font-size:1.1rem; font-weight:700; color:var(--pulse-text); }
+    .pl-srv-empty-text { margin:0 0 1.1rem; color:var(--pulse-text-2); font-size:.9rem; }
+    .pl-srv-cta { display:inline-block; background:var(--pulse-primary); color:#fff; font-weight:700;
+        font-size:.9rem; padding:.6rem 1.1rem; border-radius:10px; text-decoration:none; transition:background .15s; }
+    .pl-srv-cta:hover { background:var(--pulse-primary-hover); }
+
+    /* ---- create form ---- */
+    .pl-srv-create { background:var(--pulse-surface); border:1px solid var(--pulse-border); border-radius:16px;
+        padding:1.2rem 1.3rem; scroll-margin-top:5rem; }
+    .pl-srv-create-title { margin:0 0 1rem; font-size:1.05rem; font-weight:700; color:var(--pulse-text); }
+    .pl-srv-create-grid { display:grid; grid-template-columns:2fr 1fr; gap:1rem; align-items:end; }
+    .pl-srv-field { display:flex; flex-direction:column; gap:.4rem; }
+    .pl-srv-label { font-size:.82rem; font-weight:600; color:var(--pulse-text-2); }
+    .pl-srv-select { padding:.6rem .7rem; border:1px solid var(--pulse-border); border-radius:10px;
+        background:var(--pulse-surface-2); font-size:.92rem; color:var(--pulse-text); }
+    .pl-srv-select:focus { outline:none; border-color:var(--pulse-primary); }
+    .pl-srv-create-actions { margin-top:1rem; }
 
     @media (max-width: 600px) {
-        .srv-create-grid { grid-template-columns:1fr; }
+        .pl-srv-create-grid { grid-template-columns:1fr; }
     }
 </style>
 
