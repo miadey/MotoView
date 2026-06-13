@@ -1,0 +1,116 @@
+@page "/search"
+@layout AppLayout
+@authorize redirect="/welcome"
+@title "Search — Bzzz"
+@description "Search Bzzz topics, people and servers."
+
+<div class="bz-search">
+    <header class="bz-page-head">
+        <h1 class="bz-page-title">🔍 Search</h1>
+    </header>
+
+    <form class="bz-search-form" action="/search" method="get" role="search">
+        <input class="bz-search-input" type="search" name="q" value="@q"
+               placeholder="Search topics, people, servers…" autocomplete="off" autofocus />
+        <button class="mv-btn mv-btn-primary" type="submit">Search</button>
+    </form>
+
+    @if (Text.size(trimmed) == 0) {
+        <p class="bz-search-hint">Search forum topics, people, and servers across Bzzz.</p>
+    } else {
+        @if (resultCount == 0) {
+            <p class="bz-search-hint">No matches for “@q”. Try a different term.</p>
+        } else {
+            <p class="bz-search-meta">@(resultCount) result(s) for “@q”</p>
+
+            @if (topicHits.size() > 0) {
+                <h2 class="bz-sec-title">🗨️ Topics</h2>
+                @for t in topicHits {
+                    <a class="bz-search-row" href="/forum/t/@(t.id)">
+                        <span class="bz-search-ico">🗨️</span>
+                        <span class="bz-search-main">@t.title</span>
+                    </a>
+                }
+            }
+            @if (peopleHits.size() > 0) {
+                <h2 class="bz-sec-title">👤 People</h2>
+                @for p in peopleHits {
+                    <a class="bz-search-row" href="/u/@(p.handle)">
+                        <span class="bz-search-ico">@p.avatar</span>
+                        <span class="bz-search-main">@p.display <span class="bz-search-sub">@@@p.handle</span></span>
+                    </a>
+                }
+            }
+            @if (serverHits.size() > 0) {
+                <h2 class="bz-sec-title">💬 Servers</h2>
+                @for s in serverHits {
+                    <a class="bz-search-row" href="/servers/@(s.id)">
+                        <span class="bz-search-ico">💬</span>
+                        <span class="bz-search-main">@s.name</span>
+                    </a>
+                }
+            }
+        }
+    }
+</div>
+
+<style>
+    .bz-search { max-width: 720px; }
+    .bz-search-form { display: flex; gap: var(--spacingHorizontalS); margin: 0 0 var(--spacingVerticalL); }
+    .bz-search-input { flex: 1; min-width: 0; padding: 10px 14px; font-size: var(--fontSizeBase400);
+        border: 1px solid var(--colorNeutralStroke1); border-radius: var(--borderRadiusLarge);
+        background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1);
+        font-family: var(--fontFamilyBase); }
+    .bz-search-input:focus-visible { outline: 2px solid var(--colorBrandStroke1, var(--colorBrandForeground1)); outline-offset: 1px; }
+    .bz-search-hint, .bz-search-meta { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
+    .bz-search-row { display: flex; align-items: center; gap: var(--spacingHorizontalM);
+        padding: 10px 12px; border-radius: var(--borderRadiusMedium); text-decoration: none;
+        color: var(--colorNeutralForeground1); }
+    .bz-search-row:hover { background: var(--colorSubtleBackgroundHover, var(--colorNeutralBackground3)); }
+    .bz-search-ico { width: 28px; height: 28px; display: grid; place-items: center; flex: none;
+        border-radius: var(--borderRadiusMedium); font-size: 1.05rem;
+        background: color-mix(in srgb, var(--colorBrandBackground) 12%, var(--colorNeutralBackground1)); }
+    .bz-search-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bz-search-sub { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); margin-left: 4px; }
+</style>
+
+@code {
+    var q : Text = "";
+    var trimmed : Text = "";
+    var topicHits : [Forum.Topic] = [];
+    var peopleHits : [Identity.Profile] = [];
+    var serverHits : [Servers.Server] = [];
+    var resultCount : Nat = 0;
+
+    // ASCII lowercase (same idiom as Forum.slugify / Identity) for case-insensitive match.
+    func lc(t : Text) : Text {
+        Text.map(t, func(c : Char) : Char {
+            if (c >= 'A' and c <= 'Z') { Char.fromNat32(Char.toNat32(c) + 32) } else { c }
+        });
+    };
+
+    func onLoad(ctx : Context) {
+        for ((k, v) in ctx.queryParams.vals()) { if (k == "q") { q := v } };
+        trimmed := Text.trim(q, #char ' ');
+        if (Text.size(trimmed) == 0) { return };
+        let needle = lc(trimmed);
+
+        let mt = Array.filter<Forum.Topic>(Forum.topicsLatest(), func(t : Forum.Topic) : Bool {
+            Text.contains(lc(t.title), #text needle)
+        });
+        topicHits := if (mt.size() > 6) { Array.subArray<Forum.Topic>(mt, 0, 6) } else { mt };
+
+        let mp = Array.filter<Identity.Profile>(Identity.all(), func(p : Identity.Profile) : Bool {
+            Text.contains(lc(p.handle), #text needle) or Text.contains(lc(p.display), #text needle)
+        });
+        peopleHits := if (mp.size() > 6) { Array.subArray<Identity.Profile>(mp, 0, 6) } else { mp };
+
+        // Public servers only — never surface a private server's name to a non-member.
+        let ms = Array.filter<Servers.Server>(Servers.servers(), func(s : Servers.Server) : Bool {
+            (not s.private_) and Text.contains(lc(s.name), #text needle)
+        });
+        serverHits := if (ms.size() > 6) { Array.subArray<Servers.Server>(ms, 0, 6) } else { ms };
+
+        resultCount := topicHits.size() + peopleHits.size() + serverHits.size();
+    };
+}

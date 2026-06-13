@@ -138,6 +138,7 @@
         <label class="fl-burger-btn" for="fl-burger" aria-label="Toggle forum menu">☰</label>
         <a class="mv-appbar-brand" href="/"><span class="bz-brand-logo">🐝</span> Bzzz</a>
         <span class="mv-appbar-spacer"></span>
+        <label class="bz-cmdk-trigger" for="bz-cmdk" title="Search — jump to anything" aria-label="Search">🔍</label>
         <ThemePicker />
         <details class="mv-acct" data-mv-authed style="display:none">
             <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
