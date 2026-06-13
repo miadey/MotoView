@@ -72,7 +72,6 @@ param path : Text = "/"
     .bz-cmdk-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px;
         text-decoration: none; color: var(--colorNeutralForeground1); font-size: .95rem; }
     .bz-cmdk-row:hover { background: var(--colorSubtleBackgroundHover, var(--colorNeutralBackground3)); }
-    .bz-cmdk-rowico { width: 22px; text-align: center; flex: none; }
 </style>
 <input type="checkbox" id="bz-cmdk" class="bz-cmdk" data-mv-cmdk aria-label="Open search and jump-to palette (Ctrl/Cmd+K)">
 <div class="bz-cmdk-overlay">
@@ -84,13 +83,13 @@ param path : Text = "/"
             <label class="bz-cmdk-esc" for="bz-cmdk" title="Close">esc</label>
         </form>
         <div class="bz-cmdk-label">Jump to</div>
-        <a class="bz-cmdk-row" href="/"><span class="bz-cmdk-rowico">🏠</span> Home</a>
-        <a class="bz-cmdk-row" href="/feed"><span class="bz-cmdk-rowico">📰</span> Feed</a>
-        <a class="bz-cmdk-row" href="/servers"><span class="bz-cmdk-rowico">💬</span> Servers</a>
-        <a class="bz-cmdk-row" href="/forum"><span class="bz-cmdk-rowico">🗨️</span> Forum</a>
-        <a class="bz-cmdk-row" href="/messages"><span class="bz-cmdk-rowico">✉️</span> Messages</a>
-        <a class="bz-cmdk-row" href="/status"><span class="bz-cmdk-rowico">🟢</span> Status</a>
-        <a class="bz-cmdk-row" href="/me"><span class="bz-cmdk-rowico">👤</span> My profile</a>
+        <a class="bz-cmdk-row" href="/">Home</a>
+        <a class="bz-cmdk-row" href="/feed">Feed</a>
+        <a class="bz-cmdk-row" href="/servers">Servers</a>
+        <a class="bz-cmdk-row" href="/forum">Forum</a>
+        <a class="bz-cmdk-row" href="/messages">Messages</a>
+        <a class="bz-cmdk-row" href="/status">Status</a>
+        <a class="bz-cmdk-row" href="/me">My profile</a>
     </div>
 </div>
 <nav class="bz-tabbar" aria-label="Primary">

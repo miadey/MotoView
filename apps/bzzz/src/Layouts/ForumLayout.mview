@@ -146,14 +146,14 @@
         <details class="mv-acct" data-mv-authed style="display:none">
             <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
             <div class="mv-acct-menu">
-                <a class="mv-acct-item" href="/">🏠 Home</a>
-                <a class="mv-acct-item" href="/me">👤 My profile</a>
-                <a class="mv-acct-item" href="/status">🟢 My status</a>
-                <a class="mv-acct-item" href="/messages">✉️ Messages</a>
-                <a class="mv-acct-item" href="/admin">🛡️ Admin console</a>
-                <a class="mv-acct-item" href="/about">ℹ️ About Bzzz</a>
+                <a class="mv-acct-item" href="/">Home</a>
+                <a class="mv-acct-item" href="/me">My profile</a>
+                <a class="mv-acct-item" href="/status">My status</a>
+                <a class="mv-acct-item" href="/messages">Messages</a>
+                <a class="mv-acct-item" href="/admin">Admin console</a>
+                <a class="mv-acct-item" href="/about">About Bzzz</a>
                 <div class="mv-acct-sep"></div>
-                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>⎋ Sign out</button>
+                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>Sign out</button>
             </div>
         </details>
     </AppBar>

@@ -13,7 +13,7 @@
         <main class="ft-main">
 
             <Breadcrumb>
-                <BreadcrumbItem href="/">🏠 Home</BreadcrumbItem>
+                <BreadcrumbItem href="/">Home</BreadcrumbItem>
                 <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
                 <BreadcrumbItem href="/forum/c/@categoryId">@catName</BreadcrumbItem>
                 <BreadcrumbItem current="true">@topicTitle</BreadcrumbItem>

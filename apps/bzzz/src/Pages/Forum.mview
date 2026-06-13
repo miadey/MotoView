@@ -7,7 +7,7 @@
 <div class="fl-col">
 
     <Breadcrumb>
-        <BreadcrumbItem href="/">🏠 Home</BreadcrumbItem>
+        <BreadcrumbItem href="/">Home</BreadcrumbItem>
         <BreadcrumbItem current="true">Forum</BreadcrumbItem>
     </Breadcrumb>
 

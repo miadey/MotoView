@@ -6,7 +6,7 @@
 
 <div class="bz-search">
     <header class="bz-page-head">
-        <h1 class="bz-page-title">🔍 Search</h1>
+        <h1 class="bz-page-title">Search</h1>
     </header>
 
     <form class="bz-search-form" action="/search" method="get" role="search">
@@ -24,16 +24,15 @@
             <p class="bz-search-meta">@(resultCount) result(s) for “@q”</p>
 
             @if (topicHits.size() > 0) {
-                <h2 class="bz-sec-title">🗨️ Topics</h2>
+                <h2 class="bz-sec-title">Topics</h2>
                 @for t in topicHits {
                     <a class="bz-search-row" href="/forum/t/@(t.id)">
-                        <span class="bz-search-ico">🗨️</span>
                         <span class="bz-search-main">@t.title</span>
                     </a>
                 }
             }
             @if (peopleHits.size() > 0) {
-                <h2 class="bz-sec-title">👤 People</h2>
+                <h2 class="bz-sec-title">People</h2>
                 @for p in peopleHits {
                     <a class="bz-search-row" href="/u/@(p.handle)">
                         <span class="bz-search-ico">@p.avatar</span>
@@ -42,10 +41,9 @@
                 }
             }
             @if (serverHits.size() > 0) {
-                <h2 class="bz-sec-title">💬 Servers</h2>
+                <h2 class="bz-sec-title">Servers</h2>
                 @for s in serverHits {
                     <a class="bz-search-row" href="/servers/@(s.id)">
-                        <span class="bz-search-ico">💬</span>
                         <span class="bz-search-main">@s.name</span>
                     </a>
                 }

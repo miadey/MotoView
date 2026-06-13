@@ -9,7 +9,7 @@
     @if found {
 
         <Breadcrumb>
-            <BreadcrumbItem href="/">🏠 Home</BreadcrumbItem>
+            <BreadcrumbItem href="/">Home</BreadcrumbItem>
             <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
             <BreadcrumbItem current="true">@catName</BreadcrumbItem>
         </Breadcrumb>
