@@ -6,16 +6,16 @@
 
 <section class="an-head">
     <div>
-        <h1>Annonces</h1>
-        <p>Les mises à jour publiées par la communauté, visibles 24 heures. @liveCount en direct.</p>
+        <h1>@Lang.tc(ctx.caller, "nav.annonces")</h1>
+        <p>@Lang.tc(ctx.caller, "annonces.subtitle") @liveCount @Lang.tc(ctx.caller, "annonces.live")</p>
     </div>
 </section>
 
 @if (announcements.size() == 0) {
     <div class="an-empty bz-card">
         <div class="an-empty-ico">📭</div>
-        <h3>Aucune annonce pour le moment.</h3>
-        <p>Rien n'a été publié pour l'instant. Repassez plus tard pour voir les annonces de la communauté.</p>
+        <h3>@Lang.tc(ctx.caller, "annonces.empty_title")</h3>
+        <p>@Lang.tc(ctx.caller, "annonces.empty_body")</p>
     </div>
 } else {
     <div class="an-list">
@@ -41,9 +41,9 @@
                 <footer class="an-foot">
                     <div class="an-meta">
                         <span class="an-chip">⏳ @(Status.timeLeft(a.expiresAt))</span>
-                        <span class="an-chip">👁 @a.views vues</span>
+                        <span class="an-chip">👁 @a.views @Lang.tc(ctx.caller, "annonces.views")</span>
                     </div>
-                    <button class="an-read-btn" type="button" @click="read(a.id)">Lire</button>
+                    <button class="an-read-btn" type="button" @click="read(a.id)">@Lang.tc(ctx.caller, "annonces.read")</button>
                 </footer>
             </article>
         }

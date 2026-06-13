@@ -7,9 +7,9 @@
 <div class="pp-wrap">
     <div class="pp-main">
         <header class="pp-head">
-            <a class="pp-back" href="/feed" title="Retour">←</a>
+            <a class="pp-back" href="/feed" title='@(Lang.tc(ctx.caller, "common.back"))'>←</a>
             <div class="pp-head-titles">
-                <h1>Publication</h1>
+                <h1>@Lang.tc(ctx.caller, "feedpost.title")</h1>
             </div>
         </header>
 
@@ -29,50 +29,50 @@
                 <div class="pp-focus-meta">
                     <span class="pp-when">@(absTime(focus.at))</span>
                     <span class="pp-dot">·</span>
-                    <span class="pp-views"><strong>@(views(focus))</strong> vues</span>
+                    <span class="pp-views"><strong>@(views(focus))</strong> @Lang.tc(ctx.caller, "feedpost.views")</span>
                 </div>
 
                 <div class="pp-focus-counts">
-                    <span class="pp-count"><strong>@focus.reposts</strong> <span class="pp-count-l">republications</span></span>
-                    <span class="pp-count"><strong>@focus.likes</strong> <span class="pp-count-l">j'aime</span></span>
-                    <span class="pp-count"><strong>@focus.replyCount</strong> <span class="pp-count-l">réponses</span></span>
+                    <span class="pp-count"><strong>@focus.reposts</strong> <span class="pp-count-l">@Lang.tc(ctx.caller, "feedpost.reposts")</span></span>
+                    <span class="pp-count"><strong>@focus.likes</strong> <span class="pp-count-l">@Lang.tc(ctx.caller, "feedpost.likes")</span></span>
+                    <span class="pp-count"><strong>@focus.replyCount</strong> <span class="pp-count-l">@Lang.tc(ctx.caller, "feedpost.replies")</span></span>
                 </div>
 
                 <div class="pp-focus-actions">
-                    <a class="pp-act pp-act-reply" href="#reply" title="Répondre">
+                    <a class="pp-act pp-act-reply" href="#reply" title='@(Lang.tc(ctx.caller, "common.reply"))'>
                         <span class="pp-act-ico">💬</span>
-                        <span class="pp-act-l">Répondre</span>
+                        <span class="pp-act-l">@Lang.tc(ctx.caller, "common.reply")</span>
                         <span class="pp-act-n">@focus.replyCount</span>
                     </a>
                     @if Feed.hasReposted(me,focus.id) {
-                        <button class="pp-act pp-act-repost is-on" @click="repost(focus.id)" type="button" title="Reposter">
+                        <button class="pp-act pp-act-repost is-on" @click="repost(focus.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.repost_action"))'>
                             <span class="pp-act-ico">🔁</span>
-                            <span class="pp-act-l">Reposter</span>
+                            <span class="pp-act-l">@Lang.tc(ctx.caller, "feedpost.repost_action")</span>
                             <span class="pp-act-n">@focus.reposts</span>
                         </button>
                     } else {
-                        <button class="pp-act pp-act-repost" @click="repost(focus.id)" type="button" title="Reposter">
+                        <button class="pp-act pp-act-repost" @click="repost(focus.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.repost_action"))'>
                             <span class="pp-act-ico">🔁</span>
-                            <span class="pp-act-l">Reposter</span>
+                            <span class="pp-act-l">@Lang.tc(ctx.caller, "feedpost.repost_action")</span>
                             <span class="pp-act-n">@focus.reposts</span>
                         </button>
                     }
                     @if Feed.hasLiked(me,focus.id) {
-                        <button class="pp-act pp-act-like is-on" @click="like(focus.id)" type="button" title="Aimer">
+                        <button class="pp-act pp-act-like is-on" @click="like(focus.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.like_action"))'>
                             <span class="pp-act-ico">@(heart(focus.id))</span>
-                            <span class="pp-act-l">Aimer</span>
+                            <span class="pp-act-l">@Lang.tc(ctx.caller, "feedpost.like_action")</span>
                             <span class="pp-act-n">@focus.likes</span>
                         </button>
                     } else {
-                        <button class="pp-act pp-act-like" @click="like(focus.id)" type="button" title="Aimer">
+                        <button class="pp-act pp-act-like" @click="like(focus.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.like_action"))'>
                             <span class="pp-act-ico">@(heart(focus.id))</span>
-                            <span class="pp-act-l">Aimer</span>
+                            <span class="pp-act-l">@Lang.tc(ctx.caller, "feedpost.like_action")</span>
                             <span class="pp-act-n">@focus.likes</span>
                         </button>
                     }
-                    <span class="pp-act pp-act-share" title="Sauvegarder">
+                    <span class="pp-act pp-act-share" title='@(Lang.tc(ctx.caller, "feedpost.save"))'>
                         <span class="pp-act-ico">🔖</span>
-                        <span class="pp-act-l">Sauvegarder</span>
+                        <span class="pp-act-l">@Lang.tc(ctx.caller, "feedpost.save")</span>
                     </span>
                 </div>
             </article>
@@ -82,31 +82,31 @@
                 @if bound {
                     <div class="pp-composer-top">
                         <div class="pp-ava">@meAvatar</div>
-                        <span class="pp-composer-hint">Votre réponse</span>
+                        <span class="pp-composer-hint">@Lang.tc(ctx.caller, "feedpost.your_reply")</span>
                     </div>
                     <form class="pp-composer-form" @submit="sendReply" secure>
                         <ValidationSummary />
-                        <TextArea name="body" label="" placeholder="Publiez votre réponse" bind="@body" required />
+                        <TextArea name="body" label="" placeholder='@(Lang.tc(ctx.caller, "feedpost.reply_ph"))' bind="@body" required />
                         <div class="pp-composer-foot">
-                            <span class="pp-counter">@(remaining()) restants</span>
-                            <Button kind="primary" type="submit">Répondre</Button>
+                            <span class="pp-counter">@(remaining()) @Lang.tc(ctx.caller, "feedpost.remaining")</span>
+                            <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.reply")</Button>
                         </div>
                     </form>
                 } else {
                     <div class="pp-claim">
                         <span class="pp-claim-ico">🐝</span>
-                        <span>Choisissez un pseudo sur <a href="/me">votre profil</a> pour répondre.</span>
+                        <span>@Lang.tc(ctx.caller, "feedpost.claim_pre") <a href="/me">@Lang.tc(ctx.caller, "feedpost.claim_link")</a> @Lang.tc(ctx.caller, "feedpost.claim_post")</span>
                     </div>
                 }
             </div>
 
             <!-- Réponses sous forme de cartes -->
-            <div class="pp-replies-title">Réponses</div>
+            <div class="pp-replies-title">@Lang.tc(ctx.caller, "feedpost.replies_title")</div>
             @if hasReplies {
                 <div class="pp-stream">
                     @for r in replies {
                         <article class="pp-card pp-reply" id="post-@(r.id)">
-                            <a class="pp-reply-link" href="/feed/p/@(r.id)" aria-label="Ouvrir la réponse"></a>
+                            <a class="pp-reply-link" href="/feed/p/@(r.id)" aria-label='@(Lang.tc(ctx.caller, "feedpost.open_reply"))'></a>
                             <div class="pp-ava pp-ava-sm">@(avatarOf(r.author))</div>
                             <div class="pp-reply-body">
                                 <div class="pp-reply-head">
@@ -117,33 +117,33 @@
                                 </div>
                                 <div class="pp-reply-text">@r.text</div>
                                 <div class="pp-actions">
-                                    <a class="pp-act pp-act-reply" href="/feed/p/@(r.id)" title="Répondre">
+                                    <a class="pp-act pp-act-reply" href="/feed/p/@(r.id)" title='@(Lang.tc(ctx.caller, "common.reply"))'>
                                         <span class="pp-act-ico">💬</span>
                                         <span class="pp-act-n">@r.replyCount</span>
                                     </a>
                                     @if Feed.hasReposted(me,r.id) {
-                                        <button class="pp-act pp-act-repost is-on" @click="repost(r.id)" type="button" title="Reposter">
+                                        <button class="pp-act pp-act-repost is-on" @click="repost(r.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.repost_action"))'>
                                             <span class="pp-act-ico">🔁</span>
                                             <span class="pp-act-n">@r.reposts</span>
                                         </button>
                                     } else {
-                                        <button class="pp-act pp-act-repost" @click="repost(r.id)" type="button" title="Reposter">
+                                        <button class="pp-act pp-act-repost" @click="repost(r.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.repost_action"))'>
                                             <span class="pp-act-ico">🔁</span>
                                             <span class="pp-act-n">@r.reposts</span>
                                         </button>
                                     }
                                     @if Feed.hasLiked(me,r.id) {
-                                        <button class="pp-act pp-act-like is-on" @click="like(r.id)" type="button" title="Aimer">
+                                        <button class="pp-act pp-act-like is-on" @click="like(r.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.like_action"))'>
                                             <span class="pp-act-ico">@(heart(r.id))</span>
                                             <span class="pp-act-n">@r.likes</span>
                                         </button>
                                     } else {
-                                        <button class="pp-act pp-act-like" @click="like(r.id)" type="button" title="Aimer">
+                                        <button class="pp-act pp-act-like" @click="like(r.id)" type="button" title='@(Lang.tc(ctx.caller, "feedpost.like_action"))'>
                                             <span class="pp-act-ico">@(heart(r.id))</span>
                                             <span class="pp-act-n">@r.likes</span>
                                         </button>
                                     }
-                                    <a class="pp-act pp-act-view" href="/feed/p/@(r.id)" title="Vues">
+                                    <a class="pp-act pp-act-view" href="/feed/p/@(r.id)" title='@(Lang.tc(ctx.caller, "feedpost.views_title"))'>
                                         <span class="pp-act-ico">📊</span>
                                         <span class="pp-act-n">@(views(r))</span>
                                     </a>
@@ -153,21 +153,21 @@
                     }
                 </div>
             } else {
-                <div class="pp-noreplies">Aucune réponse pour le moment. Soyez le premier à répondre.</div>
+                <div class="pp-noreplies">@Lang.tc(ctx.caller, "feedpost.no_replies")</div>
             }
         } else {
             <div class="pp-empty pp-card">
                 <span class="pp-empty-ico">🚫</span>
-                <h2>Publication introuvable</h2>
-                <p>Cette publication n'existe pas ou a peut-être été supprimée.</p>
-                <a class="pp-link" href="/feed">← Retour au fil</a>
+                <h2>@Lang.tc(ctx.caller, "feedpost.not_found_title")</h2>
+                <p>@Lang.tc(ctx.caller, "feedpost.not_found_body")</p>
+                <a class="pp-link" href="/feed">← @Lang.tc(ctx.caller, "feedpost.back_to_feed")</a>
             </div>
         }
     </div>
 
     <aside class="pp-rail">
         <div class="pp-panel pp-card">
-            <h3 class="pp-panel-title">Suggestions à suivre</h3>
+            <h3 class="pp-panel-title">@Lang.tc(ctx.caller, "feedpost.suggestions_title")</h3>
             @if hasSuggestions {
                 <ul class="pp-suggest">
                     @for s in suggestions {
@@ -186,7 +186,7 @@
                     }
                 </ul>
             } else {
-                <p class="pp-panel-empty">Personne d'autre ici pour l'instant.</p>
+                <p class="pp-panel-empty">@Lang.tc(ctx.caller, "feedpost.no_suggestions")</p>
             }
         </div>
     </aside>

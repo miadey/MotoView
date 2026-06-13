@@ -8,29 +8,29 @@
     @if (not member) {
         <section class="pdm-empty">
             <div class="pdm-empty-ico">🔒</div>
-            <h1>Conversation indisponible</h1>
-            <p>Cette conversation n'existe pas, ou vous n'en êtes pas membre. <a href="/messages">Retour aux messages</a>.</p>
+            <h1>@Lang.tc(ctx.caller, "conversation.unavailable")</h1>
+            <p>@Lang.tc(ctx.caller, "conversation.unavailable_body") <a href="/messages">@Lang.tc(ctx.caller, "conversation.back_to_messages")</a>.</p>
         </section>
     } else {
         <section class="pdm-thread">
             <header class="pdm-head">
-                <a class="pdm-back" href="/messages" aria-label="Retour aux conversations">←</a>
+                <a class="pdm-back" href="/messages" aria-label='@(Lang.tc(ctx.caller, "conversation.back_to_conversations"))'>←</a>
                 <span class="pdm-avatar">@headerAvatar</span>
                 <div class="pdm-id">
                     <span class="pdm-name">@title</span>
-                    <span class="pdm-e2ee"><span class="pdm-lock">🔒</span> Chiffré de bout en bout</span>
+                    <span class="pdm-e2ee"><span class="pdm-lock">🔒</span> @Lang.tc(ctx.caller, "conversation.e2ee")</span>
                 </div>
             </header>
 
             <div class="pdm-stream" id="wa-thread-stream">
                 <div class="pdm-note">
-                    🔒 Les messages sont chiffrés de bout en bout. Le canister ne stocke que des enveloppes chiffrées opaques — le déchiffrement a lieu entièrement dans votre client.
+                    🔒 @Lang.tc(ctx.caller, "conversation.stream_note")
                 </div>
 
                 @if (msgs.size() == 0) {
                     <div class="pdm-blank">
                         <div class="pdm-blank-ico">💬</div>
-                        <p>Aucun message pour l'instant. Dites bonjour — votre message est chiffré avant de quitter votre appareil.</p>
+                        <p>@Lang.tc(ctx.caller, "conversation.blank")</p>
                     </div>
                 } else {
                     @for m in msgs {
@@ -39,11 +39,11 @@
                                 @if (showSender(m)) {
                                     <span class="pdm-sender">@m.senderHandle</span>
                                 }
-                                <span class="pdm-text" data-mv-decrypt="@(Messenger.envelopeFor(m, me))" title="Chiffré de bout en bout — déchiffré dans votre navigateur">🔒</span>
+                                <span class="pdm-text" data-mv-decrypt="@(Messenger.envelopeFor(m, me))" title='@(Lang.tc(ctx.caller, "conversation.bubble_title"))'>🔒</span>
                                 <span class="pdm-meta">
                                     <span class="pdm-time">@relTime(m)</span>
                                     @if (m.sender == me) {
-                                        <span class="pdm-ticks @(tickClass(m))" title="Accusé de réception / lecture">✓✓</span>
+                                        <span class="pdm-ticks @(tickClass(m))" title='@(Lang.tc(ctx.caller, "conversation.ticks_title"))'>✓✓</span>
                                     }
                                 </span>
                             </div>
@@ -54,10 +54,10 @@
 
             <form class="pdm-composer" @submit="sendMsg" secure>
                 <div class="pdm-composer-row">
-                    <textarea class="mv-textarea pdm-input" name="draft" data-mv-key="draft" data-mv-encrypt-to="@recipients" placeholder="Envoyer un message…" rows="1" required></textarea>
-                    <Button kind="primary" type="submit">Envoyer</Button>
+                    <textarea class="mv-textarea pdm-input" name="draft" data-mv-key="draft" data-mv-encrypt-to="@recipients" placeholder='@(Lang.tc(ctx.caller, "conversation.composer_ph"))' rows="1" required></textarea>
+                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.send")</Button>
                 </div>
-                <p class="pdm-composer-note">🔒 Chiffré dans votre navigateur avec vetKeys (une enveloppe par destinataire) avant de quitter votre appareil — le canister ne stocke que du texte chiffré.</p>
+                <p class="pdm-composer-note">🔒 @Lang.tc(ctx.caller, "conversation.composer_note")</p>
             </form>
         </section>
     }

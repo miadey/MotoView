@@ -8,19 +8,19 @@
 
     <div class="pl-evt-head">
         <div>
-            <h1 class="pl-evt-title">Événements</h1>
-            <p class="pl-evt-sub">Retrouvez ici les événements de vos communautés.</p>
+            <h1 class="pl-evt-title">@Lang.tc(ctx.caller, "nav.evenements")</h1>
+            <p class="pl-evt-sub">@Lang.tc(ctx.caller, "evenements.sub")</p>
         </div>
         <button class="pl-evt-add" type="button" disabled aria-disabled="true"
-            title="Bientôt disponible">+ Créer un événement</button>
+            title='@(Lang.tc(ctx.caller, "evenements.soon"))'>+ @Lang.tc(ctx.caller, "evenements.create")</button>
     </div>
 
-    <p class="pl-evt-note">La création d'événements arrive bientôt.</p>
+    <p class="pl-evt-note">@Lang.tc(ctx.caller, "evenements.note")</p>
 
     <div class="pl-evt-empty">
         <div class="pl-evt-empty-ico">📅</div>
-        <h3 class="pl-evt-empty-title">Aucun événement programmé pour le moment.</h3>
-        <p class="pl-evt-empty-text">Lorsque vos communautés organiseront des événements, ils apparaîtront ici.</p>
+        <h3 class="pl-evt-empty-title">@Lang.tc(ctx.caller, "evenements.empty_title")</h3>
+        <p class="pl-evt-empty-text">@Lang.tc(ctx.caller, "evenements.empty_text")</p>
     </div>
 
 </div>

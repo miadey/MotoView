@@ -8,29 +8,29 @@
 
     <div class="pl-srv-head">
         <div>
-            <h1 class="pl-srv-title">Mes communautés</h1>
-            <p class="pl-srv-sub">@(serverList.size()) @plural(serverList.size(), "communauté", "communautés") sur Pulse</p>
+            <h1 class="pl-srv-title">@Lang.tc(ctx.caller, "servers.title")</h1>
+            <p class="pl-srv-sub">@(serverList.size()) @plural(serverList.size(), "communauté", "communautés") @Lang.tc(ctx.caller, "servers.on_pulse")</p>
         </div>
         @if bound {
-            <a class="pl-srv-add" href="#pl-srv-create" aria-label="Créer une communauté">+</a>
+            <a class="pl-srv-add" href="#pl-srv-create" aria-label='@(Lang.tc(ctx.caller, "servers.create"))'>+</a>
         }
     </div>
 
     @if not bound {
         <div class="pl-srv-notice">
-            <p>Vous naviguez en tant qu'invité. <a href="/me">Réservez un pseudo</a> pour créer des communautés et rejoindre la conversation.</p>
+            <p>@Lang.tc(ctx.caller, "servers.guest_notice_pre") <a href="/me">@Lang.tc(ctx.caller, "servers.guest_notice_link")</a> @Lang.tc(ctx.caller, "servers.guest_notice_post")</p>
         </div>
     }
 
     @if serverList.size() == 0 {
         <div class="pl-srv-empty">
             <div class="pl-srv-empty-ico">💬</div>
-            <h3 class="pl-srv-empty-title">Vous n'avez pas encore de communauté</h3>
-            <p class="pl-srv-empty-text">Soyez le premier à lancer un espace pour votre communauté.</p>
+            <h3 class="pl-srv-empty-title">@Lang.tc(ctx.caller, "servers.empty_title")</h3>
+            <p class="pl-srv-empty-text">@Lang.tc(ctx.caller, "servers.empty_text")</p>
             @if bound {
-                <a class="pl-srv-cta" href="#pl-srv-create">Créer une communauté</a>
+                <a class="pl-srv-cta" href="#pl-srv-create">@Lang.tc(ctx.caller, "servers.create")</a>
             } else {
-                <a class="pl-srv-cta" href="/me">Réserver un pseudo</a>
+                <a class="pl-srv-cta" href="/me">@Lang.tc(ctx.caller, "servers.reserve_handle")</a>
             }
         </div>
     } else {
@@ -42,9 +42,9 @@
                         <span class="pl-srv-name">@s.name</span>
                         <span class="pl-srv-meta">
                             @switch s.kind {
-                                case (#Discussion) { <span class="pl-srv-chip">Discussion</span> }
-                                case (#Forum) { <span class="pl-srv-chip">Forum</span> }
-                                case (#Feed) { <span class="pl-srv-chip">Flux</span> }
+                                case (#Discussion) { <span class="pl-srv-chip">@Lang.tc(ctx.caller, "servers.kind_discussion")</span> }
+                                case (#Forum) { <span class="pl-srv-chip">@Lang.tc(ctx.caller, "servers.kind_forum")</span> }
+                                case (#Feed) { <span class="pl-srv-chip">@Lang.tc(ctx.caller, "servers.kind_feed")</span> }
                             }
                             <span class="pl-srv-summary">@(summaryOf(s.id))</span>
                         </span>
@@ -57,22 +57,22 @@
 
     @if bound {
         <div class="pl-srv-create" id="pl-srv-create">
-            <h3 class="pl-srv-create-title">Créer une communauté</h3>
+            <h3 class="pl-srv-create-title">@Lang.tc(ctx.caller, "servers.create")</h3>
             <form @submit="create" secure>
                 <ValidationSummary />
                 <div class="pl-srv-create-grid">
-                    <InputText name="name" label="Nom de la communauté" bind="@name" required />
+                    <InputText name="name" label='@(Lang.tc(ctx.caller, "servers.name_label"))' bind="@name" required />
                     <div class="pl-srv-field">
-                        <span class="pl-srv-label">Type</span>
+                        <span class="pl-srv-label">@Lang.tc(ctx.caller, "servers.type_label")</span>
                         <select name="kind" class="pl-srv-select">
-                            <option value="Discussion">Discussion (salons &amp; chat)</option>
-                            <option value="Forum">Forum (sujets &amp; réponses)</option>
-                            <option value="Feed">Flux (chronologie)</option>
+                            <option value="Discussion">@Lang.tc(ctx.caller, "servers.opt_discussion")</option>
+                            <option value="Forum">@Lang.tc(ctx.caller, "servers.opt_forum")</option>
+                            <option value="Feed">@Lang.tc(ctx.caller, "servers.opt_feed")</option>
                         </select>
                     </div>
                 </div>
                 <div class="pl-srv-create-actions">
-                    <Button kind="primary" type="submit">Créer</Button>
+                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "servers.create_btn")</Button>
                 </div>
             </form>
         </div>

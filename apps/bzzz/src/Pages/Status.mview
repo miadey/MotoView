@@ -6,8 +6,8 @@
 
 <section class="st-head">
     <div class="st-head-txt">
-        <h1>Statuts</h1>
-        <p>Une pensée qui s'efface au bout de 24 heures. @activeCount en direct · @authorCount @(authorWord)</p>
+        <h1>@Lang.tc(ctx.caller, "status.title")</h1>
+        <p>@Lang.tc(ctx.caller, "status.subtitle") @activeCount @Lang.tc(ctx.caller, "status.live") · @authorCount @(authorWord)</p>
     </div>
 </section>
 
@@ -16,16 +16,16 @@
         <div class="st-compose-head">
             <span class="st-compose-ring" style="--c:@defaultColor"><span class="st-compose-ico">✍️</span></span>
             <div>
-                <h3 class="st-compose-title">Publier un statut</h3>
-                <p class="st-compose-sub">Visible 24 h, puis il disparaît automatiquement.</p>
+                <h3 class="st-compose-title">@Lang.tc(ctx.caller, "status.compose_title")</h3>
+                <p class="st-compose-sub">@Lang.tc(ctx.caller, "status.compose_sub")</p>
             </div>
         </div>
         <form @submit="post" secure>
             <ValidationSummary />
-            <TextArea name="text" label="Quoi de neuf ?" bind="@text" required />
+            <TextArea name="text" label='@(Lang.tc(ctx.caller, "status.textarea_label"))' bind="@text" required />
 
-            <span class="st-field-label">Couleur</span>
-            <div class="st-swatches" role="radiogroup" aria-label="Couleur du statut">
+            <span class="st-field-label">@Lang.tc(ctx.caller, "status.color")</span>
+            <div class="st-swatches" role="radiogroup" aria-label='@(Lang.tc(ctx.caller, "status.color_aria"))'>
                 @for sw in swatches {
                     <label class="st-swatch" style="--sw:@sw.hex" title="@sw.name">
                         @if sw.checked {
@@ -39,28 +39,28 @@
             </div>
 
             <div class="st-preview" style="--c:@defaultColor">
-                <span class="st-preview-label">Aperçu</span>
+                <span class="st-preview-label">@Lang.tc(ctx.caller, "status.preview")</span>
                 <span class="st-preview-text">@(previewText())</span>
             </div>
 
             <div class="st-actions">
-                <Button kind="primary" type="submit">Partager le statut</Button>
+                <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "status.share")</Button>
             </div>
         </form>
     </div>
 } else {
     <MessageBar intent="info">
-        Choisissez un identifiant sur votre <a href="/me">profil</a> pour publier un statut.
+        @Lang.tc(ctx.caller, "status.bind_prefix") <a href="/me">@Lang.tc(ctx.caller, "status.bind_link")</a> @Lang.tc(ctx.caller, "status.bind_suffix")
     </MessageBar>
 }
 
-<h2 class="st-section-title">En direct</h2>
+<h2 class="st-section-title">@Lang.tc(ctx.caller, "status.live")</h2>
 
 @if (statuses.size() == 0) {
     <div class="st-empty">
         <div class="st-empty-ico">📭</div>
-        <h3>Aucun statut actif</h3>
-        <p>Soyez la première personne à partager quelque chose aujourd'hui.</p>
+        <h3>@Lang.tc(ctx.caller, "status.empty_title")</h3>
+        <p>@Lang.tc(ctx.caller, "status.empty_sub")</p>
     </div>
 } else {
     <div class="st-grid">
@@ -87,7 +87,7 @@
                 }
                 <footer class="st-foot">
                     <span class="st-expires">⏳ @(Status.timeLeft(s.expiresAt))</span>
-                    <span class="st-views">@s.views vues</span>
+                    <span class="st-views">@s.views @Lang.tc(ctx.caller, "status.views")</span>
                 </footer>
             </article>
         }

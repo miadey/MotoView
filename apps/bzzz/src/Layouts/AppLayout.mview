@@ -263,7 +263,7 @@
                 <span class="pl-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg></span>
                 <span class="pl-wordmark">PULSE</span>
             </a>
-            <PulseNav path="@ctx.path" />
+            <PulseNav path="@ctx.path" lang="@(Lang.of(ctx.caller))" />
             <a class="pl-usercard" href="/me">
                 <span class="pl-uc-ava">@(Identity.avatarOf(ctx.caller))<span class="pl-uc-dot"></span></span>
                 <span class="pl-uc-main">
@@ -278,18 +278,18 @@
                 <span class="pl-topbar-spacer"></span>
                 <form class="pl-search" action="/search" method="get" role="search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                    <input type="search" name="q" placeholder="Rechercher…" autocomplete="off">
+                    <input type="search" name="q" placeholder='@(Lang.tc(ctx.caller, "top.search_field"))' autocomplete="off">
                 </form>
-                <a class="pl-iconbtn" href="/annonces" title="Annonces" aria-label="Annonces"><span class="pl-badge-dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></a>
+                <a class="pl-iconbtn" href="/annonces" title='@(Lang.tc(ctx.caller, "nav.annonces"))' aria-label='@(Lang.tc(ctx.caller, "nav.annonces"))'><span class="pl-badge-dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></a>
                 <details class="mv-acct" data-mv-authed style="display:none">
-                    <summary title="Compte"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span></summary>
+                    <summary title='@(Lang.tc(ctx.caller, "top.account"))'><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span></summary>
                     <div class="mv-acct-menu">
-                        <a class="mv-acct-item" href="/me">Mon profil</a>
-                        <a class="mv-acct-item" href="/parametres">Paramètres</a>
-                        <a class="mv-acct-item" href="/admin">Administration</a>
-                        <a class="mv-acct-item" href="/about">À propos de Pulse</a>
+                        <a class="mv-acct-item" href="/me">@Lang.tc(ctx.caller, "acct.myprofile")</a>
+                        <a class="mv-acct-item" href="/parametres">@Lang.tc(ctx.caller, "nav.parametres")</a>
+                        <a class="mv-acct-item" href="/admin">@Lang.tc(ctx.caller, "acct.admin")</a>
+                        <a class="mv-acct-item" href="/about">@Lang.tc(ctx.caller, "acct.about")</a>
                         <div class="mv-acct-sep"></div>
-                        <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>Déconnexion</button>
+                        <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>@Lang.tc(ctx.caller, "acct.logout")</button>
                     </div>
                 </details>
             </header>
@@ -298,13 +298,13 @@
             </main>
             <footer class="pl-foot">
                 <span class="pl-logo" style="width:22px;height:22px;border-radius:7px"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"></path></svg></span>
-                Pulse · <a href="/about">À propos</a>
+                Pulse · <a href="/about">@Lang.tc(ctx.caller, "common.about")</a>
             </footer>
         </div>
     </div>
-    <BzShell path="@ctx.path" />
+    <BzShell path="@ctx.path" lang="@(Lang.of(ctx.caller))" />
 } else {
-    <div class="bz-gate-redirect">On vous redirige vers la connexion… <a href="/welcome">Continuer →</a></div>
+    <div class="bz-gate-redirect">@Lang.tc(ctx.caller, "app.redirecting") <a href="/welcome">@Lang.tc(ctx.caller, "common.continue") →</a></div>
 }
 </body>
 </html>

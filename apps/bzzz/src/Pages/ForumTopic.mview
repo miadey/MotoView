@@ -13,8 +13,8 @@
         <main class="ft-main">
 
             <Breadcrumb>
-                <BreadcrumbItem href="/">Accueil</BreadcrumbItem>
-                <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
+                <BreadcrumbItem href="/">@Lang.tc(ctx.caller, "nav.home")</BreadcrumbItem>
+                <BreadcrumbItem href="/forum">@Lang.tc(ctx.caller, "forumtopic.forum")</BreadcrumbItem>
                 <BreadcrumbItem href="/forum/c/@categoryId">@catName</BreadcrumbItem>
                 <BreadcrumbItem current="true">@topicTitle</BreadcrumbItem>
             </Breadcrumb>
@@ -26,12 +26,12 @@
                         <span class="ft-cat-name">@catName</span>
                     </a>
                     @if solved {
-                        <span class="ft-status ft-status-solved"><span class="ft-status-dot"></span>Résolu</span>
+                        <span class="ft-status ft-status-solved"><span class="ft-status-dot"></span>@Lang.tc(ctx.caller, "forumtopic.solved")</span>
                     } else {
-                        <span class="ft-status ft-status-open"><span class="ft-status-dot"></span>En discussion</span>
+                        <span class="ft-status ft-status-open"><span class="ft-status-dot"></span>@Lang.tc(ctx.caller, "forumtopic.in_discussion")</span>
                     }
-                    @if pinned { <span class="ft-flag" title="Épinglé">📌 Épinglé</span> }
-                    @if closed { <span class="ft-flag ft-flag-closed" title="Fermé">🔒 Fermé</span> }
+                    @if pinned { <span class="ft-flag" title='@(Lang.tc(ctx.caller, "forumtopic.pinned"))'>📌 @Lang.tc(ctx.caller, "forumtopic.pinned")</span> }
+                    @if closed { <span class="ft-flag ft-flag-closed" title='@(Lang.tc(ctx.caller, "forumtopic.closed_flag"))'>🔒 @Lang.tc(ctx.caller, "forumtopic.closed_flag")</span> }
                 </div>
                 <h1 class="ft-title">@topicTitle</h1>
                 @if (tags.size() > 0) {
@@ -42,13 +42,13 @@
                     </div>
                 }
                 <div class="ft-head-meta">
-                    <span class="ft-meta-stat">@views vues</span>
+                    <span class="ft-meta-stat">@views @Lang.tc(ctx.caller, "forumtopic.views")</span>
                     <span class="ft-meta-dot">·</span>
-                    <span class="ft-meta-stat">@likeTotal j'aime</span>
+                    <span class="ft-meta-stat">@likeTotal @Lang.tc(ctx.caller, "forumtopic.likes")</span>
                     <span class="ft-meta-dot">·</span>
-                    <span class="ft-meta-stat">@participants participants</span>
+                    <span class="ft-meta-stat">@participants @Lang.tc(ctx.caller, "forumtopic.participants")</span>
                     <span class="ft-meta-dot">·</span>
-                    <span class="ft-meta-stat">@readTime min de lecture</span>
+                    <span class="ft-meta-stat">@readTime @Lang.tc(ctx.caller, "forumtopic.read_time")</span>
                 </div>
             </header>
 
@@ -56,17 +56,17 @@
                 <div class="ft-mod">
                     <span class="ft-mod-label">@modLabel</span>
                     @if pinned {
-                        <button class="ft-mod-btn" @click="togglePin">Désépingler</button>
+                        <button class="ft-mod-btn" @click="togglePin">@Lang.tc(ctx.caller, "forumtopic.unpin")</button>
                     } else {
-                        <button class="ft-mod-btn" @click="togglePin">Épingler</button>
+                        <button class="ft-mod-btn" @click="togglePin">@Lang.tc(ctx.caller, "forumtopic.pin")</button>
                     }
                     @if closed {
-                        <button class="ft-mod-btn" @click="toggleClose">Rouvrir</button>
+                        <button class="ft-mod-btn" @click="toggleClose">@Lang.tc(ctx.caller, "forumtopic.reopen")</button>
                     } else {
-                        <button class="ft-mod-btn" @click="toggleClose">Fermer</button>
+                        <button class="ft-mod-btn" @click="toggleClose">@Lang.tc(ctx.caller, "forumtopic.close")</button>
                     }
                     @if (solved and isAuthor) {
-                        <button class="ft-mod-btn" @click="clearSolution">Retirer la solution</button>
+                        <button class="ft-mod-btn" @click="clearSolution">@Lang.tc(ctx.caller, "forumtopic.remove_solution")</button>
                     }
                 </div>
             }
@@ -75,14 +75,14 @@
                 @for p in posts {
                     @if isAccepted(p.id) {
                         <article class="ft-post is-accepted" id="post-@p.id">
-                            <div class="ft-solution-tag"><span class="ft-solution-check">✓</span>Meilleure réponse</div>
+                            <div class="ft-solution-tag"><span class="ft-solution-check">✓</span>@Lang.tc(ctx.caller, "forumtopic.best_answer")</div>
                             <div class="ft-post-row">
                                 <div class="ft-avatar">@(avatarFor(p.author))</div>
                                 <div class="ft-post-main">
                                     <div class="ft-post-head">
                                         <span class="ft-name">@p.authorHandle</span>
                                         @if isOp(p.author) {
-                                            <span class="ft-op-badge" title="Auteur du sujet">Auteur</span>
+                                            <span class="ft-op-badge" title='@(Lang.tc(ctx.caller, "forumtopic.topic_author"))'>@Lang.tc(ctx.caller, "forumtopic.author")</span>
                                         }
                                         <span class="ft-when">@(when(p.at))</span>
                                     </div>
@@ -90,12 +90,12 @@
                                     <div class="ft-actions">
                                         <span class="ft-actions-left">
                                             @if likedBy(p.id) {
-                                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Je n'aime plus">
+                                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title='@(Lang.tc(ctx.caller, "forumtopic.unlike"))'>
                                                     <span class="ft-heart">♥</span>
                                                     <span class="ft-count">@p.likeCount</span>
                                                 </button>
                                             } else {
-                                                <button class="ft-act" @click="toggleLike(p.id)" title="J'aime">
+                                                <button class="ft-act" @click="toggleLike(p.id)" title='@(Lang.tc(ctx.caller, "common.like"))'>
                                                     <span class="ft-heart">♡</span>
                                                     @if hasLikes(p.likeCount) {
                                                         <span class="ft-count">@p.likeCount</span>
@@ -105,22 +105,22 @@
                                         </span>
                                         <span class="ft-actions-right">
                                             @if isAuthor {
-                                                <button class="ft-act ft-act-accepted" @click="unaccept" title="Retirer la solution">✓ Solution</button>
+                                                <button class="ft-act ft-act-accepted" @click="unaccept" title='@(Lang.tc(ctx.caller, "forumtopic.remove_solution"))'>✓ @Lang.tc(ctx.caller, "forumtopic.solution")</button>
                                             }
-                                            <a class="ft-act" href="#reply" title="Répondre">↩ Répondre</a>
+                                            <a class="ft-act" href="#reply" title='@(Lang.tc(ctx.caller, "common.reply"))'>↩ @Lang.tc(ctx.caller, "common.reply")</a>
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             @if isOp(p.author) {
                                 <div class="ft-summary">
-                                    <span class="ft-sum-stat">@views vues</span>
+                                    <span class="ft-sum-stat">@views @Lang.tc(ctx.caller, "forumtopic.views")</span>
                                     <span class="ft-sum-dot">·</span>
-                                    <span class="ft-sum-stat">@likeTotal j'aime</span>
+                                    <span class="ft-sum-stat">@likeTotal @Lang.tc(ctx.caller, "forumtopic.likes")</span>
                                     <span class="ft-sum-dot">·</span>
-                                    <span class="ft-sum-stat">@participants participants</span>
+                                    <span class="ft-sum-stat">@participants @Lang.tc(ctx.caller, "forumtopic.participants")</span>
                                     <span class="ft-sum-dot">·</span>
-                                    <span class="ft-sum-stat">@readTime min de lecture</span>
+                                    <span class="ft-sum-stat">@readTime @Lang.tc(ctx.caller, "forumtopic.read_time")</span>
                                 </div>
                             }
                         </article>
@@ -132,7 +132,7 @@
                                     <div class="ft-post-head">
                                         <span class="ft-name">@p.authorHandle</span>
                                         @if isOp(p.author) {
-                                            <span class="ft-op-badge" title="Auteur du sujet">Auteur</span>
+                                            <span class="ft-op-badge" title='@(Lang.tc(ctx.caller, "forumtopic.topic_author"))'>@Lang.tc(ctx.caller, "forumtopic.author")</span>
                                         }
                                         <span class="ft-when">@(when(p.at))</span>
                                     </div>
@@ -140,12 +140,12 @@
                                     <div class="ft-actions">
                                         <span class="ft-actions-left">
                                             @if likedBy(p.id) {
-                                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title="Je n'aime plus">
+                                                <button class="ft-act ft-liked" @click="toggleLike(p.id)" title='@(Lang.tc(ctx.caller, "forumtopic.unlike"))'>
                                                     <span class="ft-heart">♥</span>
                                                     <span class="ft-count">@p.likeCount</span>
                                                 </button>
                                             } else {
-                                                <button class="ft-act" @click="toggleLike(p.id)" title="J'aime">
+                                                <button class="ft-act" @click="toggleLike(p.id)" title='@(Lang.tc(ctx.caller, "common.like"))'>
                                                     <span class="ft-heart">♡</span>
                                                     @if hasLikes(p.likeCount) {
                                                         <span class="ft-count">@p.likeCount</span>
@@ -155,22 +155,22 @@
                                         </span>
                                         <span class="ft-actions-right">
                                             @if canAccept(p.author) {
-                                                <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title="Marquer comme solution">Accepter la réponse</button>
+                                                <button class="ft-act ft-act-accept" @click="acceptPost(p.id)" title='@(Lang.tc(ctx.caller, "forumtopic.mark_solution"))'>@Lang.tc(ctx.caller, "forumtopic.accept_answer")</button>
                                             }
-                                            <a class="ft-act" href="#reply" title="Répondre">↩ Répondre</a>
+                                            <a class="ft-act" href="#reply" title='@(Lang.tc(ctx.caller, "common.reply"))'>↩ @Lang.tc(ctx.caller, "common.reply")</a>
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             @if isOp(p.author) {
                                 <div class="ft-summary">
-                                    <span class="ft-sum-stat">@views vues</span>
+                                    <span class="ft-sum-stat">@views @Lang.tc(ctx.caller, "forumtopic.views")</span>
                                     <span class="ft-sum-dot">·</span>
-                                    <span class="ft-sum-stat">@likeTotal j'aime</span>
+                                    <span class="ft-sum-stat">@likeTotal @Lang.tc(ctx.caller, "forumtopic.likes")</span>
                                     <span class="ft-sum-dot">·</span>
-                                    <span class="ft-sum-stat">@participants participants</span>
+                                    <span class="ft-sum-stat">@participants @Lang.tc(ctx.caller, "forumtopic.participants")</span>
                                     <span class="ft-sum-dot">·</span>
-                                    <span class="ft-sum-stat">@readTime min de lecture</span>
+                                    <span class="ft-sum-stat">@readTime @Lang.tc(ctx.caller, "forumtopic.read_time")</span>
                                 </div>
                             }
                         </article>
@@ -179,37 +179,37 @@
             </div>
 
             @if (showNewer or showOlder) {
-                <nav class="ft-pager" aria-label="Pages du sujet">
-                    @if showNewer { <a class="ft-pager-btn" href="@(pageHref(page - 1))">← Précédent</a> } else { <span class="ft-pager-sp"></span> }
-                    <span class="ft-pager-at">Page @(page + 1)</span>
-                    @if showOlder { <a class="ft-pager-btn" href="@(pageHref(page + 1))">Suivant →</a> } else { <span class="ft-pager-sp"></span> }
+                <nav class="ft-pager" aria-label='@(Lang.tc(ctx.caller, "forumtopic.pages_label"))'>
+                    @if showNewer { <a class="ft-pager-btn" href="@(pageHref(page - 1))">← @Lang.tc(ctx.caller, "forumtopic.previous")</a> } else { <span class="ft-pager-sp"></span> }
+                    <span class="ft-pager-at">@Lang.tc(ctx.caller, "forumtopic.page") @(page + 1)</span>
+                    @if showOlder { <a class="ft-pager-btn" href="@(pageHref(page + 1))">@Lang.tc(ctx.caller, "forumtopic.next") →</a> } else { <span class="ft-pager-sp"></span> }
                 </nav>
             }
 
             @if closed {
                 <div class="ft-closed-note">
-                    🔒 Ce sujet est fermé. Les nouvelles réponses sont désactivées.
+                    🔒 @Lang.tc(ctx.caller, "forumtopic.closed_note")
                 </div>
             } else {
                 <div class="ft-composer" id="reply">
-                    <h3 class="ft-composer-title">Répondre</h3>
+                    <h3 class="ft-composer-title">@Lang.tc(ctx.caller, "common.reply")</h3>
                     @if signedIn {
                         <form @submit="submitReply" secure>
                             <ValidationSummary />
-                            <TextArea name="body" label="Votre réponse" bind="@body" required />
+                            <TextArea name="body" label='@(Lang.tc(ctx.caller, "forumtopic.your_reply"))' bind="@body" required />
                             <div class="ft-composer-actions">
-                                <Button kind="primary" type="submit">Publier la réponse</Button>
+                                <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "forumtopic.post_reply")</Button>
                             </div>
                         </form>
                     } else {
-                        <p class="ft-signin-note">Choisissez un pseudo sur <a href="/me">votre profil</a> pour rejoindre la discussion.</p>
+                        <p class="ft-signin-note">@Lang.tc(ctx.caller, "forumtopic.signin_pre") <a href="/me">@Lang.tc(ctx.caller, "forumtopic.signin_profile")</a> @Lang.tc(ctx.caller, "forumtopic.signin_post")</p>
                     }
                 </div>
             }
 
         </main>
 
-        <aside class="ft-timeline" aria-label="Chronologie du sujet">
+        <aside class="ft-timeline" aria-label='@(Lang.tc(ctx.caller, "forumtopic.timeline_label"))'>
             <div class="ft-tl-card">
                 <div class="ft-tl-date">@lastActivity</div>
                 <div class="ft-tl-count">
@@ -221,11 +221,11 @@
                     <span class="ft-tl-thumb"></span>
                 </div>
                 <div class="ft-tl-date ft-tl-start">@firstActivity</div>
-                <div class="ft-tl-read">@readTime min de lecture</div>
+                <div class="ft-tl-read">@readTime @Lang.tc(ctx.caller, "forumtopic.read_time")</div>
             </div>
             <div class="ft-tl-btns">
-                <a class="ft-tl-btn ft-tl-btn-primary" href="#reply" title="Répondre">↩ Répondre</a>
-                <span class="ft-tl-btn ft-tl-bell" title="Suivre ce sujet">🔔 Suivre</span>
+                <a class="ft-tl-btn ft-tl-btn-primary" href="#reply" title='@(Lang.tc(ctx.caller, "common.reply"))'>↩ @Lang.tc(ctx.caller, "common.reply")</a>
+                <span class="ft-tl-btn ft-tl-bell" title='@(Lang.tc(ctx.caller, "forumtopic.follow_topic"))'>🔔 @Lang.tc(ctx.caller, "common.follow")</span>
             </div>
         </aside>
 
@@ -235,9 +235,9 @@
 
     <div class="ft-empty">
         <div class="ft-empty-icon">🗂️</div>
-        <h2>Sujet introuvable</h2>
-        <p>Ce sujet n'existe pas ou a peut-être été supprimé.</p>
-        <a class="ft-back" href="/forum">← Retour au forum</a>
+        <h2>@Lang.tc(ctx.caller, "forumtopic.not_found_title")</h2>
+        <p>@Lang.tc(ctx.caller, "forumtopic.not_found_body")</p>
+        <a class="ft-back" href="/forum">← @Lang.tc(ctx.caller, "forumtopic.back_to_forum")</a>
     </div>
 
 }

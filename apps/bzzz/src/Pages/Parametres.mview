@@ -5,15 +5,15 @@
 @description "Gérez votre profil Pulse, vos communautés et votre compte. Modifiez votre identifiant, votre nom affiché et votre bio, puis déconnectez-vous en toute sécurité."
 
 <section class="pl-set-head mv-anim-fadein">
-    <h1 class="pl-set-title">Paramètres</h1>
-    <p class="pl-set-lede">Gérez votre profil, vos communautés et votre compte.</p>
+    <h1 class="pl-set-title">@Lang.tc(ctx.caller, "nav.parametres")</h1>
+    <p class="pl-set-lede">@Lang.tc(ctx.caller, "parametres.lede")</p>
 </section>
 
 @if (not bound) {
     @if isAnon {
-        <MessageBar intent="warning">Vous naviguez en tant qu'invité. Connectez-vous (en haut à droite), puis choisissez un identifiant ci-dessous pour finaliser votre profil.</MessageBar>
+        <MessageBar intent="warning">@Lang.tc(ctx.caller, "parametres.guest_msg")</MessageBar>
     } else {
-        <MessageBar intent="success">Vous êtes connecté — choisissez un identifiant ci-dessous pour finaliser votre profil Pulse.</MessageBar>
+        <MessageBar intent="success">@Lang.tc(ctx.caller, "parametres.connected_msg")</MessageBar>
     }
 }
 
@@ -21,16 +21,16 @@
     <div class="pl-set-col">
 
         <div class="pl-set-card">
-            <h2 class="pl-set-h2">Profil</h2>
-            <p class="pl-set-sub">Votre identifiant est unique sur tout Pulse et lié à votre Internet Identity. Votre nom affiché et votre bio apparaissent sur votre profil public.</p>
+            <h2 class="pl-set-h2">@Lang.tc(ctx.caller, "acct.profile")</h2>
+            <p class="pl-set-sub">@Lang.tc(ctx.caller, "parametres.profile_sub")</p>
 
             <form @submit="saveIdentity" secure>
                 <ValidationSummary />
-                <InputText name="handle" label="Identifiant" bind="@handle" required />
-                <p class="pl-set-hint">2–20 caractères · lettres minuscules, chiffres et tirets bas · commence par une lettre.</p>
-                <InputText name="display" label="Nom affiché" bind="@display" />
+                <InputText name="handle" label='@(Lang.tc(ctx.caller, "parametres.handle_label"))' bind="@handle" required />
+                <p class="pl-set-hint">@Lang.tc(ctx.caller, "parametres.handle_hint")</p>
+                <InputText name="display" label='@(Lang.tc(ctx.caller, "parametres.display_label"))' bind="@display" />
                 <div class="pl-set-actions">
-                    <Button kind="primary" type="submit">Enregistrer l'identifiant</Button>
+                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "parametres.save_identity")</Button>
                 </div>
             </form>
 
@@ -38,24 +38,39 @@
                 <div class="pl-set-divider"></div>
                 <form @submit="saveBio" secure>
                     <ValidationSummary />
-                    <TextArea name="bio" label="Bio" bind="@bio" />
+                    <TextArea name="bio" label='@(Lang.tc(ctx.caller, "parametres.bio_label"))' bind="@bio" />
                     <div class="pl-set-actions">
-                        <Button kind="primary" type="submit">Enregistrer la bio</Button>
+                        <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "parametres.save_bio")</Button>
                     </div>
                 </form>
             }
 
-            <p class="pl-set-linked">🔗 Lié à votre Internet Identity : <code class="pl-set-linked-id">@principalText</code></p>
+            <p class="pl-set-linked">🔗 @Lang.tc(ctx.caller, "parametres.linked_to") <code class="pl-set-linked-id">@principalText</code></p>
         </div>
 
         <div class="pl-set-card">
-            <h2 class="pl-set-h2">Notifications</h2>
-            <p class="pl-set-note">Bientôt — préférences à venir. Vous pourrez bientôt choisir ce qui déclenche une alerte (mentions, réponses, nouveaux abonnés).</p>
+            <h2 class="pl-set-h2">@Lang.tc(ctx.caller, "top.notifications")</h2>
+            <p class="pl-set-note">@Lang.tc(ctx.caller, "parametres.notif_note")</p>
         </div>
 
         <div class="pl-set-card">
-            <h2 class="pl-set-h2">Confidentialité</h2>
-            <p class="pl-set-note">Bientôt — préférences à venir. Le contrôle de la visibilité de votre profil et de vos publications arrive dans une prochaine mise à jour.</p>
+            <h2 class="pl-set-h2">@Lang.tc(ctx.caller, "parametres.privacy")</h2>
+            <p class="pl-set-note">@Lang.tc(ctx.caller, "parametres.privacy_note")</p>
+        </div>
+
+        <div class="pl-set-card">
+            <h2 class="pl-set-h2">@Lang.tc(ctx.caller, "top.language")</h2>
+            <p class="pl-set-sub">@Lang.tc(ctx.caller, "parametres.lang_sub")</p>
+            <form @submit="setLang" secure>
+                <select name="lang" class="pl-set-select" aria-label='@(Lang.tc(ctx.caller, "top.language"))'>
+                    @if (curLang == "fr") { <option value="fr" selected>Français</option> } else { <option value="fr">Français</option> }
+                    @if (curLang == "en") { <option value="en" selected>English</option> } else { <option value="en">English</option> }
+                    @if (curLang == "es") { <option value="es" selected>Español</option> } else { <option value="es">Español</option> }
+                </select>
+                <div class="pl-set-actions">
+                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.save")</Button>
+                </div>
+            </form>
         </div>
 
     </div>
@@ -63,9 +78,9 @@
     <div class="pl-set-col">
 
         <div class="pl-set-card">
-            <h2 class="pl-set-h2">Communautés</h2>
+            <h2 class="pl-set-h2">@Lang.tc(ctx.caller, "nav.communautes")</h2>
             @if (myServers.size() > 0) {
-                <p class="pl-set-sub">Les communautés que vous avez rejointes.</p>
+                <p class="pl-set-sub">@Lang.tc(ctx.caller, "parametres.comms_sub")</p>
                 <ul class="pl-set-comms">
                     @for s in myServers {
                         <li class="pl-set-comm">
@@ -80,24 +95,24 @@
                                 <a class="pl-set-comm-name" href="/server/@s.id">@s.name</a>
                                 <span class="pl-set-comm-sum">@(summaryOf(s.id))</span>
                             </div>
-                            <a class="pl-set-comm-link" href="/server/@s.id">Ouvrir →</a>
+                            <a class="pl-set-comm-link" href="/server/@s.id">@Lang.tc(ctx.caller, "parametres.open") →</a>
                         </li>
                     }
                 </ul>
             } else {
                 <div class="pl-set-empty">
                     <div class="pl-set-empty-ico">🏘️</div>
-                    <p>Vous n'avez rejoint aucune communauté.</p>
-                    <a class="pl-set-link" href="/communautes">Parcourir les communautés →</a>
+                    <p>@Lang.tc(ctx.caller, "parametres.no_comms")</p>
+                    <a class="pl-set-link" href="/communautes">@Lang.tc(ctx.caller, "parametres.browse_comms") →</a>
                 </div>
             }
         </div>
 
         <div class="pl-set-card pl-set-account">
-            <h2 class="pl-set-h2">Compte</h2>
-            <p class="pl-set-sub">Vous restez connecté via votre Internet Identity. Déconnectez-vous pour terminer votre session sur cet appareil.</p>
+            <h2 class="pl-set-h2">@Lang.tc(ctx.caller, "top.account")</h2>
+            <p class="pl-set-sub">@Lang.tc(ctx.caller, "parametres.account_sub")</p>
             <div class="pl-set-actions">
-                <button class="pl-set-out" type="button" data-mv-signout>Déconnexion</button>
+                <button class="pl-set-out" type="button" data-mv-signout>@Lang.tc(ctx.caller, "parametres.logout")</button>
             </div>
         </div>
 
@@ -157,6 +172,12 @@
         transition: background .12s ease, border-color .12s ease; }
     .pl-set-out:hover { background: rgba(239,68,68,.1); border-color: var(--pulse-danger); }
 
+    .pl-set-select { width: 100%; box-sizing: border-box; appearance: none;
+        background: var(--pulse-surface-2); color: var(--pulse-text);
+        border: 1px solid var(--pulse-border); border-radius: 10px;
+        padding: .6rem .8rem; font-size: .92rem; font-family: inherit; cursor: pointer; }
+    .pl-set-select:focus { outline: none; border-color: var(--pulse-primary); }
+
     @media (max-width: 820px) {
         .pl-set-grid { grid-template-columns: 1fr; }
     }
@@ -174,6 +195,7 @@
     var handle : Text = "";
     var display : Text = "";
     var bio : Text = "";
+    var curLang : Text = "fr";  // caller's current UI-language code (preselects the switcher)
 
     func onLoad(ctx : Context) {
         load(ctx);
@@ -183,6 +205,7 @@
         bound := Identity.isBound(ctx.caller);
         isAnon := Principal.isAnonymous(ctx.caller);
         principalText := Principal.toText(ctx.caller);
+        curLang := Lang.code(Lang.of(ctx.caller));
         myServers := Servers.serversOf(ctx.caller);
         switch (Identity.profileOf(ctx.caller)) {
             case (?p) {
@@ -205,8 +228,8 @@
             handle required "Choisissez un identifiant.";
         };
         switch (Identity.bindChecked(ctx.caller, handle, display)) {
-            case (#ok h) { toast("Profil enregistré — vous êtes désormais @" # h # "."); };
-            case (#taken) { toast("Cet identifiant est déjà pris — essayez-en un autre."); };
+            case (#ok h) { toast(Lang.tc(ctx.caller, "parametres.t_saved") # " @" # h # "."); };
+            case (#taken) { toast(Lang.tc(ctx.caller, "parametres.t_taken")); };
             case (#invalid msg) { toast(msg); };
         };
         load(ctx);
@@ -214,10 +237,19 @@
 
     func saveBio(ctx : Context) : async () {
         if (Identity.setBio(ctx.caller, bio)) {
-            toast("Bio mise à jour.");
+            toast(Lang.tc(ctx.caller, "parametres.t_bio_updated"));
         } else {
-            toast("Choisissez un identifiant avant d'ajouter une bio.");
+            toast(Lang.tc(ctx.caller, "parametres.t_bio_need_handle"));
         };
+        load(ctx);
+    };
+
+    // Set the caller's UI language from the switcher form (value rides in ctx.form).
+    func setLang(ctx : Context) : async () {
+        for ((k, v) in ctx.form.vals()) {
+            if (k == "lang") { Lang.set(ctx.caller, Lang.parse(v)) };
+        };
+        toast(Lang.tc(ctx.caller, "parametres.lang_saved"));
         load(ctx);
     };
 }

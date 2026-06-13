@@ -7,26 +7,26 @@
 <div class="pl-msg">
     @if bound {
         <header class="pl-msg-head">
-            <h1 class="pl-msg-title">Messages</h1>
-            <span class="pl-msg-e2ee">🔒 Chiffré de bout en bout</span>
+            <h1 class="pl-msg-title">@Lang.tc(ctx.caller, "nav.messages")</h1>
+            <span class="pl-msg-e2ee">🔒 @Lang.tc(ctx.caller, "messages.e2ee")</span>
         </header>
 
         <div class="pl-msg-search" aria-hidden="true">
             <span class="pl-msg-search-ico">🔍</span>
-            <span class="pl-msg-search-ph">Rechercher…</span>
+            <span class="pl-msg-search-ph">@Lang.tc(ctx.caller, "messages.search_ph")</span>
         </div>
 
-        <nav class="pl-msg-tabs" aria-label="Filtres de conversations">
-            <span class="pl-msg-tab is-active">Tous</span>
-            <span class="pl-msg-tab">Non lus</span>
-            <span class="pl-msg-tab">Groupes</span>
+        <nav class="pl-msg-tabs" aria-label='@(Lang.tc(ctx.caller, "messages.tabs_aria"))'>
+            <span class="pl-msg-tab is-active">@Lang.tc(ctx.caller, "messages.tab_all")</span>
+            <span class="pl-msg-tab">@Lang.tc(ctx.caller, "messages.tab_unread")</span>
+            <span class="pl-msg-tab">@Lang.tc(ctx.caller, "messages.tab_groups")</span>
         </nav>
 
         @if (convos.size() == 0) {
             <div class="pl-msg-empty">
                 <div class="pl-msg-empty-ico">💬</div>
-                <p class="pl-msg-empty-title">Aucune conversation</p>
-                <p class="pl-msg-empty-sub">Lancez un message direct ou créez un groupe pour commencer à discuter en toute sécurité.</p>
+                <p class="pl-msg-empty-title">@Lang.tc(ctx.caller, "messages.empty_title")</p>
+                <p class="pl-msg-empty-sub">@Lang.tc(ctx.caller, "messages.empty_sub")</p>
             </div>
         } else {
             <ul class="pl-msg-list">
@@ -49,33 +49,33 @@
                 }
             </ul>
             @if (showNewer or showOlder) {
-                <nav class="pl-msg-pager" aria-label="Pages de la boîte de réception">
-                    @if showNewer { <a class="pl-msg-pager-btn" href="@(pageHref(page - 1))">← Récents</a> } else { <span class="pl-msg-pager-sp"></span> }
-                    <span class="pl-msg-pager-at">Page @(page + 1)</span>
-                    @if showOlder { <a class="pl-msg-pager-btn" href="@(pageHref(page + 1))">Anciens →</a> } else { <span class="pl-msg-pager-sp"></span> }
+                <nav class="pl-msg-pager" aria-label='@(Lang.tc(ctx.caller, "messages.pager_aria"))'>
+                    @if showNewer { <a class="pl-msg-pager-btn" href="@(pageHref(page - 1))">← @Lang.tc(ctx.caller, "messages.pager_newer")</a> } else { <span class="pl-msg-pager-sp"></span> }
+                    <span class="pl-msg-pager-at">@Lang.tc(ctx.caller, "messages.pager_page") @(page + 1)</span>
+                    @if showOlder { <a class="pl-msg-pager-btn" href="@(pageHref(page + 1))">@Lang.tc(ctx.caller, "messages.pager_older") →</a> } else { <span class="pl-msg-pager-sp"></span> }
                 </nav>
             }
         }
 
         <div class="pl-msg-fab">
-            <Dialog id="wa-new-direct" trigger="✎" title="Nouvelle conversation">
-                <p class="pl-msg-dialog-hint">Démarrez un message direct avec un identifiant Pulse.</p>
+            <Dialog id="wa-new-direct" trigger="✎" title='@(Lang.tc(ctx.caller, "messages.new_direct_title"))'>
+                <p class="pl-msg-dialog-hint">@Lang.tc(ctx.caller, "messages.new_direct_hint")</p>
                 <form @submit="startChat" secure>
                     <ValidationSummary />
-                    <InputText name="peerHandle" label="Identifiant" bind="@peerHandle" required />
+                    <InputText name="peerHandle" label='@(Lang.tc(ctx.caller, "messages.handle_label"))' bind="@peerHandle" required />
                     <div class="pl-msg-dialog-actions">
-                        <Button kind="primary" type="submit">Démarrer la conversation</Button>
+                        <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "messages.start_direct_btn")</Button>
                     </div>
                 </form>
             </Dialog>
-            <Dialog id="wa-new-group" trigger="👥" title="Nouveau groupe">
-                <p class="pl-msg-dialog-hint">Nommez votre groupe et ajoutez des membres par identifiant (séparés par des virgules).</p>
+            <Dialog id="wa-new-group" trigger="👥" title='@(Lang.tc(ctx.caller, "messages.new_group_title"))'>
+                <p class="pl-msg-dialog-hint">@Lang.tc(ctx.caller, "messages.new_group_hint")</p>
                 <form @submit="startGroupChat" secure>
                     <ValidationSummary />
-                    <InputText name="groupName" label="Nom du groupe" bind="@groupName" required />
-                    <InputText name="groupHandles" label="Identifiants des membres" bind="@groupHandles" />
+                    <InputText name="groupName" label='@(Lang.tc(ctx.caller, "messages.group_name_label"))' bind="@groupName" required />
+                    <InputText name="groupHandles" label='@(Lang.tc(ctx.caller, "messages.group_members_label"))' bind="@groupHandles" />
                     <div class="pl-msg-dialog-actions">
-                        <Button kind="primary" type="submit">Créer le groupe</Button>
+                        <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "messages.create_group_btn")</Button>
                     </div>
                 </form>
             </Dialog>
@@ -83,8 +83,8 @@
     } else {
         <div class="pl-msg-empty pl-msg-empty-locked">
             <div class="pl-msg-empty-ico">🔒</div>
-            <p class="pl-msg-empty-title">Choisissez d'abord un identifiant</p>
-            <p class="pl-msg-empty-sub">Vous avez besoin d'un identifiant Pulse avant de pouvoir envoyer des messages chiffrés. <a class="pl-msg-link" href="/">Réclamez votre identifiant</a> pour commencer.</p>
+            <p class="pl-msg-empty-title">@Lang.tc(ctx.caller, "messages.locked_title")</p>
+            <p class="pl-msg-empty-sub">@Lang.tc(ctx.caller, "messages.locked_sub_pre") <a class="pl-msg-link" href="/">@Lang.tc(ctx.caller, "messages.locked_link")</a> @Lang.tc(ctx.caller, "messages.locked_sub_post")</p>
         </div>
     }
 </div>

@@ -6,35 +6,35 @@
 @if (not authed) {
     <main class="pl-wl"><div class="pl-wl-card">
         <a class="pl-wl-brand" href="/welcome"><span class="pl-wl-chip" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg></span><span class="pl-wl-word">PULSE</span></a>
-        <h1 class="pl-wl-title">Connexion avec Internet Identity</h1>
-        <p class="pl-wl-sub">Sécurisé, privé et décentralisé</p>
-        <button data-mv-signin class="pl-wl-signin" type="button"><span class="pl-wl-inf" aria-hidden="true">∞</span> Se connecter</button>
-        <a class="pl-wl-link" href="https://internetcomputer.org/internet-identity">Qu'est-ce qu'Internet Identity ?</a>
+        <h1 class="pl-wl-title">@Lang.tc(ctx.caller, "welcome.title")</h1>
+        <p class="pl-wl-sub">@Lang.tc(ctx.caller, "welcome.sub")</p>
+        <button data-mv-signin class="pl-wl-signin" type="button"><span class="pl-wl-inf" aria-hidden="true">∞</span> @Lang.tc(ctx.caller, "common.login")</button>
+        <a class="pl-wl-link" href="https://internetcomputer.org/internet-identity">@Lang.tc(ctx.caller, "welcome.what_is_ii")</a>
         <ul class="pl-wl-benefits">
-            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> Aucun mot de passe à retenir</li>
-            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> Connexion sécurisée</li>
-            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> Identité privée</li>
-            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> Expérience compatible ICP</li>
+            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> @Lang.tc(ctx.caller, "welcome.benefit_nopass")</li>
+            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> @Lang.tc(ctx.caller, "welcome.benefit_secure")</li>
+            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> @Lang.tc(ctx.caller, "welcome.benefit_private")</li>
+            <li><span class="pl-wl-tick" aria-hidden="true">✓</span> @Lang.tc(ctx.caller, "welcome.benefit_icp")</li>
         </ul>
     </div></main>
 } else if bound {
     <main class="pl-wl"><div class="pl-wl-card">
         <a class="pl-wl-brand" href="/welcome"><span class="pl-wl-chip" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg></span><span class="pl-wl-word">PULSE</span></a>
-        <h1 class="pl-wl-title">Bienvenue, @@@boundHandle</h1>
-        <p class="pl-wl-sub">Redirection vers Pulse…</p>
-        <a class="pl-wl-signin" href="/"><span class="pl-wl-inf" aria-hidden="true">∞</span> Entrer dans Pulse</a>
+        <h1 class="pl-wl-title">@Lang.tc(ctx.caller, "welcome.welcome_back"), @@@boundHandle</h1>
+        <p class="pl-wl-sub">@Lang.tc(ctx.caller, "welcome.redirecting")</p>
+        <a class="pl-wl-signin" href="/"><span class="pl-wl-inf" aria-hidden="true">∞</span> @Lang.tc(ctx.caller, "welcome.enter")</a>
     </div></main>
 } else {
     <main class="pl-wl"><div class="pl-wl-card">
         <a class="pl-wl-brand" href="/welcome"><span class="pl-wl-chip" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg></span><span class="pl-wl-word">PULSE</span></a>
-        <h1 class="pl-wl-title">Choisissez votre identifiant</h1>
-        <p class="pl-wl-sub">Votre nom partout sur Pulse.</p>
+        <h1 class="pl-wl-title">@Lang.tc(ctx.caller, "welcome.choose_handle")</h1>
+        <p class="pl-wl-sub">@Lang.tc(ctx.caller, "welcome.handle_sub")</p>
         <form @submit="claim" secure class="pl-wl-form">
             <ValidationSummary />
-            <InputText name="handle" label="Identifiant" bind="@handle" required />
-            <button class="pl-wl-signin" type="submit"><span class="pl-wl-inf" aria-hidden="true">∞</span> Créer mon identifiant</button>
+            <InputText name="handle" label='@(Lang.tc(ctx.caller, "welcome.handle_label"))' bind="@handle" required />
+            <button class="pl-wl-signin" type="submit"><span class="pl-wl-inf" aria-hidden="true">∞</span> @Lang.tc(ctx.caller, "welcome.create_handle")</button>
         </form>
-        <p class="pl-wl-pidline">Connecté en tant que <code class="pl-wl-pid">@principalText</code></p>
+        <p class="pl-wl-pidline">@Lang.tc(ctx.caller, "welcome.connected_as") <code class="pl-wl-pid">@principalText</code></p>
     </div></main>
 }
 

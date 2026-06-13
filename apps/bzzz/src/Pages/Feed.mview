@@ -14,12 +14,12 @@
      <div class="pl-feed-composer-row">
       <span class="pl-feed-ava">@meAvatar</span>
       <div class="pl-feed-composer-field">
-       <TextArea name="body" label="" placeholder="Quoi de neuf ?!" bind="@body" required />
+       <TextArea name="body" label="" placeholder='@(Lang.tc(ctx.caller, "feed.composer_ph"))' bind="@body" required />
       </div>
      </div>
      <div class="pl-feed-composer-foot">
-      <span class="pl-feed-counter">@(remaining()) restants</span>
-      <Button kind="primary" type="submit">Publier</Button>
+      <span class="pl-feed-counter">@(remaining()) @Lang.tc(ctx.caller, "feed.remaining")</span>
+      <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.post")</Button>
      </div>
     </form>
    </section>
@@ -27,19 +27,19 @@
    <section class="pl-feed-claim">
     <span class="pl-feed-claim-ico">🐝</span>
     <div class="pl-feed-claim-body">
-     <strong>Choisissez un pseudo pour commencer à publier.</strong>
-     <p>Définissez votre pseudo sur la page <a href="/me">profil</a>, puis revenez partager votre première publication.</p>
+     <strong>@Lang.tc(ctx.caller, "feed.claim_title")</strong>
+     <p>@Lang.tc(ctx.caller, "feed.claim_body_pre")<a href="/me">@Lang.tc(ctx.caller, "feed.claim_link")</a>@Lang.tc(ctx.caller, "feed.claim_body_post")</p>
     </div>
    </section>
   }
 
-  <nav class="pl-feed-tabs" aria-label="Filtres du fil">
+  <nav class="pl-feed-tabs" aria-label='@(Lang.tc(ctx.caller, "feed.tabs_aria"))'>
    @if followingTab {
-    <a class="pl-feed-tab" href="/feed">Pour vous</a>
-    <a class="pl-feed-tab pl-feed-tab-active" href="/feed?tab=following">Abonnements</a>
+    <a class="pl-feed-tab" href="/feed">@Lang.tc(ctx.caller, "feed.tab_foryou")</a>
+    <a class="pl-feed-tab pl-feed-tab-active" href="/feed?tab=following">@Lang.tc(ctx.caller, "feed.tab_following")</a>
    } else {
-    <a class="pl-feed-tab pl-feed-tab-active" href="/feed">Pour vous</a>
-    <a class="pl-feed-tab" href="/feed?tab=following">Abonnements</a>
+    <a class="pl-feed-tab pl-feed-tab-active" href="/feed">@Lang.tc(ctx.caller, "feed.tab_foryou")</a>
+    <a class="pl-feed-tab" href="/feed?tab=following">@Lang.tc(ctx.caller, "feed.tab_following")</a>
    }
   </nav>
 
@@ -47,7 +47,7 @@
    <section class="pl-feed-stream">
     @for p in timeline {
      <article class="pl-feed-post" id="post-@(p.id)">
-      <a class="pl-feed-post-link" href="/feed/p/@(p.id)" aria-label="Ouvrir la publication"></a>
+      <a class="pl-feed-post-link" href="/feed/p/@(p.id)" aria-label='@(Lang.tc(ctx.caller, "feed.open_post"))'></a>
       <span class="pl-feed-ava">@(avatarOf(p.author))</span>
       <div class="pl-feed-post-body">
        <div class="pl-feed-post-head">
@@ -58,19 +58,19 @@
        </div>
        <div class="pl-feed-post-text">@p.text</div>
        <div class="pl-feed-post-actions">
-        <a class="pl-feed-act pl-feed-act-reply" href="/feed/p/@(p.id)" title="Répondre">
+        <a class="pl-feed-act pl-feed-act-reply" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "common.reply"))'>
          <span class="pl-feed-act-ico">💬</span>
          <span class="pl-feed-act-n">@(p.replyCount)</span>
         </a>
-        <button class="pl-feed-act pl-feed-act-repost @(repostClass(p.id))" @click="repost(p.id)" type="button" title="Reposter">
+        <button class="pl-feed-act pl-feed-act-repost @(repostClass(p.id))" @click="repost(p.id)" type="button" title='@(Lang.tc(ctx.caller, "feed.repost"))'>
          <span class="pl-feed-act-ico">🔁</span>
          <span class="pl-feed-act-n">@(p.reposts)</span>
         </button>
-        <button class="pl-feed-act pl-feed-act-like @(likeClass(p.id))" @click="like(p.id)" type="button" title="Aimer">
+        <button class="pl-feed-act pl-feed-act-like @(likeClass(p.id))" @click="like(p.id)" type="button" title='@(Lang.tc(ctx.caller, "feed.like"))'>
          <span class="pl-feed-act-ico">@(heart(p.id))</span>
          <span class="pl-feed-act-n">@(p.likes)</span>
         </button>
-        <a class="pl-feed-act pl-feed-act-save" href="/feed/p/@(p.id)" title="Sauvegarder">
+        <a class="pl-feed-act pl-feed-act-save" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "feed.save"))'>
          <span class="pl-feed-act-ico">🔖</span>
         </a>
        </div>
@@ -79,10 +79,10 @@
     }
    </section>
    @if (showOlder or page > 0) {
-    <nav class="pl-feed-pager" aria-label="Pages du fil">
-     @if (page > 0) { <a class="pl-feed-pager-btn" href="@(pageHref(page - 1))">← Plus récents</a> } else { <span class="pl-feed-pager-sp"></span> }
-     <span class="pl-feed-pager-info">Page @(page + 1)</span>
-     @if showOlder { <a class="pl-feed-pager-btn" href="@(pageHref(page + 1))">Plus anciens →</a> } else { <span class="pl-feed-pager-sp"></span> }
+    <nav class="pl-feed-pager" aria-label='@(Lang.tc(ctx.caller, "feed.pager_aria"))'>
+     @if (page > 0) { <a class="pl-feed-pager-btn" href="@(pageHref(page - 1))">← @Lang.tc(ctx.caller, "feed.newer")</a> } else { <span class="pl-feed-pager-sp"></span> }
+     <span class="pl-feed-pager-info">@Lang.tc(ctx.caller, "feed.page") @(page + 1)</span>
+     @if showOlder { <a class="pl-feed-pager-btn" href="@(pageHref(page + 1))">@Lang.tc(ctx.caller, "feed.older") →</a> } else { <span class="pl-feed-pager-sp"></span> }
     </nav>
    }
   } else {
@@ -96,7 +96,7 @@
 
  <aside class="pl-feed-rail">
   <section class="pl-feed-panel">
-   <h3 class="pl-feed-panel-title">Qui suivre</h3>
+   <h3 class="pl-feed-panel-title">@Lang.tc(ctx.caller, "feed.who_to_follow")</h3>
    @if hasSuggestions {
     <ul class="pl-feed-suggest">
      @for s in suggestions {
@@ -114,28 +114,28 @@
       </li>
      }
     </ul>
-    <a class="pl-feed-showmore" href="/messages">Voir plus</a>
+    <a class="pl-feed-showmore" href="/messages">@Lang.tc(ctx.caller, "feed.show_more")</a>
    } else {
-    <p class="pl-feed-panel-empty">Aucun autre membre pour l'instant. Invitez un ami sur Pulse.</p>
+    <p class="pl-feed-panel-empty">@Lang.tc(ctx.caller, "feed.no_members")</p>
    }
   </section>
 
   <section class="pl-feed-panel">
-   <h3 class="pl-feed-panel-title">Quoi de neuf</h3>
+   <h3 class="pl-feed-panel-title">@Lang.tc(ctx.caller, "feed.whats_new")</h3>
    <ul class="pl-feed-trends">
     <li class="pl-feed-trend">
-     <span class="pl-feed-trend-cat">Sur Pulse · En direct</span>
+     <span class="pl-feed-trend-cat">@Lang.tc(ctx.caller, "feed.trend_live")</span>
      <span class="pl-feed-trend-tag">#OnChain</span>
-     <span class="pl-feed-trend-n">@postCount publications</span>
+     <span class="pl-feed-trend-n">@postCount @Lang.tc(ctx.caller, "feed.posts")</span>
     </li>
     <li class="pl-feed-trend">
-     <span class="pl-feed-trend-cat">Social · Tendance</span>
+     <span class="pl-feed-trend-cat">@Lang.tc(ctx.caller, "feed.trend_social")</span>
      <span class="pl-feed-trend-tag">#InternetComputer</span>
-     <span class="pl-feed-trend-n">@memberCount sur Pulse</span>
+     <span class="pl-feed-trend-n">@memberCount @Lang.tc(ctx.caller, "feed.on_pulse")</span>
     </li>
     <li class="pl-feed-trend">
-     <span class="pl-feed-trend-cat">Votre réseau</span>
-     <span class="pl-feed-trend-tag">@followingCount abonnements · @followerCount abonnés</span>
+     <span class="pl-feed-trend-cat">@Lang.tc(ctx.caller, "feed.your_network")</span>
+     <span class="pl-feed-trend-tag">@followingCount @Lang.tc(ctx.caller, "feed.following_n") · @followerCount @Lang.tc(ctx.caller, "feed.followers_n")</span>
     </li>
    </ul>
   </section>

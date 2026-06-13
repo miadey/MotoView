@@ -173,22 +173,22 @@
     <input type="checkbox" id="fl-burger" class="fl-burger" hidden>
 
     <AppBar>
-        <label class="fl-burger-btn" for="fl-burger" aria-label="Toggle forum menu">☰</label>
+        <label class="fl-burger-btn" for="fl-burger" aria-label='@(Lang.tc(ctx.caller, "forumnav.toggle"))'>☰</label>
         <a class="mv-appbar-brand" href="/"><span class="pl-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"></path></svg></span> <span class="pl-wordmark">PULSE</span></a>
         <span class="mv-appbar-spacer"></span>
-        <label class="bz-cmdk-trigger" for="bz-cmdk" title="Search — jump to anything" aria-label="Search">🔍</label>
+        <label class="bz-cmdk-trigger" for="bz-cmdk" title='@(Lang.tc(ctx.caller, "forumnav.search_title"))' aria-label='@(Lang.tc(ctx.caller, "top.search"))'>🔍</label>
         <ThemePicker />
         <details class="mv-acct" data-mv-authed style="display:none">
-            <summary title="Account"><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
+            <summary title='@(Lang.tc(ctx.caller, "top.account"))'><span class="mv-acct-ava">@(Identity.avatarOf(ctx.caller))</span><span class="mv-acct-id">@(Identity.atHandleOf(ctx.caller))</span></summary>
             <div class="mv-acct-menu">
-                <a class="mv-acct-item" href="/">Home</a>
-                <a class="mv-acct-item" href="/me">My profile</a>
-                <a class="mv-acct-item" href="/status">My status</a>
-                <a class="mv-acct-item" href="/messages">Messages</a>
-                <a class="mv-acct-item" href="/admin">Admin console</a>
-                <a class="mv-acct-item" href="/about">About Pulse</a>
+                <a class="mv-acct-item" href="/">@Lang.tc(ctx.caller, "nav.home")</a>
+                <a class="mv-acct-item" href="/me">@Lang.tc(ctx.caller, "acct.myprofile")</a>
+                <a class="mv-acct-item" href="/status">@Lang.tc(ctx.caller, "acct.mystatus")</a>
+                <a class="mv-acct-item" href="/messages">@Lang.tc(ctx.caller, "nav.messages")</a>
+                <a class="mv-acct-item" href="/admin">@Lang.tc(ctx.caller, "acct.admin_console")</a>
+                <a class="mv-acct-item" href="/about">@Lang.tc(ctx.caller, "acct.about")</a>
                 <div class="mv-acct-sep"></div>
-                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>Sign out</button>
+                <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>@Lang.tc(ctx.caller, "acct.logout")</button>
             </div>
         </details>
     </AppBar>
@@ -196,29 +196,29 @@
     <div class="fl-shell">
         <aside class="fl-sidebar">
             <!-- Primary navigation -->
-            <nav class="fl-sb-section" aria-label="Forum">
+            <nav class="fl-sb-section" aria-label='@(Lang.tc(ctx.caller, "forumnav.aria"))'>
                 @if (Text.startsWith(ctx.path, #text "/forum") and not Text.startsWith(ctx.path, #text "/forum/c/")) {
                     <a class="fl-item is-active" href="/forum">
                         <span class="fl-item-ico">≡</span>
-                        <span class="fl-item-label">Sujets</span>
+                        <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.topics")</span>
                     </a>
                 } else {
                     <a class="fl-item" href="/forum">
                         <span class="fl-item-ico">≡</span>
-                        <span class="fl-item-label">Sujets</span>
+                        <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.topics")</span>
                     </a>
                 }
                 <a class="fl-item" href="/forum?view=mine">
                     <span class="fl-item-ico">👤</span>
-                    <span class="fl-item-label">Mes publications</span>
+                    <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.myposts")</span>
                 </a>
                 <a class="fl-item" href="/messages">
                     <span class="fl-item-ico">✉</span>
-                    <span class="fl-item-label">Mes messages</span>
+                    <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.mymessages")</span>
                 </a>
                 <a class="fl-item" href="/forum?view=more">
                     <span class="fl-item-ico">⋯</span>
-                    <span class="fl-item-label">Plus</span>
+                    <span class="fl-item-label">@Lang.tc(ctx.caller, "common.more")</span>
                 </a>
             </nav>
 
@@ -227,11 +227,11 @@
                 <div class="fl-sb-head">Ressources <span class="fl-sb-head-caret">▾</span></div>
                 <a class="fl-item" href="/about">
                     <span class="fl-item-ico">📘</span>
-                    <span class="fl-item-label">Docs développeur</span>
+                    <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.devdocs")</span>
                 </a>
                 <a class="fl-item" href="/feed">
                     <span class="fl-item-ico">&lt;/&gt;</span>
-                    <span class="fl-item-label">Centre d'apprentissage</span>
+                    <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.learning")</span>
                 </a>
             </div>
 
@@ -255,7 +255,7 @@
                 }
                 <a class="fl-item" href="/forum#categories">
                     <span class="fl-item-ico">≡</span>
-                    <span class="fl-item-label">Toutes les catégories</span>
+                    <span class="fl-item-label">@Lang.tc(ctx.caller, "forumnav.allcats")</span>
                 </a>
             </div>
 
@@ -276,19 +276,19 @@
             <div class="fl-sb-divider"></div>
 
             <!-- Pulse app-switcher: keep the super-app reachable from the forum -->
-            <div class="fl-apps-label">Apps Pulse</div>
+            <div class="fl-apps-label">@Lang.tc(ctx.caller, "forumnav.apps")</div>
             <div class="fl-apps">
-                <a class="fl-app" href="/" title="Home">🏠</a>
-                <a class="fl-app" href="/feed" title="Feed">📰</a>
-                <a class="fl-app" href="/communautes" title="Servers">💬</a>
-                <a class="fl-app" href="/forum" title="Forum">🗨️</a>
-                <a class="fl-app" href="/messages" title="Messages">✉️</a>
-                <a class="fl-app" href="/status" title="Status">🟢</a>
+                <a class="fl-app" href="/" title='@(Lang.tc(ctx.caller, "nav.home"))'>🏠</a>
+                <a class="fl-app" href="/feed" title='@(Lang.tc(ctx.caller, "forumnav.feed"))'>📰</a>
+                <a class="fl-app" href="/communautes" title='@(Lang.tc(ctx.caller, "nav.communautes"))'>💬</a>
+                <a class="fl-app" href="/forum" title='@(Lang.tc(ctx.caller, "nav.forums"))'>🗨️</a>
+                <a class="fl-app" href="/messages" title='@(Lang.tc(ctx.caller, "nav.messages"))'>✉️</a>
+                <a class="fl-app" href="/status" title='@(Lang.tc(ctx.caller, "forumnav.status"))'>🟢</a>
             </div>
 
             <div class="fl-sb-foot">
-                <a class="fl-app" href="/forum/new" title="Create a topic" style="margin-left:-6px">＋</a>
-                <button type="button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">⌨</button>
+                <a class="fl-app" href="/forum/new" title='@(Lang.tc(ctx.caller, "forumnav.newtopic"))' style="margin-left:-6px">＋</a>
+                <button type="button" title='@(Lang.tc(ctx.caller, "forumnav.shortcuts"))' aria-label='@(Lang.tc(ctx.caller, "forumnav.shortcuts"))'>⌨</button>
             </div>
         </aside>
 
@@ -305,13 +305,13 @@
                 <div class="fl-rail" aria-hidden="true"></div>
             </div>
             <footer class="fl-foot">
-                Pulse · <a href="/about" style="color:inherit;text-decoration:underline">À propos</a>
+                Pulse · <a href="/about" style="color:inherit;text-decoration:underline">@Lang.tc(ctx.caller, "common.about")</a>
             </footer>
         </div>
     </div>
-    <BzShell path="@ctx.path" />
+    <BzShell path="@ctx.path" lang="@(Lang.of(ctx.caller))" />
 } else {
-    <div class="bz-gate-redirect" style="min-height:70vh;display:flex;align-items:center;justify-content:center;gap:.4rem;color:var(--colorNeutralForeground3);font-family:var(--fontFamilyBase)">Taking you to sign in… <a href="/welcome" style="color:var(--colorBrandForeground1);font-weight:600">Continue →</a></div>
+    <div class="bz-gate-redirect" style="min-height:70vh;display:flex;align-items:center;justify-content:center;gap:.4rem;color:var(--colorNeutralForeground3);font-family:var(--fontFamilyBase)">@Lang.tc(ctx.caller, "app.redirecting") <a href="/welcome" style="color:var(--colorBrandForeground1);font-weight:600">@Lang.tc(ctx.caller, "common.continue") →</a></div>
 }
 </body>
 </html>

@@ -9,58 +9,58 @@
         <span class="pl-ab-chip" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg>
         </span>
-        <h1 class="pl-ab-title">À propos de Pulse</h1>
-        <p class="pl-ab-lead">Pulse transforme les conversations rapides en communautés durables.</p>
-        <p class="pl-ab-sub">Un fil social, des forums, du chat en direct et de la messagerie privée — réunis dans une seule app, qui tourne entièrement sur l'Internet Computer.</p>
+        <h1 class="pl-ab-title">@Lang.tc(ctx.caller, "about.title")</h1>
+        <p class="pl-ab-lead">@Lang.tc(ctx.caller, "about.lead")</p>
+        <p class="pl-ab-sub">@Lang.tc(ctx.caller, "about.sub")</p>
     </header>
 
     <div class="pl-ab-bar">
         <span class="pl-ab-bar-dot" aria-hidden="true">∞</span>
-        Pulse fonctionne entièrement sur l'Internet Computer — pas de serveurs, pas d'intermédiaires.
+        @Lang.tc(ctx.caller, "about.bar")
     </div>
 
-    <h2 class="pl-ab-h2">Cinq façons d'échanger</h2>
+    <h2 class="pl-ab-h2">@Lang.tc(ctx.caller, "about.modes_h2")</h2>
     <div class="pl-ab-grid">
         <article class="pl-ab-mode">
             <span class="pl-ab-ic" aria-hidden="true">⚡</span>
-            <h3>Fil</h3>
-            <p>Des publications courtes et vivantes pour suivre le rythme de votre communauté en temps réel.</p>
+            <h3>@Lang.tc(ctx.caller, "about.mode_feed_h")</h3>
+            <p>@Lang.tc(ctx.caller, "about.mode_feed_p")</p>
         </article>
         <article class="pl-ab-mode">
             <span class="pl-ab-ic" aria-hidden="true">💬</span>
-            <h3>Forum</h3>
-            <p>Des discussions structurées par catégories et sujets, pensées pour durer et se retrouver.</p>
+            <h3>@Lang.tc(ctx.caller, "about.mode_forum_h")</h3>
+            <p>@Lang.tc(ctx.caller, "about.mode_forum_p")</p>
         </article>
         <article class="pl-ab-mode">
             <span class="pl-ab-ic" aria-hidden="true">🔴</span>
-            <h3>Chat</h3>
-            <p>Du chat en direct dans des salons partagés, pour les échanges rapides et spontanés.</p>
+            <h3>@Lang.tc(ctx.caller, "about.mode_chat_h")</h3>
+            <p>@Lang.tc(ctx.caller, "about.mode_chat_p")</p>
         </article>
         <article class="pl-ab-mode">
             <span class="pl-ab-ic" aria-hidden="true">✉️</span>
-            <h3>Messages</h3>
-            <p>De la messagerie privée, en tête-à-tête, hébergée dans votre propre canister.</p>
+            <h3>@Lang.tc(ctx.caller, "about.mode_msg_h")</h3>
+            <p>@Lang.tc(ctx.caller, "about.mode_msg_p")</p>
         </article>
         <article class="pl-ab-mode">
             <span class="pl-ab-ic" aria-hidden="true">📣</span>
-            <h3>Annonces</h3>
-            <p>Des annonces officielles mises en avant, pour que rien d'important ne passe inaperçu.</p>
+            <h3>@Lang.tc(ctx.caller, "about.mode_ann_h")</h3>
+            <p>@Lang.tc(ctx.caller, "about.mode_ann_p")</p>
         </article>
     </div>
 
-    <h2 class="pl-ab-h2">Conçu pour la confiance</h2>
+    <h2 class="pl-ab-h2">@Lang.tc(ctx.caller, "about.trust_h2")</h2>
     <div class="pl-ab-cards">
         <article class="pl-ab-card">
             <h3>Internet Identity</h3>
-            <p>Connexion sécurisée, privée et sans mot de passe. Tout Pulse — cette page comprise — nécessite une identité Internet Identity.</p>
+            <p>@Lang.tc(ctx.caller, "about.trust_ii_p")</p>
         </article>
         <article class="pl-ab-card">
-            <h3>On-chain, votre canister</h3>
-            <p>Aucun backend à qui faire confiance. Vos messages vivent dans votre propre canister, sur la chaîne.</p>
+            <h3>@Lang.tc(ctx.caller, "about.trust_chain_h")</h3>
+            <p>@Lang.tc(ctx.caller, "about.trust_chain_p")</p>
         </article>
         <article class="pl-ab-card">
             <h3>Open source</h3>
-            <p>Pulse est open source et s'exécute intégralement sur l'Internet Computer — sans serveurs, sans intermédiaires.</p>
+            <p>@Lang.tc(ctx.caller, "about.trust_oss_p")</p>
         </article>
     </div>
 </section>

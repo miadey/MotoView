@@ -1,0 +1,679 @@
+/// Lang service — per-principal UI language + translation lookup.
+///
+/// Stateful service (see Identity.mo): the MotoView compiler instantiates one
+/// shared `Lang` at actor scope, so every page/layout reads the same directory
+/// of language preferences for the canister's lifetime.
+///
+/// Languages: French (fr, the source/default), English (en), Spanish (es).
+/// `ctx.caller` is resolved from the mv_session cookie by the runtime, so the
+/// per-principal preference works on every render — no request-header access
+/// needed (the Ctx type deliberately exposes none).
+///
+/// Call patterns the COMPILER accepts (see compiler/src/parser.rs):
+///   * body text:   @Lang.t(lang, "key")            (paren-balanced; quotes ok)
+///   * attribute:   attr='@(Lang.t(lang, "key"))'   (SINGLE-quote the attr; a
+///                  double-quoted attr stops at the first inner " and breaks)
+///   * layout/comp: @Lang.tc(ctx.caller, "key")     (no @code needed to cache lang)
+///
+/// Translation table: ONE arm per key in `entry`, holding (fr, en, es) together,
+/// so adding a key — or a whole new language column — is a one-line change.
+import HashMap "mo:base/HashMap";
+import Principal "mo:base/Principal";
+import Text "mo:base/Text";
+import Iter "mo:base/Iter";
+
+module {
+
+  public class Lang() {
+
+    public type Code = { #fr; #en; #es };
+
+    // per-principal language preference; default #fr
+    let prefs = HashMap.HashMap<Principal, Code>(64, Principal.equal, Principal.hash);
+
+    public func of(p : Principal) : Code {
+      switch (prefs.get(p)) { case (?c) { c }; case null { #fr } };
+    };
+    public func set(p : Principal, c : Code) { prefs.put(p, c) };
+
+    /// Parse a short code ("fr"/"en"/"es") to a Code; anything else -> #fr.
+    public func parse(s : Text) : Code {
+      if (s == "en") { #en } else if (s == "es") { #es } else { #fr };
+    };
+    public func code(c : Code) : Text {
+      switch (c) { case (#fr) { "fr" }; case (#en) { "en" }; case (#es) { "es" } };
+    };
+    /// Human label for a language (in its own language).
+    public func langName(c : Code) : Text {
+      switch (c) { case (#fr) { "Français" }; case (#en) { "English" }; case (#es) { "Español" } };
+    };
+    public func all() : [Code] { [#fr, #en, #es] };
+
+    // ---- translation lookup -------------------------------------------------
+    /// Translate `key` into language `c`. Falls back: missing es/en -> fr;
+    /// missing fr -> the key itself (so a forgotten key is visible, never blank).
+    public func t(c : Code, key : Text) : Text {
+      let (fr, en, es) = entry(key);
+      switch (c) {
+        case (#fr) { if (fr == "") { key } else { fr } };
+        case (#en) { if (en == "") { if (fr == "") { key } else { fr } } else { en } };
+        case (#es) { if (es == "") { if (fr == "") { key } else { fr } } else { es } };
+      };
+    };
+    /// Convenience for layouts/components (no @code to cache `lang`).
+    public func tc(caller : Principal, key : Text) : Text { t(of(caller), key) };
+
+    // ---- translation table --------------------------------------------------
+    // ONE arm per key: (French, English, Spanish). "" = not translated (falls
+    // back per `t`). Keys are namespaced: `nav.*`, `top.*`, `common.*` are the
+    // SHARED GLOSSARY (reuse before inventing a page key); page keys are
+    // `<page>.*`. Page arms are inserted by the i18n build just above `case (_)`.
+    func entry(k : Text) : (Text, Text, Text) {
+      switch (k) {
+        // ---- primary navigation (sidebar + mobile tabs) ----
+        case ("nav.home") { ("Accueil", "Home", "Inicio") };
+        case ("nav.communautes") { ("Communautés", "Communities", "Comunidades") };
+        case ("nav.forums") { ("Forums", "Forums", "Foros") };
+        case ("nav.chat") { ("Chat en direct", "Live chat", "Chat en vivo") };
+        case ("nav.messages") { ("Messages", "Messages", "Mensajes") };
+        case ("nav.annonces") { ("Annonces", "Announcements", "Anuncios") };
+        case ("nav.evenements") { ("Événements", "Events", "Eventos") };
+        case ("nav.profil") { ("Profil", "Profile", "Perfil") };
+        case ("nav.parametres") { ("Paramètres", "Settings", "Ajustes") };
+        case ("nav.principal") { ("Navigation principale", "Main navigation", "Navegación principal") };
+
+        // ---- top bar / shell chrome ----
+        case ("top.search") { ("Rechercher", "Search", "Buscar") };
+        case ("top.search_ph") { ("Rechercher dans Pulse…", "Search Pulse…", "Buscar en Pulse…") };
+        case ("top.notifications") { ("Notifications", "Notifications", "Notificaciones") };
+        case ("top.account") { ("Compte", "Account", "Cuenta") };
+        case ("top.goto") { ("Aller à", "Go to", "Ir a") };
+        case ("top.close_search") { ("Fermer la recherche", "Close search", "Cerrar búsqueda") };
+        case ("top.language") { ("Langue", "Language", "Idioma") };
+        case ("top.cmdk_open") { ("Ouvrir la recherche et la palette (Ctrl/Cmd+K)", "Open search and jump-to palette (Ctrl/Cmd+K)", "Abrir búsqueda y paleta (Ctrl/Cmd+K)") };
+        case ("top.cmdk_dialog") { ("Rechercher et naviguer", "Search and jump to", "Buscar y navegar") };
+        case ("top.search_field") { ("Rechercher…", "Search…", "Buscar…") };
+
+        // ---- account menu ----
+        case ("acct.profile") { ("Profil", "Profile", "Perfil") };
+        case ("acct.settings") { ("Paramètres", "Settings", "Ajustes") };
+        case ("acct.logout") { ("Se déconnecter", "Log out", "Cerrar sesión") };
+        case ("acct.myprofile") { ("Mon profil", "My profile", "Mi perfil") };
+        case ("acct.admin") { ("Administration", "Administration", "Administración") };
+        case ("acct.about") { ("À propos de Pulse", "About Pulse", "Acerca de Pulse") };
+
+        // ---- app-wide misc ----
+        case ("app.redirecting") { ("On vous redirige vers la connexion…", "Redirecting you to sign in…", "Redirigiéndote al inicio de sesión…") };
+        case ("common.about") { ("À propos", "About", "Acerca de") };
+        case ("common.continue") { ("Continuer", "Continue", "Continuar") };
+
+        // ---- common actions / words (reuse everywhere) ----
+        case ("common.post") { ("Publier", "Post", "Publicar") };
+        case ("common.reply") { ("Répondre", "Reply", "Responder") };
+        case ("common.comment") { ("Commenter", "Comment", "Comentar") };
+        case ("common.cancel") { ("Annuler", "Cancel", "Cancelar") };
+        case ("common.save") { ("Enregistrer", "Save", "Guardar") };
+        case ("common.send") { ("Envoyer", "Send", "Enviar") };
+        case ("common.delete") { ("Supprimer", "Delete", "Eliminar") };
+        case ("common.edit") { ("Modifier", "Edit", "Editar") };
+        case ("common.create") { ("Créer", "Create", "Crear") };
+        case ("common.join") { ("Rejoindre", "Join", "Unirse") };
+        case ("common.leave") { ("Quitter", "Leave", "Salir") };
+        case ("common.follow") { ("Suivre", "Follow", "Seguir") };
+        case ("common.following") { ("Abonné", "Following", "Siguiendo") };
+        case ("common.like") { ("J'aime", "Like", "Me gusta") };
+        case ("common.repost") { ("Republier", "Repost", "Republicar") };
+        case ("common.share") { ("Partager", "Share", "Compartir") };
+        case ("common.loading") { ("Chargement…", "Loading…", "Cargando…") };
+        case ("common.more") { ("Plus", "More", "Más") };
+        case ("common.back") { ("Retour", "Back", "Atrás") };
+        case ("common.close") { ("Fermer", "Close", "Cerrar") };
+        case ("common.login") { ("Se connecter", "Log in", "Iniciar sesión") };
+        case ("common.search") { ("Rechercher", "Search", "Buscar") };
+        case ("common.members") { ("membres", "members", "miembros") };
+        case ("common.online") { ("en ligne", "online", "en línea") };
+        case ("common.empty") { ("Rien à afficher pour l'instant.", "Nothing to show yet.", "Nada que mostrar todavía.") };
+
+        // ---- forum shell (ForumLayout sidebar / app-switcher / account) ----
+        case ("acct.mystatus") { ("Mon statut", "My status", "Mi estado") };
+        case ("acct.admin_console") { ("Console d'administration", "Admin console", "Consola de administración") };
+        case ("forumnav.toggle") { ("Basculer le menu du forum", "Toggle forum menu", "Alternar menú del foro") };
+        case ("forumnav.search_title") { ("Rechercher — aller n'importe où", "Search — jump to anything", "Buscar — ir a cualquier lugar") };
+        case ("forumnav.aria") { ("Forum", "Forum", "Foro") };
+        case ("forumnav.feed") { ("Fil", "Feed", "Feed") };
+        case ("forumnav.status") { ("Statut", "Status", "Estado") };
+        case ("forumnav.newtopic") { ("Créer un sujet", "Create a topic", "Crear un tema") };
+        case ("forumnav.shortcuts") { ("Raccourcis clavier", "Keyboard shortcuts", "Atajos de teclado") };
+        case ("forumnav.topics") { ("Sujets", "Topics", "Temas") };
+        case ("forumnav.myposts") { ("Mes publications", "My posts", "Mis publicaciones") };
+        case ("forumnav.mymessages") { ("Mes messages", "My messages", "Mis mensajes") };
+        case ("forumnav.devdocs") { ("Docs développeur", "Developer docs", "Documentación para desarrolladores") };
+        case ("forumnav.learning") { ("Centre d'apprentissage", "Learning center", "Centro de aprendizaje") };
+        case ("forumnav.allcats") { ("Toutes les catégories", "All categories", "Todas las categorías") };
+        case ("forumnav.apps") { ("Apps Pulse", "Pulse apps", "Apps Pulse") };
+
+        // ---- PAGE KEYS (i18n build: 493 keys across 23 pages) ----
+        case ("about.title") { ("À propos de Pulse", "About Pulse", "Acerca de Pulse") };
+        case ("about.lead") { ("Pulse transforme les conversations rapides en communautés durables.", "Pulse turns fast conversations into lasting communities.", "Pulse convierte las conversaciones rápidas en comunidades duraderas.") };
+        case ("about.sub") { ("Un fil social, des forums, du chat en direct et de la messagerie privée — réunis dans une seule app, qui tourne entièrement sur l'Internet Computer.", "A social feed, forums, live chat and private messaging — all in one app, running entirely on the Internet Computer.", "Un feed social, foros, chat en vivo y mensajería privada, todo en una sola app que funciona íntegramente en Internet Computer.") };
+        case ("about.bar") { ("Pulse fonctionne entièrement sur l'Internet Computer — pas de serveurs, pas d'intermédiaires.", "Pulse runs entirely on the Internet Computer — no servers, no middlemen.", "Pulse funciona íntegramente en Internet Computer, sin servidores ni intermediarios.") };
+        case ("about.modes_h2") { ("Cinq façons d'échanger", "Five ways to connect", "Cinco formas de comunicarte") };
+        case ("about.mode_feed_h") { ("Fil", "Feed", "Feed") };
+        case ("about.mode_feed_p") { ("Des publications courtes et vivantes pour suivre le rythme de votre communauté en temps réel.", "Short, lively posts to keep up with your community in real time.", "Publicaciones breves y dinámicas para seguir el ritmo de tu comunidad en tiempo real.") };
+        case ("about.mode_forum_h") { ("Forum", "Forum", "Foro") };
+        case ("about.mode_forum_p") { ("Des discussions structurées par catégories et sujets, pensées pour durer et se retrouver.", "Discussions structured by categories and topics, built to last and easy to find.", "Debates organizados por categorías y temas, pensados para durar y encontrar fácilmente.") };
+        case ("about.mode_chat_h") { ("Chat", "Chat", "Chat") };
+        case ("about.mode_chat_p") { ("Du chat en direct dans des salons partagés, pour les échanges rapides et spontanés.", "Live chat in shared rooms, for quick and spontaneous exchanges.", "Chat en vivo en salas compartidas, para conversaciones rápidas y espontáneas.") };
+        case ("about.mode_msg_h") { ("Messages", "Messages", "Mensajes") };
+        case ("about.mode_msg_p") { ("De la messagerie privée, en tête-à-tête, hébergée dans votre propre canister.", "Private one-on-one messaging, hosted in your own canister.", "Mensajería privada uno a uno, alojada en tu propio canister.") };
+        case ("about.mode_ann_h") { ("Annonces", "Announcements", "Anuncios") };
+        case ("about.mode_ann_p") { ("Des annonces officielles mises en avant, pour que rien d'important ne passe inaperçu.", "Official announcements highlighted, so nothing important slips by.", "Anuncios oficiales destacados, para que nada importante pase desapercibido.") };
+        case ("about.trust_h2") { ("Conçu pour la confiance", "Built for trust", "Diseñado para la confianza") };
+        case ("about.trust_ii_p") { ("Connexion sécurisée, privée et sans mot de passe. Tout Pulse — cette page comprise — nécessite une identité Internet Identity.", "Secure, private, passwordless sign-in. All of Pulse — including this page — requires an Internet Identity.", "Inicio de sesión seguro, privado y sin contraseña. Todo Pulse, incluida esta página, requiere una Internet Identity.") };
+        case ("about.trust_chain_h") { ("On-chain, votre canister", "On-chain, your canister", "En cadena, tu canister") };
+        case ("about.trust_chain_p") { ("Aucun backend à qui faire confiance. Vos messages vivent dans votre propre canister, sur la chaîne.", "No backend to trust. Your messages live in your own canister, on-chain.", "Ningún backend en quien confiar. Tus mensajes viven en tu propio canister, en la cadena.") };
+        case ("about.trust_oss_p") { ("Pulse est open source et s'exécute intégralement sur l'Internet Computer — sans serveurs, sans intermédiaires.", "Pulse is open source and runs entirely on the Internet Computer — no servers, no middlemen.", "Pulse es de código abierto y funciona íntegramente en Internet Computer, sin servidores ni intermediarios.") };
+        case ("admin.bootstrap_title") { ("Configurer l'administration", "Set up administration", "Configurar la administración") };
+        case ("admin.bootstrap_lead_1") { ("Personne n'administre encore Pulse. La première personne à revendiquer le siège devient le", "No one administers Pulse yet. The first person to claim the seat becomes the", "Nadie administra Pulse todavía. La primera persona en reclamar el puesto se convierte en el") };
+        case ("admin.bootstrap_founder") { ("Super Admin fondateur", "founding Super Admin", "Super Admin fundador") };
+        case ("admin.bootstrap_lead_2") { ("— elle pourra ensuite attribuer des rôles à tout le monde. Après cela, cette page sera fermée aux non-membres du personnel.", "— they can then assign roles to everyone. After that, this page will be closed to non-staff members.", "— luego podrá asignar roles a todos. Después de eso, esta página quedará cerrada para quienes no sean del personal.") };
+        case ("admin.you_are") { ("Vous êtes", "You are", "Eres") };
+        case ("admin.claim_super") { ("Revendiquer Super Admin", "Claim Super Admin", "Reclamar Super Admin") };
+        case ("admin.noaccess_title") { ("Vous n'avez pas d'accès admin", "You don't have admin access", "No tienes acceso de administrador") };
+        case ("admin.noaccess_body") { ("Cette console est réservée à la liste d'autorisation du personnel global de Pulse. Demandez à un administrateur existant de vous attribuer un rôle.", "This console is restricted to Pulse's global staff allowlist. Ask an existing administrator to assign you a role.", "Esta consola está reservada a la lista de autorización del personal global de Pulse. Pide a un administrador existente que te asigne un rol.") };
+        case ("admin.your_role") { ("Votre rôle", "Your role", "Tu rol") };
+        case ("admin.title") { ("Administration", "Administration", "Administración") };
+        case ("admin.role_super") { ("Super Admin", "Super Admin", "Super Admin") };
+        case ("admin.role_admin") { ("Admin", "Admin", "Admin") };
+        case ("admin.role_mod") { ("Modérateur", "Moderator", "Moderador") };
+        case ("admin.role_member") { ("Membre", "Member", "Miembro") };
+        case ("admin.legend") { ("Les rôles globaux s'appliquent à toute l'application ; les rôles par communauté se gèrent sur chaque communauté.", "Global roles apply across the whole app; per-community roles are managed within each community.", "Los roles globales se aplican a toda la aplicación; los roles por comunidad se gestionan en cada comunidad.") };
+        case ("admin.stat_users") { ("Utilisateurs", "Users", "Usuarios") };
+        case ("admin.stat_communities") { ("Communautés", "Communities", "Comunidades") };
+        case ("admin.stat_topics") { ("Sujets du forum", "Forum topics", "Temas del foro") };
+        case ("admin.stat_feed_posts") { ("Publications du fil", "Feed posts", "Publicaciones del feed") };
+        case ("admin.stat_staff") { ("Personnel", "Staff", "Personal") };
+        case ("admin.analytics") { ("Analytique", "Analytics", "Analítica") };
+        case ("admin.chart_content_labels") { ("Utilisateurs,Communautés,Sujets,Publications", "Users,Communities,Topics,Posts", "Usuarios,Comunidades,Temas,Publicaciones") };
+        case ("admin.chart_content_title") { ("Contenu de la plateforme", "Platform content", "Contenido de la plataforma") };
+        case ("admin.chart_role_labels") { ("Super Admin,Admin,Modérateur", "Super Admin,Admin,Moderator", "Super Admin,Admin,Moderador") };
+        case ("admin.chart_role_title") { ("Personnel par rôle", "Staff by role", "Personal por rol") };
+        case ("admin.chart_kind_labels") { ("Discussion,Forum,Fil", "Discussion,Forum,Feed", "Discusión,Foro,Feed") };
+        case ("admin.chart_kind_title") { ("Communautés par type", "Communities by type", "Comunidades por tipo") };
+        case ("admin.chart_members_title") { ("Membres par communauté", "Members per community", "Miembros por comunidad") };
+        case ("admin.global_staff") { ("Personnel global", "Global staff", "Personal global") };
+        case ("admin.col_member") { ("Membre", "Member", "Miembro") };
+        case ("admin.col_principal") { ("Principal", "Principal", "Principal") };
+        case ("admin.col_role") { ("Rôle", "Role", "Rol") };
+        case ("admin.col_granted") { ("Attribué", "Granted", "Asignado") };
+        case ("admin.col_actions") { ("Actions", "Actions", "Acciones") };
+        case ("admin.you") { ("vous", "you", "tú") };
+        case ("admin.make_mod") { ("Nommer modérateur", "Make moderator", "Nombrar moderador") };
+        case ("admin.make_admin") { ("Nommer admin", "Make admin", "Nombrar admin") };
+        case ("admin.make_super") { ("Nommer Super Admin", "Make Super Admin", "Nombrar Super Admin") };
+        case ("admin.revoke") { ("Révoquer", "Revoke", "Revocar") };
+        case ("admin.grant_title") { ("Attribuer un rôle", "Assign a role", "Asignar un rol") };
+        case ("admin.grant_hint_1") { ("Saisissez le", "Enter the", "Ingresa el") };
+        case ("admin.grant_hint_2") { ("d'un membre existant et choisissez le rôle à attribuer.", "of an existing member and choose the role to assign.", "de un miembro existente y elige el rol a asignar.") };
+        case ("admin.handle") { ("Handle", "Handle", "Handle") };
+        case ("admin.grant_btn") { ("Attribuer le rôle", "Assign role", "Asignar rol") };
+        case ("admin.all_communities") { ("Toutes les communautés", "All communities", "Todas las comunidades") };
+        case ("admin.no_communities") { ("Aucune communauté n'existe pour l'instant.", "No communities exist yet.", "Aún no existe ninguna comunidad.") };
+        case ("admin.col_name") { ("Nom", "Name", "Nombre") };
+        case ("admin.col_type") { ("Type", "Type", "Tipo") };
+        case ("admin.col_owner") { ("Propriétaire", "Owner", "Propietario") };
+        case ("admin.col_members") { ("Membres", "Members", "Miembros") };
+        case ("admin.kind_discussion") { ("Discussion", "Discussion", "Discusión") };
+        case ("admin.kind_forum") { ("Forum", "Forum", "Foro") };
+        case ("admin.kind_feed") { ("Fil", "Feed", "Feed") };
+        case ("admin.manage") { ("Gérer", "Manage", "Gestionar") };
+        case ("annonces.subtitle") { ("Les mises à jour publiées par la communauté, visibles 24 heures.", "Updates posted by the community, visible for 24 hours.", "Actualizaciones publicadas por la comunidad, visibles durante 24 horas.") };
+        case ("annonces.live") { ("en direct.", "live.", "en directo.") };
+        case ("annonces.empty_title") { ("Aucune annonce pour le moment.", "No announcements yet.", "Aún no hay anuncios.") };
+        case ("annonces.empty_body") { ("Rien n'a été publié pour l'instant. Repassez plus tard pour voir les annonces de la communauté.", "Nothing has been posted yet. Check back later to see the community's announcements.", "Aún no se ha publicado nada. Vuelve más tarde para ver los anuncios de la comunidad.") };
+        case ("annonces.views") { ("vues", "views", "vistas") };
+        case ("annonces.read") { ("Lire", "Read", "Leer") };
+        case ("channel.not_found") { ("Salon introuvable", "Channel not found", "Canal no encontrado") };
+        case ("channel.not_found_desc") { ("Ce salon n'existe pas.", "This channel doesn't exist.", "Este canal no existe.") };
+        case ("channel.browse_servers") { ("Parcourir les serveurs", "Browse servers", "Explorar servidores") };
+        case ("channel.back_to_server") { ("Retour au serveur", "Back to server", "Volver al servidor") };
+        case ("channel.search_channel_ph") { ("Rechercher un salon", "Search a channel", "Buscar un canal") };
+        case ("channel.channels") { ("Salons", "Channels", "Canales") };
+        case ("channel.voice_channels") { ("Salons vocaux", "Voice channels", "Canales de voz") };
+        case ("channel.voice_general") { ("Général", "General", "General") };
+        case ("channel.voice_developers") { ("Développeurs", "Developers", "Desarrolladores") };
+        case ("channel.voice_lounge") { ("Salon de pause", "Lounge", "Sala de descanso") };
+        case ("channel.voice_note") { ("Les salons vocaux sont une maquette visuelle.", "Voice channels are a visual mockup.", "Los canales de voz son una maqueta visual.") };
+        case ("channel.message_one") { ("message", "message", "mensaje") };
+        case ("channel.message_many") { ("messages", "messages", "mensajes") };
+        case ("channel.member_one") { ("membre", "member", "miembro") };
+        case ("channel.member_many") { ("membres", "members", "miembros") };
+        case ("channel.locked") { ("Verrouillé", "Locked", "Bloqueado") };
+        case ("channel.welcome_to") { ("Bienvenue dans", "Welcome to", "Bienvenido a") };
+        case ("channel.welcome_start_a") { ("C'est le tout début du salon", "This is the very beginning of the channel", "Este es el comienzo del canal") };
+        case ("channel.welcome_start_b") { ("Dites bonjour.", "Say hello.", "Saluda.") };
+        case ("channel.msg_deleted") { ("message supprimé", "message deleted", "mensaje eliminado") };
+        case ("channel.edit_message") { ("Modifier le message", "Edit message", "Editar mensaje") };
+        case ("channel.edited") { ("(modifié)", "(edited)", "(editado)") };
+        case ("channel.react") { ("Réagir", "React", "Reaccionar") };
+        case ("channel.thread") { ("Fil", "Thread", "Hilo") };
+        case ("channel.reply_one") { ("réponse", "reply", "respuesta") };
+        case ("channel.reply_many") { ("réponses", "replies", "respuestas") };
+        case ("channel.thread_empty") { ("Aucune réponse pour l'instant — lancez la conversation.", "No replies yet — start the conversation.", "Aún no hay respuestas: inicia la conversación.") };
+        case ("channel.reply_in_thread") { ("Répondre dans le fil", "Reply in thread", "Responder en el hilo") };
+        case ("channel.is_typing") { ("est en train d'écrire…", "is typing…", "está escribiendo…") };
+        case ("channel.replying_to") { ("Réponse à", "Replying to", "Respondiendo a") };
+        case ("channel.locked_notice") { ("Ce salon est verrouillé. Seuls les modérateurs peuvent publier pour le moment.", "This channel is locked. Only moderators can post right now.", "Este canal está bloqueado. Por ahora solo los moderadores pueden publicar.") };
+        case ("channel.muted_notice") { ("Vous êtes réduit au silence sur ce serveur et ne pouvez pas publier.", "You are muted on this server and can't post.", "Estás silenciado en este servidor y no puedes publicar.") };
+        case ("channel.choose_handle") { ("Choisissez un pseudo", "Choose a handle", "Elige un usuario") };
+        case ("channel.join_conversation") { ("pour rejoindre la conversation.", "to join the conversation.", "para unirte a la conversación.") };
+        case ("channel.attach_file") { ("Joindre un fichier", "Attach a file", "Adjuntar un archivo") };
+        case ("channel.send_message_ph") { ("Envoyer un message…", "Send a message…", "Enviar un mensaje…") };
+        case ("channel.team") { ("Équipe", "Team", "Equipo") };
+        case ("channel.online_cat") { ("En ligne", "Online", "En línea") };
+        case ("channel.no_one_online") { ("Personne d'autre n'est en ligne pour l'instant.", "No one else is online right now.", "Nadie más está en línea por ahora.") };
+        case ("chat.coming_soon") { ("Bientôt disponible — cette section arrive dans une prochaine mise à jour de Pulse.", "Coming soon — this section is arriving in an upcoming Pulse update.", "Próximamente — esta sección llegará en una próxima actualización de Pulse.") };
+        case ("conversation.unavailable") { ("Conversation indisponible", "Conversation unavailable", "Conversación no disponible") };
+        case ("conversation.unavailable_body") { ("Cette conversation n'existe pas, ou vous n'en êtes pas membre.", "This conversation doesn't exist, or you're not a member of it.", "Esta conversación no existe o no eres miembro de ella.") };
+        case ("conversation.back_to_messages") { ("Retour aux messages", "Back to messages", "Volver a los mensajes") };
+        case ("conversation.back_to_conversations") { ("Retour aux conversations", "Back to conversations", "Volver a las conversaciones") };
+        case ("conversation.e2ee") { ("Chiffré de bout en bout", "End-to-end encrypted", "Cifrado de extremo a extremo") };
+        case ("conversation.stream_note") { ("Les messages sont chiffrés de bout en bout. Le canister ne stocke que des enveloppes chiffrées opaques — le déchiffrement a lieu entièrement dans votre client.", "Messages are end-to-end encrypted. The canister only stores opaque encrypted envelopes — decryption happens entirely in your client.", "Los mensajes están cifrados de extremo a extremo. El canister solo almacena sobres cifrados opacos: el descifrado ocurre por completo en tu cliente.") };
+        case ("conversation.blank") { ("Aucun message pour l'instant. Dites bonjour — votre message est chiffré avant de quitter votre appareil.", "No messages yet. Say hello — your message is encrypted before it leaves your device.", "Aún no hay mensajes. Saluda: tu mensaje se cifra antes de salir de tu dispositivo.") };
+        case ("conversation.bubble_title") { ("Chiffré de bout en bout — déchiffré dans votre navigateur", "End-to-end encrypted — decrypted in your browser", "Cifrado de extremo a extremo: descifrado en tu navegador") };
+        case ("conversation.ticks_title") { ("Accusé de réception / lecture", "Delivery / read receipt", "Confirmación de entrega / lectura") };
+        case ("conversation.composer_ph") { ("Envoyer un message…", "Send a message…", "Enviar un mensaje…") };
+        case ("conversation.composer_note") { ("Chiffré dans votre navigateur avec vetKeys (une enveloppe par destinataire) avant de quitter votre appareil — le canister ne stocke que du texte chiffré.", "Encrypted in your browser with vetKeys (one envelope per recipient) before it leaves your device — the canister only stores ciphertext.", "Cifrado en tu navegador con vetKeys (un sobre por destinatario) antes de salir de tu dispositivo: el canister solo almacena texto cifrado.") };
+        case ("evenements.sub") { ("Retrouvez ici les événements de vos communautés.", "Find your communities' events here.", "Encuentra aquí los eventos de tus comunidades.") };
+        case ("evenements.soon") { ("Bientôt disponible", "Coming soon", "Disponible próximamente") };
+        case ("evenements.create") { ("Créer un événement", "Create an event", "Crear un evento") };
+        case ("evenements.note") { ("La création d'événements arrive bientôt.", "Event creation is coming soon.", "La creación de eventos llegará pronto.") };
+        case ("evenements.empty_title") { ("Aucun événement programmé pour le moment.", "No events scheduled for now.", "Ningún evento programado por ahora.") };
+        case ("evenements.empty_text") { ("Lorsque vos communautés organiseront des événements, ils apparaîtront ici.", "When your communities organize events, they'll appear here.", "Cuando tus comunidades organicen eventos, aparecerán aquí.") };
+        case ("feed.composer_ph") { ("Quoi de neuf ?!", "What's new?!", "¿Qué hay de nuevo?!") };
+        case ("feed.remaining") { ("restants", "remaining", "restantes") };
+        case ("feed.claim_title") { ("Choisissez un pseudo pour commencer à publier.", "Choose a username to start posting.", "Elige un nombre de usuario para empezar a publicar.") };
+        case ("feed.claim_body_pre") { ("Définissez votre pseudo sur la page ", "Set your username on the ", "Define tu nombre de usuario en la página ") };
+        case ("feed.claim_link") { ("profil", "profile", "perfil") };
+        case ("feed.claim_body_post") { (" page, puis revenez partager votre première publication.", " page, then come back to share your first post.", ", luego vuelve para compartir tu primera publicación.") };
+        case ("feed.tabs_aria") { ("Filtres du fil", "Feed filters", "Filtros del feed") };
+        case ("feed.tab_foryou") { ("Pour vous", "For you", "Para ti") };
+        case ("feed.tab_following") { ("Abonnements", "Following", "Siguiendo") };
+        case ("feed.open_post") { ("Ouvrir la publication", "Open post", "Abrir publicación") };
+        case ("feed.repost") { ("Reposter", "Repost", "Republicar") };
+        case ("feed.like") { ("Aimer", "Like", "Me gusta") };
+        case ("feed.save") { ("Sauvegarder", "Save", "Guardar") };
+        case ("feed.pager_aria") { ("Pages du fil", "Feed pages", "Páginas del feed") };
+        case ("feed.newer") { ("Plus récents", "Newer", "Más recientes") };
+        case ("feed.page") { ("Page", "Page", "Página") };
+        case ("feed.older") { ("Plus anciens", "Older", "Más antiguos") };
+        case ("feed.who_to_follow") { ("Qui suivre", "Who to follow", "A quién seguir") };
+        case ("feed.show_more") { ("Voir plus", "Show more", "Ver más") };
+        case ("feed.no_members") { ("Aucun autre membre pour l'instant. Invitez un ami sur Pulse.", "No other members yet. Invite a friend to Pulse.", "Aún no hay otros miembros. Invita a un amigo a Pulse.") };
+        case ("feed.whats_new") { ("Quoi de neuf", "What's new", "Novedades") };
+        case ("feed.trend_live") { ("Sur Pulse · En direct", "On Pulse · Live", "En Pulse · En directo") };
+        case ("feed.posts") { ("publications", "posts", "publicaciones") };
+        case ("feed.trend_social") { ("Social · Tendance", "Social · Trending", "Social · Tendencia") };
+        case ("feed.on_pulse") { ("sur Pulse", "on Pulse", "en Pulse") };
+        case ("feed.your_network") { ("Votre réseau", "Your network", "Tu red") };
+        case ("feed.following_n") { ("abonnements", "following", "siguiendo") };
+        case ("feed.followers_n") { ("abonnés", "followers", "seguidores") };
+        case ("feedpost.title") { ("Publication", "Post", "Publicación") };
+        case ("feedpost.views") { ("vues", "views", "visualizaciones") };
+        case ("feedpost.reposts") { ("republications", "reposts", "republicaciones") };
+        case ("feedpost.likes") { ("j'aime", "likes", "me gusta") };
+        case ("feedpost.replies") { ("réponses", "replies", "respuestas") };
+        case ("feedpost.repost_action") { ("Reposter", "Repost", "Republicar") };
+        case ("feedpost.like_action") { ("Aimer", "Like", "Me gusta") };
+        case ("feedpost.save") { ("Sauvegarder", "Save", "Guardar") };
+        case ("feedpost.your_reply") { ("Votre réponse", "Your reply", "Tu respuesta") };
+        case ("feedpost.reply_ph") { ("Publiez votre réponse", "Post your reply", "Publica tu respuesta") };
+        case ("feedpost.remaining") { ("restants", "remaining", "restantes") };
+        case ("feedpost.claim_pre") { ("Choisissez un pseudo sur", "Pick a username on", "Elige un nombre de usuario en") };
+        case ("feedpost.claim_link") { ("votre profil", "your profile", "tu perfil") };
+        case ("feedpost.claim_post") { ("pour répondre.", "to reply.", "para responder.") };
+        case ("feedpost.replies_title") { ("Réponses", "Replies", "Respuestas") };
+        case ("feedpost.open_reply") { ("Ouvrir la réponse", "Open reply", "Abrir respuesta") };
+        case ("feedpost.views_title") { ("Vues", "Views", "Visualizaciones") };
+        case ("feedpost.no_replies") { ("Aucune réponse pour le moment. Soyez le premier à répondre.", "No replies yet. Be the first to reply.", "Aún no hay respuestas. Sé el primero en responder.") };
+        case ("feedpost.not_found_title") { ("Publication introuvable", "Post not found", "Publicación no encontrada") };
+        case ("feedpost.not_found_body") { ("Cette publication n'existe pas ou a peut-être été supprimée.", "This post doesn't exist or may have been deleted.", "Esta publicación no existe o puede haber sido eliminada.") };
+        case ("feedpost.back_to_feed") { ("Retour au fil", "Back to feed", "Volver al feed") };
+        case ("feedpost.suggestions_title") { ("Suggestions à suivre", "Who to follow", "Sugerencias para seguir") };
+        case ("feedpost.no_suggestions") { ("Personne d'autre ici pour l'instant.", "Nobody else here yet.", "Nadie más por aquí todavía.") };
+        case ("forum.title") { ("Forums", "Forums", "Foros") };
+        case ("forum.sub") { ("Catégories et derniers sujets de la communauté Pulse.", "Categories and latest topics from the Pulse community.", "Categorías y últimos temas de la comunidad Pulse.") };
+        case ("forum.new_topic") { ("Nouveau sujet", "New topic", "Nuevo tema") };
+        case ("forum.categories") { ("Catégories", "Categories", "Categorías") };
+        case ("forum.no_categories") { ("Aucune catégorie pour l'instant.", "No categories yet.", "Aún no hay categorías.") };
+        case ("forum.topics_lbl") { ("sujets", "topics", "temas") };
+        case ("forum.all_categories") { ("Toutes les catégories", "All categories", "Todas las categorías") };
+        case ("forum.recent_topics") { ("Sujets récents", "Recent topics", "Temas recientes") };
+        case ("forum.no_topics") { ("Aucun sujet pour l'instant.", "No topics yet.", "Aún no hay temas.") };
+        case ("forum.create_first") { ("Créer le premier", "Create the first one", "Crear el primero") };
+        case ("forum.pinned") { ("Épinglé", "Pinned", "Fijado") };
+        case ("forum.closed") { ("Fermé", "Closed", "Cerrado") };
+        case ("forum.solved") { ("Résolu", "Solved", "Resuelto") };
+        case ("forum.replies") { ("Réponses", "Replies", "Respuestas") };
+        case ("forum.pager_label") { ("Pages du forum", "Forum pages", "Páginas del foro") };
+        case ("forum.newer") { ("Plus récents", "Newer", "Más recientes") };
+        case ("forum.page") { ("Page", "Page", "Página") };
+        case ("forum.older") { ("Plus anciens", "Older", "Más antiguos") };
+        case ("forumcat.forum") { ("Forum", "Forum", "Foro") };
+        case ("forumcat.topics") { ("sujets", "topics", "temas") };
+        case ("forumcat.messages") { ("messages", "posts", "mensajes") };
+        case ("forumcat.new_topic") { ("Nouveau sujet", "New topic", "Nuevo tema") };
+        case ("forumcat.tab_recent") { ("Récents", "Recent", "Recientes") };
+        case ("forumcat.tab_categories") { ("Catégories", "Categories", "Categorías") };
+        case ("forumcat.tab_new") { ("Nouveaux", "New", "Nuevos") };
+        case ("forumcat.tab_top") { ("Populaires", "Top", "Populares") };
+        case ("forumcat.empty") { ("Aucun sujet ici pour l'instant.", "No topics here yet.", "Aún no hay temas aquí.") };
+        case ("forumcat.create_first") { ("Créer le premier sujet", "Create the first topic", "Crear el primer tema") };
+        case ("forumcat.pinned") { ("Épinglé", "Pinned", "Fijado") };
+        case ("forumcat.closed") { ("Fermé", "Closed", "Cerrado") };
+        case ("forumcat.solved") { ("Résolu", "Solved", "Resuelto") };
+        case ("forumcat.replies") { ("Réponses", "Replies", "Respuestas") };
+        case ("forumcat.replies_abbr") { ("rép.", "repl.", "resp.") };
+        case ("forumcat.views") { ("Vues", "Views", "Vistas") };
+        case ("forumcat.views_lc") { ("vues", "views", "vistas") };
+        case ("forumcat.author") { ("Auteur", "Author", "Autor") };
+        case ("forumcat.not_found") { ("Cette catégorie n'existe pas.", "This category does not exist.", "Esta categoría no existe.") };
+        case ("forumcat.back_to_forum") { ("Retour au forum", "Back to forum", "Volver al foro") };
+        case ("forumnew.title") { ("Nouveau sujet", "New topic", "Nuevo tema") };
+        case ("forumnew.crumb_forum") { ("Forum", "Forum", "Foro") };
+        case ("forumnew.lede") { ("Posez une question, partagez une création ou lancez une discussion.", "Ask a question, share a creation or start a discussion.", "Haz una pregunta, comparte una creación o inicia una conversación.") };
+        case ("forumnew.category") { ("Catégorie", "Category", "Categoría") };
+        case ("forumnew.field_title") { ("Titre", "Title", "Título") };
+        case ("forumnew.hint_title") { ("Un titre clair et précis aide les autres à trouver et répondre à votre sujet.", "A clear, specific title helps others find and reply to your topic.", "Un título claro y preciso ayuda a otros a encontrar y responder tu tema.") };
+        case ("forumnew.field_body") { ("Contenu", "Content", "Contenido") };
+        case ("forumnew.hint_body") { ("Texte au format Markdown. Soyez descriptif — indiquez ce que vous avez essayé.", "Markdown-formatted text. Be descriptive — say what you have tried.", "Texto en formato Markdown. Sé descriptivo — indica lo que has intentado.") };
+        case ("forumnew.field_tags") { ("Tags", "Tags", "Etiquetas") };
+        case ("forumnew.hint_tags") { ("Facultatif. Séparés par des virgules, ex.", "Optional. Comma-separated, e.g.", "Opcional. Separados por comas, p. ej.") };
+        case ("forumnew.submit") { ("Publier le sujet", "Post topic", "Publicar tema") };
+        case ("forumnew.gate_title") { ("Choisissez d'abord un pseudo", "Choose a username first", "Elige primero un nombre de usuario") };
+        case ("forumnew.gate_body") { ("Il vous faut un pseudo Pulse avant de pouvoir publier un sujet.", "You need a Pulse username before you can post a topic.", "Necesitas un nombre de usuario de Pulse antes de poder publicar un tema.") };
+        case ("forumnew.gate_cta") { ("Configurer votre profil", "Set up your profile", "Configura tu perfil") };
+        case ("forumtopic.forum") { ("Forum", "Forum", "Foro") };
+        case ("forumtopic.solved") { ("Résolu", "Solved", "Resuelto") };
+        case ("forumtopic.in_discussion") { ("En discussion", "In discussion", "En discusión") };
+        case ("forumtopic.pinned") { ("Épinglé", "Pinned", "Fijado") };
+        case ("forumtopic.closed_flag") { ("Fermé", "Closed", "Cerrado") };
+        case ("forumtopic.views") { ("vues", "views", "vistas") };
+        case ("forumtopic.likes") { ("j'aime", "likes", "me gusta") };
+        case ("forumtopic.participants") { ("participants", "participants", "participantes") };
+        case ("forumtopic.read_time") { ("min de lecture", "min read", "min de lectura") };
+        case ("forumtopic.unpin") { ("Désépingler", "Unpin", "Desfijar") };
+        case ("forumtopic.pin") { ("Épingler", "Pin", "Fijar") };
+        case ("forumtopic.reopen") { ("Rouvrir", "Reopen", "Reabrir") };
+        case ("forumtopic.close") { ("Fermer", "Close", "Cerrar") };
+        case ("forumtopic.remove_solution") { ("Retirer la solution", "Remove solution", "Quitar la solución") };
+        case ("forumtopic.best_answer") { ("Meilleure réponse", "Best answer", "Mejor respuesta") };
+        case ("forumtopic.topic_author") { ("Auteur du sujet", "Topic author", "Autor del tema") };
+        case ("forumtopic.author") { ("Auteur", "Author", "Autor") };
+        case ("forumtopic.unlike") { ("Je n'aime plus", "Unlike", "Ya no me gusta") };
+        case ("forumtopic.solution") { ("Solution", "Solution", "Solución") };
+        case ("forumtopic.mark_solution") { ("Marquer comme solution", "Mark as solution", "Marcar como solución") };
+        case ("forumtopic.accept_answer") { ("Accepter la réponse", "Accept answer", "Aceptar respuesta") };
+        case ("forumtopic.pages_label") { ("Pages du sujet", "Topic pages", "Páginas del tema") };
+        case ("forumtopic.previous") { ("Précédent", "Previous", "Anterior") };
+        case ("forumtopic.page") { ("Page", "Page", "Página") };
+        case ("forumtopic.next") { ("Suivant", "Next", "Siguiente") };
+        case ("forumtopic.closed_note") { ("Ce sujet est fermé. Les nouvelles réponses sont désactivées.", "This topic is closed. New replies are disabled.", "Este tema está cerrado. Las nuevas respuestas están desactivadas.") };
+        case ("forumtopic.your_reply") { ("Votre réponse", "Your reply", "Tu respuesta") };
+        case ("forumtopic.post_reply") { ("Publier la réponse", "Post reply", "Publicar respuesta") };
+        case ("forumtopic.signin_pre") { ("Choisissez un pseudo sur", "Choose a username on", "Elige un nombre de usuario en") };
+        case ("forumtopic.signin_profile") { ("votre profil", "your profile", "tu perfil") };
+        case ("forumtopic.signin_post") { ("pour rejoindre la discussion.", "to join the discussion.", "para unirte a la discusión.") };
+        case ("forumtopic.timeline_label") { ("Chronologie du sujet", "Topic timeline", "Cronología del tema") };
+        case ("forumtopic.follow_topic") { ("Suivre ce sujet", "Follow this topic", "Seguir este tema") };
+        case ("forumtopic.not_found_title") { ("Sujet introuvable", "Topic not found", "Tema no encontrado") };
+        case ("forumtopic.not_found_body") { ("Ce sujet n'existe pas ou a peut-être été supprimé.", "This topic doesn't exist or may have been deleted.", "Este tema no existe o puede haber sido eliminado.") };
+        case ("forumtopic.back_to_forum") { ("Retour au forum", "Back to forum", "Volver al foro") };
+        case ("home.personalize_title") { ("Personnalisez votre profil", "Personalize your profile", "Personaliza tu perfil") };
+        case ("home.personalize_sub_before") { ("Nous vous avons connecté en tant que", "We connected you as", "Te conectamos como") };
+        case ("home.personalize_sub_after") { ("— un pseudo dérivé de votre Internet Identity. Choisissez-en un plus convivial (il se met à jour partout sur Pulse, à tout moment).", "— a handle derived from your Internet Identity. Pick a friendlier one (it updates everywhere on Pulse, anytime).", "— un alias derivado de tu Internet Identity. Elige uno más amigable (se actualiza en todo Pulse, en cualquier momento).") };
+        case ("home.handle_label") { ("Votre pseudo", "Your handle", "Tu alias") };
+        case ("home.validate") { ("Valider", "Confirm", "Confirmar") };
+        case ("home.composer_ph") { ("Quoi de neuf dans votre communauté ?", "What's new in your community?", "¿Qué hay de nuevo en tu comunidad?") };
+        case ("home.tool_image") { ("Image", "Image", "Imagen") };
+        case ("home.tool_poll") { ("Sondage", "Poll", "Encuesta") };
+        case ("home.tool_file") { ("Fichier", "File", "Archivo") };
+        case ("home.tool_mention") { ("Mention", "Mention", "Mención") };
+        case ("home.tabs_aria") { ("Filtres du fil", "Feed filters", "Filtros del feed") };
+        case ("home.tab_foryou") { ("Pour vous", "For you", "Para ti") };
+        case ("home.tab_following") { ("Abonnements", "Following", "Siguiendo") };
+        case ("home.tab_trending") { ("Tendances", "Trending", "Tendencias") };
+        case ("home.open_post") { ("Ouvrir la publication", "Open post", "Abrir publicación") };
+        case ("home.more_options") { ("Plus d'options", "More options", "Más opciones") };
+        case ("home.repost") { ("Reposter", "Repost", "Republicar") };
+        case ("home.like") { ("Aimer", "Like", "Me gusta") };
+        case ("home.save_post") { ("Sauvegarder", "Save", "Guardar") };
+        case ("home.see_all_feed") { ("Voir tout le fil", "See the whole feed", "Ver todo el feed") };
+        case ("home.empty_title") { ("Aucune publication pour l'instant", "No posts yet", "Aún no hay publicaciones") };
+        case ("home.empty_sub") { ("Soyez le premier à publier et lancez la conversation sur Pulse.", "Be the first to post and start the conversation on Pulse.", "Sé el primero en publicar e inicia la conversación en Pulse.") };
+        case ("home.write_post") { ("Écrire une publication", "Write a post", "Escribir una publicación") };
+        case ("home.trend_cat_onpulse") { ("On Pulse · En direct", "On Pulse · Live", "En Pulse · En vivo") };
+        case ("home.trend_cat_community") { ("Communauté · Tendance", "Community · Trending", "Comunidad · Tendencia") };
+        case ("home.see_more") { ("Voir plus", "See more", "Ver más") };
+        case ("home.active_members") { ("Membres actifs", "Active members", "Miembros activos") };
+        case ("home.online") { ("En ligne", "Online", "En línea") };
+        case ("home.no_active_members") { ("Aucun membre actif dans les dernières 24 heures.", "No active members in the last 24 hours.", "No hay miembros activos en las últimas 24 horas.") };
+        case ("home.active_suffix") { ("actifs", "active", "activos") };
+        case ("me.no_bio") { ("Aucune bio pour le moment — ajoutez-en une ci-dessous.", "No bio yet — add one below.", "Aún no hay biografía — añade una abajo.") };
+        case ("me.claim_title") { ("Réclamez votre profil", "Claim your profile", "Reclama tu perfil") };
+        case ("me.claim_sub") { ("Choisissez un identifiant pour rejoindre Pulse et commencer à publier.", "Choose a handle to join Pulse and start posting.", "Elige un identificador para unirte a Pulse y empezar a publicar.") };
+        case ("me.publications") { ("Publications", "Posts", "Publicaciones") };
+        case ("me.followers") { ("Abonnés", "Followers", "Seguidores") };
+        case ("me.following") { ("Abonnements", "Following", "Siguiendo") };
+        case ("me.guest_bar") { ("Vous naviguez en tant qu'invité. Connectez-vous (en haut à droite), puis réclamez un identifiant ci-dessous pour publier, rejoindre des communautés et envoyer des messages.", "You're browsing as a guest. Log in (top right), then claim a handle below to post, join communities and send messages.", "Estás navegando como invitado. Inicia sesión (arriba a la derecha), luego reclama un identificador abajo para publicar, unirte a comunidades y enviar mensajes.") };
+        case ("me.connected_bar") { ("Vous êtes connecté — choisissez simplement un identifiant ci-dessous pour finaliser votre profil. Vous pourrez ensuite publier, rejoindre des communautés et envoyer des messages. (Votre identifiant et vos rôles sont distincts : vous pouvez déjà administrer Pulse.)", "You're logged in — just choose a handle below to finish your profile. You'll then be able to post, join communities and send messages. (Your handle and your roles are separate: you can already administer Pulse.)", "Has iniciado sesión — solo elige un identificador abajo para completar tu perfil. Después podrás publicar, unirte a comunidades y enviar mensajes. (Tu identificador y tus roles son independientes: ya puedes administrar Pulse.)") };
+        case ("me.badges") { ("Badges", "Badges", "Insignias") };
+        case ("me.badges_soon") { ("Bientôt — les badges arrivent prochainement.", "Coming soon — badges are on the way.", "Próximamente — las insignias están en camino.") };
+        case ("me.identity") { ("Identité", "Identity", "Identidad") };
+        case ("me.identity_sub") { ("Votre identifiant est unique sur tout Pulse — fil, forum, communautés et messages — et est lié à votre Internet Identity.", "Your handle is unique across all of Pulse — feed, forum, communities and messages — and is linked to your Internet Identity.", "Tu identificador es único en todo Pulse — feed, foro, comunidades y mensajes — y está vinculado a tu Internet Identity.") };
+        case ("me.handle_label") { ("Identifiant", "Handle", "Identificador") };
+        case ("me.handle_hint") { ("2–20 caractères · lettres minuscules, chiffres et tirets bas · commence par une lettre.", "2–20 characters · lowercase letters, digits and underscores · starts with a letter.", "2–20 caracteres · letras minúsculas, dígitos y guiones bajos · empieza con una letra.") };
+        case ("me.display_label") { ("Nom affiché", "Display name", "Nombre visible") };
+        case ("me.save_handle") { ("Enregistrer l'identifiant", "Save handle", "Guardar identificador") };
+        case ("me.linked_to") { ("Lié à votre Internet Identity :", "Linked to your Internet Identity:", "Vinculado a tu Internet Identity:") };
+        case ("me.about") { ("À propos", "About", "Acerca de") };
+        case ("me.about_sub") { ("Une courte phrase à votre sujet, affichée sur votre profil public.", "A short sentence about you, shown on your public profile.", "Una frase breve sobre ti, mostrada en tu perfil público.") };
+        case ("me.bio_label") { ("Bio", "Bio", "Biografía") };
+        case ("me.save_bio") { ("Enregistrer la bio", "Save bio", "Guardar biografía") };
+        case ("me.help_title") { ("Aide profil", "Profile help", "Ayuda del perfil") };
+        case ("me.help_tip") { ("Tout sur votre identité Pulse.", "Everything about your Pulse identity.", "Todo sobre tu identidad de Pulse.") };
+        case ("me.help_sub") { ("Comment fonctionnent les identifiants, les bios et votre profil public.", "How handles, bios and your public profile work.", "Cómo funcionan los identificadores, las biografías y tu perfil público.") };
+        case ("me.help_public") { ("Votre identifiant est public — il apparaît sur chaque publication, sujet et message que vous envoyez.", "Your handle is public — it appears on every post, topic and message you send.", "Tu identificador es público — aparece en cada publicación, tema y mensaje que envías.") };
+        case ("me.faq_q1") { ("Comment fonctionnent les identifiants ?", "How do handles work?", "¿Cómo funcionan los identificadores?") };
+        case ("me.faq_a1") { ("Votre identifiant est unique sur Pulse. Choisissez-le une fois ; il relie toutes vos publications, sujets de forum et messages directs. Choisissez 2 caractères ou plus.", "Your handle is unique on Pulse. Choose it once; it links all your posts, forum topics and direct messages. Pick 2 characters or more.", "Tu identificador es único en Pulse. Elígelo una vez; vincula todas tus publicaciones, temas del foro y mensajes directos. Elige 2 caracteres o más.") };
+        case ("me.faq_q2") { ("Qui peut voir ma bio ?", "Who can see my bio?", "¿Quién puede ver mi biografía?") };
+        case ("me.faq_a2") { ("Votre bio apparaît sur votre profil public, visible par toute personne sur Pulse. Laissez-la vide pour la masquer.", "Your bio appears on your public profile, visible to anyone on Pulse. Leave it empty to hide it.", "Tu biografía aparece en tu perfil público, visible para cualquiera en Pulse. Déjala vacía para ocultarla.") };
+        case ("me.faq_q3") { ("Puis-je changer mon nom affiché ?", "Can I change my display name?", "¿Puedo cambiar mi nombre visible?") };
+        case ("me.faq_a3") { ("Oui — votre nom affiché peut changer à tout moment. Votre @@identifiant est votre identité stable.", "Yes — your display name can change at any time. Your @@handle is your stable identity.", "Sí — tu nombre visible puede cambiar en cualquier momento. Tu @@identificador es tu identidad estable.") };
+        case ("me.tips_trigger") { ("Conseils identifiant", "Handle tips", "Consejos de identificador") };
+        case ("me.tips_title") { ("Choisissez un bon identifiant", "Choose a good handle", "Elige un buen identificador") };
+        case ("me.tip1") { ("Court et mémorable (2–15 caractères).", "Short and memorable (2–15 characters).", "Corto y memorable (2–15 caracteres).") };
+        case ("me.tip2") { ("Lettres et chiffres — sans espaces.", "Letters and numbers — no spaces.", "Letras y números — sin espacios.") };
+        case ("me.tip3") { ("Il est quasi permanent, alors choisissez-en un qui vous plaît.", "It's nearly permanent, so pick one you like.", "Es casi permanente, así que elige uno que te guste.") };
+        case ("me.got_it") { ("Compris", "Got it", "Entendido") };
+        case ("me.your_posts") { ("Vos publications", "Your posts", "Tus publicaciones") };
+        case ("me.empty_feed") { ("Vous n'avez encore rien publié.", "You haven't posted anything yet.", "Aún no has publicado nada.") };
+        case ("me.write_first") { ("Écrivez votre première publication", "Write your first post", "Escribe tu primera publicación") };
+        case ("messages.e2ee") { ("Chiffré de bout en bout", "End-to-end encrypted", "Cifrado de extremo a extremo") };
+        case ("messages.search_ph") { ("Rechercher…", "Search…", "Buscar…") };
+        case ("messages.tabs_aria") { ("Filtres de conversations", "Conversation filters", "Filtros de conversaciones") };
+        case ("messages.tab_all") { ("Tous", "All", "Todos") };
+        case ("messages.tab_unread") { ("Non lus", "Unread", "No leídos") };
+        case ("messages.tab_groups") { ("Groupes", "Groups", "Grupos") };
+        case ("messages.empty_title") { ("Aucune conversation", "No conversations", "Sin conversaciones") };
+        case ("messages.empty_sub") { ("Lancez un message direct ou créez un groupe pour commencer à discuter en toute sécurité.", "Start a direct message or create a group to begin chatting securely.", "Inicia un mensaje directo o crea un grupo para empezar a chatear de forma segura.") };
+        case ("messages.pager_aria") { ("Pages de la boîte de réception", "Inbox pages", "Páginas de la bandeja de entrada") };
+        case ("messages.pager_newer") { ("Récents", "Newer", "Recientes") };
+        case ("messages.pager_page") { ("Page", "Page", "Página") };
+        case ("messages.pager_older") { ("Anciens", "Older", "Anteriores") };
+        case ("messages.new_direct_title") { ("Nouvelle conversation", "New conversation", "Nueva conversación") };
+        case ("messages.new_direct_hint") { ("Démarrez un message direct avec un identifiant Pulse.", "Start a direct message with a Pulse handle.", "Inicia un mensaje directo con un identificador de Pulse.") };
+        case ("messages.handle_label") { ("Identifiant", "Handle", "Identificador") };
+        case ("messages.start_direct_btn") { ("Démarrer la conversation", "Start conversation", "Iniciar conversación") };
+        case ("messages.new_group_title") { ("Nouveau groupe", "New group", "Nuevo grupo") };
+        case ("messages.new_group_hint") { ("Nommez votre groupe et ajoutez des membres par identifiant (séparés par des virgules).", "Name your group and add members by handle (separated by commas).", "Nombra tu grupo y añade miembros por identificador (separados por comas).") };
+        case ("messages.group_name_label") { ("Nom du groupe", "Group name", "Nombre del grupo") };
+        case ("messages.group_members_label") { ("Identifiants des membres", "Member handles", "Identificadores de los miembros") };
+        case ("messages.create_group_btn") { ("Créer le groupe", "Create group", "Crear grupo") };
+        case ("messages.locked_title") { ("Choisissez d'abord un identifiant", "Choose a handle first", "Elige primero un identificador") };
+        case ("messages.locked_sub_pre") { ("Vous avez besoin d'un identifiant Pulse avant de pouvoir envoyer des messages chiffrés.", "You need a Pulse handle before you can send encrypted messages.", "Necesitas un identificador de Pulse antes de poder enviar mensajes cifrados.") };
+        case ("messages.locked_link") { ("Réclamez votre identifiant", "Claim your handle", "Reclama tu identificador") };
+        case ("messages.locked_sub_post") { ("pour commencer.", "to get started.", "para empezar.") };
+        case ("parametres.lede") { ("Gérez votre profil, vos communautés et votre compte.", "Manage your profile, your communities and your account.", "Gestiona tu perfil, tus comunidades y tu cuenta.") };
+        case ("parametres.guest_msg") { ("Vous naviguez en tant qu'invité. Connectez-vous (en haut à droite), puis choisissez un identifiant ci-dessous pour finaliser votre profil.", "You're browsing as a guest. Log in (top right), then choose a handle below to complete your profile.", "Estás navegando como invitado. Inicia sesión (arriba a la derecha) y luego elige un identificador abajo para completar tu perfil.") };
+        case ("parametres.connected_msg") { ("Vous êtes connecté — choisissez un identifiant ci-dessous pour finaliser votre profil Pulse.", "You're logged in — choose a handle below to complete your Pulse profile.", "Has iniciado sesión: elige un identificador abajo para completar tu perfil de Pulse.") };
+        case ("parametres.profile_sub") { ("Votre identifiant est unique sur tout Pulse et lié à votre Internet Identity. Votre nom affiché et votre bio apparaissent sur votre profil public.", "Your handle is unique across all of Pulse and linked to your Internet Identity. Your display name and bio appear on your public profile.", "Tu identificador es único en todo Pulse y está vinculado a tu Internet Identity. Tu nombre visible y tu biografía aparecen en tu perfil público.") };
+        case ("parametres.handle_label") { ("Identifiant", "Handle", "Identificador") };
+        case ("parametres.handle_hint") { ("2–20 caractères · lettres minuscules, chiffres et tirets bas · commence par une lettre.", "2–20 characters · lowercase letters, digits and underscores · starts with a letter.", "2–20 caracteres · letras minúsculas, dígitos y guiones bajos · comienza con una letra.") };
+        case ("parametres.display_label") { ("Nom affiché", "Display name", "Nombre visible") };
+        case ("parametres.save_identity") { ("Enregistrer l'identifiant", "Save handle", "Guardar identificador") };
+        case ("parametres.bio_label") { ("Bio", "Bio", "Biografía") };
+        case ("parametres.save_bio") { ("Enregistrer la bio", "Save bio", "Guardar biografía") };
+        case ("parametres.linked_to") { ("Lié à votre Internet Identity :", "Linked to your Internet Identity:", "Vinculado a tu Internet Identity:") };
+        case ("parametres.notif_note") { ("Bientôt — préférences à venir. Vous pourrez bientôt choisir ce qui déclenche une alerte (mentions, réponses, nouveaux abonnés).", "Coming soon — preferences on the way. You'll soon be able to choose what triggers an alert (mentions, replies, new followers).", "Próximamente: preferencias en camino. Pronto podrás elegir qué activa una alerta (menciones, respuestas, nuevos seguidores).") };
+        case ("parametres.privacy") { ("Confidentialité", "Privacy", "Privacidad") };
+        case ("parametres.privacy_note") { ("Bientôt — préférences à venir. Le contrôle de la visibilité de votre profil et de vos publications arrive dans une prochaine mise à jour.", "Coming soon — preferences on the way. Control over the visibility of your profile and posts is coming in a future update.", "Próximamente: preferencias en camino. El control de la visibilidad de tu perfil y tus publicaciones llegará en una próxima actualización.") };
+        case ("parametres.comms_sub") { ("Les communautés que vous avez rejointes.", "The communities you've joined.", "Las comunidades a las que te has unido.") };
+        case ("parametres.open") { ("Ouvrir", "Open", "Abrir") };
+        case ("parametres.no_comms") { ("Vous n'avez rejoint aucune communauté.", "You haven't joined any communities.", "No te has unido a ninguna comunidad.") };
+        case ("parametres.browse_comms") { ("Parcourir les communautés", "Browse communities", "Explorar comunidades") };
+        case ("parametres.account_sub") { ("Vous restez connecté via votre Internet Identity. Déconnectez-vous pour terminer votre session sur cet appareil.", "You stay logged in via your Internet Identity. Log out to end your session on this device.", "Permaneces conectado a través de tu Internet Identity. Cierra sesión para finalizar tu sesión en este dispositivo.") };
+        case ("parametres.logout") { ("Déconnexion", "Log out", "Cerrar sesión") };
+        case ("profile.edit_profile") { ("Modifier le profil", "Edit profile", "Editar perfil") };
+        case ("profile.posts") { ("Publications", "Posts", "Publicaciones") };
+        case ("profile.followers") { ("Abonnés", "Followers", "Seguidores") };
+        case ("profile.following") { ("Abonnements", "Following", "Siguiendo") };
+        case ("profile.badges") { ("Badges", "Badges", "Insignias") };
+        case ("profile.soon") { ("Bientôt disponible.", "Coming soon.", "Próximamente.") };
+        case ("profile.about") { ("À propos", "About", "Acerca de") };
+        case ("profile.no_posts_yet") { ("n'a encore rien publié.", "hasn't posted anything yet.", "aún no ha publicado nada.") };
+        case ("profile.not_found") { ("Utilisateur introuvable", "User not found", "Usuario no encontrado") };
+        case ("profile.unclaimed_pre") { ("Personne sur Pulse n'a encore revendiqué", "Nobody on Pulse has claimed", "Nadie en Pulse ha reclamado") };
+        case ("profile.unclaimed_post") { (".", " yet.", " todavía.") };
+        case ("profile.back_to_feed") { ("Retour au fil", "Back to feed", "Volver al feed") };
+        case ("search.title") { ("Recherche", "Search", "Búsqueda") };
+        case ("search.subtitle") { ("Trouvez des sujets, des personnes et des communautés sur Pulse.", "Find topics, people and communities on Pulse.", "Encuentra temas, personas y comunidades en Pulse.") };
+        case ("search.no_results") { ("Aucun résultat pour", "No results for", "Sin resultados para") };
+        case ("search.try_another") { ("Essayez un autre terme.", "Try another term.", "Prueba con otro término.") };
+        case ("search.results_for") { ("résultat(s) pour", "result(s) for", "resultado(s) para") };
+        case ("search.topics") { ("Sujets", "Topics", "Temas") };
+        case ("search.people") { ("Personnes", "People", "Personas") };
+        case ("server.not_found") { ("Communauté introuvable", "Community not found", "Comunidad no encontrada") };
+        case ("server.not_found_body") { ("Cette communauté n'existe pas (ou a été supprimée).", "This community doesn't exist (or has been deleted).", "Esta comunidad no existe (o ha sido eliminada).") };
+        case ("server.back_to_all") { ("Retour à toutes les communautés", "Back to all communities", "Volver a todas las comunidades") };
+        case ("server.created") { ("créée", "created", "creada") };
+        case ("server.private") { ("Privée", "Private", "Privada") };
+        case ("server.your_role") { ("Votre rôle :", "Your role:", "Tu rol:") };
+        case ("server.you_are_owner") { ("Vous êtes le propriétaire", "You are the owner", "Eres el propietario") };
+        case ("server.tabs_aria") { ("Sections de la communauté", "Community sections", "Secciones de la comunidad") };
+        case ("server.tab_overview") { ("Aperçu", "Overview", "Resumen") };
+        case ("server.tab_feed") { ("Fil", "Feed", "Feed") };
+        case ("server.tab_forum") { ("Forum", "Forum", "Foro") };
+        case ("server.tab_chat") { ("Chat", "Chat", "Chat") };
+        case ("server.tab_announcements") { ("Annonces", "Announcements", "Anuncios") };
+        case ("server.tab_docs") { ("Docs", "Docs", "Docs") };
+        case ("server.tab_members") { ("Membres", "Members", "Miembros") };
+        case ("server.channels") { ("Salons", "Channels", "Canales") };
+        case ("server.no_channels_mod") { ("Aucun salon pour l'instant. Créez le premier ci-dessous.", "No channels yet. Create the first one below.", "Aún no hay canales. Crea el primero abajo.") };
+        case ("server.no_channels") { ("Aucun salon pour l'instant. Un modérateur peut en créer.", "No channels yet. A moderator can create one.", "Aún no hay canales. Un moderador puede crear uno.") };
+        case ("server.locked") { ("verrouillé", "locked", "bloqueado") };
+        case ("server.msgs") { ("msgs", "msgs", "msjs") };
+        case ("server.unlock") { ("Déverrouiller", "Unlock", "Desbloquear") };
+        case ("server.lock") { ("Verrouiller", "Lock", "Bloquear") };
+        case ("server.new_channel_label") { ("Nom du nouveau salon", "New channel name", "Nombre del nuevo canal") };
+        case ("server.add_channel") { ("Ajouter un salon", "Add a channel", "Añadir un canal") };
+        case ("server.channel_hint") { ("Minuscules, chiffres, - et _ uniquement (20 caractères max).", "Lowercase, digits, - and _ only (20 characters max).", "Solo minúsculas, números, - y _ (máx. 20 caracteres).") };
+        case ("server.moderation") { ("Modération", "Moderation", "Moderación") };
+        case ("server.tools") { ("Outils", "Tools", "Herramientas") };
+        case ("server.mod_note") { ("Vous pouvez modérer cette communauté. Verrouillez des salons ci-dessus pour empêcher les non-modérateurs de publier, et gérez les rôles des membres dans le panneau latéral.", "You can moderate this community. Lock channels above to prevent non-moderators from posting, and manage member roles in the side panel.", "Puedes moderar esta comunidad. Bloquea canales arriba para impedir que los no moderadores publiquen, y gestiona los roles de los miembros en el panel lateral.") };
+        case ("server.no_members") { ("Aucun membre pour l'instant.", "No members yet.", "Aún no hay miembros.") };
+        case ("server.owner") { ("Propriétaire", "Owner", "Propietario") };
+        case ("server.revoke") { ("Révoquer", "Revoke", "Revocar") };
+        case ("server.make_mod") { ("Nommer mod", "Make mod", "Nombrar mod") };
+        case ("server.demote") { ("Rétrograder", "Demote", "Degradar") };
+        case ("server.make_admin") { ("Nommer admin", "Make admin", "Nombrar admin") };
+        case ("servers.title") { ("Mes communautés", "My communities", "Mis comunidades") };
+        case ("servers.on_pulse") { ("sur Pulse", "on Pulse", "en Pulse") };
+        case ("servers.create") { ("Créer une communauté", "Create a community", "Crear una comunidad") };
+        case ("servers.guest_notice_pre") { ("Vous naviguez en tant qu'invité.", "You are browsing as a guest.", "Estás navegando como invitado.") };
+        case ("servers.guest_notice_link") { ("Réservez un pseudo", "Reserve a handle", "Reserva un usuario") };
+        case ("servers.guest_notice_post") { ("pour créer des communautés et rejoindre la conversation.", "to create communities and join the conversation.", "para crear comunidades y unirte a la conversación.") };
+        case ("servers.empty_title") { ("Vous n'avez pas encore de communauté", "You don't have any community yet", "Aún no tienes ninguna comunidad") };
+        case ("servers.empty_text") { ("Soyez le premier à lancer un espace pour votre communauté.", "Be the first to launch a space for your community.", "Sé el primero en lanzar un espacio para tu comunidad.") };
+        case ("servers.reserve_handle") { ("Réserver un pseudo", "Reserve a handle", "Reservar un usuario") };
+        case ("servers.kind_discussion") { ("Discussion", "Discussion", "Discusión") };
+        case ("servers.kind_forum") { ("Forum", "Forum", "Foro") };
+        case ("servers.kind_feed") { ("Flux", "Feed", "Feed") };
+        case ("servers.name_label") { ("Nom de la communauté", "Community name", "Nombre de la comunidad") };
+        case ("servers.type_label") { ("Type", "Type", "Tipo") };
+        case ("servers.opt_discussion") { ("Discussion (salons & chat)", "Discussion (channels & chat)", "Discusión (salas y chat)") };
+        case ("servers.opt_forum") { ("Forum (sujets & réponses)", "Forum (topics & replies)", "Foro (temas y respuestas)") };
+        case ("servers.opt_feed") { ("Flux (chronologie)", "Feed (timeline)", "Feed (cronología)") };
+        case ("servers.create_btn") { ("Créer", "Create", "Crear") };
+        case ("status.title") { ("Statuts", "Statuses", "Estados") };
+        case ("status.subtitle") { ("Une pensée qui s'efface au bout de 24 heures.", "A thought that fades after 24 hours.", "Un pensamiento que desaparece después de 24 horas.") };
+        case ("status.live") { ("En direct", "Live", "En directo") };
+        case ("status.compose_title") { ("Publier un statut", "Post a status", "Publicar un estado") };
+        case ("status.compose_sub") { ("Visible 24 h, puis il disparaît automatiquement.", "Visible for 24 h, then it disappears automatically.", "Visible durante 24 h, luego desaparece automáticamente.") };
+        case ("status.textarea_label") { ("Quoi de neuf ?", "What's new?", "¿Qué hay de nuevo?") };
+        case ("status.color") { ("Couleur", "Color", "Color") };
+        case ("status.color_aria") { ("Couleur du statut", "Status color", "Color del estado") };
+        case ("status.preview") { ("Aperçu", "Preview", "Vista previa") };
+        case ("status.share") { ("Partager le statut", "Share status", "Compartir estado") };
+        case ("status.bind_prefix") { ("Choisissez un identifiant sur votre", "Choose a handle on your", "Elige un identificador en tu") };
+        case ("status.bind_link") { ("profil", "profile", "perfil") };
+        case ("status.bind_suffix") { ("pour publier un statut.", "to post a status.", "para publicar un estado.") };
+        case ("status.empty_title") { ("Aucun statut actif", "No active statuses", "Sin estados activos") };
+        case ("status.empty_sub") { ("Soyez la première personne à partager quelque chose aujourd'hui.", "Be the first to share something today.", "Sé la primera persona en compartir algo hoy.") };
+        case ("status.views") { ("vues", "views", "vistas") };
+        case ("welcome.title") { ("Connexion avec Internet Identity", "Sign in with Internet Identity", "Iniciar sesión con Internet Identity") };
+        case ("welcome.sub") { ("Sécurisé, privé et décentralisé", "Secure, private and decentralized", "Seguro, privado y descentralizado") };
+        case ("welcome.what_is_ii") { ("Qu'est-ce qu'Internet Identity ?", "What is Internet Identity?", "¿Qué es Internet Identity?") };
+        case ("welcome.benefit_nopass") { ("Aucun mot de passe à retenir", "No password to remember", "Sin contraseñas que recordar") };
+        case ("welcome.benefit_secure") { ("Connexion sécurisée", "Secure sign-in", "Inicio de sesión seguro") };
+        case ("welcome.benefit_private") { ("Identité privée", "Private identity", "Identidad privada") };
+        case ("welcome.benefit_icp") { ("Expérience compatible ICP", "ICP-ready experience", "Experiencia compatible con ICP") };
+        case ("welcome.welcome_back") { ("Bienvenue", "Welcome", "Bienvenido") };
+        case ("welcome.redirecting") { ("Redirection vers Pulse…", "Redirecting to Pulse…", "Redirigiendo a Pulse…") };
+        case ("welcome.enter") { ("Entrer dans Pulse", "Enter Pulse", "Entrar en Pulse") };
+        case ("welcome.choose_handle") { ("Choisissez votre identifiant", "Choose your handle", "Elige tu identificador") };
+        case ("welcome.handle_sub") { ("Votre nom partout sur Pulse.", "Your name everywhere on Pulse.", "Tu nombre en todo Pulse.") };
+        case ("welcome.handle_label") { ("Identifiant", "Handle", "Identificador") };
+        case ("welcome.create_handle") { ("Créer mon identifiant", "Create my handle", "Crear mi identificador") };
+        case ("welcome.connected_as") { ("Connecté en tant que", "Signed in as", "Conectado como") };
+        // ---- PAGE KEYS (sentinel) ----
+        case ("parametres.lang_sub") { ("Choisissez la langue de l'interface Pulse.", "Choose the language for the Pulse interface.", "Elige el idioma de la interfaz de Pulse.") };
+        case ("parametres.lang_saved") { ("Langue mise à jour.", "Language updated.", "Idioma actualizado.") };
+        case ("parametres.t_saved") { ("Profil enregistré — vous êtes désormais", "Profile saved — you are now", "Perfil guardado — ahora eres") };
+        case ("parametres.t_taken") { ("Cet identifiant est déjà pris — essayez-en un autre.", "That handle is already taken — try another.", "Ese identificador ya está en uso, prueba con otro.") };
+        case ("parametres.t_bio_updated") { ("Bio mise à jour.", "Bio updated.", "Biografía actualizada.") };
+        case ("parametres.t_bio_need_handle") { ("Choisissez un identifiant avant d'ajouter une bio.", "Choose a handle before adding a bio.", "Elige un identificador antes de añadir una biografía.") };
+        case ("greet.hello") { ("Bonjour", "Hello", "Hola") };
+        case ("greet.demo") { ("Une démo de route paramétrée (/greet/{name}). Comme chaque page de Pulse, elle nécessite une connexion ; la prise en charge des requêtes certifiées génériques de MotoView est démontrée ailleurs, puisque rien dans Pulse n'est public.", "A parameterized-route demo (/greet/{name}). Like every Pulse page it requires sign-in; MotoView's wildcard certified-query support is demonstrated elsewhere, since nothing in Pulse is public.", "Una demo de ruta parametrizada (/greet/{name}). Como cada página de Pulse, requiere iniciar sesión; la compatibilidad de MotoView con consultas certificadas comodín se demuestra en otro lugar, ya que nada en Pulse es público.") };
+        // <<I18N_PAGE_KEYS>>
+
+        case (_) { ("", "", "") };
+      };
+    };
+
+    // ---- upgrade-stable persistence (MotoView hooks) ----
+    // Persist as a RECORD (tuples do not round-trip through to_candid/from_candid).
+    public func mvStableSave() : Blob {
+      to_candid ({ prefs = Iter.toArray(prefs.entries()) });
+    };
+    public func mvStableLoad(b : Blob) {
+      switch (from_candid (b) : ?{ prefs : [(Principal, Code)] }) {
+        case (?saved) {
+          for (k in Iter.toArray(prefs.keys()).vals()) { prefs.delete(k) };
+          for ((k, v) in saved.prefs.vals()) { prefs.put(k, v) };
+        };
+        case null {};
+      };
+    };
+  };
+};

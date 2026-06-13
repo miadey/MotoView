@@ -9,8 +9,8 @@
     @if found {
 
         <Breadcrumb>
-            <BreadcrumbItem href="/">Accueil</BreadcrumbItem>
-            <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
+            <BreadcrumbItem href="/">@Lang.tc(ctx.caller, "nav.home")</BreadcrumbItem>
+            <BreadcrumbItem href="/forum">@Lang.tc(ctx.caller, "forumcat.forum")</BreadcrumbItem>
             <BreadcrumbItem current="true">@catName</BreadcrumbItem>
         </Breadcrumb>
 
@@ -21,27 +21,27 @@
                 <h1 class="pc-head-name">@catName</h1>
                 <p class="pc-head-desc">@catDesc</p>
                 <p class="pc-head-counts">
-                    <span class="pc-count"><strong>@(topicCount)</strong> sujets</span>
+                    <span class="pc-count"><strong>@(topicCount)</strong> @Lang.tc(ctx.caller, "forumcat.topics")</span>
                     <span class="pc-dot">·</span>
-                    <span class="pc-count"><strong>@(postCount)</strong> messages</span>
+                    <span class="pc-count"><strong>@(postCount)</strong> @Lang.tc(ctx.caller, "forumcat.messages")</span>
                 </p>
             </div>
-            <a class="pc-newbtn" href="/forum/new">Nouveau sujet</a>
+            <a class="pc-newbtn" href="/forum/new">@Lang.tc(ctx.caller, "forumcat.new_topic")</a>
         </header>
 
         <!-- onglets (Recents actif pour cette categorie) -->
         <nav class="pc-tabs">
-            <a class="pc-tab is-active" href="/forum/c/@(id)">Récents</a>
-            <a class="pc-tab" href="/forum?sort=categories">Catégories</a>
-            <a class="pc-tab" href="/forum?sort=new">Nouveaux</a>
-            <a class="pc-tab" href="/forum?sort=top">Populaires</a>
+            <a class="pc-tab is-active" href="/forum/c/@(id)">@Lang.tc(ctx.caller, "forumcat.tab_recent")</a>
+            <a class="pc-tab" href="/forum?sort=categories">@Lang.tc(ctx.caller, "forumcat.tab_categories")</a>
+            <a class="pc-tab" href="/forum?sort=new">@Lang.tc(ctx.caller, "forumcat.tab_new")</a>
+            <a class="pc-tab" href="/forum?sort=top">@Lang.tc(ctx.caller, "forumcat.tab_top")</a>
         </nav>
 
         <!-- liste des sujets, limitee a cette categorie -->
         @if (topics.size() == 0) {
             <div class="pc-empty">
-                <p class="pc-empty-title">Aucun sujet ici pour l'instant.</p>
-                <a class="pc-empty-link" href="/forum/new">Créer le premier sujet →</a>
+                <p class="pc-empty-title">@Lang.tc(ctx.caller, "forumcat.empty")</p>
+                <a class="pc-empty-link" href="/forum/new">@Lang.tc(ctx.caller, "forumcat.create_first") →</a>
             </div>
         } else {
             <div class="pc-list">
@@ -51,9 +51,9 @@
 
                         <div class="pc-topic-main">
                             <div class="pc-topic-title-line">
-                                @if pinned(t.id) { <span class="pc-glyph" title="Épinglé">📌</span> }
-                                @if closed(t.id) { <span class="pc-glyph" title="Fermé">🔒</span> }
-                                @if solved(t.id) { <span class="pc-glyph pc-glyph-ok" title="Résolu">✓</span> }
+                                @if pinned(t.id) { <span class="pc-glyph" title='@(Lang.tc(ctx.caller, "forumcat.pinned"))'>📌</span> }
+                                @if closed(t.id) { <span class="pc-glyph" title='@(Lang.tc(ctx.caller, "forumcat.closed"))'>🔒</span> }
+                                @if solved(t.id) { <span class="pc-glyph pc-glyph-ok" title='@(Lang.tc(ctx.caller, "forumcat.solved"))'>✓</span> }
                                 @if pinned(t.id) {
                                     <span class="pc-title is-unread">@t.title</span>
                                 } else {
@@ -74,13 +74,13 @@
 
                         <div class="pc-topic-side">
                             @if (replies(t.id) >= 1000) {
-                                <span class="pc-stat is-hot" title="Réponses">@replies(t.id) rép.</span>
+                                <span class="pc-stat is-hot" title='@(Lang.tc(ctx.caller, "forumcat.replies"))'>@replies(t.id) @Lang.tc(ctx.caller, "forumcat.replies_abbr")</span>
                             } else {
-                                <span class="pc-stat" title="Réponses">@replies(t.id) rép.</span>
+                                <span class="pc-stat" title='@(Lang.tc(ctx.caller, "forumcat.replies"))'>@replies(t.id) @Lang.tc(ctx.caller, "forumcat.replies_abbr")</span>
                             }
-                            <span class="pc-stat pc-stat-views" title="Vues">@views(t.views) vues</span>
+                            <span class="pc-stat pc-stat-views" title='@(Lang.tc(ctx.caller, "forumcat.views"))'>@views(t.views) @Lang.tc(ctx.caller, "forumcat.views_lc")</span>
                             <span class="pc-activity">@activity(t.id)</span>
-                            <span class="pc-ava" title="Auteur">@authorAvatar(t.author)</span>
+                            <span class="pc-ava" title='@(Lang.tc(ctx.caller, "forumcat.author"))'>@authorAvatar(t.author)</span>
                         </div>
 
                     </a>
@@ -90,8 +90,8 @@
 
     } else {
         <div class="pc-empty">
-            <p class="pc-empty-title">Cette catégorie n'existe pas.</p>
-            <a class="pc-empty-link" href="/forum">← Retour au forum</a>
+            <p class="pc-empty-title">@Lang.tc(ctx.caller, "forumcat.not_found")</p>
+            <a class="pc-empty-link" href="/forum">← @Lang.tc(ctx.caller, "forumcat.back_to_forum")</a>
         </div>
     }
 </div>

@@ -8,16 +8,15 @@
     <section class="ac-center">
         <div class="ac-card ac-bootstrap">
             <div class="ac-bootstrap-ico">🛡️</div>
-            <h1>Configurer l'administration</h1>
-            <p>Personne n'administre encore Pulse. La première personne à revendiquer le siège devient le
-               <strong>Super Admin fondateur</strong> — elle pourra ensuite attribuer des rôles à tout le monde.
-               Après cela, cette page sera fermée aux non-membres du personnel.</p>
+            <h1>@Lang.tc(ctx.caller, "admin.bootstrap_title")</h1>
+            <p>@Lang.tc(ctx.caller, "admin.bootstrap_lead_1")
+               <strong>@Lang.tc(ctx.caller, "admin.bootstrap_founder")</strong> @Lang.tc(ctx.caller, "admin.bootstrap_lead_2")</p>
             <div class="ac-principal-row">
-                <span class="ac-muted">Vous êtes</span>
+                <span class="ac-muted">@Lang.tc(ctx.caller, "admin.you_are")</span>
                 <code class="ac-code">@myPrincipal</code>
             </div>
             <form @submit="claim" secure>
-                <Button kind="primary" type="submit">Revendiquer Super Admin</Button>
+                <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "admin.claim_super")</Button>
             </form>
         </div>
     </section>
@@ -25,15 +24,14 @@
     <section class="ac-center">
         <div class="ac-card ac-noaccess">
             <div class="ac-bootstrap-ico">🔒</div>
-            <h1>Vous n'avez pas d'accès admin</h1>
-            <p>Cette console est réservée à la liste d'autorisation du personnel global de Pulse. Demandez à un
-               administrateur existant de vous attribuer un rôle.</p>
+            <h1>@Lang.tc(ctx.caller, "admin.noaccess_title")</h1>
+            <p>@Lang.tc(ctx.caller, "admin.noaccess_body")</p>
             <div class="ac-principal-row">
-                <span class="ac-muted">Vous êtes</span>
+                <span class="ac-muted">@Lang.tc(ctx.caller, "admin.you_are")</span>
                 <code class="ac-code">@myPrincipal</code>
             </div>
             <div class="ac-principal-row">
-                <span class="ac-muted">Votre rôle</span>
+                <span class="ac-muted">@Lang.tc(ctx.caller, "admin.your_role")</span>
                 <span class="ac-role-label">@myRoleLabel</span>
             </div>
         </div>
@@ -41,70 +39,70 @@
 } else {
     <section class="ac-head">
         <div class="ac-head-main">
-            <h1>Administration</h1>
+            <h1>@Lang.tc(ctx.caller, "admin.title")</h1>
             @switch myRole {
-                case (#SuperAdmin) { <Badge type="danger">Super Admin</Badge> }
-                case (#Admin) { <Badge type="brand">Admin</Badge> }
-                case (#Moderator) { <Badge type="warning">Modérateur</Badge> }
-                case (#None) { <Badge type="subtle">Membre</Badge> }
+                case (#SuperAdmin) { <Badge type="danger">@Lang.tc(ctx.caller, "admin.role_super")</Badge> }
+                case (#Admin) { <Badge type="brand">@Lang.tc(ctx.caller, "admin.role_admin")</Badge> }
+                case (#Moderator) { <Badge type="warning">@Lang.tc(ctx.caller, "admin.role_mod")</Badge> }
+                case (#None) { <Badge type="subtle">@Lang.tc(ctx.caller, "admin.role_member")</Badge> }
             }
         </div>
-        <p class="ac-legend">Les rôles globaux s'appliquent à toute l'application ; les rôles par communauté se gèrent sur chaque communauté.</p>
+        <p class="ac-legend">@Lang.tc(ctx.caller, "admin.legend")</p>
     </section>
 
     <div class="ac-stats">
         <div class="ac-card ac-stat">
             <span class="ac-stat-num">@userCount</span>
-            <span class="ac-stat-label">Utilisateurs</span>
+            <span class="ac-stat-label">@Lang.tc(ctx.caller, "admin.stat_users")</span>
         </div>
         <div class="ac-card ac-stat">
             <span class="ac-stat-num">@serverCount</span>
-            <span class="ac-stat-label">Communautés</span>
+            <span class="ac-stat-label">@Lang.tc(ctx.caller, "admin.stat_communities")</span>
         </div>
         <div class="ac-card ac-stat">
             <span class="ac-stat-num">@topicCount</span>
-            <span class="ac-stat-label">Sujets du forum</span>
+            <span class="ac-stat-label">@Lang.tc(ctx.caller, "admin.stat_topics")</span>
         </div>
         <div class="ac-card ac-stat">
             <span class="ac-stat-num">@feedCount</span>
-            <span class="ac-stat-label">Publications du fil</span>
+            <span class="ac-stat-label">@Lang.tc(ctx.caller, "admin.stat_feed_posts")</span>
         </div>
         <div class="ac-card ac-stat">
             <span class="ac-stat-num">@staffCount</span>
-            <span class="ac-stat-label">Personnel</span>
+            <span class="ac-stat-label">@Lang.tc(ctx.caller, "admin.stat_staff")</span>
         </div>
     </div>
 
-    <h2 class="ac-section-title">Analytique</h2>
+    <h2 class="ac-section-title">@Lang.tc(ctx.caller, "admin.analytics")</h2>
     <div class="ac-charts">
         <div class="ac-card ac-chart-card">
-            <ColumnChart values=@(contentValues) labels="Utilisateurs,Communautés,Sujets,Publications" title="Contenu de la plateforme" hideLegend />
+            <ColumnChart values=@(contentValues) labels='@(Lang.tc(ctx.caller, "admin.chart_content_labels"))' title='@(Lang.tc(ctx.caller, "admin.chart_content_title"))' hideLegend />
         </div>
         @if (staffCount > 0) {
             <div class="ac-card ac-chart-card">
-                <DonutChart values=@(roleValues) labels="Super Admin,Admin,Modérateur" title="Personnel par rôle" />
+                <DonutChart values=@(roleValues) labels='@(Lang.tc(ctx.caller, "admin.chart_role_labels"))' title='@(Lang.tc(ctx.caller, "admin.chart_role_title"))' />
             </div>
         }
         @if hasServers {
             <div class="ac-card ac-chart-card">
-                <PieChart values=@(serverKindValues) labels="Discussion,Forum,Fil" title="Communautés par type" />
+                <PieChart values=@(serverKindValues) labels='@(Lang.tc(ctx.caller, "admin.chart_kind_labels"))' title='@(Lang.tc(ctx.caller, "admin.chart_kind_title"))' />
             </div>
             <div class="ac-card ac-chart-card">
-                <BarChart values=@(srvMemberValues) labels=@(srvMemberLabels) title="Membres par communauté" hideLegend />
+                <BarChart values=@(srvMemberValues) labels=@(srvMemberLabels) title='@(Lang.tc(ctx.caller, "admin.chart_members_title"))' hideLegend />
             </div>
         }
     </div>
 
-    <h2 class="ac-section-title">Personnel global</h2>
+    <h2 class="ac-section-title">@Lang.tc(ctx.caller, "admin.global_staff")</h2>
     <div class="ac-card ac-table-card">
         <table class="ac-table">
             <thead>
                 <tr>
-                    <th>Membre</th>
-                    <th>Principal</th>
-                    <th>Rôle</th>
-                    <th>Attribué</th>
-                    <th class="ac-th-actions">Actions</th>
+                    <th>@Lang.tc(ctx.caller, "admin.col_member")</th>
+                    <th>@Lang.tc(ctx.caller, "admin.col_principal")</th>
+                    <th>@Lang.tc(ctx.caller, "admin.col_role")</th>
+                    <th>@Lang.tc(ctx.caller, "admin.col_granted")</th>
+                    <th class="ac-th-actions">@Lang.tc(ctx.caller, "admin.col_actions")</th>
                 </tr>
             </thead>
             <tbody>
@@ -119,28 +117,28 @@
                         <td><code class="ac-code ac-code-sm">@e.principalText</code></td>
                         <td>
                             @switch e.role {
-                                case (#SuperAdmin) { <Badge type="danger">Super Admin</Badge> }
-                                case (#Admin) { <Badge type="brand">Admin</Badge> }
-                                case (#Moderator) { <Badge type="warning">Modérateur</Badge> }
-                                case (#None) { <Badge type="subtle">Membre</Badge> }
+                                case (#SuperAdmin) { <Badge type="danger">@Lang.tc(ctx.caller, "admin.role_super")</Badge> }
+                                case (#Admin) { <Badge type="brand">@Lang.tc(ctx.caller, "admin.role_admin")</Badge> }
+                                case (#Moderator) { <Badge type="warning">@Lang.tc(ctx.caller, "admin.role_mod")</Badge> }
+                                case (#None) { <Badge type="subtle">@Lang.tc(ctx.caller, "admin.role_member")</Badge> }
                             }
                         </td>
                         <td class="ac-granted">@(Admin.relativeTime(e.grantedAt, now))</td>
                         <td class="ac-row-actions">
                             @if (e.principalText == myPrincipal) {
-                                <span class="ac-you">vous</span>
+                                <span class="ac-you">@Lang.tc(ctx.caller, "admin.you")</span>
                             }
                             @if canMakeMod(e) {
-                                <button class="ac-btn ac-btn-ghost" @click="makeMod(e.principalText)">Nommer modérateur</button>
+                                <button class="ac-btn ac-btn-ghost" @click="makeMod(e.principalText)">@Lang.tc(ctx.caller, "admin.make_mod")</button>
                             }
                             @if canMakeAdmin(e) {
-                                <button class="ac-btn ac-btn-ghost" @click="makeAdmin(e.principalText)">Nommer admin</button>
+                                <button class="ac-btn ac-btn-ghost" @click="makeAdmin(e.principalText)">@Lang.tc(ctx.caller, "admin.make_admin")</button>
                             }
                             @if canMakeSuper(e) {
-                                <button class="ac-btn ac-btn-ghost" @click="makeSuper(e.principalText)">Nommer Super Admin</button>
+                                <button class="ac-btn ac-btn-ghost" @click="makeSuper(e.principalText)">@Lang.tc(ctx.caller, "admin.make_super")</button>
                             }
                             @if canRevoke(e) {
-                                <button class="ac-btn ac-btn-danger" @click="revokeStaff(e.principalText)">Révoquer</button>
+                                <button class="ac-btn ac-btn-danger" @click="revokeStaff(e.principalText)">@Lang.tc(ctx.caller, "admin.revoke")</button>
                             }
                         </td>
                     </tr>
@@ -149,43 +147,43 @@
         </table>
     </div>
 
-    <h2 class="ac-section-title">Attribuer un rôle</h2>
+    <h2 class="ac-section-title">@Lang.tc(ctx.caller, "admin.grant_title")</h2>
     <div class="ac-card ac-grant">
-        <p class="ac-grant-hint">Saisissez le @@handle d'un membre existant et choisissez le rôle à attribuer.</p>
+        <p class="ac-grant-hint">@Lang.tc(ctx.caller, "admin.grant_hint_1") @@handle @Lang.tc(ctx.caller, "admin.grant_hint_2")</p>
         <form @submit="grant" secure>
             <ValidationSummary />
             <div class="ac-grant-grid">
-                <InputText name="handle" label="Handle" bind="@grantHandle" required />
+                <InputText name="handle" label='@(Lang.tc(ctx.caller, "admin.handle"))' bind="@grantHandle" required />
                 <div class="ac-field">
-                    <span class="ac-field-label">Rôle</span>
+                    <span class="ac-field-label">@Lang.tc(ctx.caller, "admin.col_role")</span>
                     <select name="role" class="ac-select">
-                        <option value="Moderator">Modérateur</option>
+                        <option value="Moderator">@Lang.tc(ctx.caller, "admin.role_mod")</option>
                         @if isSuperAdmin {
-                            <option value="Admin">Admin</option>
-                            <option value="SuperAdmin">Super Admin</option>
+                            <option value="Admin">@Lang.tc(ctx.caller, "admin.role_admin")</option>
+                            <option value="SuperAdmin">@Lang.tc(ctx.caller, "admin.role_super")</option>
                         }
                     </select>
                 </div>
             </div>
             <div class="ac-grant-actions">
-                <Button kind="primary" type="submit">Attribuer le rôle</Button>
+                <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "admin.grant_btn")</Button>
             </div>
         </form>
     </div>
 
-    <h2 class="ac-section-title">Toutes les communautés</h2>
+    <h2 class="ac-section-title">@Lang.tc(ctx.caller, "admin.all_communities")</h2>
     <div class="ac-card ac-table-card">
         @if (serverList.size() == 0) {
-            <p class="ac-empty">Aucune communauté n'existe pour l'instant.</p>
+            <p class="ac-empty">@Lang.tc(ctx.caller, "admin.no_communities")</p>
         } else {
             <table class="ac-table">
                 <thead>
                     <tr>
-                        <th>Nom</th>
-                        <th>Type</th>
-                        <th>Propriétaire</th>
-                        <th>Membres</th>
-                        <th class="ac-th-actions">Actions</th>
+                        <th>@Lang.tc(ctx.caller, "admin.col_name")</th>
+                        <th>@Lang.tc(ctx.caller, "admin.col_type")</th>
+                        <th>@Lang.tc(ctx.caller, "admin.col_owner")</th>
+                        <th>@Lang.tc(ctx.caller, "admin.col_members")</th>
+                        <th class="ac-th-actions">@Lang.tc(ctx.caller, "admin.col_actions")</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -194,17 +192,17 @@
                             <td class="ac-srv-name">@s.name</td>
                             <td>
                                 @switch s.kind {
-                                    case (#Discussion) { <Badge type="informative">Discussion</Badge> }
-                                    case (#Forum) { <Badge type="informative">Forum</Badge> }
-                                    case (#Feed) { <Badge type="informative">Fil</Badge> }
+                                    case (#Discussion) { <Badge type="informative">@Lang.tc(ctx.caller, "admin.kind_discussion")</Badge> }
+                                    case (#Forum) { <Badge type="informative">@Lang.tc(ctx.caller, "admin.kind_forum")</Badge> }
+                                    case (#Feed) { <Badge type="informative">@Lang.tc(ctx.caller, "admin.kind_feed")</Badge> }
                                 }
                             </td>
                             <td>@(ownerHandle(s.owner))</td>
                             <td class="ac-num">@(memberCountOf(s.id))</td>
                             <td class="ac-row-actions">
-                                <a class="ac-btn ac-btn-ghost" href="/communautes/@(s.id)">Gérer</a>
+                                <a class="ac-btn ac-btn-ghost" href="/communautes/@(s.id)">@Lang.tc(ctx.caller, "admin.manage")</a>
                                 @if isSuperAdmin {
-                                    <button class="ac-btn ac-btn-danger" @click="deleteServer(s.id)">Supprimer</button>
+                                    <button class="ac-btn ac-btn-danger" @click="deleteServer(s.id)">@Lang.tc(ctx.caller, "common.delete")</button>
                                 }
                             </td>
                         </tr>

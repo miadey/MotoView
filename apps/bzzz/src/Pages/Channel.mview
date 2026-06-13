@@ -7,25 +7,25 @@
 @if not exists {
     <div class="pl-card pl-missing">
         <div class="pl-missing-ico">🚫</div>
-        <h2>Salon introuvable</h2>
-        <p>Ce salon n'existe pas. <a href="/communautes">Parcourir les serveurs</a>.</p>
+        <h2>@Lang.tc(ctx.caller, "channel.not_found")</h2>
+        <p>@Lang.tc(ctx.caller, "channel.not_found_desc") <a href="/communautes">@Lang.tc(ctx.caller, "channel.browse_servers")</a>.</p>
     </div>
 } else {
     <div class="pl-chat">
         <!-- ====================== GAUCHE : rail des salons ====================== -->
         <aside class="pl-rail">
             <div class="pl-rail-top">
-                <h1 class="pl-rail-title">Chat en direct</h1>
-                <a class="pl-rail-server" href="/communautes/@(serverId)" title="Retour au serveur">@serverName</a>
+                <h1 class="pl-rail-title">@Lang.tc(ctx.caller, "nav.chat")</h1>
+                <a class="pl-rail-server" href="/communautes/@(serverId)" title='@(Lang.tc(ctx.caller, "channel.back_to_server"))'>@serverName</a>
             </div>
 
             <div class="pl-search">
                 <span class="pl-search-ico">⌕</span>
-                <input class="pl-search-input" type="text" placeholder="Rechercher un salon" disabled />
+                <input class="pl-search-input" type="text" placeholder='@(Lang.tc(ctx.caller, "channel.search_channel_ph"))' disabled />
             </div>
 
             <div class="pl-rail-scroll">
-                <div class="pl-rail-cat">Salons</div>
+                <div class="pl-rail-cat">@Lang.tc(ctx.caller, "channel.channels")</div>
                 <ul class="pl-chan-list">
                     @for c in channels {
                         @if isLocked(c.id) {
@@ -46,33 +46,33 @@
                     }
                 </ul>
 
-                <div class="pl-rail-cat">Salons vocaux</div>
+                <div class="pl-rail-cat">@Lang.tc(ctx.caller, "channel.voice_channels")</div>
                 <ul class="pl-voice-list">
                     <!-- maquette visuelle — non interactif, aucune donnée réelle -->
                     <li class="pl-voice">
                         <span class="pl-voice-ico">🔊</span>
-                        <span class="pl-voice-name">Général</span>
+                        <span class="pl-voice-name">@Lang.tc(ctx.caller, "channel.voice_general")</span>
                     </li>
                     <li class="pl-voice">
                         <span class="pl-voice-ico">🔊</span>
-                        <span class="pl-voice-name">Développeurs</span>
+                        <span class="pl-voice-name">@Lang.tc(ctx.caller, "channel.voice_developers")</span>
                         <span class="pl-voice-count">03/10</span>
                     </li>
                     <li class="pl-voice">
                         <span class="pl-voice-ico">🔊</span>
-                        <span class="pl-voice-name">Salon de pause</span>
+                        <span class="pl-voice-name">@Lang.tc(ctx.caller, "channel.voice_lounge")</span>
                     </li>
                 </ul>
-                <p class="pl-voice-note">Les salons vocaux sont une maquette visuelle.</p>
+                <p class="pl-voice-note">@Lang.tc(ctx.caller, "channel.voice_note")</p>
             </div>
 
             <div class="pl-rail-foot">
                 <span class="pl-rail-foot-ava">@meAvatar</span>
                 <span class="pl-rail-foot-id">
                     <span class="pl-rail-foot-name">@meLabel</span>
-                    <span class="pl-rail-foot-state">@(onlineCount) en ligne</span>
+                    <span class="pl-rail-foot-state">@(onlineCount) @Lang.tc(ctx.caller, "common.online")</span>
                 </span>
-                <a class="pl-rail-foot-link" href="/me" title="Profil">⚙</a>
+                <a class="pl-rail-foot-link" href="/me" title='@(Lang.tc(ctx.caller, "acct.profile"))'>⚙</a>
             </div>
         </aside>
 
@@ -82,19 +82,19 @@
                 <span class="pl-topbar-hash">#</span>
                 <span class="pl-topbar-name">@roomName</span>
                 <span class="pl-topbar-div"></span>
-                <span class="pl-topbar-topic">@(liveCount) @plural(liveCount, "message", "messages") · @(memberTotal) @plural(memberTotal, "membre", "membres")</span>
+                <span class="pl-topbar-topic">@(liveCount) @plural(liveCount, Lang.tc(ctx.caller, "channel.message_one"), Lang.tc(ctx.caller, "channel.message_many")) · @(memberTotal) @plural(memberTotal, Lang.tc(ctx.caller, "channel.member_one"), Lang.tc(ctx.caller, "channel.member_many"))</span>
                 @if locked {
-                    <span class="pl-topbar-lock">🔒 Verrouillé</span>
+                    <span class="pl-topbar-lock">🔒 @Lang.tc(ctx.caller, "channel.locked")</span>
                 }
-                <a class="pl-topbar-act" href="/communautes/@(serverId)" title="Retour au serveur">↩</a>
+                <a class="pl-topbar-act" href="/communautes/@(serverId)" title='@(Lang.tc(ctx.caller, "channel.back_to_server"))'>↩</a>
             </header>
 
             <div class="pl-stream" id="ch-stream">
                 @if messages.size() == 0 {
                     <div class="pl-welcome">
                         <div class="pl-welcome-ico">#</div>
-                        <h2>Bienvenue dans #@roomName !</h2>
-                        <p>C'est le tout début du salon <strong>#@roomName</strong>. Dites bonjour.</p>
+                        <h2>@Lang.tc(ctx.caller, "channel.welcome_to") #@roomName !</h2>
+                        <p>@Lang.tc(ctx.caller, "channel.welcome_start_a") <strong>#@roomName</strong>. @Lang.tc(ctx.caller, "channel.welcome_start_b")</p>
                     </div>
                 } else {
                     @for m in messages {
@@ -109,17 +109,17 @@
                                         <div class="pl-reply-ctx">↪ <span class="pl-reply-snip">@(replySnippet(m.replyTo))</span></div>
                                     }
                                     @if isDel(m.deleted) {
-                                        <div class="pl-text pl-deleted">message supprimé</div>
+                                        <div class="pl-text pl-deleted">@Lang.tc(ctx.caller, "channel.msg_deleted")</div>
                                     } else if editingId == m.id {
                                         <form class="pl-edit-form" @submit="saveEdit" secure>
-                                            <InputText name="editText" label="Modifier le message" bind="@editText" required />
+                                            <InputText name="editText" label='@(Lang.tc(ctx.caller, "channel.edit_message"))' bind="@editText" required />
                                             <div class="pl-edit-actions">
-                                                <Button kind="primary" type="submit">Enregistrer</Button>
-                                                <button type="button" class="pl-mini-btn" @click="cancelEdit">Annuler</button>
+                                                <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.save")</Button>
+                                                <button type="button" class="pl-mini-btn" @click="cancelEdit">@Lang.tc(ctx.caller, "common.cancel")</button>
                                             </div>
                                         </form>
                                     } else {
-                                        <div class="pl-text">@m.text@if m.edited != 0 { <span class="pl-edited">(modifié)</span> }</div>
+                                        <div class="pl-text">@m.text@if m.edited != 0 { <span class="pl-edited">@Lang.tc(ctx.caller, "channel.edited")</span> }</div>
                                     }
                                     @if not isDel(m.deleted) {
                                         @raw(bzReactRow(m.id))
@@ -129,14 +129,14 @@
                                     <div class="pl-hover-actions">
                                         <span class="pl-react-quick">
                                             @for e in emojiSet {
-                                                <button class="pl-react-btn" @click="react(m.id, emo(e))" title="Réagir">@e</button>
+                                                <button class="pl-react-btn" @click="react(m.id, emo(e))" title='@(Lang.tc(ctx.caller, "channel.react"))'>@e</button>
                                             }
                                         </span>
-                                        <button class="pl-act-btn" @click="startReply(m.id)" title="Répondre">↩</button>
-                                        <button type="button" class="pl-act-btn" @click="openThread(m.id)" title="Fil">🧵</button>
+                                        <button class="pl-act-btn" @click="startReply(m.id)" title='@(Lang.tc(ctx.caller, "common.reply"))'>↩</button>
+                                        <button type="button" class="pl-act-btn" @click="openThread(m.id)" title='@(Lang.tc(ctx.caller, "channel.thread"))'>🧵</button>
                                         @if isMineP(m.author) {
-                                            <button class="pl-act-btn" @click="startEdit(m.id)" title="Modifier">✏️</button>
-                                            <button class="pl-act-btn pl-act-danger" @click="del(m.id)" title="Supprimer">🗑</button>
+                                            <button class="pl-act-btn" @click="startEdit(m.id)" title='@(Lang.tc(ctx.caller, "common.edit"))'>✏️</button>
+                                            <button class="pl-act-btn pl-act-danger" @click="del(m.id)" title='@(Lang.tc(ctx.caller, "common.delete"))'>🗑</button>
                                         }
                                     </div>
                                 }
@@ -157,17 +157,17 @@
                                         <div class="pl-reply-ctx">↪ <span class="pl-reply-snip">@(replySnippet(m.replyTo))</span></div>
                                     }
                                     @if isDel(m.deleted) {
-                                        <div class="pl-text pl-deleted">message supprimé</div>
+                                        <div class="pl-text pl-deleted">@Lang.tc(ctx.caller, "channel.msg_deleted")</div>
                                     } else if editingId == m.id {
                                         <form class="pl-edit-form" @submit="saveEdit" secure>
-                                            <InputText name="editText" label="Modifier le message" bind="@editText" required />
+                                            <InputText name="editText" label='@(Lang.tc(ctx.caller, "channel.edit_message"))' bind="@editText" required />
                                             <div class="pl-edit-actions">
-                                                <Button kind="primary" type="submit">Enregistrer</Button>
-                                                <button type="button" class="pl-mini-btn" @click="cancelEdit">Annuler</button>
+                                                <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.save")</Button>
+                                                <button type="button" class="pl-mini-btn" @click="cancelEdit">@Lang.tc(ctx.caller, "common.cancel")</button>
                                             </div>
                                         </form>
                                     } else {
-                                        <div class="pl-text">@m.text@if m.edited != 0 { <span class="pl-edited">(modifié)</span> }</div>
+                                        <div class="pl-text">@m.text@if m.edited != 0 { <span class="pl-edited">@Lang.tc(ctx.caller, "channel.edited")</span> }</div>
                                     }
                                     @if not isDel(m.deleted) {
                                         @raw(bzReactRow(m.id))
@@ -177,14 +177,14 @@
                                     <div class="pl-hover-actions">
                                         <span class="pl-react-quick">
                                             @for e in emojiSet {
-                                                <button class="pl-react-btn" @click="react(m.id, emo(e))" title="Réagir">@e</button>
+                                                <button class="pl-react-btn" @click="react(m.id, emo(e))" title='@(Lang.tc(ctx.caller, "channel.react"))'>@e</button>
                                             }
                                         </span>
-                                        <button class="pl-act-btn" @click="startReply(m.id)" title="Répondre">↩</button>
-                                        <button type="button" class="pl-act-btn" @click="openThread(m.id)" title="Fil">🧵</button>
+                                        <button class="pl-act-btn" @click="startReply(m.id)" title='@(Lang.tc(ctx.caller, "common.reply"))'>↩</button>
+                                        <button type="button" class="pl-act-btn" @click="openThread(m.id)" title='@(Lang.tc(ctx.caller, "channel.thread"))'>🧵</button>
                                         @if isMineP(m.author) {
-                                            <button class="pl-act-btn" @click="startEdit(m.id)" title="Modifier">✏️</button>
-                                            <button class="pl-act-btn pl-act-danger" @click="del(m.id)" title="Supprimer">🗑</button>
+                                            <button class="pl-act-btn" @click="startEdit(m.id)" title='@(Lang.tc(ctx.caller, "common.edit"))'>✏️</button>
+                                            <button class="pl-act-btn pl-act-danger" @click="del(m.id)" title='@(Lang.tc(ctx.caller, "common.delete"))'>🗑</button>
                                         }
                                     </div>
                                 }
@@ -194,9 +194,9 @@
                         <!-- tiroir de fil (rendu après le groupe / la ligne de suite) -->
                         @if openThreadId == m.id and not isDel(m.deleted) {
                             <div class="pl-thread">
-                                <div class="pl-thread-head">🧵 Fil · @(threadCountOf(m.id)) @plural(threadCountOf(m.id), "réponse", "réponses")</div>
+                                <div class="pl-thread-head">🧵 @Lang.tc(ctx.caller, "channel.thread") · @(threadCountOf(m.id)) @plural(threadCountOf(m.id), Lang.tc(ctx.caller, "channel.reply_one"), Lang.tc(ctx.caller, "channel.reply_many"))</div>
                                 @if threadCountOf(m.id) == 0 {
-                                    <p class="pl-thread-empty">Aucune réponse pour l'instant — lancez la conversation.</p>
+                                    <p class="pl-thread-empty">@Lang.tc(ctx.caller, "channel.thread_empty")</p>
                                 } else {
                                     @for t in Chat.thread(m.id) {
                                         <div class="pl-thread-msg">
@@ -207,8 +207,8 @@
                                     }
                                 }
                                 <form class="pl-thread-form" @submit="postThread" secure>
-                                    <InputText name="threadText" label="Répondre dans le fil" bind="@threadText" required />
-                                    <Button kind="primary" type="submit">Envoyer</Button>
+                                    <InputText name="threadText" label='@(Lang.tc(ctx.caller, "channel.reply_in_thread"))' bind="@threadText" required />
+                                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "common.send")</Button>
                                 </form>
                             </div>
                         }
@@ -219,31 +219,31 @@
             <div class="pl-typing">
                 @if typing.size() > 0 {
                     <span class="pl-typing-dots"><span></span><span></span><span></span></span>
-                    <span class="pl-typing-text"><strong>@typingText</strong> est en train d'écrire…</span>
+                    <span class="pl-typing-text"><strong>@typingText</strong> @Lang.tc(ctx.caller, "channel.is_typing")</span>
                 }
             </div>
 
             @if replyingTo != 0 {
                 <div class="pl-replybar">
-                    <span>↪ Réponse à <span class="pl-reply-snip">@(replySnippet(replyingTo))</span></span>
-                    <button class="pl-replybar-x" @click="cancelReply" title="Annuler">✕</button>
+                    <span>↪ @Lang.tc(ctx.caller, "channel.replying_to") <span class="pl-reply-snip">@(replySnippet(replyingTo))</span></span>
+                    <button class="pl-replybar-x" @click="cancelReply" title='@(Lang.tc(ctx.caller, "common.cancel"))'>✕</button>
                 </div>
             }
 
             @if locked and not canMod {
-                <div class="pl-composer-locked">🔒 Ce salon est verrouillé. Seuls les modérateurs peuvent publier pour le moment.</div>
+                <div class="pl-composer-locked">🔒 @Lang.tc(ctx.caller, "channel.locked_notice")</div>
             } else if muted {
-                <div class="pl-composer-locked">🔇 Vous êtes réduit au silence sur ce serveur et ne pouvez pas publier.</div>
+                <div class="pl-composer-locked">🔇 @Lang.tc(ctx.caller, "channel.muted_notice")</div>
             } else if not bound {
-                <div class="pl-composer-locked"><a href="/me">Choisissez un pseudo</a> pour rejoindre la conversation.</div>
+                <div class="pl-composer-locked"><a href="/me">@Lang.tc(ctx.caller, "channel.choose_handle")</a> @Lang.tc(ctx.caller, "channel.join_conversation")</div>
             } else {
                 <form class="pl-composer" @submit="send" secure>
                     <ValidationSummary />
                     <div class="pl-composer-row">
-                        <button type="button" class="pl-composer-attach" title="Joindre un fichier" disabled>＋</button>
-                        <InputText name="draft" label="Envoyer un message…" bind="@draft" required />
+                        <button type="button" class="pl-composer-attach" title='@(Lang.tc(ctx.caller, "channel.attach_file"))' disabled>＋</button>
+                        <InputText name="draft" label='@(Lang.tc(ctx.caller, "channel.send_message_ph"))' bind="@draft" required />
                         <button type="button" class="pl-composer-emoji" title="Emoji" disabled>😊</button>
-                        <button class="pl-send-btn" type="submit" title="Envoyer">➤</button>
+                        <button class="pl-send-btn" type="submit" title='@(Lang.tc(ctx.caller, "common.send"))'>➤</button>
                     </div>
                 </form>
             }
@@ -252,7 +252,7 @@
         <!-- ====================== DROITE : liste des membres ====================== -->
         <aside class="pl-members">
             @if staffMembers.size() > 0 {
-                <div class="pl-mem-cat pl-mem-cat-staff">Équipe — @(staffMembers.size())</div>
+                <div class="pl-mem-cat pl-mem-cat-staff">@Lang.tc(ctx.caller, "channel.team") — @(staffMembers.size())</div>
                 <ul class="pl-mem-list">
                     @for h in staffMembers {
                         <li class="pl-mem">
@@ -260,14 +260,14 @@
                             <span class="pl-mem-id">
                                 <span class="pl-mem-name pl-role-@(roleClassOfH(h))">@h</span>
                             </span>
-                            <span class="pl-mem-dot pl-role-@(roleClassOfH(h))" title="@(roleOfH(h))"></span>
+                            <span class="pl-mem-dot pl-role-@(roleClassOfH(h))" title='@(roleOfH(h))'></span>
                         </li>
                     }
                 </ul>
             }
-            <div class="pl-mem-cat">En ligne — @(onlineMembers.size())</div>
+            <div class="pl-mem-cat">@Lang.tc(ctx.caller, "channel.online_cat") — @(onlineMembers.size())</div>
             @if onlineMembers.size() == 0 {
-                <p class="pl-mem-empty">Personne d'autre n'est en ligne pour l'instant.</p>
+                <p class="pl-mem-empty">@Lang.tc(ctx.caller, "channel.no_one_online")</p>
             } else {
                 <ul class="pl-mem-list">
                     @for h in onlineMembers {

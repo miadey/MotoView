@@ -7,22 +7,22 @@
 <div class="fn-wrap">
 
     <Breadcrumb>
-        <BreadcrumbItem href="/">Accueil</BreadcrumbItem>
-        <BreadcrumbItem href="/forum">Forum</BreadcrumbItem>
-        <BreadcrumbItem current="true">Nouveau sujet</BreadcrumbItem>
+        <BreadcrumbItem href="/">@Lang.tc(ctx.caller, "nav.home")</BreadcrumbItem>
+        <BreadcrumbItem href="/forum">@Lang.tc(ctx.caller, "forumnew.crumb_forum")</BreadcrumbItem>
+        <BreadcrumbItem current="true">@Lang.tc(ctx.caller, "forumnew.title")</BreadcrumbItem>
     </Breadcrumb>
 
     @if signedIn {
 
         <div class="fn-card">
-            <h1 class="fn-title">Nouveau sujet</h1>
-            <p class="fn-lede">Posez une question, partagez une création ou lancez une discussion.</p>
+            <h1 class="fn-title">@Lang.tc(ctx.caller, "forumnew.title")</h1>
+            <p class="fn-lede">@Lang.tc(ctx.caller, "forumnew.lede")</p>
 
             <form @submit="create" secure>
                 <ValidationSummary />
 
                 <div class="fn-field">
-                    <label class="fn-label" for="fn-category">Catégorie</label>
+                    <label class="fn-label" for="fn-category">@Lang.tc(ctx.caller, "forumnew.category")</label>
                     <div class="fn-select-wrap">
                         <span class="fn-select-sq" style="--c:@selectedColor()"></span>
                         <select id="fn-category" name="categoryId" class="fn-select">
@@ -39,26 +39,26 @@
                 </div>
 
                 <div class="fn-field">
-                    <label class="fn-label" for="fn-title">Titre</label>
+                    <label class="fn-label" for="fn-title">@Lang.tc(ctx.caller, "forumnew.field_title")</label>
                     <InputText name="title" bind="@title" required />
-                    <p class="fn-hint">Un titre clair et précis aide les autres à trouver et répondre à votre sujet.</p>
+                    <p class="fn-hint">@Lang.tc(ctx.caller, "forumnew.hint_title")</p>
                 </div>
 
                 <div class="fn-field">
-                    <label class="fn-label" for="fn-body">Contenu</label>
+                    <label class="fn-label" for="fn-body">@Lang.tc(ctx.caller, "forumnew.field_body")</label>
                     <TextArea name="body" bind="@body" required />
-                    <p class="fn-hint">Texte au format Markdown. Soyez descriptif — indiquez ce que vous avez essayé.</p>
+                    <p class="fn-hint">@Lang.tc(ctx.caller, "forumnew.hint_body")</p>
                 </div>
 
                 <div class="fn-field">
-                    <label class="fn-label" for="fn-tags">Tags</label>
+                    <label class="fn-label" for="fn-tags">@Lang.tc(ctx.caller, "forumnew.field_tags")</label>
                     <InputText name="tags" bind="@tags" />
-                    <p class="fn-hint">Facultatif. Séparés par des virgules, ex. <code>motoko, debutant, dfx</code>.</p>
+                    <p class="fn-hint">@Lang.tc(ctx.caller, "forumnew.hint_tags") <code>motoko, debutant, dfx</code>.</p>
                 </div>
 
                 <div class="fn-actions">
-                    <Button kind="primary" type="submit">Publier le sujet</Button>
-                    <a class="fn-cancel" href="/forum">Annuler</a>
+                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "forumnew.submit")</Button>
+                    <a class="fn-cancel" href="/forum">@Lang.tc(ctx.caller, "common.cancel")</a>
                 </div>
             </form>
         </div>
@@ -66,9 +66,9 @@
     } else {
 
         <div class="fn-gate">
-            <h1>Choisissez d'abord un pseudo</h1>
-            <p>Il vous faut un pseudo Pulse avant de pouvoir publier un sujet.</p>
-            <a class="fn-gate-btn" href="/me">Configurer votre profil →</a>
+            <h1>@Lang.tc(ctx.caller, "forumnew.gate_title")</h1>
+            <p>@Lang.tc(ctx.caller, "forumnew.gate_body")</p>
+            <a class="fn-gate-btn" href="/me">@Lang.tc(ctx.caller, "forumnew.gate_cta") →</a>
         </div>
 
     }

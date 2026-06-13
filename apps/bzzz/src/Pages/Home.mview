@@ -8,38 +8,38 @@
   @if showPersonalize {
    <section class="pl-home-personalize">
     <header class="pl-home-personalize-head">
-     <h2>✨ Personnalisez votre profil</h2>
-     <a class="pl-home-personalize-more" href="/me">Profil →</a>
+     <h2>✨ @Lang.tc(ctx.caller, "home.personalize_title")</h2>
+     <a class="pl-home-personalize-more" href="/me">@Lang.tc(ctx.caller, "acct.profile") →</a>
     </header>
-    <p class="pl-home-personalize-sub">Nous vous avons connecté en tant que <strong>@@@myHandle</strong> — un pseudo dérivé de votre Internet Identity. Choisissez-en un plus convivial (il se met à jour partout sur Pulse, à tout moment).</p>
+    <p class="pl-home-personalize-sub">@Lang.tc(ctx.caller, "home.personalize_sub_before") <strong>@@@myHandle</strong> @Lang.tc(ctx.caller, "home.personalize_sub_after")</p>
     <form @submit="rename" secure class="pl-home-personalize-form">
      <ValidationSummary />
-     <InputText name="newHandle" label="Votre pseudo" bind="@newHandle" required />
-     <button class="pl-home-btn-primary" type="submit">Valider</button>
+     <InputText name="newHandle" label='@(Lang.tc(ctx.caller, "home.handle_label"))' bind="@newHandle" required />
+     <button class="pl-home-btn-primary" type="submit">@Lang.tc(ctx.caller, "home.validate")</button>
     </form>
    </section>
   }
   <section class="pl-home-composer">
    <div class="pl-home-composer-row">
     <span class="pl-home-ava">@avatar</span>
-    <div class="pl-home-composer-input">Quoi de neuf dans votre communauté ?</div>
+    <div class="pl-home-composer-input">@Lang.tc(ctx.caller, "home.composer_ph")</div>
    </div>
    <div class="pl-home-composer-foot">
-    <span class="pl-home-composer-tools">🖼 Image · 📊 Sondage · 📎 Fichier · @@ Mention</span>
-    <a class="pl-home-btn-primary" href="/feed">Publier</a>
+    <span class="pl-home-composer-tools">🖼 @Lang.tc(ctx.caller, "home.tool_image") · 📊 @Lang.tc(ctx.caller, "home.tool_poll") · 📎 @Lang.tc(ctx.caller, "home.tool_file") · @@ @Lang.tc(ctx.caller, "home.tool_mention")</span>
+    <a class="pl-home-btn-primary" href="/feed">@Lang.tc(ctx.caller, "common.post")</a>
    </div>
   </section>
-  <nav class="pl-home-tabs" aria-label="Filtres du fil">
-   <a class="pl-home-tab pl-home-tab-active" href="/">Pour vous</a>
-   <a class="pl-home-tab" href="/feed?tab=following">Abonnements</a>
-   <a class="pl-home-tab" href="/feed">Tendances</a>
-   <a class="pl-home-tab" href="/status">Annonces</a>
+  <nav class="pl-home-tabs" aria-label='@(Lang.tc(ctx.caller, "home.tabs_aria"))'>
+   <a class="pl-home-tab pl-home-tab-active" href="/">@Lang.tc(ctx.caller, "home.tab_foryou")</a>
+   <a class="pl-home-tab" href="/feed?tab=following">@Lang.tc(ctx.caller, "home.tab_following")</a>
+   <a class="pl-home-tab" href="/feed">@Lang.tc(ctx.caller, "home.tab_trending")</a>
+   <a class="pl-home-tab" href="/status">@Lang.tc(ctx.caller, "nav.annonces")</a>
   </nav>
   <section class="pl-home-feed">
    @if (feedLatest.size() > 0) {
     @for p in feedLatest {
      <article class="pl-home-post">
-      <a class="pl-home-post-link" href="/feed/p/@(p.id)" aria-label="Ouvrir la publication"></a>
+      <a class="pl-home-post-link" href="/feed/p/@(p.id)" aria-label='@(Lang.tc(ctx.caller, "home.open_post"))'></a>
       <span class="pl-home-ava">@(Identity.avatarOf(p.author))</span>
       <div class="pl-home-post-body">
        <div class="pl-home-post-head">
@@ -47,62 +47,62 @@
         <span class="pl-home-post-handle">@@@(p.authorHandle)</span>
         <span class="pl-home-post-dot">·</span>
         <span class="pl-home-post-time">@(Feed.relativeTime(p.at))</span>
-        <a class="pl-home-post-more" href="/feed/p/@(p.id)" title="Plus" aria-label="Plus d'options">⋯</a>
+        <a class="pl-home-post-more" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "common.more"))' aria-label='@(Lang.tc(ctx.caller, "home.more_options"))'>⋯</a>
        </div>
        <div class="pl-home-post-text">@p.text</div>
        <div class="pl-home-post-actions">
-        <a class="pl-home-act pl-home-act-reply" href="/feed/p/@(p.id)" title="Répondre">
+        <a class="pl-home-act pl-home-act-reply" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "common.reply"))'>
          <span class="pl-home-act-ico">💬</span>
          <span class="pl-home-act-n">@(p.replyCount)</span>
         </a>
-        <a class="pl-home-act pl-home-act-repost" href="/feed/p/@(p.id)" title="Reposter">
+        <a class="pl-home-act pl-home-act-repost" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "home.repost"))'>
          <span class="pl-home-act-ico">🔁</span>
          <span class="pl-home-act-n">@(p.reposts)</span>
         </a>
-        <a class="pl-home-act pl-home-act-like" href="/feed/p/@(p.id)" title="Aimer">
+        <a class="pl-home-act pl-home-act-like" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "home.like"))'>
          <span class="pl-home-act-ico">❤️</span>
          <span class="pl-home-act-n">@(p.likes)</span>
         </a>
-        <a class="pl-home-act pl-home-act-save" href="/feed/p/@(p.id)" title="Sauvegarder">
+        <a class="pl-home-act pl-home-act-save" href="/feed/p/@(p.id)" title='@(Lang.tc(ctx.caller, "home.save_post"))'>
          <span class="pl-home-act-ico">🔖</span>
         </a>
        </div>
       </div>
      </article>
     }
-    <a class="pl-home-feed-more" href="/feed">Voir tout le fil →</a>
+    <a class="pl-home-feed-more" href="/feed">@Lang.tc(ctx.caller, "home.see_all_feed") →</a>
    } else {
     <div class="pl-home-empty">
      <span class="pl-home-empty-ico">⚡</span>
-     <h3>Aucune publication pour l'instant</h3>
-     <p>Soyez le premier à publier et lancez la conversation sur Pulse.</p>
-     <a class="pl-home-btn-primary" href="/feed">Écrire une publication</a>
+     <h3>@Lang.tc(ctx.caller, "home.empty_title")</h3>
+     <p>@Lang.tc(ctx.caller, "home.empty_sub")</p>
+     <a class="pl-home-btn-primary" href="/feed">@Lang.tc(ctx.caller, "home.write_post")</a>
     </div>
    }
   </section>
  </div>
  <aside class="pl-home-rail">
   <section class="pl-home-panel">
-   <h3 class="pl-home-panel-title">Tendances</h3>
+   <h3 class="pl-home-panel-title">@Lang.tc(ctx.caller, "home.tab_trending")</h3>
    <a class="pl-home-trend" href="/feed">
-    <span class="pl-home-trend-cat">On Pulse · En direct</span>
+    <span class="pl-home-trend-cat">@Lang.tc(ctx.caller, "home.trend_cat_onpulse")</span>
     <span class="pl-home-trend-tag">#ICP</span>
     <span class="pl-home-trend-n">@postN @(plural(postN, "publication", "publications"))</span>
    </a>
    <a class="pl-home-trend" href="/forum">
-    <span class="pl-home-trend-cat">Communauté · Tendance</span>
+    <span class="pl-home-trend-cat">@Lang.tc(ctx.caller, "home.trend_cat_community")</span>
     <span class="pl-home-trend-tag">#Forum</span>
     <span class="pl-home-trend-n">@topicN @(plural(topicN, "sujet", "sujets"))</span>
    </a>
    <a class="pl-home-trend" href="/communautes">
-    <span class="pl-home-trend-cat">Communautés</span>
+    <span class="pl-home-trend-cat">@Lang.tc(ctx.caller, "nav.communautes")</span>
     <span class="pl-home-trend-tag">#Serveurs</span>
     <span class="pl-home-trend-n">@serverN @(plural(serverN, "serveur", "serveurs"))</span>
    </a>
-   <a class="pl-home-showmore" href="/feed">Voir plus</a>
+   <a class="pl-home-showmore" href="/feed">@Lang.tc(ctx.caller, "home.see_more")</a>
   </section>
   <section class="pl-home-panel">
-   <h3 class="pl-home-panel-title">Membres actifs</h3>
+   <h3 class="pl-home-panel-title">@Lang.tc(ctx.caller, "home.active_members")</h3>
    @if (statusLatest.size() > 0) {
     <ul class="pl-home-members">
      @for s in statusLatest {
@@ -110,16 +110,16 @@
        <span class="pl-home-ava pl-home-ava-sm">@(Identity.avatarOf(s.author))</span>
        <span class="pl-home-member-main">
         <span class="pl-home-member-name">@(Identity.atHandleOf(s.author))</span>
-        <span class="pl-home-member-on"><span class="pl-home-online-dot"></span> En ligne</span>
+        <span class="pl-home-member-on"><span class="pl-home-online-dot"></span> @Lang.tc(ctx.caller, "home.online")</span>
        </span>
       </li>
      }
     </ul>
-    <a class="pl-home-showmore" href="/status">Voir plus</a>
+    <a class="pl-home-showmore" href="/status">@Lang.tc(ctx.caller, "home.see_more")</a>
    } else {
-    <p class="pl-home-panel-empty">Aucun membre actif dans les dernières 24 heures.</p>
+    <p class="pl-home-panel-empty">@Lang.tc(ctx.caller, "home.no_active_members")</p>
    }
-   <p class="pl-home-panel-foot">👥 @members @(plural(members, "membre", "membres")) · 🟢 @online actifs</p>
+   <p class="pl-home-panel-foot">👥 @members @(plural(members, "membre", "membres")) · 🟢 @online @Lang.tc(ctx.caller, "home.active_suffix")</p>
   </section>
  </aside>
 </div>

@@ -7,28 +7,28 @@
 <div class="pl-search">
 
     <header class="pl-search-head">
-        <h1 class="pl-search-title">Recherche</h1>
-        <p class="pl-search-sub">Trouvez des sujets, des personnes et des communautés sur Pulse.</p>
+        <h1 class="pl-search-title">@Lang.tc(ctx.caller, "search.title")</h1>
+        <p class="pl-search-sub">@Lang.tc(ctx.caller, "search.subtitle")</p>
     </header>
 
     <form class="pl-search-form" action="/search" method="get" role="search">
         <span class="pl-search-glyph" aria-hidden="true">🔍</span>
         <input class="pl-search-input" type="search" name="q" value="@q"
-               placeholder="Rechercher…" autocomplete="off" autofocus />
-        <button class="pl-search-btn" type="submit">Rechercher</button>
+               placeholder='@(Lang.tc(ctx.caller, "common.search"))' autocomplete="off" autofocus />
+        <button class="pl-search-btn" type="submit">@Lang.tc(ctx.caller, "common.search")</button>
     </form>
 
     @if (Text.size(trimmed) == 0) {
-        <div class="pl-search-empty">Recherchez des sujets, des personnes et des communautés sur Pulse.</div>
+        <div class="pl-search-empty">@Lang.tc(ctx.caller, "search.subtitle")</div>
     } else {
         @if (resultCount == 0) {
-            <div class="pl-search-empty">Aucun résultat pour « @q ». Essayez un autre terme.</div>
+            <div class="pl-search-empty">@Lang.tc(ctx.caller, "search.no_results") « @q ». @Lang.tc(ctx.caller, "search.try_another")</div>
         } else {
-            <p class="pl-search-meta">@(resultCount) résultat(s) pour « @q »</p>
+            <p class="pl-search-meta">@(resultCount) @Lang.tc(ctx.caller, "search.results_for") « @q »</p>
 
             @if (topicHits.size() > 0) {
                 <section class="pl-search-group">
-                    <h2 class="pl-search-grouptitle">Sujets</h2>
+                    <h2 class="pl-search-grouptitle">@Lang.tc(ctx.caller, "search.topics")</h2>
                     <div class="pl-search-list">
                         @for t in topicHits {
                             <a class="pl-search-row" href="/forum/t/@(t.id)">
@@ -45,7 +45,7 @@
 
             @if (peopleHits.size() > 0) {
                 <section class="pl-search-group">
-                    <h2 class="pl-search-grouptitle">Personnes</h2>
+                    <h2 class="pl-search-grouptitle">@Lang.tc(ctx.caller, "search.people")</h2>
                     <div class="pl-search-list">
                         @for p in peopleHits {
                             <a class="pl-search-row" href="/u/@(p.handle)">
@@ -63,7 +63,7 @@
 
             @if (serverHits.size() > 0) {
                 <section class="pl-search-group">
-                    <h2 class="pl-search-grouptitle">Communautés</h2>
+                    <h2 class="pl-search-grouptitle">@Lang.tc(ctx.caller, "nav.communautes")</h2>
                     <div class="pl-search-list">
                         @for s in serverHits {
                             <a class="pl-search-row" href="/communautes/@(s.id)">

@@ -7,8 +7,8 @@
 @if not exists {
     <div class="cm-card cm-missing">
         <div class="cm-missing-ico">🚫</div>
-        <h2>Communauté introuvable</h2>
-        <p>Cette communauté n'existe pas (ou a été supprimée). <a href="/communautes">Retour à toutes les communautés</a>.</p>
+        <h2>@Lang.tc(ctx.caller, "server.not_found")</h2>
+        <p>@Lang.tc(ctx.caller, "server.not_found_body") <a href="/communautes">@Lang.tc(ctx.caller, "server.back_to_all")</a>.</p>
     </div>
 } else {
     <div class="cm-page">
@@ -17,52 +17,52 @@
                 <div class="cm-avatar">💬</div>
                 <div class="cm-header-text">
                     <h1 class="cm-name">@serverName</h1>
-                    <p class="cm-sub">@(memberCount) @plural(memberCount, "membre", "membres") · @(channels.size()) @plural(channels.size(), "salon", "salons") · créée @createdRel</p>
+                    <p class="cm-sub">@(memberCount) @plural(memberCount, "membre", "membres") · @(channels.size()) @plural(channels.size(), "salon", "salons") · @Lang.tc(ctx.caller, "server.created") @createdRel</p>
                     <div class="cm-chips">
                         <span class="cm-chip">@kindLabel</span>
                         @if private_ {
-                            <span class="cm-chip">🔒 Privée</span>
+                            <span class="cm-chip">🔒 @Lang.tc(ctx.caller, "server.private")</span>
                         }
-                        <span class="cm-chip">Votre rôle : @myRole</span>
+                        <span class="cm-chip">@Lang.tc(ctx.caller, "server.your_role") @myRole</span>
                     </div>
                 </div>
             </div>
             <div class="cm-header-actions">
                 @if isMember {
                     @if isOwner {
-                        <span class="cm-owner-note">⭐ Vous êtes le propriétaire</span>
+                        <span class="cm-owner-note">⭐ @Lang.tc(ctx.caller, "server.you_are_owner")</span>
                     } else {
-                        <button class="cm-btn cm-btn-ghost" @click="leave">Quitter</button>
+                        <button class="cm-btn cm-btn-ghost" @click="leave">@Lang.tc(ctx.caller, "common.leave")</button>
                     }
                 } else {
-                    <button class="cm-btn cm-btn-primary" @click="join">Rejoindre</button>
+                    <button class="cm-btn cm-btn-primary" @click="join">@Lang.tc(ctx.caller, "common.join")</button>
                 }
             </div>
         </header>
 
-        <nav class="cm-tabs" aria-label="Sections de la communauté">
-            <a class="cm-tab cm-tab-active" href="#apercu">Aperçu</a>
-            <a class="cm-tab" href="#fil">Fil</a>
-            <a class="cm-tab" href="#forum">Forum</a>
-            <a class="cm-tab" href="#chat">Chat</a>
-            <a class="cm-tab" href="#annonces">Annonces</a>
-            <a class="cm-tab" href="#docs">Docs</a>
-            <a class="cm-tab" href="#membres">Membres</a>
+        <nav class="cm-tabs" aria-label='@(Lang.tc(ctx.caller, "server.tabs_aria"))'>
+            <a class="cm-tab cm-tab-active" href="#apercu">@Lang.tc(ctx.caller, "server.tab_overview")</a>
+            <a class="cm-tab" href="#fil">@Lang.tc(ctx.caller, "server.tab_feed")</a>
+            <a class="cm-tab" href="#forum">@Lang.tc(ctx.caller, "server.tab_forum")</a>
+            <a class="cm-tab" href="#chat">@Lang.tc(ctx.caller, "server.tab_chat")</a>
+            <a class="cm-tab" href="#annonces">@Lang.tc(ctx.caller, "server.tab_announcements")</a>
+            <a class="cm-tab" href="#docs">@Lang.tc(ctx.caller, "server.tab_docs")</a>
+            <a class="cm-tab" href="#membres">@Lang.tc(ctx.caller, "server.tab_members")</a>
         </nav>
 
         <div class="cm-layout">
             <section class="cm-col-main">
                 <div class="cm-card cm-panel">
                     <div class="cm-panel-head">
-                        <h2 class="cm-sec-title">Salons</h2>
+                        <h2 class="cm-sec-title">@Lang.tc(ctx.caller, "server.channels")</h2>
                         <span class="cm-count">@(channels.size())</span>
                     </div>
 
                     @if channels.size() == 0 {
                         @if canMod {
-                            <p class="cm-empty">Aucun salon pour l'instant. Créez le premier ci-dessous.</p>
+                            <p class="cm-empty">@Lang.tc(ctx.caller, "server.no_channels_mod")</p>
                         } else {
-                            <p class="cm-empty">Aucun salon pour l'instant. Un modérateur peut en créer.</p>
+                            <p class="cm-empty">@Lang.tc(ctx.caller, "server.no_channels")</p>
                         }
                     } else {
                         <ul class="cm-channels">
@@ -72,15 +72,15 @@
                                         <span class="cm-hash">#</span><span class="cm-cname">@c.name</span>
                                     </a>
                                     <span class="cm-channel-meta">
-                                        @if isLocked(c.id) { <span class="cm-lockchip">🔒 verrouillé</span> }
-                                        <span class="cm-msgcount">@(msgCount(c.id)) msgs</span>
+                                        @if isLocked(c.id) { <span class="cm-lockchip">🔒 @Lang.tc(ctx.caller, "server.locked")</span> }
+                                        <span class="cm-msgcount">@(msgCount(c.id)) @Lang.tc(ctx.caller, "server.msgs")</span>
                                     </span>
                                     @if canMod {
                                         <span class="cm-channel-mod">
                                             @if isLocked(c.id) {
-                                                <button class="cm-chip-btn" @click="unlock(c.id)">Déverrouiller</button>
+                                                <button class="cm-chip-btn" @click="unlock(c.id)">@Lang.tc(ctx.caller, "server.unlock")</button>
                                             } else {
-                                                <button class="cm-chip-btn" @click="lock(c.id)">Verrouiller</button>
+                                                <button class="cm-chip-btn" @click="lock(c.id)">@Lang.tc(ctx.caller, "server.lock")</button>
                                             }
                                         </span>
                                     }
@@ -93,10 +93,10 @@
                         <form class="cm-channel-form" @submit="createChannel" secure>
                             <ValidationSummary />
                             <div class="cm-channel-form-row">
-                                <InputText name="channelName" label="Nom du nouveau salon" bind="@channelName" required />
-                                <button class="cm-btn cm-btn-primary cm-btn-add" type="submit">＋ Ajouter un salon</button>
+                                <InputText name="channelName" label='@(Lang.tc(ctx.caller, "server.new_channel_label"))' bind="@channelName" required />
+                                <button class="cm-btn cm-btn-primary cm-btn-add" type="submit">＋ @Lang.tc(ctx.caller, "server.add_channel")</button>
                             </div>
-                            <p class="cm-hint">Minuscules, chiffres, - et _ uniquement (20 caractères max).</p>
+                            <p class="cm-hint">@Lang.tc(ctx.caller, "server.channel_hint")</p>
                         </form>
                     }
                 </div>
@@ -104,10 +104,10 @@
                 @if canMod {
                     <div class="cm-card cm-panel cm-modpanel">
                         <div class="cm-panel-head">
-                            <h2 class="cm-sec-title">Modération</h2>
-                            <span class="cm-chip">Outils @myRole</span>
+                            <h2 class="cm-sec-title">@Lang.tc(ctx.caller, "server.moderation")</h2>
+                            <span class="cm-chip">@Lang.tc(ctx.caller, "server.tools") @myRole</span>
                         </div>
-                        <p class="cm-modnote">Vous pouvez modérer cette communauté. Verrouillez des salons ci-dessus pour empêcher les non-modérateurs de publier, et gérez les rôles des membres dans le panneau latéral.</p>
+                        <p class="cm-modnote">@Lang.tc(ctx.caller, "server.mod_note")</p>
                     </div>
                 }
             </section>
@@ -115,11 +115,11 @@
             <aside class="cm-col-rail">
                 <div class="cm-card cm-panel">
                     <div class="cm-panel-head">
-                        <h2 class="cm-sec-title">Membres</h2>
+                        <h2 class="cm-sec-title">@Lang.tc(ctx.caller, "server.tab_members")</h2>
                         <span class="cm-count">@memberCount</span>
                     </div>
                     @if memberRows.size() == 0 {
-                        <p class="cm-empty">Aucun membre pour l'instant.</p>
+                        <p class="cm-empty">@Lang.tc(ctx.caller, "server.no_members")</p>
                     } else {
                         <ul class="cm-members">
                             @for mr in memberRows {
@@ -127,19 +127,19 @@
                                     <Persona name="@(handleOf(mr.principal))" secondary="@(roleLabel(mr.principal))" avatar="@(avatarOf(mr.principal))" />
                                     @if canAdmin {
                                         @if isOwnerPrincipal(mr.principal) {
-                                            <span class="cm-member-actions cm-owner-pill">Propriétaire</span>
+                                            <span class="cm-member-actions cm-owner-pill">@Lang.tc(ctx.caller, "server.owner")</span>
                                         } else {
                                             <span class="cm-member-actions">
                                                 @if isMod(mr.principal) {
-                                                    <button class="cm-chip-btn" @click="revoke(pidText(mr.principal))">Révoquer</button>
+                                                    <button class="cm-chip-btn" @click="revoke(pidText(mr.principal))">@Lang.tc(ctx.caller, "server.revoke")</button>
                                                 } else {
-                                                    <button class="cm-chip-btn" @click="makeMod(pidText(mr.principal))">Nommer mod</button>
+                                                    <button class="cm-chip-btn" @click="makeMod(pidText(mr.principal))">@Lang.tc(ctx.caller, "server.make_mod")</button>
                                                 }
                                                 @if isOwner {
                                                     @if isAdminPrincipal(mr.principal) {
-                                                        <button class="cm-chip-btn" @click="revoke(pidText(mr.principal))">Rétrograder</button>
+                                                        <button class="cm-chip-btn" @click="revoke(pidText(mr.principal))">@Lang.tc(ctx.caller, "server.demote")</button>
                                                     } else {
-                                                        <button class="cm-chip-btn" @click="makeAdmin(pidText(mr.principal))">Nommer admin</button>
+                                                        <button class="cm-chip-btn" @click="makeAdmin(pidText(mr.principal))">@Lang.tc(ctx.caller, "server.make_admin")</button>
                                                     }
                                                 }
                                             </span>

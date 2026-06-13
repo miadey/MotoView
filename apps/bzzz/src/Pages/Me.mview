@@ -15,11 +15,11 @@
                 @if (Text.size(bio) > 0) {
                     <p class="pl-me-role">@bio</p>
                 } else {
-                    <p class="pl-me-role pl-me-role-empty">Aucune bio pour le moment — ajoutez-en une ci-dessous.</p>
+                    <p class="pl-me-role pl-me-role-empty">@Lang.tc(ctx.caller, "me.no_bio")</p>
                 }
             } else {
-                <h1 class="pl-me-name">Réclamez votre profil</h1>
-                <p class="pl-me-handle">Choisissez un identifiant pour rejoindre Pulse et commencer à publier.</p>
+                <h1 class="pl-me-name">@Lang.tc(ctx.caller, "me.claim_title")</h1>
+                <p class="pl-me-handle">@Lang.tc(ctx.caller, "me.claim_sub")</p>
             }
         </div>
     </div>
@@ -27,82 +27,82 @@
     <div class="pl-me-stats">
         <div class="pl-me-stat">
             <span class="pl-me-stat-n">@postCount</span>
-            <span class="pl-me-stat-l">Publications</span>
+            <span class="pl-me-stat-l">@Lang.tc(ctx.caller, "me.publications")</span>
         </div>
         <div class="pl-me-stat-sep"></div>
         <div class="pl-me-stat">
             <span class="pl-me-stat-n">@followers</span>
-            <span class="pl-me-stat-l">Abonnés</span>
+            <span class="pl-me-stat-l">@Lang.tc(ctx.caller, "me.followers")</span>
         </div>
         <div class="pl-me-stat-sep"></div>
         <div class="pl-me-stat">
             <span class="pl-me-stat-n">@followingN</span>
-            <span class="pl-me-stat-l">Abonnements</span>
+            <span class="pl-me-stat-l">@Lang.tc(ctx.caller, "me.following")</span>
         </div>
     </div>
 </section>
 
 @if (not bound) {
     @if isAnon {
-        <MessageBar intent="warning">Vous naviguez en tant qu'invité. Connectez-vous (en haut à droite), puis réclamez un identifiant ci-dessous pour publier, rejoindre des communautés et envoyer des messages.</MessageBar>
+        <MessageBar intent="warning">@Lang.tc(ctx.caller, "me.guest_bar")</MessageBar>
     } else {
-        <MessageBar intent="success">Vous êtes connecté — choisissez simplement un identifiant ci-dessous pour finaliser votre profil. Vous pourrez ensuite publier, rejoindre des communautés et envoyer des messages. (Votre identifiant et vos rôles sont distincts : vous pouvez déjà administrer Pulse.)</MessageBar>
+        <MessageBar intent="success">@Lang.tc(ctx.caller, "me.connected_bar")</MessageBar>
     }
 }
 
 <div class="pl-me-card pl-me-badges">
-    <h2 class="pl-me-h2">Badges</h2>
-    <p class="pl-me-empty-note">Bientôt — les badges arrivent prochainement.</p>
+    <h2 class="pl-me-h2">@Lang.tc(ctx.caller, "me.badges")</h2>
+    <p class="pl-me-empty-note">@Lang.tc(ctx.caller, "me.badges_soon")</p>
 </div>
 
 <div class="pl-me-grid">
     <div class="pl-me-col">
         <div class="pl-me-card">
-            <h2 class="pl-me-h2">Identité</h2>
-            <p class="pl-me-sub">Votre identifiant est unique sur tout Pulse — fil, forum, communautés et messages — et est lié à votre Internet Identity.</p>
+            <h2 class="pl-me-h2">@Lang.tc(ctx.caller, "me.identity")</h2>
+            <p class="pl-me-sub">@Lang.tc(ctx.caller, "me.identity_sub")</p>
             <form @submit="saveIdentity" secure>
                 <ValidationSummary />
-                <InputText name="handle" label="Identifiant" bind="@handle" required />
-                <p class="pl-me-hint">2–20 caractères · lettres minuscules, chiffres et tirets bas · commence par une lettre.</p>
-                <InputText name="display" label="Nom affiché" bind="@display" />
+                <InputText name="handle" label='@(Lang.tc(ctx.caller, "me.handle_label"))' bind="@handle" required />
+                <p class="pl-me-hint">@Lang.tc(ctx.caller, "me.handle_hint")</p>
+                <InputText name="display" label='@(Lang.tc(ctx.caller, "me.display_label"))' bind="@display" />
                 <div class="pl-me-actions">
-                    <Button kind="primary" type="submit">Enregistrer l'identifiant</Button>
+                    <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "me.save_handle")</Button>
                 </div>
             </form>
-            <p class="pl-me-linked">🔗 Lié à votre Internet Identity : <code class="pl-me-linked-id">@principalText</code></p>
+            <p class="pl-me-linked">🔗 @Lang.tc(ctx.caller, "me.linked_to") <code class="pl-me-linked-id">@principalText</code></p>
         </div>
 
         @if bound {
             <div class="pl-me-card">
-                <h2 class="pl-me-h2">À propos</h2>
-                <p class="pl-me-sub">Une courte phrase à votre sujet, affichée sur votre profil public.</p>
+                <h2 class="pl-me-h2">@Lang.tc(ctx.caller, "me.about")</h2>
+                <p class="pl-me-sub">@Lang.tc(ctx.caller, "me.about_sub")</p>
                 <form @submit="saveBio" secure>
                     <ValidationSummary />
-                    <TextArea name="bio" label="Bio" bind="@bio" />
+                    <TextArea name="bio" label='@(Lang.tc(ctx.caller, "me.bio_label"))' bind="@bio" />
                     <div class="pl-me-actions">
-                        <Button kind="primary" type="submit">Enregistrer la bio</Button>
+                        <Button kind="primary" type="submit">@Lang.tc(ctx.caller, "me.save_bio")</Button>
                     </div>
                 </form>
             </div>
         }
 
         <div class="pl-me-card">
-            <h2 class="pl-me-h2">Aide profil <Tooltip text="Tout sur votre identité Pulse."><span class="pl-me-help-q">?</span></Tooltip></h2>
-            <p class="pl-me-sub">Comment fonctionnent les identifiants, les bios et votre profil public.</p>
-            <MessageBar intent="info">Votre identifiant est public — il apparaît sur chaque publication, sujet et message que vous envoyez.</MessageBar>
+            <h2 class="pl-me-h2">@Lang.tc(ctx.caller, "me.help_title") <Tooltip text='@(Lang.tc(ctx.caller, "me.help_tip"))'><span class="pl-me-help-q">?</span></Tooltip></h2>
+            <p class="pl-me-sub">@Lang.tc(ctx.caller, "me.help_sub")</p>
+            <MessageBar intent="info">@Lang.tc(ctx.caller, "me.help_public")</MessageBar>
             <Accordion>
-                <AccordionItem header="Comment fonctionnent les identifiants ?" open="true">Votre identifiant est unique sur Pulse. Choisissez-le une fois ; il relie toutes vos publications, sujets de forum et messages directs. Choisissez 2 caractères ou plus.</AccordionItem>
-                <AccordionItem header="Qui peut voir ma bio ?">Votre bio apparaît sur votre profil public, visible par toute personne sur Pulse. Laissez-la vide pour la masquer.</AccordionItem>
-                <AccordionItem header="Puis-je changer mon nom affiché ?">Oui — votre nom affiché peut changer à tout moment. Votre @@identifiant est votre identité stable.</AccordionItem>
+                <AccordionItem header='@(Lang.tc(ctx.caller, "me.faq_q1"))' open="true">@Lang.tc(ctx.caller, "me.faq_a1")</AccordionItem>
+                <AccordionItem header='@(Lang.tc(ctx.caller, "me.faq_q2"))'>@Lang.tc(ctx.caller, "me.faq_a2")</AccordionItem>
+                <AccordionItem header='@(Lang.tc(ctx.caller, "me.faq_q3"))'>@Lang.tc(ctx.caller, "me.faq_a3")</AccordionItem>
             </Accordion>
             <div class="pl-me-actions">
-                <Dialog id="handle-tips" trigger="Conseils identifiant" title="Choisissez un bon identifiant">
+                <Dialog id="handle-tips" trigger='@(Lang.tc(ctx.caller, "me.tips_trigger"))' title='@(Lang.tc(ctx.caller, "me.tips_title"))'>
                     <ul class="pl-me-tips">
-                        <li>Court et mémorable (2–15 caractères).</li>
-                        <li>Lettres et chiffres — sans espaces.</li>
-                        <li>Il est quasi permanent, alors choisissez-en un qui vous plaît.</li>
+                        <li>@Lang.tc(ctx.caller, "me.tip1")</li>
+                        <li>@Lang.tc(ctx.caller, "me.tip2")</li>
+                        <li>@Lang.tc(ctx.caller, "me.tip3")</li>
                     </ul>
-                    <div class="mv-dialog-actions"><label for="handle-tips" class="mv-btn mv-btn-primary mv-btn-small">Compris</label></div>
+                    <div class="mv-dialog-actions"><label for="handle-tips" class="mv-btn mv-btn-primary mv-btn-small">@Lang.tc(ctx.caller, "me.got_it")</label></div>
                 </Dialog>
             </div>
         </div>
@@ -110,7 +110,7 @@
 
     <div class="pl-me-col">
         <div class="pl-me-card">
-            <h2 class="pl-me-h2">Vos publications</h2>
+            <h2 class="pl-me-h2">@Lang.tc(ctx.caller, "me.your_posts")</h2>
             @if (myPosts.size() > 0) {
                 <div class="pl-me-posts">
                     @for p in myPosts {
@@ -134,8 +134,8 @@
             } else {
                 <div class="pl-me-emptyfeed">
                     <div class="pl-me-emptyfeed-ico">⚡</div>
-                    <p>Vous n'avez encore rien publié.</p>
-                    <a class="pl-me-link" href="/feed">Écrivez votre première publication →</a>
+                    <p>@Lang.tc(ctx.caller, "me.empty_feed")</p>
+                    <a class="pl-me-link" href="/feed">@Lang.tc(ctx.caller, "me.write_first") →</a>
                 </div>
             }
         </div>

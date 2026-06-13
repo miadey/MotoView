@@ -9,10 +9,10 @@
     <!-- intro row + primary action -->
     <div class="pl-forum-head">
         <div class="pl-forum-intro">
-            <h1 class="pl-forum-title">Forums</h1>
-            <p class="pl-forum-sub">Catégories et derniers sujets de la communauté Pulse.</p>
+            <h1 class="pl-forum-title">@Lang.tc(ctx.caller, "forum.title")</h1>
+            <p class="pl-forum-sub">@Lang.tc(ctx.caller, "forum.sub")</p>
         </div>
-        <a class="pl-forum-new" href="/forum/new">+ Nouveau sujet</a>
+        <a class="pl-forum-new" href="/forum/new">+ @Lang.tc(ctx.caller, "forum.new_topic")</a>
     </div>
 
     <div class="pl-forum-grid">
@@ -20,10 +20,10 @@
         <!-- LEFT: Catégories -->
         <section class="pl-card pl-cats">
             <header class="pl-card-head">
-                <h2 class="pl-card-title">Catégories</h2>
+                <h2 class="pl-card-title">@Lang.tc(ctx.caller, "forum.categories")</h2>
             </header>
             @if (categories.size() == 0) {
-                <div class="pl-empty">Aucune catégorie pour l'instant.</div>
+                <div class="pl-empty">@Lang.tc(ctx.caller, "forum.no_categories")</div>
             } else {
                 <div class="pl-catlist">
                     @for c in categories {
@@ -35,22 +35,22 @@
                             </span>
                             <span class="pl-cat-count">
                                 <span class="pl-cat-num">@(c.topicCount)</span>
-                                <span class="pl-cat-lbl">sujets</span>
+                                <span class="pl-cat-lbl">@Lang.tc(ctx.caller, "forum.topics_lbl")</span>
                             </span>
                         </a>
                     }
                 </div>
-                <a class="pl-cat-all" href="/forum?sort=categories">Toutes les catégories →</a>
+                <a class="pl-cat-all" href="/forum?sort=categories">@Lang.tc(ctx.caller, "forum.all_categories") →</a>
             }
         </section>
 
         <!-- RIGHT: Sujets récents -->
         <section class="pl-card pl-topics">
             <header class="pl-card-head">
-                <h2 class="pl-card-title">Sujets récents</h2>
+                <h2 class="pl-card-title">@Lang.tc(ctx.caller, "forum.recent_topics")</h2>
             </header>
             @if (topics.size() == 0) {
-                <div class="pl-empty">Aucun sujet pour l'instant. <a href="/forum/new">Créer le premier →</a></div>
+                <div class="pl-empty">@Lang.tc(ctx.caller, "forum.no_topics") <a href="/forum/new">@Lang.tc(ctx.caller, "forum.create_first") →</a></div>
             } else {
                 <div class="pl-topiclist">
                     @for t in topics {
@@ -58,9 +58,9 @@
                             <span class="pl-topic-ava">@authorAvatar(t.author)</span>
                             <span class="pl-topic-body">
                                 <span class="pl-topic-titleline">
-                                    @if pinned(t.id) { <span class="pl-glyph" title="Épinglé">📌</span> }
-                                    @if closed(t.id) { <span class="pl-glyph" title="Fermé">🔒</span> }
-                                    @if solved(t.id) { <span class="pl-glyph pl-glyph-ok" title="Résolu">✓</span> }
+                                    @if pinned(t.id) { <span class="pl-glyph" title='@(Lang.tc(ctx.caller, "forum.pinned"))'>📌</span> }
+                                    @if closed(t.id) { <span class="pl-glyph" title='@(Lang.tc(ctx.caller, "forum.closed"))'>🔒</span> }
+                                    @if solved(t.id) { <span class="pl-glyph pl-glyph-ok" title='@(Lang.tc(ctx.caller, "forum.solved"))'>✓</span> }
                                     <span class="pl-topic-title">@t.title</span>
                                 </span>
                                 <span class="pl-topic-tags">
@@ -74,7 +74,7 @@
                                 </span>
                             </span>
                             <span class="pl-topic-aside">
-                                <span class="pl-topic-replies" title="Réponses">
+                                <span class="pl-topic-replies" title='@(Lang.tc(ctx.caller, "forum.replies"))'>
                                     <span class="pl-topic-ico">💬</span>
                                     <span class="pl-topic-rn">@replies(t.id)</span>
                                 </span>
@@ -84,10 +84,10 @@
                     }
                 </div>
                 @if (showNewer or showOlder) {
-                    <nav class="pl-pager" aria-label="Pages du forum">
-                        @if showNewer { <a class="pl-pager-btn" href="@(pageHref(page - 1))">← Plus récents</a> } else { <span class="pl-pager-sp"></span> }
-                        <span class="pl-pager-at">Page @(page + 1)</span>
-                        @if showOlder { <a class="pl-pager-btn" href="@(pageHref(page + 1))">Plus anciens →</a> } else { <span class="pl-pager-sp"></span> }
+                    <nav class="pl-pager" aria-label='@(Lang.tc(ctx.caller, "forum.pager_label"))'>
+                        @if showNewer { <a class="pl-pager-btn" href="@(pageHref(page - 1))">← @Lang.tc(ctx.caller, "forum.newer")</a> } else { <span class="pl-pager-sp"></span> }
+                        <span class="pl-pager-at">@Lang.tc(ctx.caller, "forum.page") @(page + 1)</span>
+                        @if showOlder { <a class="pl-pager-btn" href="@(pageHref(page + 1))">@Lang.tc(ctx.caller, "forum.older") →</a> } else { <span class="pl-pager-sp"></span> }
                     </nav>
                 }
             }

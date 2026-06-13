@@ -6,7 +6,7 @@
 
 @if exists {
     <Breadcrumb>
-        <BreadcrumbItem href="/feed">Accueil</BreadcrumbItem>
+        <BreadcrumbItem href="/feed">@Lang.tc(ctx.caller, "nav.home")</BreadcrumbItem>
         <BreadcrumbItem current="true">@@@handleText</BreadcrumbItem>
     </Breadcrumb>
 
@@ -20,13 +20,13 @@
                     <p class="pp-handle">@@@handleText</p>
                 </div>
                 @if isSelf {
-                    <a class="pp-btn pp-btn-self" href="/me">Modifier le profil</a>
+                    <a class="pp-btn pp-btn-self" href="/me">@Lang.tc(ctx.caller, "profile.edit_profile")</a>
                 } else {
                     <form class="pp-followform" @submit="toggleFollow" secure>
                         @if following {
-                            <button type="submit" class="pp-btn pp-btn-on">Abonné</button>
+                            <button type="submit" class="pp-btn pp-btn-on">@Lang.tc(ctx.caller, "common.following")</button>
                         } else {
-                            <button type="submit" class="pp-btn pp-btn-primary">Suivre</button>
+                            <button type="submit" class="pp-btn pp-btn-primary">@Lang.tc(ctx.caller, "common.follow")</button>
                         }
                     </form>
                 }
@@ -40,32 +40,32 @@
     <div class="pp-stats">
         <div class="pp-stat">
             <span class="pp-stat-n">@postCount</span>
-            <span class="pp-stat-l">Publications</span>
+            <span class="pp-stat-l">@Lang.tc(ctx.caller, "profile.posts")</span>
         </div>
         <div class="pp-stat">
             <span class="pp-stat-n">@followers</span>
-            <span class="pp-stat-l">Abonnés</span>
+            <span class="pp-stat-l">@Lang.tc(ctx.caller, "profile.followers")</span>
         </div>
         <div class="pp-stat">
             <span class="pp-stat-n">@followingN</span>
-            <span class="pp-stat-l">Abonnements</span>
+            <span class="pp-stat-l">@Lang.tc(ctx.caller, "profile.following")</span>
         </div>
     </div>
 
     <div class="pp-card pp-panel">
-        <h2 class="pp-panel-title">Badges</h2>
-        <p class="pp-soon">Bientôt disponible.</p>
+        <h2 class="pp-panel-title">@Lang.tc(ctx.caller, "profile.badges")</h2>
+        <p class="pp-soon">@Lang.tc(ctx.caller, "profile.soon")</p>
     </div>
 
     @if (Text.size(bio) > 0) {
         <div class="pp-card pp-panel">
-            <h2 class="pp-panel-title">À propos</h2>
+            <h2 class="pp-panel-title">@Lang.tc(ctx.caller, "profile.about")</h2>
             <p class="pp-about">@bio</p>
         </div>
     }
 
     <div class="pp-card pp-panel">
-        <h2 class="pp-panel-title">Publications</h2>
+        <h2 class="pp-panel-title">@Lang.tc(ctx.caller, "profile.posts")</h2>
         @if (posts.size() > 0) {
             <div class="pp-posts">
                 @for p in posts {
@@ -89,7 +89,7 @@
         } else {
             <div class="pp-empty">
                 <div class="pp-empty-ico">⚡</div>
-                <p>@display n'a encore rien publié.</p>
+                <p>@display @Lang.tc(ctx.caller, "profile.no_posts_yet")</p>
             </div>
         }
     </div>
@@ -99,13 +99,13 @@
         <div class="pp-head-body">
             <div class="pp-ava">❓</div>
             <div class="pp-id">
-                <h1 class="pp-name">Utilisateur introuvable</h1>
-                <p class="pp-handle">Personne sur Pulse n'a encore revendiqué @@@handleText.</p>
+                <h1 class="pp-name">@Lang.tc(ctx.caller, "profile.not_found")</h1>
+                <p class="pp-handle">@Lang.tc(ctx.caller, "profile.unclaimed_pre") @@@handleText@Lang.tc(ctx.caller, "profile.unclaimed_post")</p>
             </div>
         </div>
     </section>
     <div class="pp-empty">
-        <a class="pp-link" href="/feed">← Retour au fil</a>
+        <a class="pp-link" href="/feed">← @Lang.tc(ctx.caller, "profile.back_to_feed")</a>
     </div>
 }
 
