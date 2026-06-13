@@ -46,6 +46,18 @@
             <button class="mv-btn mv-btn-primary" type="submit">Claim it</button>
         </form>
     </section>
+
+    <section class="bz-card bz-dash-card bz-navtip" style="--bz-accent:#0f6cbd;--bz-accent-2:#479ef5">
+        <header class="bz-dash-head">
+            <h2>🧭 Finding your way around</h2>
+        </header>
+        <ul class="bz-navtip-list">
+            <li><span class="bz-navtip-ico">🏠</span> <span><b>Home is one tap from anywhere</b> — the tab bar along the bottom on phones, the rail on the left on desktop.</span></li>
+            <li><span class="bz-navtip-ico">🗂️</span> <span><b>Switch apps</b> — Feed, Servers, Forum and Messages all live on that same bar.</span></li>
+            <li><span class="bz-navtip-ico">🔍</span> <span><b>Jump anywhere</b> — tap Search in the top bar to find a topic, person or server in a flash.</span></li>
+            <li><span class="bz-navtip-ico">↩️</span> <span><b>Inside the forum</b> — the breadcrumb (Home › Forum › …) walks you back, one step at a time.</span></li>
+        </ul>
+    </section>
 }
 
 <div class="bz-dash-grid">
@@ -309,6 +321,12 @@
 
     .bz-personalize { margin-bottom: var(--spacingVerticalL); }
     .bz-personalize-sub { margin: 0 0 .7rem; color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); }
+    .bz-navtip-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--spacingVerticalS); }
+    .bz-navtip-list li { display: flex; align-items: flex-start; gap: var(--spacingHorizontalM);
+        color: var(--colorNeutralForeground2); font-size: var(--fontSizeBase300); line-height: 1.45; }
+    .bz-navtip-ico { flex: none; width: 30px; height: 30px; display: grid; place-items: center; font-size: 1rem;
+        border-radius: var(--borderRadiusMedium); background: color-mix(in srgb, var(--colorBrandBackground) 12%, var(--colorNeutralBackground1)); }
+    .bz-navtip-list b { color: var(--colorNeutralForeground1); font-weight: var(--fontWeightSemibold); }
     .bz-personalize-form { display: flex; align-items: flex-end; gap: .6rem; flex-wrap: wrap; margin: 0; }
     .bz-personalize-form .mv-field { flex: 1; min-width: 220px; margin: 0; }
 

@@ -13,7 +13,7 @@
                 <button data-mv-signin class="wl-signin" type="button">
                     <span class="wl-signin-ico" aria-hidden="true">⬡</span> Sign in with Internet Identity
                 </button>
-                <p class="wl-note">No email, no password — your account <em>is</em> your Internet Identity. New here? You can create one in seconds during sign-in.</p>
+                <p class="wl-note">No passwords to forget or leak — you sign in with a passkey (Face ID, Touch ID, or your device PIN). New here? You can create your Internet Identity in seconds during sign-in.</p>
             </div>
         </section>
         <aside class="wl-art" aria-hidden="true">
