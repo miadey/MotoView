@@ -166,6 +166,7 @@
         } catch (e) {}
       }
     }
+    mvDecryptRendered(); // a keyed patch may carry fresh [data-mv-decrypt] ciphertext
   }
 
   // The other keyed primitives the brain commands — all dumb DOM ops.
@@ -233,6 +234,7 @@
     }
     var en = node.getAttribute && node.getAttribute("data-mv-enter");
     if (en) playAnim(node, en);
+    mvDecryptRendered(); // an inserted keyed node may carry [data-mv-decrypt] ciphertext
   }
   function moveKeyed(targetId, key, afterKey) {
     var root = rootFor(targetId);
@@ -384,14 +386,35 @@
     var form = ev.target;
     if (!form || form.tagName !== "FORM" || !form.getAttribute("data-mv-handler")) return;
     ev.preventDefault();
-    // Zero-trust: fields marked [data-mv-encrypt] are IBE-encrypted in the browser
-    // before the form is sent, so the canister only ever receives ciphertext.
-    var encFields = form.querySelectorAll("[data-mv-encrypt]");
-    if (encFields.length && window.mvCrypto) {
-      var jobs = [];
-      for (var i = 0; i < encFields.length; i++) {
-        (function (f) { jobs.push(mvCrypto.encrypt(f.value).then(function (ct) { f.value = ct; })); })(encFields[i]);
+    // Zero-trust: encrypt marked fields IN THE BROWSER before the form is sent,
+    // so the canister only ever receives ciphertext.
+    //   [data-mv-encrypt]            -> IBE-encrypt to the SESSION caller (self):
+    //                                   the single-reader vault pattern.
+    //   [data-mv-encrypt-to="p1 p2"] -> fan-out: one IBE envelope per recipient
+    //                                   principal, the field value becoming
+    //                                   newline-joined "<principal> <ciphertext>"
+    //                                   lines. Lets EVERY recipient (not just the
+    //                                   sender) decrypt — the DM / group pattern.
+    // Empty fields are left untouched so server-side `required` still fires.
+    var jobs = [], i;
+    if (window.mvCrypto) {
+      var selfFields = form.querySelectorAll("[data-mv-encrypt]");
+      for (i = 0; i < selfFields.length; i++) {
+        (function (f) { if (f.value) jobs.push(mvCrypto.encrypt(f.value).then(function (ct) { f.value = ct; })); })(selfFields[i]);
       }
+      var fanFields = form.querySelectorAll("[data-mv-encrypt-to]");
+      for (i = 0; i < fanFields.length; i++) {
+        (function (f) {
+          var recips = (f.getAttribute("data-mv-encrypt-to") || "").split(/\s+/).filter(Boolean);
+          if (!f.value || !recips.length) return;
+          var pt = f.value;
+          jobs.push(Promise.all(recips.map(function (p) {
+            return mvCrypto.encryptTo(p, pt).then(function (ct) { return p + " " + ct; });
+          })).then(function (lines) { f.value = lines.join("\n"); }));
+        })(fanFields[i]);
+      }
+    }
+    if (jobs.length) {
       Promise.all(jobs).then(function () { submitForm(form); }).catch(function (e) { console.error("[motoview] encrypt failed", e); });
       return;
     }
@@ -520,6 +543,26 @@
     document.addEventListener("visibilitychange", function () {
       if (wasm) wasm.mv_on_visibility(document.hidden ? 1 : 0);
     });
+    // Cmd/Ctrl+K toggles a designated command palette; Esc closes it. PURELY
+    // MECHANICAL (dumb hands): flip the checkbox the server marked
+    // [data-mv-cmdk], and focus the [data-mv-cmdk-focus] field on open. The
+    // palette's open/close (CSS :checked) and any filtering (a server-rendered
+    // /search) live entirely in SSR + CSS — no app logic here. Opt-in: this is
+    // a no-op for any app/page that renders no [data-mv-cmdk] element.
+    document.addEventListener("keydown", function (e) {
+      var t = document.querySelector("[data-mv-cmdk]");
+      if (!t) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        t.checked = !t.checked;
+        if (t.checked) {
+          var f = document.querySelector("[data-mv-cmdk-focus]");
+          if (f) f.focus();
+        }
+      } else if (e.key === "Escape" && t.checked) {
+        t.checked = false;
+      }
+    });
 
     mvDecryptRendered(); // decrypt any server-rendered ciphertext on first paint
     mvPaintThemePicker(); // mark the active option in any theme picker
@@ -594,6 +637,10 @@
     return {
       reset: function () { session = null; },
       encrypt: function (text) { return establish().then(function (s) { return toB64(call("mvc_ibe_encrypt", [s.master, s.id, enc.encode(text), rand(32)])); }); },
+      // Encrypt TO another principal's identity (not self). Uses the same canister
+      // master public key (identity-independent); only that principal can derive
+      // the matching vetKey and decrypt. The basis for multi-reader (DM) E2EE.
+      encryptTo: function (principalText, text) { return establish().then(function (s) { return toB64(call("mvc_ibe_encrypt", [s.master, principalBytes(principalText), enc.encode(text), rand(32)])); }); },
       decrypt: function (b64) { return establish().then(function (s) { return dec.decode(call("mvc_ibe_decrypt", [s.vetkey, fromB64(b64)])); }); },
       selfTest: function (msg) {
         msg = msg || "hello zero-trust";

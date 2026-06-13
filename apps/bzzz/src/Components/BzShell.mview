@@ -74,13 +74,13 @@ param path : Text = "/"
     .bz-cmdk-row:hover { background: var(--colorSubtleBackgroundHover, var(--colorNeutralBackground3)); }
     .bz-cmdk-rowico { width: 22px; text-align: center; flex: none; }
 </style>
-<input type="checkbox" id="bz-cmdk" class="bz-cmdk" aria-label="Open search and jump-to palette">
+<input type="checkbox" id="bz-cmdk" class="bz-cmdk" data-mv-cmdk aria-label="Open search and jump-to palette (Ctrl/Cmd+K)">
 <div class="bz-cmdk-overlay">
     <label class="bz-cmdk-backdrop" for="bz-cmdk" aria-label="Close search"></label>
     <div class="bz-cmdk-panel" role="dialog" aria-label="Search and jump to">
         <form class="bz-cmdk-form" action="/search" method="get" role="search">
             <span aria-hidden="true">🔍</span>
-            <input class="bz-cmdk-field" type="search" name="q" placeholder="Search topics, people, servers…" autocomplete="off">
+            <input class="bz-cmdk-field" type="search" name="q" data-mv-cmdk-focus placeholder="Search topics, people, servers…" autocomplete="off">
             <label class="bz-cmdk-esc" for="bz-cmdk" title="Close">esc</label>
         </form>
         <div class="bz-cmdk-label">Jump to</div>

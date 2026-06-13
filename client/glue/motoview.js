@@ -543,6 +543,26 @@
     document.addEventListener("visibilitychange", function () {
       if (wasm) wasm.mv_on_visibility(document.hidden ? 1 : 0);
     });
+    // Cmd/Ctrl+K toggles a designated command palette; Esc closes it. PURELY
+    // MECHANICAL (dumb hands): flip the checkbox the server marked
+    // [data-mv-cmdk], and focus the [data-mv-cmdk-focus] field on open. The
+    // palette's open/close (CSS :checked) and any filtering (a server-rendered
+    // /search) live entirely in SSR + CSS — no app logic here. Opt-in: this is
+    // a no-op for any app/page that renders no [data-mv-cmdk] element.
+    document.addEventListener("keydown", function (e) {
+      var t = document.querySelector("[data-mv-cmdk]");
+      if (!t) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        t.checked = !t.checked;
+        if (t.checked) {
+          var f = document.querySelector("[data-mv-cmdk-focus]");
+          if (f) f.focus();
+        }
+      } else if (e.key === "Escape" && t.checked) {
+        t.checked = false;
+      }
+    });
 
     mvDecryptRendered(); // decrypt any server-rendered ciphertext on first paint
     mvPaintThemePicker(); // mark the active option in any theme picker
