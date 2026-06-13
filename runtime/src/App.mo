@@ -111,6 +111,7 @@ module {
     // hash), so a boundary/MITM cannot swap a certified asset's body undetected.
     let certAssets : [Text] = [
       "/motoview.js", "/motoview.css", "/motoview.wasm", "/motoview-crypto.wasm", "/mv-auth.js",
+      "/fonts/roboto.woff2",
       "/favicon.svg", "/favicon.ico", "/robots.txt", "/sitemap.xml",
       "/manifest.webmanifest", "/sw.js",
     ];
@@ -1062,6 +1063,7 @@ module {
       if (path == "/mv-auth.js") { return ?textResp(assets.authJs, "text/javascript") };
       if (path == "/motoview.wasm") { return ?blobResp(assets.clientWasm, "application/wasm") };
       if (path == "/motoview-crypto.wasm") { return ?blobResp(assets.cryptoWasm, "application/wasm") };
+      if (path == "/fonts/roboto.woff2") { return ?blobResp(assets.robotoWoff2, "font/woff2") };
       if (path == "/motoview.css") { return ?textResp(assets.css, "text/css") };
       if (path == "/favicon.svg" or path == "/favicon.ico") { return ?textResp(assets.favicon, "image/svg+xml") };
       if (path == "/robots.txt") { return ?textResp(robots(), "text/plain") };

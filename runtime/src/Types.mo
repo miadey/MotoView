@@ -187,6 +187,7 @@ module {
     cryptoWasm : Blob; // optional vetKeys/IBE crypto module (served at /motoview-crypto.wasm)
     css : Text; // bridge + base theme CSS
     favicon : Text; // SVG favicon markup
+    robotoWoff2 : Blob; // self-hosted Roboto (variable, 400-700 latin) for the Material themes, served at /fonts/roboto.woff2
   };
 
 };
