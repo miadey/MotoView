@@ -750,7 +750,7 @@ module {
     // fake user metrics. Owned by an anonymous principal until claimed.
     // -----------------------------------------------------------------
     let seedOwner = Principal.fromText("2vxsx-fae"); // anonymous
-    ignore createServer(seedOwner, "Bzzz HQ", #Discussion);
+    ignore createServer(seedOwner, "Pulse HQ", #Discussion);
     ignore createServer(seedOwner, "Motoko Builders", #Forum);
     ignore createServer(seedOwner, "The Feed", #Feed);
   };
