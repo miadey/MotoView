@@ -110,6 +110,14 @@
                 }
             </div>
 
+            @if (showNewer or showOlder) {
+                <nav class="ft-pager" aria-label="Thread pages">
+                    @if showNewer { <a class="ft-pager-btn" href="@(pageHref(page - 1))">← Previous</a> } else { <span class="ft-pager-sp"></span> }
+                    <span class="ft-pager-at">Page @(page + 1)</span>
+                    @if showOlder { <a class="ft-pager-btn" href="@(pageHref(page + 1))">Next →</a> } else { <span class="ft-pager-sp"></span> }
+                </nav>
+            }
+
             @if closed {
                 <div class="ft-closed-note">
                     🔒 This topic is closed. New replies are disabled.
@@ -248,6 +256,15 @@
     .ft-closed-note { margin-top: 1.5rem; background: #fbf3f3; border: 1px solid #f0d6d6; color: #9a4040;
         border-radius: 12px; padding: 1rem 1.2rem; font-weight: 600; text-align: center; }
 
+    .ft-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-top: 1px solid var(--colorNeutralStroke3); margin-top: .5rem; }
+    .ft-pager-btn { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold);
+        font-size: var(--fontSizeBase300); padding: var(--spacingVerticalXS) var(--spacingHorizontalM);
+        border-radius: var(--borderRadiusCircular, 999px); }
+    .ft-pager-btn:hover { background: var(--colorSubtleBackgroundHover); }
+    .ft-pager-at { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .ft-pager-sp { width: 1px; }
+
     .ft-composer { margin-top: 1.75rem; padding: 1.2rem 1.3rem 1.4rem; }
     .ft-composer-title { margin: 0 0 .7rem; font-size: 1.1rem; }
     .ft-composer-actions { margin-top: .7rem; }
@@ -322,6 +339,14 @@
     var firstActivity : Text = "";
     var lastActivity : Text = "";
 
+    // Reply pagination — render one bounded window of posts per page instead of
+    // every reply (an 800-reply topic used to dump the whole thread). The OP is
+    // always on page 0. perPage covers OP + replies.
+    let perPage : Nat = 30;
+    var page : Nat = 0;
+    var showOlder : Bool = false; // a later (older-in-thread? no — next) page exists
+    var showNewer : Bool = false; // a previous page exists
+
     var body : Text = "";
 
     // Full page visit: count a view, then load.
@@ -355,7 +380,11 @@
                 canModerate := isAuthor or Admin.isMod(ctx.caller);
                 modLabel := if (isAuthor) "Topic controls" else "Moderator controls";
                 replyCount := Forum.replyCount(id);
-                posts := Forum.posts(id);
+                page := queryNat(ctx, "page", 0);
+                let pg = Forum.postsPage(id, page * perPage, perPage);
+                posts := pg.items;
+                showNewer := page > 0;
+                showOlder := (page + 1) * perPage < pg.total;
                 computeSummary();
             };
             case null {
@@ -365,44 +394,33 @@
     };
 
     // Derive the topic summary + timeline figures from the loaded posts.
+    // Topic-wide totals from ONE O(n) service pass (no O(n²) participant scan,
+    // and independent of which page of replies is currently rendered).
     func computeSummary() {
-        postTotal := posts.size();
-        // total likes across every post
-        var likes : Nat = 0;
-        for (p in posts.vals()) { likes += p.likeCount };
-        likeTotal := likes;
-        // distinct participants
-        let seen = Buffer.Buffer<Principal>(8);
-        for (p in posts.vals()) {
-            var found = false;
-            for (s in seen.vals()) { if (s == p.author) { found := true } };
-            if (not found) { seen.add(p.author) };
-        };
-        participants := seen.size();
-        // read time estimate: ~200 words/min over all post bodies (min 1)
-        var words : Nat = 0;
-        for (p in posts.vals()) { words += wordCount(p.body) };
-        let mins = words / 200;
+        let s = Forum.topicStats(id);
+        postTotal := s.postTotal;
+        likeTotal := s.likeTotal;
+        participants := s.participants;
+        let mins = s.words / 200;
         readTime := if (mins < 1) 1 else mins;
-        // timeline endpoints (oldest = OP first, newest = last reply)
-        if (posts.size() > 0) {
-            firstActivity := Forum.relativeTime(posts[0].at);
-            lastActivity := Forum.relativeTime(posts[posts.size() - 1].at);
+        if (s.postTotal > 0) {
+            firstActivity := Forum.relativeTime(s.firstAt);
+            lastActivity := Forum.relativeTime(s.lastAt);
         } else {
             firstActivity := "";
             lastActivity := "";
         };
     };
 
-    func wordCount(t : Text) : Nat {
-        var n : Nat = 0;
-        var inWord = false;
-        for (c in t.chars()) {
-            if (c == ' ' or c == '\n' or c == '\t') { inWord := false }
-            else if (not inWord) { inWord := true; n += 1 };
+    func queryNat(ctx : Context, key : Text, def : Nat) : Nat {
+        for ((k, v) in ctx.queryParams.vals()) {
+            if (k == key) { switch (Nat.fromText(v)) { case (?n) { return n }; case null {} } };
         };
-        n;
+        def;
     };
+
+    // Link to another page of this topic's thread.
+    func pageHref(p : Nat) : Text { "/forum/t/" # Nat.toText(id) # "?page=" # Nat.toText(p) };
 
     func avatarFor(p : Principal) : Text { Identity.avatarOf(p) };
     func displayFor(p : Principal) : Text { Identity.displayOf(p) };

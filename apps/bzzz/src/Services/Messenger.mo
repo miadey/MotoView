@@ -143,6 +143,18 @@ module {
       );
     };
 
+    /// One render-bounded window of the caller's conversations (newest-active
+    /// first), plus the caller's TOTAL conversation count. Lets the Messages
+    /// inbox render a constant-size page instead of every conversation a heavy
+    /// user belongs to.
+    public func conversationsPage(caller : Principal, offset : Nat, limit : Nat) : { items : [Conversation]; total : Nat } {
+      let all = conversations(caller);
+      let total = all.size();
+      if (limit == 0 or offset >= total) { return { items = (if (offset >= total) [] else all); total } };
+      let stop = Nat.min(total, offset + limit);
+      { items = Array.subArray(all, offset, stop - offset); total };
+    };
+
     public func conversation(id : Nat) : ?Conversation { convos.get(id) };
 
     /// True iff `principal` is a member of conversation `convoId`.

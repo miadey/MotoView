@@ -69,6 +69,13 @@
                         </li>
                     }
                 </ul>
+                @if (showNewer or showOlder) {
+                    <nav class="wa-pager" aria-label="Inbox pages">
+                        @if showNewer { <a class="wa-pager-btn" href="@(pageHref(page - 1))">← Newer</a> } else { <span class="wa-pager-sp"></span> }
+                        <span class="wa-pager-at">Page @(page + 1)</span>
+                        @if showOlder { <a class="wa-pager-btn" href="@(pageHref(page + 1))">Older →</a> } else { <span class="wa-pager-sp"></span> }
+                    </nav>
+                }
             }
         </aside>
 
@@ -102,6 +109,13 @@
     // Conversation list for the caller, most-recently-active first.
     var convos : [Messenger.Conversation] = [];
 
+    // Inbox pagination — render a bounded window of conversations per page.
+    let perPage : Nat = 25;
+    var page : Nat = 0;
+    var total : Nat = 0;
+    var showOlder : Bool = false;
+    var showNewer : Bool = false;
+
     // Bound form fields.
     var peerHandle : Text = "";
     var groupName : Text = "";
@@ -112,8 +126,22 @@
         bound := Identity.isBound(ctx.caller);
         meName := Identity.handleOf(ctx.caller);
         meAvatar := Identity.avatarOf(ctx.caller);
-        convos := Messenger.conversations(ctx.caller);
+        page := queryNat(ctx, "page", 0);
+        let pg = Messenger.conversationsPage(ctx.caller, page * perPage, perPage);
+        convos := pg.items;
+        total := pg.total;
+        showNewer := page > 0;
+        showOlder := (page + 1) * perPage < total;
     };
+
+    func queryNat(ctx : Context, key : Text, def : Nat) : Nat {
+        for ((k, v) in ctx.queryParams.vals()) {
+            if (k == key) { switch (Nat.fromText(v)) { case (?n) { return n }; case null {} } };
+        };
+        def;
+    };
+
+    func pageHref(p : Nat) : Text { "/messages?page=" # Nat.toText(p) };
 
     // ---- thin row helpers: wire the cached caller into service lookups -----
 
@@ -283,6 +311,14 @@
     .wa-chat-bottom { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
     .wa-chat-preview { color: var(--mv-text-soft); font-size: .84rem; overflow: hidden;
         text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+    .wa-pager { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+        padding: .6rem .9rem; border-top: 1px solid var(--colorNeutralStroke3, #e5e5e5); }
+    .wa-pager-btn { color: var(--colorBrandForeground1, var(--bz-accent)); text-decoration: none; font-weight: 600;
+        font-size: .9rem; padding: .25rem .6rem; border-radius: 999px; }
+    .wa-pager-btn:hover { background: var(--colorSubtleBackgroundHover, rgba(0,0,0,.05)); }
+    .wa-pager-at { color: var(--mv-text-soft); font-size: .8rem; }
+    .wa-pager-sp { width: 1px; }
 
     .wa-list-empty { text-align: center; color: var(--mv-text-soft); padding: 2rem 1.25rem; }
     .wa-list-empty-ico { display: inline-grid; place-items: center; width: 60px; height: 60px;

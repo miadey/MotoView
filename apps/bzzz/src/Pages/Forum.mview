@@ -133,6 +133,13 @@
                     </a>
                 }
             </div>
+            @if (showNewer or showOlder) {
+                <nav class="fl-pager" aria-label="Board pages">
+                    @if showNewer { <a class="fl-pager-btn" href="@(pageHref(page - 1))">← Newer</a> } else { <span class="fl-pager-sp"></span> }
+                    <span class="fl-pager-at">Page @(page + 1)</span>
+                    @if showOlder { <a class="fl-pager-btn" href="@(pageHref(page + 1))">Older →</a> } else { <span class="fl-pager-sp"></span> }
+                </nav>
+            }
         }
     }
 </div>
@@ -145,6 +152,14 @@
     var sort : Text = "";
     var newCount : Nat = 0;
     var unreadCount : Nat = 0;
+
+    // Topic-list pagination — render a bounded window of rows per page so a
+    // board with thousands of topics never dumps every row into one response.
+    let perPage : Nat = 25;
+    var page : Nat = 0;
+    var total : Nat = 0;
+    var showOlder : Bool = false;
+    var showNewer : Bool = false;
 
     // Active-tab class, precomputed from ?sort= (kept as vars so the markup
     // never passes a quoted string literal inside a class="…" interpolation).
@@ -169,18 +184,20 @@
         // Pick the topic set from the active tab. All sets are REAL service
         // results — no fabricated rows. Top is ranked by likes/replies; the
         // rest share the recency-sorted "latest" list (the board is small).
-        if (sort == "top" or sort == "popular") {
-            topics := Forum.topicsTop();
-        } else {
-            topics := Forum.topicsLatest();
-        };
+        page := queryNat(ctx, "page", 0);
+        let top = sort == "top" or sort == "popular";
+        let pg = Forum.topicsPage(top, page * perPage, perPage);
+        topics := pg.items;
+        total := pg.total;
+        showNewer := page > 0;
+        showOlder := (page + 1) * perPage < total;
 
         // Tag filter pills are populated from the tags actually in use.
         allTags := collectTags(topics);
         hasTags := allTags.size() > 0;
 
         // Tab counters reflect the real board size.
-        newCount := topics.size();
+        newCount := total;
         unreadCount := Forum.topicCount();
     };
 
@@ -188,6 +205,19 @@
     func queryValue(ctx : Context, key : Text) : Text {
         for ((k, v) in ctx.queryParams.vals()) { if (k == key) { return v } };
         "";
+    };
+
+    func queryNat(ctx : Context, key : Text, def : Nat) : Nat {
+        for ((k, v) in ctx.queryParams.vals()) {
+            if (k == key) { switch (Nat.fromText(v)) { case (?n) { return n }; case null {} } };
+        };
+        def;
+    };
+
+    // Build a board link to page `p`, preserving the active sort tab.
+    func pageHref(p : Nat) : Text {
+        let base = "/forum?page=" # Nat.toText(p);
+        if (sort != "") { base # "&sort=" # sort } else { base };
     };
 
     // Distinct tags across the visible topics, preserving first-seen order.
@@ -374,6 +404,15 @@
     .fl-empty { padding: var(--spacingVerticalXXL); text-align: center;
         color: var(--colorNeutralForeground3); }
     .fl-empty a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
+
+    .fl-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
+        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-top: 1px solid var(--colorNeutralStroke3); }
+    .fl-pager-btn { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold);
+        font-size: var(--fontSizeBase300); padding: var(--spacingVerticalXS) var(--spacingHorizontalM);
+        border-radius: var(--borderRadiusCircular, 999px); }
+    .fl-pager-btn:hover { background: var(--colorSubtleBackgroundHover); }
+    .fl-pager-at { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .fl-pager-sp { width: 1px; }
 
     @media (max-width: 720px) {
         .fl-cell-posters { display: none; }

@@ -113,6 +113,18 @@ module {
     // posts_, so NOT persisted — rebuilt once from posts_ after an upgrade.
     let postCountByTopic = HashMap.HashMap<Nat, Nat>(64, Nat.equal, Hash.hash);
     let likeCountByTopic = HashMap.HashMap<Nat, Nat>(64, Nat.equal, Hash.hash);
+    // Per-topic post-id index in ascending id order (== OP first, then replies
+    // chronologically). Lets `posts`/`postsPage` fetch one topic's posts WITHOUT
+    // scanning the whole posts_ store (the audit's ForumTopic blocker:
+    // O(all posts) per topic-page load). Derived from posts_, NOT persisted —
+    // rebuilt once from posts_ after an upgrade alongside the counters.
+    let postsByTopic = HashMap.HashMap<Nat, Buffer.Buffer<Nat>>(64, Nat.equal, Hash.hash);
+    func idxAdd(topicId : Nat, postId : Nat) {
+      switch (postsByTopic.get(topicId)) {
+        case (?b) { b.add(postId) };
+        case null { let b = Buffer.Buffer<Nat>(8); b.add(postId); postsByTopic.put(topicId, b) };
+      };
+    };
     func cntGet(m : HashMap.HashMap<Nat, Nat>, k : Nat) : Nat { switch (m.get(k)) { case (?n) n; case null 0 } };
     func cntBump(m : HashMap.HashMap<Nat, Nat>, k : Nat, delta : Int) {
       let cur : Int = cntGet(m, k);
@@ -125,9 +137,18 @@ module {
     func rebuildCounters() {
       for (k in Iter.toArray(postCountByTopic.keys()).vals()) { postCountByTopic.delete(k) };
       for (k in Iter.toArray(likeCountByTopic.keys()).vals()) { likeCountByTopic.delete(k) };
+      for (k in Iter.toArray(postsByTopic.keys()).vals()) { postsByTopic.delete(k) };
       for (p in posts_.vals()) {
         postCountByTopic.put(p.topicId, cntGet(postCountByTopic, p.topicId) + 1);
         if (p.likers.size() > 0) { likeCountByTopic.put(p.topicId, cntGet(likeCountByTopic, p.topicId) + p.likers.size()) };
+        idxAdd(p.topicId, p.id);
+      };
+      // posts_.vals() is unordered; sort each topic's index ascending by id so
+      // it matches live insertion order (OP first, replies chronological).
+      for (b in postsByTopic.vals()) {
+        let sorted = Array.sort(Buffer.toArray(b), Nat.compare);
+        b.clear();
+        for (id in sorted.vals()) { b.add(id) };
       };
     };
 
@@ -285,6 +306,19 @@ module {
       Array.map<TopicRec, Topic>(sorted, projectTopic);
     };
 
+    /// One render-bounded window of the board's topics, plus the TOTAL topic
+    /// count. `top` picks the ranking (true = by score, false = latest with
+    /// pinned floated). Sorts the full set (cheap — O(T log T) with O(1)
+    /// per-topic score) then slices, so a board with thousands of topics still
+    /// renders a constant-size page instead of dumping every row.
+    public func topicsPage(top : Bool, offset : Nat, limit : Nat) : { items : [Topic]; total : Nat } {
+      let all = if (top) topicsTop() else topicsLatest();
+      let total = all.size();
+      if (limit == 0 or offset >= total) { return { items = (if (offset >= total) [] else all); total } };
+      let stop = Nat.min(total, offset + limit);
+      { items = Array.subArray(all, offset, stop - offset); total };
+    };
+
     public func topic(id : Nat) : ?Topic {
       switch (topics_.get(id)) {
         case (?t) ?projectTopic(t);
@@ -348,6 +382,7 @@ module {
       };
       posts_.put(id, rec);
       cntBump(postCountByTopic, topicId, 1);
+      idxAdd(topicId, id);
       id;
     };
 
@@ -369,22 +404,80 @@ module {
     /// All posts in a topic: OP first (lowest id / replyToPost = 0), then the
     /// rest in chronological order.
     public func posts(topicId : Nat) : [Post] {
-      let buf = Buffer.Buffer<PostRec>(16);
-      for (p in posts_.vals()) { if (p.topicId == topicId) { buf.add(p) } };
-      let arr = Buffer.toArray(buf);
-      let sorted = Array.sort(arr, func(a : PostRec, b : PostRec) : { #less; #equal; #greater } {
-        // OP (replyToPost == 0) always first
-        let aOp = a.replyToPost == 0;
-        let bOp = b.replyToPost == 0;
-        if (aOp and not bOp) #less
-        else if (bOp and not aOp) #greater
-        else if (a.at < b.at) #less
-        else if (a.at > b.at) #greater
-        else if (a.id < b.id) #less
-        else if (a.id > b.id) #greater
-        else #equal;
-      });
-      Array.map<PostRec, Post>(sorted, projectPost);
+      // Index-driven: map the topic's post ids (already OP-first/chronological)
+      // straight to Posts — no scan of the whole posts_ store.
+      switch (postsByTopic.get(topicId)) {
+        case null { [] };
+        case (?ids) {
+          let buf = Buffer.Buffer<Post>(ids.size());
+          for (pid in ids.vals()) {
+            switch (posts_.get(pid)) { case (?p) buf.add(projectPost(p)); case null {} };
+          };
+          Buffer.toArray(buf);
+        };
+      };
+    };
+
+    /// One render-bounded window of a topic's posts: `limit` posts starting at
+    /// `offset`, plus the topic's TOTAL post count. The OP (offset 0) is always
+    /// in the first window. Lets ForumTopic render in pages instead of dumping
+    /// every reply (the audit's unbounded-render finding — an 800-reply topic
+    /// went from a multi-second full scan to a constant-size slice).
+    public func postsPage(topicId : Nat, offset : Nat, limit : Nat) : { items : [Post]; total : Nat } {
+      switch (postsByTopic.get(topicId)) {
+        case null { { items = []; total = 0 } };
+        case (?ids) {
+          let total = ids.size();
+          let buf = Buffer.Buffer<Post>(limit);
+          var i = offset;
+          let stop = if (limit == 0) total else Nat.min(total, offset + limit);
+          while (i < stop) {
+            switch (posts_.get(ids.get(i))) { case (?p) buf.add(projectPost(p)); case null {} };
+            i += 1;
+          };
+          { items = Buffer.toArray(buf); total };
+        };
+      };
+    };
+
+    /// Topic-wide summary figures computed in a SINGLE O(n) pass over the
+    /// topic's posts (HashMap dedup for participants — no O(n²) scan). Used by
+    /// the ForumTopic page so its header totals stay correct even though only
+    /// one page of posts is rendered.
+    public func topicStats(topicId : Nat) : {
+      postTotal : Nat; likeTotal : Nat; participants : Nat; words : Nat;
+      firstAt : Int; lastAt : Int;
+    } {
+      switch (postsByTopic.get(topicId)) {
+        case null { { postTotal = 0; likeTotal = 0; participants = 0; words = 0; firstAt = 0; lastAt = 0 } };
+        case (?ids) {
+          let seen = HashMap.HashMap<Principal, Bool>(16, Principal.equal, Principal.hash);
+          var likes : Nat = 0; var words : Nat = 0; var participants : Nat = 0;
+          var firstAt : Int = 0; var lastAt : Int = 0; var any = false;
+          for (pid in ids.vals()) {
+            switch (posts_.get(pid)) {
+              case (?p) {
+                likes += p.likers.size();
+                words += wordCountOf(p.body);
+                if (seen.get(p.author) == null) { seen.put(p.author, true); participants += 1 };
+                if (not any) { firstAt := p.at; lastAt := p.at; any := true }
+                else { if (p.at < firstAt) firstAt := p.at; if (p.at > lastAt) lastAt := p.at };
+              };
+              case null {};
+            };
+          };
+          { postTotal = ids.size(); likeTotal = likes; participants; words; firstAt; lastAt };
+        };
+      };
+    };
+
+    func wordCountOf(t : Text) : Nat {
+      var n : Nat = 0; var inWord = false;
+      for (c in t.chars()) {
+        if (c == ' ' or c == '\n' or c == '\t') { inWord := false }
+        else if (not inWord) { inWord := true; n += 1 };
+      };
+      n;
     };
 
     public func post(id : Nat) : ?Post {
