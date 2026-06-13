@@ -124,11 +124,12 @@ module {
     /// ordered by most-recent activity first (the group/ring rail).
     public func authorsWithActive() : [Text] {
       let live = sortNewest(liveArray()); // newest first
-      let seen = Buffer.Buffer<Text>(16);
+      let seen = HashMap.HashMap<Text, Bool>(64, Text.equal, Text.hash); // O(n) dedup
+      let out = Buffer.Buffer<Text>(16);
       for (s in live.vals()) {
-        if (not contains(seen, s.authorHandle)) { seen.add(s.authorHandle) };
+        if (seen.get(s.authorHandle) == null) { seen.put(s.authorHandle, true); out.add(s.authorHandle) };
       };
-      Buffer.toArray(seen);
+      Buffer.toArray(out);
     };
 
     /// Number of distinct authors with a live status.
@@ -223,8 +224,34 @@ module {
     func isLive(s : Update) : Bool { s.expiresAt >= Time.now() };
 
     // All currently-live statuses (unsorted).
+    // Live statuses (unsorted) AND prune-on-read: any expired row encountered is
+    // DELETED, so `statuses` stays bounded to ~24h of content instead of growing
+    // forever (the audit's unbounded-growth finding). One pass.
     func liveArray() : [Update] {
-      Array.filter<Update>(Iter.toArray(statuses.vals()), isLive);
+      let now = Time.now();
+      let live = Buffer.Buffer<Update>(statuses.size());
+      let dead = Buffer.Buffer<Nat>(0);
+      for (s in statuses.vals()) {
+        if (s.expiresAt >= now) { live.add(s) } else { dead.add(s.id) };
+      };
+      for (id in dead.vals()) { statuses.delete(id) };
+      Buffer.toArray(live);
+    };
+
+    /// One-pass snapshot for the Status page: the newest live statuses (capped
+    /// for render-size safety), plus the TOTAL live + distinct-author counts.
+    /// Replaces 3 separate full scans (active/activeCount/authorCount) and the
+    /// O(n²) author dedup with a single O(n) pass + a HashMap seen-set.
+    public func summary(cap : Nat) : { items : [Update]; activeCount : Nat; authorCount : Nat } {
+      let live = sortNewest(liveArray()); // newest-first, prunes expired
+      let seen = HashMap.HashMap<Text, Bool>(64, Text.equal, Text.hash);
+      var authors : Nat = 0;
+      for (s in live.vals()) {
+        if (seen.get(s.authorHandle) == null) { seen.put(s.authorHandle, true); authors += 1 };
+      };
+      let n = live.size();
+      let items = if (cap == 0 or cap >= n) { live } else { Array.subArray(live, 0, cap) };
+      { items; activeCount = n; authorCount = authors };
     };
 
     // Sort a status array newest-first by post time.
@@ -234,9 +261,5 @@ module {
       });
     };
 
-    func contains(buf : Buffer.Buffer<Text>, t : Text) : Bool {
-      for (x in buf.vals()) { if (x == t) { return true } };
-      false;
-    };
   };
 };

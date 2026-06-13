@@ -176,9 +176,10 @@
 
     func onLoad(ctx : Context) {
         bound := Identity.isBound(ctx.caller);
-        statuses := Status.active();
-        activeCount := Status.activeCount();
-        authorCount := Status.authorCount();
+        let sm = Status.summary(60);
+        statuses := sm.items;
+        activeCount := sm.activeCount;
+        authorCount := sm.authorCount;
         authorWord := if (authorCount == 1) "author" else "authors";
     };
 
@@ -204,9 +205,10 @@
         let chosen = if (Text.trim(picked, #char ' ') == "") defaultColor else picked;
         let _id = Status.postStatus(ctx.caller, handle, text, chosen);
         text := "";
-        statuses := Status.active();
-        activeCount := Status.activeCount();
-        authorCount := Status.authorCount();
+        let sm = Status.summary(60);
+        statuses := sm.items;
+        activeCount := sm.activeCount;
+        authorCount := sm.authorCount;
         authorWord := if (authorCount == 1) "author" else "authors";
         toast("Status posted — live for 24 hours.");
     };
