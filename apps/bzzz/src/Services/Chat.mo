@@ -1,5 +1,5 @@
 /// Chat service — Discord-style rooms/channels + messages, reactions, threads,
-/// and typing/presence for the Bzzz super-app.
+/// and typing/presence for the Pulse super-app.
 ///
 /// Stateful service: the MotoView compiler instantiates ONE shared `Chat` at
 /// actor scope, so every page sees the same rooms/messages for the canister's

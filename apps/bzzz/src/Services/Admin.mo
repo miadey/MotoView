@@ -1,4 +1,4 @@
-/// Admin service — the GLOBAL (app-wide) half of Bzzz's role-scope system.
+/// Admin service — the GLOBAL (app-wide) half of Pulse's role-scope system.
 ///
 /// Two scopes make up the complete model:
 ///   * GLOBAL (this service): #SuperAdmin > #Admin > #Moderator > #None.

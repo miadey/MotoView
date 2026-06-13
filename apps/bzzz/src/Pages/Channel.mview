@@ -8,7 +8,7 @@
     <div class="pl-card pl-missing">
         <div class="pl-missing-ico">🚫</div>
         <h2>Salon introuvable</h2>
-        <p>Ce salon n'existe pas. <a href="/servers">Parcourir les serveurs</a>.</p>
+        <p>Ce salon n'existe pas. <a href="/communautes">Parcourir les serveurs</a>.</p>
     </div>
 } else {
     <div class="pl-chat">
@@ -16,7 +16,7 @@
         <aside class="pl-rail">
             <div class="pl-rail-top">
                 <h1 class="pl-rail-title">Chat en direct</h1>
-                <a class="pl-rail-server" href="/servers/@(serverId)" title="Retour au serveur">@serverName</a>
+                <a class="pl-rail-server" href="/communautes/@(serverId)" title="Retour au serveur">@serverName</a>
             </div>
 
             <div class="pl-search">
@@ -86,7 +86,7 @@
                 @if locked {
                     <span class="pl-topbar-lock">🔒 Verrouillé</span>
                 }
-                <a class="pl-topbar-act" href="/servers/@(serverId)" title="Retour au serveur">↩</a>
+                <a class="pl-topbar-act" href="/communautes/@(serverId)" title="Retour au serveur">↩</a>
             </header>
 
             <div class="pl-stream" id="ch-stream">

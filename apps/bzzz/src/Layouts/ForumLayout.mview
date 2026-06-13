@@ -50,7 +50,7 @@
            ForumLayout — a faithful Discourse shell (forum.dfinity.org):
            thin sticky top bar + persistent left sidebar + content + right rail.
            Forum-specific chrome is namespaced `fl-*` so it never collides with
-           the bzzz app-rail (`mv-nav*`) used by AppLayout.
+           the Pulse app-rail (`mv-nav*`) used by AppLayout.
 
            Content is LEFT-ALIGNED and full-width: it begins just off the
            250px sidebar's right border and runs to a small right gutter —
@@ -280,7 +280,7 @@
             <div class="fl-apps">
                 <a class="fl-app" href="/" title="Home">🏠</a>
                 <a class="fl-app" href="/feed" title="Feed">📰</a>
-                <a class="fl-app" href="/servers" title="Servers">💬</a>
+                <a class="fl-app" href="/communautes" title="Servers">💬</a>
                 <a class="fl-app" href="/forum" title="Forum">🗨️</a>
                 <a class="fl-app" href="/messages" title="Messages">✉️</a>
                 <a class="fl-app" href="/status" title="Status">🟢</a>

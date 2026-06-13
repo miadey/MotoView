@@ -1,4 +1,4 @@
-@page "/servers/{id:Nat}"
+@page "/communautes/{id:Nat}"
 @layout AppLayout
 @authorize redirect="/welcome"
 @title serverName # " — Communauté Pulse"
@@ -8,7 +8,7 @@
     <div class="cm-card cm-missing">
         <div class="cm-missing-ico">🚫</div>
         <h2>Communauté introuvable</h2>
-        <p>Cette communauté n'existe pas (ou a été supprimée). <a href="/servers">Retour à toutes les communautés</a>.</p>
+        <p>Cette communauté n'existe pas (ou a été supprimée). <a href="/communautes">Retour à toutes les communautés</a>.</p>
     </div>
 } else {
     <div class="cm-page">

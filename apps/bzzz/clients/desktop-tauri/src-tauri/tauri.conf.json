@@ -9,7 +9,7 @@
   "app": {
     "windows": [
       {
-        "title": "Bzzz",
+        "title": "Pulse",
         "label": "main",
         "width": 1200,
         "height": 820,

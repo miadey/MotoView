@@ -202,7 +202,7 @@
                             <td>@(ownerHandle(s.owner))</td>
                             <td class="ac-num">@(memberCountOf(s.id))</td>
                             <td class="ac-row-actions">
-                                <a class="ac-btn ac-btn-ghost" href="/servers/@(s.id)">Gérer</a>
+                                <a class="ac-btn ac-btn-ghost" href="/communautes/@(s.id)">Gérer</a>
                                 @if isSuperAdmin {
                                     <button class="ac-btn ac-btn-danger" @click="deleteServer(s.id)">Supprimer</button>
                                 }

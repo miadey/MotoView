@@ -1,4 +1,4 @@
-/// Keys service — E2EE public key DIRECTORY for the Bzzz Messenger.
+/// Keys service — E2EE public key DIRECTORY for the Pulse Messenger.
 ///
 /// IMPORTANT HONESTY NOTE: this canister is a key DIRECTORY + prekey
 /// distributor ONLY. No cryptography happens here. The real X25519 Diffie-

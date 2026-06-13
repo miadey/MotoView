@@ -10,7 +10,7 @@ param path : Text = "/"
     } else {
         <a class="pl-nav-item" href="/"><svg class="pl-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Accueil</a>
     }
-    @if (Text.startsWith(path, #text "/communautes") or Text.startsWith(path, #text "/servers")) {
+    @if (Text.startsWith(path, #text "/communautes") or Text.startsWith(path, #text "/communautes")) {
         <a class="pl-nav-item is-active" href="/communautes" aria-current="page"><svg class="pl-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="8" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Communautés</a>
     } else {
         <a class="pl-nav-item" href="/communautes"><svg class="pl-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="8" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Communautés</a>

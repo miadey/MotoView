@@ -94,7 +94,7 @@
     <span class="pl-home-trend-tag">#Forum</span>
     <span class="pl-home-trend-n">@topicN @(plural(topicN, "sujet", "sujets"))</span>
    </a>
-   <a class="pl-home-trend" href="/servers">
+   <a class="pl-home-trend" href="/communautes">
     <span class="pl-home-trend-cat">Communautés</span>
     <span class="pl-home-trend-tag">#Serveurs</span>
     <span class="pl-home-trend-n">@serverN @(plural(serverN, "serveur", "serveurs"))</span>

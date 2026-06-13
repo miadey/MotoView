@@ -88,7 +88,7 @@
                 <div class="pl-set-empty">
                     <div class="pl-set-empty-ico">🏘️</div>
                     <p>Vous n'avez rejoint aucune communauté.</p>
-                    <a class="pl-set-link" href="/servers">Parcourir les communautés →</a>
+                    <a class="pl-set-link" href="/communautes">Parcourir les communautés →</a>
                 </div>
             }
         </div>

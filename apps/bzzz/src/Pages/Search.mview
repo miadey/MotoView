@@ -66,7 +66,7 @@
                     <h2 class="pl-search-grouptitle">Communautés</h2>
                     <div class="pl-search-list">
                         @for s in serverHits {
-                            <a class="pl-search-row" href="/servers/@(s.id)">
+                            <a class="pl-search-row" href="/communautes/@(s.id)">
                                 <span class="pl-search-ico">🌐</span>
                                 <span class="pl-search-body">
                                     <span class="pl-search-main">@s.name</span>
