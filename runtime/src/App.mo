@@ -654,8 +654,17 @@ module {
       };
     };
 
+    // Hard cap on an event request body, BEFORE parsing — a single form/event
+    // never legitimately needs this much (even a large group's per-recipient
+    // E2EE fan-out stays well under it), so reject oversized bodies up front
+    // rather than parse + over-post unbounded attacker input (DoS guard).
+    let MAX_EVENT_BODY : Nat = 1_048_576; // 1 MiB
+
     /// Handle an event (mutation) and return a new batch.
     func serveEvent(req : HttpRequest, caller : Principal) : HttpResponse {
+      if (req.body.size() > MAX_EVENT_BODY) {
+        return jsonResp(Json.encodeBatch(securityErrorBatch("request too large")));
+      };
       let form = Url.parseForm(req.body);
       let handlerId = Url.getOr(form, "__mv_handler", "");
       let pagePath = Url.getOr(form, "__mv_path", "/");
