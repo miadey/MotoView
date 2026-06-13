@@ -114,7 +114,10 @@
             .fl-burger-btn { display: inline-flex; }
             .fl-sidebar { position: fixed; top: 48px; left: 0; z-index: 35; transform: translateX(-100%);
                 transition: transform var(--durationNormal, .2s) var(--curveEasyEase, ease);
-                box-shadow: var(--shadow16); }
+                box-shadow: var(--shadow16);
+                /* clear the persistent BzShell bottom tab bar so the drawer's
+                   bottom items (app-switcher, New topic, shortcuts) aren't hidden */
+                padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + var(--spacingVerticalXXL)); }
             .fl-burger:checked ~ .fl-shell .fl-sidebar { transform: translateX(0); }
             /* still left-aligned + full-width, just symmetric 16px gutters */
             .fl-main { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
