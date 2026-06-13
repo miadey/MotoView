@@ -1,75 +1,152 @@
 @page "/search"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Search — Bzzz"
-@description "Search Bzzz topics, people and servers."
+@title "Recherche"
+@description "Recherchez des sujets, des personnes et des communautés sur Pulse."
 
-<div class="bz-search">
-    <header class="bz-page-head">
-        <h1 class="bz-page-title">Search</h1>
+<div class="pl-search">
+
+    <header class="pl-search-head">
+        <h1 class="pl-search-title">Recherche</h1>
+        <p class="pl-search-sub">Trouvez des sujets, des personnes et des communautés sur Pulse.</p>
     </header>
 
-    <form class="bz-search-form" action="/search" method="get" role="search">
-        <input class="bz-search-input" type="search" name="q" value="@q"
-               placeholder="Search topics, people, servers…" autocomplete="off" autofocus />
-        <button class="mv-btn mv-btn-primary" type="submit">Search</button>
+    <form class="pl-search-form" action="/search" method="get" role="search">
+        <span class="pl-search-glyph" aria-hidden="true">🔍</span>
+        <input class="pl-search-input" type="search" name="q" value="@q"
+               placeholder="Rechercher…" autocomplete="off" autofocus />
+        <button class="pl-search-btn" type="submit">Rechercher</button>
     </form>
 
     @if (Text.size(trimmed) == 0) {
-        <p class="bz-search-hint">Search forum topics, people, and servers across Bzzz.</p>
+        <div class="pl-search-empty">Recherchez des sujets, des personnes et des communautés sur Pulse.</div>
     } else {
         @if (resultCount == 0) {
-            <p class="bz-search-hint">No matches for “@q”. Try a different term.</p>
+            <div class="pl-search-empty">Aucun résultat pour « @q ». Essayez un autre terme.</div>
         } else {
-            <p class="bz-search-meta">@(resultCount) result(s) for “@q”</p>
+            <p class="pl-search-meta">@(resultCount) résultat(s) pour « @q »</p>
 
             @if (topicHits.size() > 0) {
-                <h2 class="bz-sec-title">Topics</h2>
-                @for t in topicHits {
-                    <a class="bz-search-row" href="/forum/t/@(t.id)">
-                        <span class="bz-search-main">@t.title</span>
-                    </a>
-                }
+                <section class="pl-search-group">
+                    <h2 class="pl-search-grouptitle">Sujets</h2>
+                    <div class="pl-search-list">
+                        @for t in topicHits {
+                            <a class="pl-search-row" href="/forum/t/@(t.id)">
+                                <span class="pl-search-ico">💬</span>
+                                <span class="pl-search-body">
+                                    <span class="pl-search-main">@t.title</span>
+                                </span>
+                                <span class="pl-search-chev">›</span>
+                            </a>
+                        }
+                    </div>
+                </section>
             }
+
             @if (peopleHits.size() > 0) {
-                <h2 class="bz-sec-title">People</h2>
-                @for p in peopleHits {
-                    <a class="bz-search-row" href="/u/@(p.handle)">
-                        <span class="bz-search-ico">@p.avatar</span>
-                        <span class="bz-search-main">@p.display <span class="bz-search-sub">@@@p.handle</span></span>
-                    </a>
-                }
+                <section class="pl-search-group">
+                    <h2 class="pl-search-grouptitle">Personnes</h2>
+                    <div class="pl-search-list">
+                        @for p in peopleHits {
+                            <a class="pl-search-row" href="/u/@(p.handle)">
+                                <span class="pl-search-ava">@p.avatar</span>
+                                <span class="pl-search-body">
+                                    <span class="pl-search-main">@p.display</span>
+                                    <span class="pl-search-sub">@@@p.handle</span>
+                                </span>
+                                <span class="pl-search-chev">›</span>
+                            </a>
+                        }
+                    </div>
+                </section>
             }
+
             @if (serverHits.size() > 0) {
-                <h2 class="bz-sec-title">Servers</h2>
-                @for s in serverHits {
-                    <a class="bz-search-row" href="/servers/@(s.id)">
-                        <span class="bz-search-main">@s.name</span>
-                    </a>
-                }
+                <section class="pl-search-group">
+                    <h2 class="pl-search-grouptitle">Communautés</h2>
+                    <div class="pl-search-list">
+                        @for s in serverHits {
+                            <a class="pl-search-row" href="/servers/@(s.id)">
+                                <span class="pl-search-ico">🌐</span>
+                                <span class="pl-search-body">
+                                    <span class="pl-search-main">@s.name</span>
+                                </span>
+                                <span class="pl-search-chev">›</span>
+                            </a>
+                        }
+                    </div>
+                </section>
             }
         }
     }
 </div>
 
 <style>
-    .bz-search { max-width: 720px; }
-    .bz-search-form { display: flex; gap: var(--spacingHorizontalS); margin: 0 0 var(--spacingVerticalL); }
-    .bz-search-input { flex: 1; min-width: 0; padding: 10px 14px; font-size: var(--fontSizeBase400);
-        border: 1px solid var(--colorNeutralStroke1); border-radius: var(--borderRadiusLarge);
-        background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1);
-        font-family: var(--fontFamilyBase); }
-    .bz-search-input:focus-visible { outline: 2px solid var(--colorBrandStroke1, var(--colorBrandForeground1)); outline-offset: 1px; }
-    .bz-search-hint, .bz-search-meta { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
-    .bz-search-row { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: 10px 12px; border-radius: var(--borderRadiusMedium); text-decoration: none;
-        color: var(--colorNeutralForeground1); }
-    .bz-search-row:hover { background: var(--colorSubtleBackgroundHover, var(--colorNeutralBackground3)); }
-    .bz-search-ico { width: 28px; height: 28px; display: grid; place-items: center; flex: none;
-        border-radius: var(--borderRadiusMedium); font-size: 1.05rem;
-        background: color-mix(in srgb, var(--colorBrandBackground) 12%, var(--colorNeutralBackground1)); }
-    .bz-search-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bz-search-sub { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); margin-left: 4px; }
+    /* Page renders inside the Pulse MainLayout; render only page content.
+       Pulse dark surfaces, 16px cards, violet accents, French throughout. */
+    .pl-search { width: 100%; max-width: 760px; color: var(--pulse-text); font-size: 15px; }
+
+    /* ---- header ---- */
+    .pl-search-head { margin-bottom: 18px; }
+    .pl-search-title { margin: 0; font-size: 26px; font-weight: 700; color: var(--pulse-text); }
+    .pl-search-sub { margin: 4px 0 0; font-size: 14px; color: var(--pulse-text-2); }
+
+    /* ---- big search bar ---- */
+    .pl-search-form { display: flex; align-items: center; gap: 10px;
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 8px 8px 8px 16px; margin: 0 0 22px;
+        transition: border-color .12s ease; }
+    .pl-search-form:focus-within { border-color: var(--pulse-primary); }
+    .pl-search-glyph { flex: none; font-size: 18px; opacity: .8; }
+    .pl-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+        color: var(--pulse-text); font-size: 16px; font-family: inherit; padding: 8px 0; }
+    .pl-search-input::placeholder { color: var(--pulse-text-3); }
+    .pl-search-btn { flex: none; background: var(--pulse-primary); color: #fff; border: 0;
+        font-weight: 600; font-size: 14px; padding: 11px 20px; border-radius: 10px;
+        cursor: pointer; transition: background .12s ease; }
+    .pl-search-btn:hover { background: var(--pulse-primary-hover); }
+
+    /* ---- empty / meta ---- */
+    .pl-search-empty { padding: 40px 16px; text-align: center; color: var(--pulse-text-3);
+        font-size: 14px; background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; }
+    .pl-search-meta { margin: 0 0 16px; font-size: 13px; color: var(--pulse-text-2); }
+
+    /* ---- grouped results ---- */
+    .pl-search-group { margin-bottom: 22px; }
+    .pl-search-grouptitle { margin: 0 0 8px; padding: 0 4px; font-size: 12px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .06em; color: var(--pulse-text-3); }
+    .pl-search-list { background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 6px; display: flex; flex-direction: column; }
+
+    .pl-search-row { display: flex; align-items: center; gap: 12px; padding: 11px 12px;
+        border-radius: 12px; text-decoration: none; color: inherit; transition: background .12s ease; }
+    .pl-search-row + .pl-search-row { border-top: 1px solid var(--pulse-border);
+        border-top-left-radius: 0; border-top-right-radius: 0; }
+    .pl-search-row:hover { background: var(--pulse-surface-2); }
+
+    .pl-search-ico { width: 34px; height: 34px; flex: none; display: inline-grid; place-items: center;
+        border-radius: 10px; font-size: 16px; background: var(--pulse-primary-soft);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+    .pl-search-ava { width: 34px; height: 34px; flex: none; display: inline-grid; place-items: center;
+        border-radius: 50%; font-size: 17px; background: var(--pulse-grad-profile);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+
+    .pl-search-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .pl-search-main { font-size: 15px; font-weight: 600; color: var(--pulse-text); line-height: 1.3;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-search-row:hover .pl-search-main { color: var(--pulse-primary); }
+    .pl-search-sub { font-size: 12px; color: var(--pulse-text-3); line-height: 1.3;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .pl-search-chev { flex: none; color: var(--pulse-text-3); font-size: 20px; line-height: 1;
+        transition: color .12s ease, transform .12s ease; }
+    .pl-search-row:hover .pl-search-chev { color: var(--pulse-primary); transform: translateX(2px); }
+
+    @media (max-width: 520px) {
+        .pl-search-btn { padding: 11px 14px; }
+        .pl-search-chev { display: none; }
+    }
 </style>
 
 @code {

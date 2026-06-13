@@ -2,9 +2,57 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Événements"
-@description "Événements à venir dans vos communautés sur Pulse."
+@description "Organisez et retrouvez les événements de vos communautés sur Pulse."
 
-<section class="bz-card" style="padding:2.75rem 2rem;text-align:center;border:1px solid var(--pulse-border);border-radius:16px;">
-    <h2 style="color:var(--pulse-text);margin:0 0 .4rem;font-size:1.3rem;">Événements</h2>
-    <p style="color:var(--pulse-text-2);margin:0;">Bientôt disponible — cette section arrive dans une prochaine mise à jour de Pulse.</p>
-</section>
+<div class="pl-evt">
+
+    <div class="pl-evt-head">
+        <div>
+            <h1 class="pl-evt-title">Événements</h1>
+            <p class="pl-evt-sub">Retrouvez ici les événements de vos communautés.</p>
+        </div>
+        <button class="pl-evt-add" type="button" disabled aria-disabled="true"
+            title="Bientôt disponible">+ Créer un événement</button>
+    </div>
+
+    <p class="pl-evt-note">La création d'événements arrive bientôt.</p>
+
+    <div class="pl-evt-empty">
+        <div class="pl-evt-empty-ico">📅</div>
+        <h3 class="pl-evt-empty-title">Aucun événement programmé pour le moment.</h3>
+        <p class="pl-evt-empty-text">Lorsque vos communautés organiseront des événements, ils apparaîtront ici.</p>
+    </div>
+
+</div>
+
+<style>
+    .pl-evt { max-width:720px; margin:0 auto; }
+
+    .pl-evt-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.5rem; }
+    .pl-evt-title { margin:0 0 .2rem; font-size:1.5rem; font-weight:800; letter-spacing:-.02em; color:var(--pulse-text); }
+    .pl-evt-sub { margin:0; color:var(--pulse-text-2); font-size:.9rem; }
+
+    .pl-evt-add { flex:0 0 auto; padding:.6rem 1.05rem; border:none; border-radius:10px;
+        background:var(--pulse-primary); color:#fff; font-size:.9rem; font-weight:700;
+        cursor:not-allowed; opacity:.55; white-space:nowrap; }
+
+    .pl-evt-note { margin:0 0 1.5rem; color:var(--pulse-text-3); font-size:.8rem; }
+
+    .pl-evt-empty { background:var(--pulse-surface); border:1px solid var(--pulse-border); border-radius:16px;
+        text-align:center; padding:2.75rem 1.25rem; }
+    .pl-evt-empty-ico { font-size:2.4rem; }
+    .pl-evt-empty-title { margin:.6rem 0 .35rem; font-size:1.1rem; font-weight:700; color:var(--pulse-text); }
+    .pl-evt-empty-text { margin:0; color:var(--pulse-text-2); font-size:.9rem; }
+
+    @media (max-width: 520px) {
+        .pl-evt-head { flex-direction:column; align-items:flex-start; }
+        .pl-evt-add { width:100%; }
+    }
+</style>
+
+@code {
+    // No event service exists yet, so this page makes no service calls and
+    // fabricates no data. It renders an honest header, a visibly-disabled
+    // "Créer un événement" action, and an honest empty state.
+    func onLoad(ctx : Context) {};
+}

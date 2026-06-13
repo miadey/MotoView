@@ -1,16 +1,90 @@
 @page "/about"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "About Bzzz"
-@description "Bzzz is an open social super-app running entirely on the Internet Computer."
-<section class="bz-hero"><h1>About Bzzz</h1>
-<p>A Discord × X × forum × WhatsApp super-app, built on MotoView, running entirely on-chain. Like every Bzzz page, it requires an Internet Identity sign-in.</p></section>
-<Card title="Open source. Your canister.">No backend to trust. Your messages live in your own canister.</Card>
-<MessageBar intent="info">Bzzz runs entirely on the Internet Computer — no servers, no middlemen.</MessageBar>
-<Accordion>
-  <AccordionItem header="What is Bzzz?" open="true">A Discord × X × forum × WhatsApp super-app, built on MotoView and running entirely on-chain.</AccordionItem>
-  <AccordionItem header="Where does my data live?">In your own canister. No backend to trust — your messages stay yours.</AccordionItem>
-  <AccordionItem header="Is this page public?">No — all of Bzzz, this page included, requires an Internet Identity sign-in. (MotoView supports @@cacheable certified-query pages, but Bzzz does not use them since nothing here is public.)</AccordionItem>
-  <AccordionItem header="Is Bzzz open source?">Yes. Bzzz is open source and runs entirely on the Internet Computer.</AccordionItem>
-</Accordion>
+@title "À propos"
+@description "Pulse transforme les conversations rapides en communautés durables, entièrement sur l'Internet Computer."
+
+<section class="pl-ab">
+    <header class="pl-ab-hero">
+        <span class="pl-ab-chip" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2.5-7 4 14 2.5-7H22"/></svg>
+        </span>
+        <h1 class="pl-ab-title">À propos de Pulse</h1>
+        <p class="pl-ab-lead">Pulse transforme les conversations rapides en communautés durables.</p>
+        <p class="pl-ab-sub">Un fil social, des forums, du chat en direct et de la messagerie privée — réunis dans une seule app, qui tourne entièrement sur l'Internet Computer.</p>
+    </header>
+
+    <div class="pl-ab-bar">
+        <span class="pl-ab-bar-dot" aria-hidden="true">∞</span>
+        Pulse fonctionne entièrement sur l'Internet Computer — pas de serveurs, pas d'intermédiaires.
+    </div>
+
+    <h2 class="pl-ab-h2">Cinq façons d'échanger</h2>
+    <div class="pl-ab-grid">
+        <article class="pl-ab-mode">
+            <span class="pl-ab-ic" aria-hidden="true">⚡</span>
+            <h3>Fil</h3>
+            <p>Des publications courtes et vivantes pour suivre le rythme de votre communauté en temps réel.</p>
+        </article>
+        <article class="pl-ab-mode">
+            <span class="pl-ab-ic" aria-hidden="true">💬</span>
+            <h3>Forum</h3>
+            <p>Des discussions structurées par catégories et sujets, pensées pour durer et se retrouver.</p>
+        </article>
+        <article class="pl-ab-mode">
+            <span class="pl-ab-ic" aria-hidden="true">🔴</span>
+            <h3>Chat</h3>
+            <p>Du chat en direct dans des salons partagés, pour les échanges rapides et spontanés.</p>
+        </article>
+        <article class="pl-ab-mode">
+            <span class="pl-ab-ic" aria-hidden="true">✉️</span>
+            <h3>Messages</h3>
+            <p>De la messagerie privée, en tête-à-tête, hébergée dans votre propre canister.</p>
+        </article>
+        <article class="pl-ab-mode">
+            <span class="pl-ab-ic" aria-hidden="true">📣</span>
+            <h3>Annonces</h3>
+            <p>Des annonces officielles mises en avant, pour que rien d'important ne passe inaperçu.</p>
+        </article>
+    </div>
+
+    <h2 class="pl-ab-h2">Conçu pour la confiance</h2>
+    <div class="pl-ab-cards">
+        <article class="pl-ab-card">
+            <h3>Internet Identity</h3>
+            <p>Connexion sécurisée, privée et sans mot de passe. Tout Pulse — cette page comprise — nécessite une identité Internet Identity.</p>
+        </article>
+        <article class="pl-ab-card">
+            <h3>On-chain, votre canister</h3>
+            <p>Aucun backend à qui faire confiance. Vos messages vivent dans votre propre canister, sur la chaîne.</p>
+        </article>
+        <article class="pl-ab-card">
+            <h3>Open source</h3>
+            <p>Pulse est open source et s'exécute intégralement sur l'Internet Computer — sans serveurs, sans intermédiaires.</p>
+        </article>
+    </div>
+</section>
+
 @code { }
+
+<style>
+    .pl-ab{max-width:980px;margin:0 auto;padding:.5rem 0 2rem}
+    .pl-ab-hero{text-align:center;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:2.75rem 2rem;margin-bottom:1.25rem}
+    .pl-ab-chip{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:16px;background:var(--pulse-grad-profile);margin-bottom:1.1rem}
+    .pl-ab-chip svg{width:30px;height:30px}
+    .pl-ab-title{margin:0 0 .6rem;color:var(--pulse-text);font-size:1.7rem;font-weight:800}
+    .pl-ab-lead{margin:0 auto .6rem;max-width:620px;color:var(--pulse-text);font-size:1.12rem;font-weight:600}
+    .pl-ab-sub{margin:0 auto;max-width:640px;color:var(--pulse-text-2);line-height:1.6}
+    .pl-ab-bar{display:flex;align-items:center;gap:.7rem;background:var(--pulse-primary-soft);border:1px solid var(--pulse-border);border-radius:12px;padding:.95rem 1.2rem;color:var(--pulse-text);margin-bottom:1.75rem}
+    .pl-ab-bar-dot{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--pulse-primary);color:#fff;font-weight:800;flex:0 0 auto}
+    .pl-ab-h2{color:var(--pulse-text);font-size:1.2rem;font-weight:800;margin:0 0 1rem}
+    .pl-ab-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:2rem}
+    .pl-ab-mode{background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:1.4rem}
+    .pl-ab-mode .pl-ab-ic{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:var(--pulse-surface-2);font-size:1.2rem;margin-bottom:.8rem}
+    .pl-ab-mode h3{margin:0 0 .4rem;color:var(--pulse-text);font-size:1.02rem;font-weight:700}
+    .pl-ab-mode p{margin:0;color:var(--pulse-text-2);font-size:.9rem;line-height:1.55}
+    .pl-ab-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+    .pl-ab-card{background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:1.5rem}
+    .pl-ab-card h3{margin:0 0 .5rem;color:var(--pulse-text);font-size:1.05rem;font-weight:700}
+    .pl-ab-card p{margin:0;color:var(--pulse-text-2);font-size:.92rem;line-height:1.6}
+</style>

@@ -1,7 +1,7 @@
 @page "/forum/c/{id:Nat}"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title (catName # " — Catégorie du forum Bzzz")
+@title (catName # " — Catégorie du forum Pulse")
 @description catDescription
 
 <div class="pc-col">
@@ -100,7 +100,7 @@
     var found : Bool = false;
     var catName : Text = "Category";
     var catDesc : Text = "";
-    var catDescription : Text = "Topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer.";
+    var catDescription : Text = "Topics on the Pulse forum — a Discourse-style on-chain discussion board running on the Internet Computer.";
     var catColor : Text = "#9aa0a6";
     var topicCount : Nat = 0;
     var postCount : Nat = 0;
@@ -112,7 +112,7 @@
                 found := true;
                 catName := c.name;
                 catDesc := c.description;
-                catDescription := "Topics in the " # c.name # " category on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer.";
+                catDescription := "Topics in the " # c.name # " category on the Pulse forum — a Discourse-style on-chain discussion board running on the Internet Computer.";
                 catColor := c.color;
                 topicCount := c.topicCount;
                 postCount := c.postCount;

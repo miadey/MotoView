@@ -182,8 +182,8 @@
     var display : Text = "";
     var bio : Text = "";
     var avatar : Text = "🐝";
-    var pageTitle : Text = "Profile — Bzzz";
-    var pageDesc : Text = "A Bzzz user profile — their posts, followers and bio.";
+    var pageTitle : Text = "Profile — Pulse";
+    var pageDesc : Text = "A Pulse user profile — their posts, followers and bio.";
     var target : Principal = Principal.fromText("aaaaa-aa");
     var followers : Nat = 0;
     var followingN : Nat = 0;
@@ -212,14 +212,14 @@
                 followingN := Feed.followingCount(p.principal);
                 posts := Feed.byAuthor(p.handle);
                 postCount := posts.size();
-                pageTitle := p.display # " (@" # p.handle # ") — Bzzz";
-                pageDesc := p.display # " on Bzzz: " # Nat.toText(followers) # " followers, " # Nat.toText(postCount) # " posts." # (if (Text.size(p.bio) > 0) { " " # p.bio } else { "" });
+                pageTitle := p.display # " (@" # p.handle # ") — Pulse";
+                pageDesc := p.display # " on Pulse: " # Nat.toText(followers) # " followers, " # Nat.toText(postCount) # " posts." # (if (Text.size(p.bio) > 0) { " " # p.bio } else { "" });
             };
             case null {
                 exists := false;
                 posts := [];
-                pageTitle := "Profile not found — Bzzz";
-                pageDesc := "No Bzzz user with that handle yet.";
+                pageTitle := "Profile not found — Pulse";
+                pageDesc := "No Pulse user with that handle yet.";
             };
         };
     };

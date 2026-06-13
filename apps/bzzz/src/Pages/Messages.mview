@@ -2,7 +2,7 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Messages"
-@description "Vos conversations privées et chiffrées de bout en bout sur Bzzz : messages directs 1:1 et discussions de groupe, entièrement sur la chaîne sur l'Internet Computer."
+@description "Vos conversations privées et chiffrées de bout en bout sur Pulse : messages directs 1:1 et discussions de groupe, entièrement sur la chaîne sur l'Internet Computer."
 
 <div class="pl-msg">
     @if bound {
@@ -59,7 +59,7 @@
 
         <div class="pl-msg-fab">
             <Dialog id="wa-new-direct" trigger="✎" title="Nouvelle conversation">
-                <p class="pl-msg-dialog-hint">Démarrez un message direct avec un identifiant Bzzz.</p>
+                <p class="pl-msg-dialog-hint">Démarrez un message direct avec un identifiant Pulse.</p>
                 <form @submit="startChat" secure>
                     <ValidationSummary />
                     <InputText name="peerHandle" label="Identifiant" bind="@peerHandle" required />
@@ -84,7 +84,7 @@
         <div class="pl-msg-empty pl-msg-empty-locked">
             <div class="pl-msg-empty-ico">🔒</div>
             <p class="pl-msg-empty-title">Choisissez d'abord un identifiant</p>
-            <p class="pl-msg-empty-sub">Vous avez besoin d'un identifiant Bzzz avant de pouvoir envoyer des messages chiffrés. <a class="pl-msg-link" href="/">Réclamez votre identifiant</a> pour commencer.</p>
+            <p class="pl-msg-empty-sub">Vous avez besoin d'un identifiant Pulse avant de pouvoir envoyer des messages chiffrés. <a class="pl-msg-link" href="/">Réclamez votre identifiant</a> pour commencer.</p>
         </div>
     }
 </div>
@@ -195,7 +195,7 @@
             peerHandle minLength 2 "Handles are at least 2 characters.";
         };
         switch (Identity.byHandleLookup(peerHandle)) {
-            case null { toast("No Bzzz user with that handle."); };
+            case null { toast("No Pulse user with that handle."); };
             case (?prof) {
                 if (prof.principal == ctx.caller) {
                     toast("You can't start a chat with yourself.");

@@ -2,7 +2,7 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Profil"
-@description "Gérez votre identifiant Bzzz, votre nom affiché et votre bio, consultez vos abonnés et abonnements, et relisez tout ce que vous avez publié."
+@description "Gérez votre identifiant Pulse, votre nom affiché et votre bio, consultez vos abonnés et abonnements, et relisez tout ce que vous avez publié."
 
 <section class="pl-me-profile mv-anim-fadein">
     <div class="pl-me-banner"></div>
@@ -19,7 +19,7 @@
                 }
             } else {
                 <h1 class="pl-me-name">Réclamez votre profil</h1>
-                <p class="pl-me-handle">Choisissez un identifiant pour rejoindre Bzzz et commencer à publier.</p>
+                <p class="pl-me-handle">Choisissez un identifiant pour rejoindre Pulse et commencer à publier.</p>
             }
         </div>
     </div>
@@ -46,7 +46,7 @@
     @if isAnon {
         <MessageBar intent="warning">Vous naviguez en tant qu'invité. Connectez-vous (en haut à droite), puis réclamez un identifiant ci-dessous pour publier, rejoindre des communautés et envoyer des messages.</MessageBar>
     } else {
-        <MessageBar intent="success">Vous êtes connecté — choisissez simplement un identifiant ci-dessous pour finaliser votre profil. Vous pourrez ensuite publier, rejoindre des communautés et envoyer des messages. (Votre identifiant et vos rôles sont distincts : vous pouvez déjà administrer Bzzz.)</MessageBar>
+        <MessageBar intent="success">Vous êtes connecté — choisissez simplement un identifiant ci-dessous pour finaliser votre profil. Vous pourrez ensuite publier, rejoindre des communautés et envoyer des messages. (Votre identifiant et vos rôles sont distincts : vous pouvez déjà administrer Pulse.)</MessageBar>
     }
 }
 
@@ -59,7 +59,7 @@
     <div class="pl-me-col">
         <div class="pl-me-card">
             <h2 class="pl-me-h2">Identité</h2>
-            <p class="pl-me-sub">Votre identifiant est unique sur tout Bzzz — fil, forum, communautés et messages — et est lié à votre Internet Identity.</p>
+            <p class="pl-me-sub">Votre identifiant est unique sur tout Pulse — fil, forum, communautés et messages — et est lié à votre Internet Identity.</p>
             <form @submit="saveIdentity" secure>
                 <ValidationSummary />
                 <InputText name="handle" label="Identifiant" bind="@handle" required />
@@ -87,12 +87,12 @@
         }
 
         <div class="pl-me-card">
-            <h2 class="pl-me-h2">Aide profil <Tooltip text="Tout sur votre identité Bzzz."><span class="pl-me-help-q">?</span></Tooltip></h2>
+            <h2 class="pl-me-h2">Aide profil <Tooltip text="Tout sur votre identité Pulse."><span class="pl-me-help-q">?</span></Tooltip></h2>
             <p class="pl-me-sub">Comment fonctionnent les identifiants, les bios et votre profil public.</p>
             <MessageBar intent="info">Votre identifiant est public — il apparaît sur chaque publication, sujet et message que vous envoyez.</MessageBar>
             <Accordion>
-                <AccordionItem header="Comment fonctionnent les identifiants ?" open="true">Votre identifiant est unique sur Bzzz. Choisissez-le une fois ; il relie toutes vos publications, sujets de forum et messages directs. Choisissez 2 caractères ou plus.</AccordionItem>
-                <AccordionItem header="Qui peut voir ma bio ?">Votre bio apparaît sur votre profil public, visible par toute personne sur Bzzz. Laissez-la vide pour la masquer.</AccordionItem>
+                <AccordionItem header="Comment fonctionnent les identifiants ?" open="true">Votre identifiant est unique sur Pulse. Choisissez-le une fois ; il relie toutes vos publications, sujets de forum et messages directs. Choisissez 2 caractères ou plus.</AccordionItem>
+                <AccordionItem header="Qui peut voir ma bio ?">Votre bio apparaît sur votre profil public, visible par toute personne sur Pulse. Laissez-la vide pour la masquer.</AccordionItem>
                 <AccordionItem header="Puis-je changer mon nom affiché ?">Oui — votre nom affiché peut changer à tout moment. Votre @@identifiant est votre identité stable.</AccordionItem>
             </Accordion>
             <div class="pl-me-actions">

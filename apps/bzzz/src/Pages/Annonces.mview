@@ -2,9 +2,128 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Annonces"
-@description "Annonces officielles de vos communautés sur Pulse."
+@description "Les dernières annonces de la communauté Pulse, en direct."
 
-<section class="bz-card" style="padding:2.75rem 2rem;text-align:center;border:1px solid var(--pulse-border);border-radius:16px;">
-    <h2 style="color:var(--pulse-text);margin:0 0 .4rem;font-size:1.3rem;">Annonces</h2>
-    <p style="color:var(--pulse-text-2);margin:0;">Bientôt disponible — cette section arrive dans une prochaine mise à jour de Pulse.</p>
+<section class="an-head">
+    <div>
+        <h1>Annonces</h1>
+        <p>Les mises à jour publiées par la communauté, visibles 24 heures. @liveCount en direct.</p>
+    </div>
 </section>
+
+@if (announcements.size() == 0) {
+    <div class="an-empty bz-card">
+        <div class="an-empty-ico">📭</div>
+        <h3>Aucune annonce pour le moment.</h3>
+        <p>Rien n'a été publié pour l'instant. Repassez plus tard pour voir les annonces de la communauté.</p>
+    </div>
+} else {
+    <div class="an-list">
+        @for a in announcements {
+            <article class="an-card bz-card">
+                <header class="an-card-head">
+                    <Persona name="@("@" # a.authorHandle)" secondary="@(Status.relativeTime(a.at))" avatar="@(Identity.avatarOf(a.author))" />
+                    <span class="an-badge">@(Status.kindLabel(a.kind))</span>
+                </header>
+
+                @switch a.kind {
+                    case (#Text) {
+                        <p class="an-text">@a.text</p>
+                    }
+                    case (#Image) {
+                        <div class="an-image">
+                            <span class="an-image-ico">🖼️</span>
+                            <span class="an-image-ref">@a.text</span>
+                        </div>
+                    }
+                }
+
+                <footer class="an-foot">
+                    <div class="an-meta">
+                        <span class="an-chip">⏳ @(Status.timeLeft(a.expiresAt))</span>
+                        <span class="an-chip">👁 @a.views vues</span>
+                    </div>
+                    <button class="an-read-btn" type="button" @click="read(a.id)">Lire</button>
+                </footer>
+            </article>
+        }
+    </div>
+}
+
+<style>
+    .an-head { margin-bottom: 1.4rem; }
+    .an-head h1 { margin: 0 0 .3rem; font-size: 1.6rem; letter-spacing: -.02em; color: var(--pulse-text); }
+    .an-head p { margin: 0; color: var(--pulse-text-2); font-size: .92rem; }
+
+    .an-empty { text-align: center; padding: 3rem 1.5rem;
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px; }
+    .an-empty-ico { font-size: 2.4rem; }
+    .an-empty h3 { margin: .8rem 0 .4rem; color: var(--pulse-text); font-size: 1.15rem; }
+    .an-empty p { margin: 0 auto; max-width: 42ch; color: var(--pulse-text-2); font-size: .92rem; }
+
+    .an-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .an-card { padding: 1.15rem 1.25rem;
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px; }
+
+    .an-card-head { display: flex; align-items: center; gap: .65rem; margin-bottom: .85rem; }
+    .an-badge { margin-left: auto; flex: 0 0 auto; font-size: .68rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .06em; padding: .22rem .6rem; border-radius: 999px;
+        color: var(--pulse-primary); background: var(--pulse-primary-soft);
+        border: 1px solid var(--pulse-border); }
+
+    .an-text { margin: 0; color: var(--pulse-text); font-size: 1.02rem; line-height: 1.5; word-break: break-word; }
+
+    .an-image { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem;
+        padding: 1.4rem 1rem; border-radius: 12px; background: var(--pulse-surface-2);
+        border: 1px solid var(--pulse-border); }
+    .an-image-ico { font-size: 2rem; }
+    .an-image-ref { font-size: .82rem; color: var(--pulse-text-2); word-break: break-all; text-align: center; }
+
+    .an-foot { display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+        margin-top: 1rem; padding-top: .85rem; border-top: 1px solid var(--pulse-border); flex-wrap: wrap; }
+    .an-meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .an-chip { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; font-weight: 600;
+        color: var(--pulse-text-2); padding: .24rem .6rem; border-radius: 999px;
+        background: var(--pulse-surface-2); border: 1px solid var(--pulse-border); }
+
+    .an-read-btn { cursor: pointer; font-family: inherit; font-size: .85rem; font-weight: 700;
+        color: #fff; background: var(--pulse-primary); border: none; border-radius: 10px;
+        padding: .5rem 1.1rem; transition: background .12s ease; }
+    .an-read-btn:hover { background: var(--pulse-primary-hover); }
+
+    @media (max-width: 560px) {
+        .an-foot { align-items: flex-start; }
+    }
+</style>
+
+@code {
+    // Live community announcements come from the Status service: the same
+    // 24-hour ephemeral updates surfaced on /status, presented here as the
+    // announcement feed the topbar bell links to. There is no separate
+    // "official announcements" store in this codebase, so we honestly show
+    // the real community updates (no fabricated "official" posts).
+    var announcements : [Status.Update] = [];
+    var liveCount : Nat = 0;
+
+    func onLoad(ctx : Context) {
+        load();
+    };
+
+    // Refresh from the Status service. Also called by the `read` handler, since
+    // the runtime re-renders right after dispatch without re-running onLoad.
+    func load() {
+        let sm = Status.summary(60);
+        announcements := sm.items;
+        liveCount := sm.activeCount;
+    };
+
+    // "Lire" records a real view on the announcement (Status.markViewed) and
+    // refreshes the list. No follow/comment actions exist on the Status service,
+    // so none are offered here.
+    func read(ctx : Context, id : Nat) : async () {
+        let ok = Status.markViewed(id);
+        if (ok) { toast("Annonce marquée comme lue.") };
+        load();
+    };
+}

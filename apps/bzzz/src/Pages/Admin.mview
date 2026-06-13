@@ -1,109 +1,109 @@
 @page "/admin"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Admin Console — Bzzz"
-@description "The super-admin console for Bzzz: manage global staff roles, review app-wide stats, and administer every server. Gated to the on-chain global role allowlist."
+@title "Administration — Pulse"
+@description "Console super-admin de Pulse : gérez les rôles du personnel global, consultez les statistiques de la plateforme et administrez chaque communauté. Réservée à la liste d'autorisation des rôles globaux on-chain."
 
 @if needsBootstrap {
     <section class="ac-center">
-        <div class="bz-card ac-bootstrap">
+        <div class="ac-card ac-bootstrap">
             <div class="ac-bootstrap-ico">🛡️</div>
-            <h1>Set up administration</h1>
-            <p>No one administers Bzzz yet. The first person to claim the seat becomes the
-               <strong>founding Super Admin</strong> — they can then grant roles to everyone else.
-               After that, this page is closed to non-staff.</p>
+            <h1>Configurer l'administration</h1>
+            <p>Personne n'administre encore Pulse. La première personne à revendiquer le siège devient le
+               <strong>Super Admin fondateur</strong> — elle pourra ensuite attribuer des rôles à tout le monde.
+               Après cela, cette page sera fermée aux non-membres du personnel.</p>
             <div class="ac-principal-row">
-                <span class="ac-muted">You are</span>
+                <span class="ac-muted">Vous êtes</span>
                 <code class="ac-code">@myPrincipal</code>
             </div>
             <form @submit="claim" secure>
-                <Button kind="primary" type="submit">Claim Super Admin</Button>
+                <Button kind="primary" type="submit">Revendiquer Super Admin</Button>
             </form>
         </div>
     </section>
 } else if (not isStaff) {
     <section class="ac-center">
-        <div class="bz-card ac-noaccess">
+        <div class="ac-card ac-noaccess">
             <div class="ac-bootstrap-ico">🔒</div>
-            <h1>You don't have admin access</h1>
-            <p>This console is limited to the Bzzz global staff allowlist. Ask an existing
-               admin to grant you a role.</p>
+            <h1>Vous n'avez pas d'accès admin</h1>
+            <p>Cette console est réservée à la liste d'autorisation du personnel global de Pulse. Demandez à un
+               administrateur existant de vous attribuer un rôle.</p>
             <div class="ac-principal-row">
-                <span class="ac-muted">You are</span>
+                <span class="ac-muted">Vous êtes</span>
                 <code class="ac-code">@myPrincipal</code>
             </div>
             <div class="ac-principal-row">
-                <span class="ac-muted">Your role</span>
-                <span>@myRoleLabel</span>
+                <span class="ac-muted">Votre rôle</span>
+                <span class="ac-role-label">@myRoleLabel</span>
             </div>
         </div>
     </section>
 } else {
     <section class="ac-head">
         <div class="ac-head-main">
-            <h1>Admin Console</h1>
+            <h1>Administration</h1>
             @switch myRole {
                 case (#SuperAdmin) { <Badge type="danger">Super Admin</Badge> }
                 case (#Admin) { <Badge type="brand">Admin</Badge> }
-                case (#Moderator) { <Badge type="warning">Moderator</Badge> }
-                case (#None) { <Badge type="subtle">Member</Badge> }
+                case (#Moderator) { <Badge type="warning">Modérateur</Badge> }
+                case (#None) { <Badge type="subtle">Membre</Badge> }
             }
         </div>
-        <p class="ac-legend">Global roles apply app-wide; per-server roles are managed on each server.</p>
+        <p class="ac-legend">Les rôles globaux s'appliquent à toute l'application ; les rôles par communauté se gèrent sur chaque communauté.</p>
     </section>
 
     <div class="ac-stats">
-        <div class="bz-card ac-stat">
+        <div class="ac-card ac-stat">
             <span class="ac-stat-num">@userCount</span>
-            <span class="ac-stat-label">Users</span>
+            <span class="ac-stat-label">Utilisateurs</span>
         </div>
-        <div class="bz-card ac-stat">
+        <div class="ac-card ac-stat">
             <span class="ac-stat-num">@serverCount</span>
-            <span class="ac-stat-label">Servers</span>
+            <span class="ac-stat-label">Communautés</span>
         </div>
-        <div class="bz-card ac-stat">
+        <div class="ac-card ac-stat">
             <span class="ac-stat-num">@topicCount</span>
-            <span class="ac-stat-label">Forum topics</span>
+            <span class="ac-stat-label">Sujets du forum</span>
         </div>
-        <div class="bz-card ac-stat">
+        <div class="ac-card ac-stat">
             <span class="ac-stat-num">@feedCount</span>
-            <span class="ac-stat-label">Feed posts</span>
+            <span class="ac-stat-label">Publications du fil</span>
         </div>
-        <div class="bz-card ac-stat">
+        <div class="ac-card ac-stat">
             <span class="ac-stat-num">@staffCount</span>
-            <span class="ac-stat-label">Staff</span>
+            <span class="ac-stat-label">Personnel</span>
         </div>
     </div>
 
-    <h2 class="ac-section-title">Analytics</h2>
+    <h2 class="ac-section-title">Analytique</h2>
     <div class="ac-charts">
-        <div class="bz-card ac-chart-card">
-            <ColumnChart values=@(contentValues) labels="Users,Servers,Topics,Posts" title="Platform content" hideLegend />
+        <div class="ac-card ac-chart-card">
+            <ColumnChart values=@(contentValues) labels="Utilisateurs,Communautés,Sujets,Publications" title="Contenu de la plateforme" hideLegend />
         </div>
         @if (staffCount > 0) {
-            <div class="bz-card ac-chart-card">
-                <DonutChart values=@(roleValues) labels="Super Admin,Admin,Moderator" title="Staff by role" />
+            <div class="ac-card ac-chart-card">
+                <DonutChart values=@(roleValues) labels="Super Admin,Admin,Modérateur" title="Personnel par rôle" />
             </div>
         }
         @if hasServers {
-            <div class="bz-card ac-chart-card">
-                <PieChart values=@(serverKindValues) labels="Discussion,Forum,Feed" title="Servers by type" />
+            <div class="ac-card ac-chart-card">
+                <PieChart values=@(serverKindValues) labels="Discussion,Forum,Fil" title="Communautés par type" />
             </div>
-            <div class="bz-card ac-chart-card">
-                <BarChart values=@(srvMemberValues) labels=@(srvMemberLabels) title="Members per server" hideLegend />
+            <div class="ac-card ac-chart-card">
+                <BarChart values=@(srvMemberValues) labels=@(srvMemberLabels) title="Membres par communauté" hideLegend />
             </div>
         }
     </div>
 
-    <h2 class="ac-section-title">Global staff</h2>
-    <div class="bz-card ac-table-card">
+    <h2 class="ac-section-title">Personnel global</h2>
+    <div class="ac-card ac-table-card">
         <table class="ac-table">
             <thead>
                 <tr>
-                    <th>Member</th>
+                    <th>Membre</th>
                     <th>Principal</th>
-                    <th>Role</th>
-                    <th>Granted</th>
+                    <th>Rôle</th>
+                    <th>Attribué</th>
                     <th class="ac-th-actions">Actions</th>
                 </tr>
             </thead>
@@ -121,26 +121,26 @@
                             @switch e.role {
                                 case (#SuperAdmin) { <Badge type="danger">Super Admin</Badge> }
                                 case (#Admin) { <Badge type="brand">Admin</Badge> }
-                                case (#Moderator) { <Badge type="warning">Moderator</Badge> }
-                                case (#None) { <Badge type="subtle">Member</Badge> }
+                                case (#Moderator) { <Badge type="warning">Modérateur</Badge> }
+                                case (#None) { <Badge type="subtle">Membre</Badge> }
                             }
                         </td>
                         <td class="ac-granted">@(Admin.relativeTime(e.grantedAt, now))</td>
                         <td class="ac-row-actions">
                             @if (e.principalText == myPrincipal) {
-                                <span class="ac-you">you</span>
+                                <span class="ac-you">vous</span>
                             }
                             @if canMakeMod(e) {
-                                <button class="ac-btn ac-btn-ghost" @click="makeMod(e.principalText)">Make Moderator</button>
+                                <button class="ac-btn ac-btn-ghost" @click="makeMod(e.principalText)">Nommer modérateur</button>
                             }
                             @if canMakeAdmin(e) {
-                                <button class="ac-btn ac-btn-ghost" @click="makeAdmin(e.principalText)">Make Admin</button>
+                                <button class="ac-btn ac-btn-ghost" @click="makeAdmin(e.principalText)">Nommer admin</button>
                             }
                             @if canMakeSuper(e) {
-                                <button class="ac-btn ac-btn-ghost" @click="makeSuper(e.principalText)">Make Super Admin</button>
+                                <button class="ac-btn ac-btn-ghost" @click="makeSuper(e.principalText)">Nommer Super Admin</button>
                             }
                             @if canRevoke(e) {
-                                <button class="ac-btn ac-btn-danger" @click="revokeStaff(e.principalText)">Revoke</button>
+                                <button class="ac-btn ac-btn-danger" @click="revokeStaff(e.principalText)">Révoquer</button>
                             }
                         </td>
                     </tr>
@@ -149,17 +149,17 @@
         </table>
     </div>
 
-    <h2 class="ac-section-title">Grant a role</h2>
-    <div class="bz-card ac-grant">
-        <p class="ac-grant-hint">Enter an existing member's @@handle and pick the role to grant.</p>
+    <h2 class="ac-section-title">Attribuer un rôle</h2>
+    <div class="ac-card ac-grant">
+        <p class="ac-grant-hint">Saisissez le @@handle d'un membre existant et choisissez le rôle à attribuer.</p>
         <form @submit="grant" secure>
             <ValidationSummary />
             <div class="ac-grant-grid">
                 <InputText name="handle" label="Handle" bind="@grantHandle" required />
                 <div class="ac-field">
-                    <span class="ac-field-label">Role</span>
+                    <span class="ac-field-label">Rôle</span>
                     <select name="role" class="ac-select">
-                        <option value="Moderator">Moderator</option>
+                        <option value="Moderator">Modérateur</option>
                         @if isSuperAdmin {
                             <option value="Admin">Admin</option>
                             <option value="SuperAdmin">Super Admin</option>
@@ -168,23 +168,23 @@
                 </div>
             </div>
             <div class="ac-grant-actions">
-                <Button kind="primary" type="submit">Grant role</Button>
+                <Button kind="primary" type="submit">Attribuer le rôle</Button>
             </div>
         </form>
     </div>
 
-    <h2 class="ac-section-title">All servers</h2>
-    <div class="bz-card ac-table-card">
+    <h2 class="ac-section-title">Toutes les communautés</h2>
+    <div class="ac-card ac-table-card">
         @if (serverList.size() == 0) {
-            <p class="ac-empty">No servers exist yet.</p>
+            <p class="ac-empty">Aucune communauté n'existe pour l'instant.</p>
         } else {
             <table class="ac-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Kind</th>
-                        <th>Owner</th>
-                        <th>Members</th>
+                        <th>Nom</th>
+                        <th>Type</th>
+                        <th>Propriétaire</th>
+                        <th>Membres</th>
                         <th class="ac-th-actions">Actions</th>
                     </tr>
                 </thead>
@@ -196,15 +196,15 @@
                                 @switch s.kind {
                                     case (#Discussion) { <Badge type="informative">Discussion</Badge> }
                                     case (#Forum) { <Badge type="informative">Forum</Badge> }
-                                    case (#Feed) { <Badge type="informative">Feed</Badge> }
+                                    case (#Feed) { <Badge type="informative">Fil</Badge> }
                                 }
                             </td>
                             <td>@(ownerHandle(s.owner))</td>
                             <td class="ac-num">@(memberCountOf(s.id))</td>
                             <td class="ac-row-actions">
-                                <a class="ac-btn ac-btn-ghost" href="/servers/@(s.id)">Manage</a>
+                                <a class="ac-btn ac-btn-ghost" href="/servers/@(s.id)">Gérer</a>
                                 @if isSuperAdmin {
-                                    <button class="ac-btn ac-btn-danger" @click="deleteServer(s.id)">Delete</button>
+                                    <button class="ac-btn ac-btn-danger" @click="deleteServer(s.id)">Supprimer</button>
                                 }
                             </td>
                         </tr>
@@ -216,77 +216,82 @@
 }
 
 <style>
-    .ac-center { display: flex; justify-content: center; padding: var(--spacingVerticalXXL) 0; }
-    .ac-bootstrap, .ac-noaccess { max-width: 30rem; text-align: center; padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL); }
-    .ac-bootstrap-ico { font-size: 2.6rem; }
-    .ac-bootstrap h1, .ac-noaccess h1 { margin: var(--spacingVerticalM) 0 var(--spacingVerticalS); font-size: 1.4rem; letter-spacing: -.02em; }
-    .ac-bootstrap p, .ac-noaccess p { margin: 0 auto var(--spacingVerticalL); max-width: 42ch; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
-    .ac-principal-row { display: flex; align-items: center; justify-content: center; gap: var(--spacingHorizontalS); flex-wrap: wrap; margin-bottom: var(--spacingVerticalM); }
+    .ac-card { background:var(--pulse-surface); border:1px solid var(--pulse-border); border-radius:16px; }
 
-    .ac-head { margin-bottom: var(--spacingVerticalXL); }
-    .ac-head-main { display: flex; align-items: center; gap: var(--spacingHorizontalM); flex-wrap: wrap; }
-    .ac-head h1 { margin: 0; font-size: 1.7rem; letter-spacing: -.02em; }
-    .ac-legend { margin: var(--spacingVerticalXS) 0 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
+    .ac-center { display:flex; justify-content:center; padding:2.5rem 0; }
+    .ac-bootstrap, .ac-noaccess { max-width:30rem; text-align:center; padding:2.5rem 2rem; }
+    .ac-bootstrap-ico { font-size:2.6rem; }
+    .ac-bootstrap h1, .ac-noaccess h1 { margin:.9rem 0 .4rem; font-size:1.4rem; letter-spacing:-.02em; color:var(--pulse-text); }
+    .ac-bootstrap p, .ac-noaccess p { margin:0 auto 1.2rem; max-width:42ch; color:var(--pulse-text-2); font-size:.92rem; line-height:1.55; }
+    .ac-bootstrap strong { color:var(--pulse-text); }
+    .ac-principal-row { display:flex; align-items:center; justify-content:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.8rem; }
+    .ac-role-label { color:var(--pulse-text); font-weight:600; }
 
-    .ac-muted { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .ac-code { font-family: var(--fontFamilyMonospace, ui-monospace, SFMono-Regular, Menlo, monospace);
-        font-size: var(--fontSizeBase200); background: var(--colorNeutralBackground3); padding: .12rem .4rem;
-        border-radius: var(--borderRadiusSmall, 4px); word-break: break-all; }
-    .ac-code-sm { font-size: var(--fontSizeBase100, .7rem); opacity: .85; }
+    .ac-head { margin-bottom:1.4rem; }
+    .ac-head-main { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
+    .ac-head h1 { margin:0; font-size:1.7rem; font-weight:800; letter-spacing:-.02em; color:var(--pulse-text); }
+    .ac-legend { margin:.4rem 0 0; color:var(--pulse-text-2); font-size:.9rem; }
 
-    .ac-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: var(--spacingHorizontalM); margin-bottom: var(--spacingVerticalXXL); }
-    .ac-stat { padding: var(--spacingVerticalL) var(--spacingHorizontalL); display: flex; flex-direction: column; gap: var(--spacingVerticalXXS); }
-    .ac-stat-num { font-size: 1.9rem; font-weight: var(--fontWeightBold); line-height: 1; letter-spacing: -.02em; }
-    .ac-stat-label { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+    .ac-muted { color:var(--pulse-text-3); font-size:.8rem; }
+    .ac-code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.8rem;
+        background:var(--pulse-surface-2); border:1px solid var(--pulse-border); padding:.14rem .42rem;
+        border-radius:6px; color:var(--pulse-text-2); word-break:break-all; }
+    .ac-code-sm { font-size:.7rem; opacity:.9; }
 
-    .ac-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: var(--spacingHorizontalM); margin-bottom: var(--spacingVerticalXXL); }
-    .ac-chart-card { padding: var(--spacingVerticalL) var(--spacingHorizontalL); }
-    .ac-chart-card .mv-chart { width: 100%; height: auto; display: block; }
+    .ac-stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+        gap:.9rem; margin-bottom:2rem; }
+    .ac-stat { padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.25rem; }
+    .ac-stat-num { font-size:1.9rem; font-weight:800; line-height:1; letter-spacing:-.02em; color:var(--pulse-text); font-variant-numeric:tabular-nums; }
+    .ac-stat-label { color:var(--pulse-text-2); font-size:.8rem; }
 
-    .ac-section-title { font-size: 1.2rem; margin: 0 0 var(--spacingVerticalM); }
+    .ac-charts { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+        gap:.9rem; margin-bottom:2rem; }
+    .ac-chart-card { padding:1.1rem 1.2rem; }
+    .ac-chart-card .mv-chart { width:100%; height:auto; display:block; }
 
-    .ac-table-card { padding: 0; overflow-x: auto; margin-bottom: var(--spacingVerticalXXL); }
-    .ac-table { width: 100%; border-collapse: collapse; font-size: var(--fontSizeBase300); }
-    .ac-table th { text-align: left; font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground3);
-        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalM) var(--spacingHorizontalL);
-        border-bottom: 1px solid var(--colorNeutralStroke2); white-space: nowrap; }
-    .ac-table td { padding: var(--spacingVerticalM) var(--spacingHorizontalL); border-bottom: 1px solid var(--colorNeutralStroke2); vertical-align: middle; }
-    .ac-table tr:last-child td { border-bottom: 0; }
-    .ac-th-actions { text-align: right; }
+    .ac-section-title { font-size:1.2rem; font-weight:800; letter-spacing:-.02em; color:var(--pulse-text); margin:0 0 .8rem; }
 
-    .ac-member { display: flex; align-items: center; gap: var(--spacingHorizontalS); }
-    .ac-avatar { font-size: 1.3rem; line-height: 1; }
-    .ac-handle { font-weight: var(--fontWeightSemibold); white-space: nowrap; }
-    .ac-granted { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); white-space: nowrap; }
-    .ac-num { font-variant-numeric: tabular-nums; }
-    .ac-srv-name { font-weight: var(--fontWeightSemibold); }
+    .ac-table-card { padding:0; overflow-x:auto; margin-bottom:2rem; }
+    .ac-table { width:100%; border-collapse:collapse; font-size:.9rem; }
+    .ac-table th { text-align:left; font-weight:700; color:var(--pulse-text-3);
+        font-size:.78rem; text-transform:uppercase; letter-spacing:.03em; padding:.85rem 1.1rem;
+        border-bottom:1px solid var(--pulse-border); white-space:nowrap; }
+    .ac-table td { padding:.8rem 1.1rem; border-bottom:1px solid var(--pulse-border); vertical-align:middle; color:var(--pulse-text); }
+    .ac-table tr:last-child td { border-bottom:0; }
+    .ac-table tbody tr:hover td { background:var(--pulse-surface-2); }
+    .ac-th-actions { text-align:right; }
 
-    .ac-row-actions { display: flex; align-items: center; gap: var(--spacingHorizontalXS); justify-content: flex-end; flex-wrap: wrap; }
-    .ac-you { font-size: var(--fontSizeBase200); color: var(--colorNeutralForeground3); font-style: italic; margin-right: var(--spacingHorizontalXS); }
+    .ac-member { display:flex; align-items:center; gap:.5rem; }
+    .ac-avatar { font-size:1.3rem; line-height:1; }
+    .ac-handle { font-weight:700; white-space:nowrap; color:var(--pulse-text); }
+    .ac-granted { color:var(--pulse-text-2); font-size:.8rem; white-space:nowrap; }
+    .ac-num { font-variant-numeric:tabular-nums; }
+    .ac-srv-name { font-weight:700; color:var(--pulse-text); }
 
-    .ac-btn { font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold);
-        padding: .32rem .6rem; border-radius: var(--borderRadiusMedium); cursor: pointer;
-        border: 1px solid var(--colorNeutralStroke1); text-decoration: none; white-space: nowrap;
-        background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1); }
-    .ac-btn-ghost:hover { background: var(--colorNeutralBackground1Hover); border-color: var(--colorNeutralStroke1Hover); }
-    .ac-btn-danger { color: var(--colorPaletteRedForeground1, #b10e1c); border-color: var(--colorPaletteRedBorder2, #f3aeb4); }
-    .ac-btn-danger:hover { background: var(--colorPaletteRedBackground1, #fdf3f4); }
+    .ac-row-actions { display:flex; align-items:center; gap:.3rem; justify-content:flex-end; flex-wrap:wrap; }
+    .ac-you { font-size:.78rem; color:var(--pulse-text-3); font-style:italic; margin-right:.2rem; }
 
-    .ac-grant { padding: var(--spacingVerticalL) var(--spacingHorizontalL); margin-bottom: var(--spacingVerticalXXL); }
-    .ac-grant-hint { margin: 0 0 var(--spacingVerticalM); color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
-    .ac-grant-grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacingHorizontalL); align-items: end; }
-    .ac-field { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); }
-    .ac-field-label { font-size: var(--fontSizeBase200); font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground3); }
-    .ac-select { padding: var(--spacingVerticalSNudge) var(--spacingHorizontalM); border: 1px solid var(--colorNeutralStroke1);
-        border-radius: var(--borderRadiusMedium); background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1);
-        font-size: var(--fontSizeBase300); font-family: inherit; }
-    .ac-grant-actions { margin-top: var(--spacingVerticalL); }
-    .ac-empty { padding: var(--spacingVerticalL) var(--spacingHorizontalL); margin: 0; color: var(--colorNeutralForeground3); }
+    .ac-btn { font-size:.78rem; font-weight:700; padding:.34rem .65rem; border-radius:8px; cursor:pointer;
+        border:1px solid var(--pulse-border); text-decoration:none; white-space:nowrap;
+        background:var(--pulse-surface-2); color:var(--pulse-text); }
+    .ac-btn-ghost:hover { background:var(--pulse-primary); color:#fff; border-color:var(--pulse-primary); }
+    .ac-btn-danger { color:var(--pulse-danger); border-color:var(--pulse-danger); background:transparent; }
+    .ac-btn-danger:hover { background:var(--pulse-danger); color:#fff; }
+
+    .ac-grant { padding:1.2rem 1.3rem; margin-bottom:2rem; }
+    .ac-grant-hint { margin:0 0 1rem; color:var(--pulse-text-2); font-size:.9rem; }
+    .ac-grant-grid { display:grid; grid-template-columns:2fr 1fr; gap:1rem; align-items:end; }
+    .ac-field { display:flex; flex-direction:column; gap:.35rem; }
+    .ac-field-label { font-size:.8rem; font-weight:700; color:var(--pulse-text-2); }
+    .ac-select { padding:.6rem .8rem; border:1px solid var(--pulse-border);
+        border-radius:10px; background:var(--pulse-surface-2); color:var(--pulse-text);
+        font-size:.9rem; font-family:inherit; }
+    .ac-select:focus { outline:none; border-color:var(--pulse-primary); }
+    .ac-grant-actions { margin-top:1.2rem; }
+    .ac-empty { padding:1.5rem 1.3rem; margin:0; color:var(--pulse-text-2); }
 
     @media (max-width: 600px) {
-        .ac-grant-grid { grid-template-columns: 1fr; }
+        .ac-grant-grid { grid-template-columns:1fr; }
     }
 </style>
 
@@ -477,7 +482,7 @@
     func claim(ctx : Context) : async () {
         let handle = Identity.handleOf(ctx.caller);
         if (Admin.claimBootstrap(ctx.caller, handle)) {
-            toast("You are now the founding Super Admin of Bzzz.");
+            toast("You are now the founding Super Admin of Pulse.");
         } else {
             toast("Bootstrap is no longer available — staff already exist.");
         };

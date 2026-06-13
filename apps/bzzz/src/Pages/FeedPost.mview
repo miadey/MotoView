@@ -352,8 +352,8 @@
     var suggestions : [Identity.Profile] = [];
     var hasSuggestions : Bool = false;
 
-    var pageTitle : Text = "Post — Bzzz";
-    var pageDesc : Text = "A post on the Bzzz feed — replies, likes and reposts, served on-chain.";
+    var pageTitle : Text = "Post — Pulse";
+    var pageDesc : Text = "A post on the Pulse feed — replies, likes and reposts, served on-chain.";
 
     var body : Text = "";
 
@@ -382,8 +382,8 @@
                 replies := Feed.replies(id);
                 hasReplies := replies.size() > 0;
                 let who = Identity.displayOf(p.author);
-                pageTitle := who # " on Bzzz: \"" # snippet(p.text) # "\"";
-                pageDesc := who # " (@" # p.authorHandle # ") posted on Bzzz — "
+                pageTitle := who # " on Pulse: \"" # snippet(p.text) # "\"";
+                pageDesc := who # " (@" # p.authorHandle # ") posted on Pulse — "
                     # Nat.toText(p.likes) # " likes, " # Nat.toText(p.reposts) # " reposts, "
                     # Nat.toText(p.replyCount) # " replies.";
             };
@@ -391,8 +391,8 @@
                 exists := false;
                 replies := [];
                 hasReplies := false;
-                pageTitle := "Post not found — Bzzz";
-                pageDesc := "This Bzzz post doesn't exist.";
+                pageTitle := "Post not found — Pulse";
+                pageDesc := "This Pulse post doesn't exist.";
             };
         };
 

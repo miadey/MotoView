@@ -248,7 +248,7 @@
         [data-theme="material-light"] .bz-dash-more, [data-theme="material-dark"] .bz-dash-more,
         [data-theme="material-light"] .bz-dash-row .bz-dash-line strong, [data-theme="material-dark"] .bz-dash-row .bz-dash-line strong { color: inherit; }
     </style>
-    <!-- Auth gate: Bzzz requires Internet Identity — NO page under this layout
+    <!-- Auth gate: Pulse requires Internet Identity — NO page under this layout
          is public. Anyone not signed-in-and-handle-bound is sent to /welcome
          (no-JS meta redirect), the only ungated route. -->
     @if (not (ctx.isAuthenticated and Identity.isBound(ctx.caller))) {

@@ -2,7 +2,7 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Accueil"
-@description "Votre fil Bzzz : les dernières publications de votre communauté, en direct et entièrement on-chain dans un seul canister."
+@description "Votre fil Pulse : les dernières publications de votre communauté, en direct et entièrement on-chain dans un seul canister."
 <div class="pl-home-wrap">
  <div class="pl-home-main">
   @if showPersonalize {
@@ -11,7 +11,7 @@
      <h2>✨ Personnalisez votre profil</h2>
      <a class="pl-home-personalize-more" href="/me">Profil →</a>
     </header>
-    <p class="pl-home-personalize-sub">Nous vous avons connecté en tant que <strong>@@@myHandle</strong> — un pseudo dérivé de votre Internet Identity. Choisissez-en un plus convivial (il se met à jour partout sur Bzzz, à tout moment).</p>
+    <p class="pl-home-personalize-sub">Nous vous avons connecté en tant que <strong>@@@myHandle</strong> — un pseudo dérivé de votre Internet Identity. Choisissez-en un plus convivial (il se met à jour partout sur Pulse, à tout moment).</p>
     <form @submit="rename" secure class="pl-home-personalize-form">
      <ValidationSummary />
      <InputText name="newHandle" label="Votre pseudo" bind="@newHandle" required />
@@ -75,7 +75,7 @@
     <div class="pl-home-empty">
      <span class="pl-home-empty-ico">⚡</span>
      <h3>Aucune publication pour l'instant</h3>
-     <p>Soyez le premier à publier et lancez la conversation sur Bzzz.</p>
+     <p>Soyez le premier à publier et lancez la conversation sur Pulse.</p>
      <a class="pl-home-btn-primary" href="/feed">Écrire une publication</a>
     </div>
    }
@@ -85,7 +85,7 @@
   <section class="pl-home-panel">
    <h3 class="pl-home-panel-title">Tendances</h3>
    <a class="pl-home-trend" href="/feed">
-    <span class="pl-home-trend-cat">On Bzzz · En direct</span>
+    <span class="pl-home-trend-cat">On Pulse · En direct</span>
     <span class="pl-home-trend-tag">#ICP</span>
     <span class="pl-home-trend-n">@postN @(plural(postN, "publication", "publications"))</span>
    </a>

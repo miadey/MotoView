@@ -2,7 +2,7 @@
 @layout ForumLayout
 @authorize redirect="/welcome"
 @title "Forums"
-@description "Parcourez les catégories et les sujets récents des forums Bzzz — un espace de discussion communautaire on-chain sur l'Internet Computer."
+@description "Parcourez les catégories et les sujets récents des forums Pulse — un espace de discussion communautaire on-chain sur l'Internet Computer."
 
 <div class="pl-forum">
 
@@ -10,7 +10,7 @@
     <div class="pl-forum-head">
         <div class="pl-forum-intro">
             <h1 class="pl-forum-title">Forums</h1>
-            <p class="pl-forum-sub">Catégories et derniers sujets de la communauté Bzzz.</p>
+            <p class="pl-forum-sub">Catégories et derniers sujets de la communauté Pulse.</p>
         </div>
         <a class="pl-forum-new" href="/forum/new">+ Nouveau sujet</a>
     </div>

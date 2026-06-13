@@ -2,7 +2,7 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Conversation privée"
-@description "Une conversation privée et chiffrée de bout en bout sur Bzzz. Les messages sont stockés sous forme d'enveloppes chiffrées et ne sont déchiffrés que dans votre client — jamais sur la chaîne."
+@description "Une conversation privée et chiffrée de bout en bout sur Pulse. Les messages sont stockés sous forme d'enveloppes chiffrées et ne sont déchiffrés que dans votre client — jamais sur la chaîne."
 
 <div class="pdm">
     @if (not member) {

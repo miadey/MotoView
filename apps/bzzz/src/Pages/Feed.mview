@@ -1,295 +1,241 @@
 @page "/feed"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Feed — Bzzz"
-@description "Your Bzzz home timeline. Post short updates, follow people, repost and like — an X-style public feed running entirely on-chain on the Internet Computer."
+@title "Fil"
+@description "Votre fil Pulse : publiez de courtes mises à jour, suivez des membres, reposter et aimer — un fil public à la X, entièrement on-chain dans un seul canister sur l'Internet Computer."
 
-<div class="fd-wrap" style="--bz-accent: #1d9bf0; --bz-accent-2: #0ea5e9;">
-    <div class="fd-main">
-        <header class="fd-head">
-            <div class="fd-head-top">
-                <span class="fd-head-ico">🐝</span>
-                <h1>Home</h1>
-            </div>
-            <TabList>
-                <Tab href="/feed" match="/feed">For you</Tab>
-                <Tab href="/feed?tab=following" match="/feed?tab=following">Following</Tab>
-            </TabList>
-        </header>
+<div class="pl-feed-wrap">
+ <div class="pl-feed-main">
 
-        @if bound {
-            <div class="fd-composer">
-                <div class="fd-ava">@meAvatar</div>
-                <form class="fd-composer-form" @submit="post" secure>
-                    <ValidationSummary />
-                    <TextArea name="body" label="" placeholder="What is happening?!" bind="@body" required />
-                    <div class="fd-composer-foot">
-                        <span class="fd-counter">@(remaining()) left</span>
-                        <Button kind="primary" type="submit">Post</Button>
-                    </div>
-                </form>
-            </div>
-        } else {
-            <div class="fd-claim">
-                <span class="fd-claim-ico">🐝</span>
-                <div>
-                    <strong>Claim a handle to start posting.</strong>
-                    <p>Pick your handle on the <a href="/me">profile</a> page, then come back to share your first post.</p>
-                </div>
-            </div>
-        }
-
-        @if hasPosts {
-            <div class="fd-stream">
-                @for p in timeline {
-                    <article class="fd-post" id="post-@(p.id)">
-                        <a class="fd-post-link" href="/feed/p/@(p.id)" aria-label="Open post"></a>
-                        <div class="fd-ava">@(avatarOf(p.author))</div>
-                        <div class="fd-body">
-                            <div class="fd-post-head">
-                                <span class="fd-name">@(displayOf(p.author))</span>
-                                <span class="fd-handle">@(at(p.authorHandle))</span>
-                                <span class="fd-dot">·</span>
-                                <span class="fd-time">@(rel(p.at))</span>
-                            </div>
-                            <div class="fd-text">@p.text</div>
-                            <div class="fd-actions">
-                                <a class="fd-act fd-act-reply" href="/feed/p/@(p.id)" title="Reply">
-                                    <span class="fd-act-ico">💬</span>
-                                    <span class="fd-act-n">@(p.replyCount)</span>
-                                </a>
-                                <button class="fd-act fd-act-repost @(repostClass(p.id))" @click="repost(p.id)" type="button" title="Repost">
-                                    <span class="fd-act-ico">🔁</span>
-                                    <span class="fd-act-n">@(p.reposts)</span>
-                                </button>
-                                <button class="fd-act fd-act-like @(likeClass(p.id))" @click="like(p.id)" type="button" title="Like">
-                                    <span class="fd-act-ico">@(heart(p.id))</span>
-                                    <span class="fd-act-n">@(p.likes)</span>
-                                </button>
-                                <a class="fd-act fd-act-view" href="/feed/p/@(p.id)" title="Views">
-                                    <span class="fd-act-ico">📊</span>
-                                    <span class="fd-act-n">@(views(p))</span>
-                                </a>
-                                <span class="fd-act fd-act-share" title="Share">
-                                    <span class="fd-act-ico">🔗</span>
-                                </span>
-                            </div>
-                        </div>
-                    </article>
-                }
-            </div>
-            @if (showOlder or page > 0) {
-                <nav class="fd-pager" aria-label="Feed pages">
-                    @if (page > 0) { <a class="fd-pager-btn" href="@(pageHref(page - 1))">← Newer</a> } else { <span class="fd-pager-sp"></span> }
-                    <span class="fd-pager-info">Page @(page + 1)</span>
-                    @if showOlder { <a class="fd-pager-btn" href="@(pageHref(page + 1))">Older →</a> } else { <span class="fd-pager-sp"></span> }
-                </nav>
-            }
-        } else {
-            <div class="fd-empty">
-                <span class="fd-empty-ico">⚡</span>
-                <h3>@(emptyTitle())</h3>
-                <p>@(emptyBody())</p>
-            </div>
-        }
+  @if bound {
+   <section class="pl-feed-composer">
+    <form class="pl-feed-composer-form" @submit="post" secure>
+     <ValidationSummary />
+     <div class="pl-feed-composer-row">
+      <span class="pl-feed-ava">@meAvatar</span>
+      <div class="pl-feed-composer-field">
+       <TextArea name="body" label="" placeholder="Quoi de neuf ?!" bind="@body" required />
+      </div>
+     </div>
+     <div class="pl-feed-composer-foot">
+      <span class="pl-feed-counter">@(remaining()) restants</span>
+      <Button kind="primary" type="submit">Publier</Button>
+     </div>
+    </form>
+   </section>
+  } else {
+   <section class="pl-feed-claim">
+    <span class="pl-feed-claim-ico">🐝</span>
+    <div class="pl-feed-claim-body">
+     <strong>Choisissez un pseudo pour commencer à publier.</strong>
+     <p>Définissez votre pseudo sur la page <a href="/me">profil</a>, puis revenez partager votre première publication.</p>
     </div>
+   </section>
+  }
 
-    <aside class="fd-rail">
-        <div class="fd-panel bz-card-accent">
-            <h3 class="fd-panel-title">Who to follow</h3>
-            @if hasSuggestions {
-                <ul class="fd-suggest">
-                    @for s in suggestions {
-                        <li class="fd-suggest-row">
-                            <a class="fd-suggest-id" href="/u/@s.handle">
-                                <Persona name="@s.display" secondary="@(at(s.handle))" avatar="@s.avatar" />
-                            </a>
-                            @if bound {
-                                <button class="fd-follow @(followClass(s.principal))" @click="toggleFollow(s.handle)" type="button">@(followLabel(s.principal))</button>
-                            }
-                        </li>
-                    }
-                </ul>
-                <a class="fd-showmore" href="/messages">Show more</a>
-            } else {
-                <p class="fd-panel-empty">No one else here yet. Invite a friend to Bzzz.</p>
-            }
-        </div>
+  <nav class="pl-feed-tabs" aria-label="Filtres du fil">
+   @if followingTab {
+    <a class="pl-feed-tab" href="/feed">Pour vous</a>
+    <a class="pl-feed-tab pl-feed-tab-active" href="/feed?tab=following">Abonnements</a>
+   } else {
+    <a class="pl-feed-tab pl-feed-tab-active" href="/feed">Pour vous</a>
+    <a class="pl-feed-tab" href="/feed?tab=following">Abonnements</a>
+   }
+  </nav>
 
-        <div class="fd-panel bz-card-accent">
-            <h3 class="fd-panel-title">What is happening</h3>
-            <ul class="fd-trends">
-                <li class="fd-trend">
-                    <span class="fd-trend-cat"><span class="bz-accent-chip">On Bzzz · Live</span></span>
-                    <span class="fd-trend-tag">#OnChain</span>
-                    <span class="fd-trend-n">@postCount posts</span>
-                </li>
-                <li class="fd-trend">
-                    <span class="fd-trend-cat"><span class="bz-accent-chip">Social · Trending</span></span>
-                    <span class="fd-trend-tag">#InternetComputer</span>
-                    <span class="fd-trend-n">@memberCount on Bzzz</span>
-                </li>
-                <li class="fd-trend">
-                    <span class="fd-trend-cat">Your network</span>
-                    <span class="fd-trend-tag">@followingCount following · @followerCount followers</span>
-                </li>
-            </ul>
-        </div>
-    </aside>
+  @if hasPosts {
+   <section class="pl-feed-stream">
+    @for p in timeline {
+     <article class="pl-feed-post" id="post-@(p.id)">
+      <a class="pl-feed-post-link" href="/feed/p/@(p.id)" aria-label="Ouvrir la publication"></a>
+      <span class="pl-feed-ava">@(avatarOf(p.author))</span>
+      <div class="pl-feed-post-body">
+       <div class="pl-feed-post-head">
+        <span class="pl-feed-post-name">@(displayOf(p.author))</span>
+        <span class="pl-feed-post-handle">@(at(p.authorHandle))</span>
+        <span class="pl-feed-post-dot">·</span>
+        <span class="pl-feed-post-time">@(rel(p.at))</span>
+       </div>
+       <div class="pl-feed-post-text">@p.text</div>
+       <div class="pl-feed-post-actions">
+        <a class="pl-feed-act pl-feed-act-reply" href="/feed/p/@(p.id)" title="Répondre">
+         <span class="pl-feed-act-ico">💬</span>
+         <span class="pl-feed-act-n">@(p.replyCount)</span>
+        </a>
+        <button class="pl-feed-act pl-feed-act-repost @(repostClass(p.id))" @click="repost(p.id)" type="button" title="Reposter">
+         <span class="pl-feed-act-ico">🔁</span>
+         <span class="pl-feed-act-n">@(p.reposts)</span>
+        </button>
+        <button class="pl-feed-act pl-feed-act-like @(likeClass(p.id))" @click="like(p.id)" type="button" title="Aimer">
+         <span class="pl-feed-act-ico">@(heart(p.id))</span>
+         <span class="pl-feed-act-n">@(p.likes)</span>
+        </button>
+        <a class="pl-feed-act pl-feed-act-save" href="/feed/p/@(p.id)" title="Sauvegarder">
+         <span class="pl-feed-act-ico">🔖</span>
+        </a>
+       </div>
+      </div>
+     </article>
+    }
+   </section>
+   @if (showOlder or page > 0) {
+    <nav class="pl-feed-pager" aria-label="Pages du fil">
+     @if (page > 0) { <a class="pl-feed-pager-btn" href="@(pageHref(page - 1))">← Plus récents</a> } else { <span class="pl-feed-pager-sp"></span> }
+     <span class="pl-feed-pager-info">Page @(page + 1)</span>
+     @if showOlder { <a class="pl-feed-pager-btn" href="@(pageHref(page + 1))">Plus anciens →</a> } else { <span class="pl-feed-pager-sp"></span> }
+    </nav>
+   }
+  } else {
+   <div class="pl-feed-empty">
+    <span class="pl-feed-empty-ico">⚡</span>
+    <h3>@(emptyTitle())</h3>
+    <p>@(emptyBody())</p>
+   </div>
+  }
+ </div>
+
+ <aside class="pl-feed-rail">
+  <section class="pl-feed-panel">
+   <h3 class="pl-feed-panel-title">Qui suivre</h3>
+   @if hasSuggestions {
+    <ul class="pl-feed-suggest">
+     @for s in suggestions {
+      <li class="pl-feed-suggest-row">
+       <a class="pl-feed-suggest-id" href="/u/@s.handle">
+        <span class="pl-feed-ava pl-feed-ava-sm">@s.avatar</span>
+        <span class="pl-feed-suggest-main">
+         <span class="pl-feed-suggest-name">@s.display</span>
+         <span class="pl-feed-suggest-handle">@(at(s.handle))</span>
+        </span>
+       </a>
+       @if bound {
+        <button class="pl-feed-follow @(followClass(s.principal))" @click="toggleFollow(s.handle)" type="button">@(followLabel(s.principal))</button>
+       }
+      </li>
+     }
+    </ul>
+    <a class="pl-feed-showmore" href="/messages">Voir plus</a>
+   } else {
+    <p class="pl-feed-panel-empty">Aucun autre membre pour l'instant. Invitez un ami sur Pulse.</p>
+   }
+  </section>
+
+  <section class="pl-feed-panel">
+   <h3 class="pl-feed-panel-title">Quoi de neuf</h3>
+   <ul class="pl-feed-trends">
+    <li class="pl-feed-trend">
+     <span class="pl-feed-trend-cat">Sur Pulse · En direct</span>
+     <span class="pl-feed-trend-tag">#OnChain</span>
+     <span class="pl-feed-trend-n">@postCount publications</span>
+    </li>
+    <li class="pl-feed-trend">
+     <span class="pl-feed-trend-cat">Social · Tendance</span>
+     <span class="pl-feed-trend-tag">#InternetComputer</span>
+     <span class="pl-feed-trend-n">@memberCount sur Pulse</span>
+    </li>
+    <li class="pl-feed-trend">
+     <span class="pl-feed-trend-cat">Votre réseau</span>
+     <span class="pl-feed-trend-tag">@followingCount abonnements · @followerCount abonnés</span>
+    </li>
+   </ul>
+  </section>
+ </aside>
 </div>
 
 <style>
-    .fd-wrap { display: grid; grid-template-columns: minmax(0, 600px) 350px; gap: var(--spacingHorizontalXXL); justify-content: start; align-items: start; }
-    .fd-main { min-width: 0; }
+.pl-feed-wrap{display:grid;grid-template-columns:minmax(0,600px) 300px;gap:24px;justify-content:start;align-items:start}
+.pl-feed-main{min-width:0;display:flex;flex-direction:column;gap:16px}
 
-    /* Sticky X-style header with tabs */
-    .fd-head { position: sticky; top: 48px; z-index: 5; margin: calc(-1 * var(--spacingVerticalL)) 0 0;
-        background: color-mix(in srgb, var(--colorNeutralBackground2) 82%, transparent);
-        backdrop-filter: saturate(1.4) blur(8px);
-        border-bottom: 1px solid var(--colorNeutralStroke2); }
-    /* slim gradient accent at the very top of the sticky header */
-    .fd-head::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
-        background: linear-gradient(90deg, var(--bz-accent), var(--bz-accent-2)); }
-    .fd-head-top { display: flex; align-items: center; gap: var(--spacingHorizontalS);
-        padding: var(--spacingVerticalM) var(--spacingHorizontalL) var(--spacingVerticalXS); }
-    .fd-head-ico { font-size: 1.4rem; line-height: 1;
-        filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--bz-accent) 50%, transparent)); }
-    .fd-head-top h1 { margin: 0; font-size: var(--fontSizeBase600); font-weight: 800; letter-spacing: -.03em;
-        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2));
-        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .fd-head .mv-tablist, .fd-head [role="tablist"] { padding: 0 var(--spacingHorizontalL); }
-    /* Active tab: accent text + accent gradient underline */
-    .fd-head [role="tab"][aria-selected="true"], .fd-head .mv-tab.is-active, .fd-head [role="tab"].is-active {
-        color: var(--bz-accent); font-weight: 800; }
-    .fd-head [role="tab"][aria-selected="true"]::after, .fd-head .mv-tab.is-active::after, .fd-head [role="tab"].is-active::after {
-        background: linear-gradient(90deg, var(--bz-accent), var(--bz-accent-2)) !important; height: 3px; border-radius: 2px; }
+.pl-feed-ava{width:44px;height:44px;flex:0 0 44px;border-radius:50%;background:var(--pulse-surface-2);display:grid;place-items:center;font-size:1.3rem;border:1px solid var(--pulse-border)}
+.pl-feed-ava-sm{width:36px;height:36px;flex:0 0 36px;font-size:1.05rem}
 
-    /* Compose box — accent ring + gradient sheen to make it pop */
-    .fd-composer { position: relative; display: flex; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalL);
-        margin: var(--spacingVerticalM) var(--spacingHorizontalM);
-        border: 1px solid color-mix(in srgb, var(--bz-accent) 28%, var(--colorNeutralStroke2));
-        border-radius: var(--borderRadiusXLarge);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--bz-accent) 7%, var(--colorNeutralBackground2)), var(--colorNeutralBackground2));
-        box-shadow: 0 6px 22px -14px color-mix(in srgb, var(--bz-accent) 70%, transparent);
-        transition: border-color var(--durationFaster) var(--curveEasyEase), box-shadow var(--durationFaster) var(--curveEasyEase); }
-    .fd-composer:focus-within { border-color: var(--bz-accent);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--bz-accent) 22%, transparent),
-                    0 8px 26px -14px color-mix(in srgb, var(--bz-accent) 75%, transparent); }
-    .fd-composer-form { flex: 1; min-width: 0; }
-    .fd-composer-form textarea, .fd-composer-form .mv-input, .fd-composer-form input { width: 100%; box-sizing: border-box;
-        border: 0; background: transparent; font-size: var(--fontSizeBase400); resize: none; }
-    .fd-composer-form textarea:focus { outline: none; }
-    .fd-composer-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
-        margin-top: var(--spacingVerticalXS); padding-top: var(--spacingVerticalS);
-        border-top: 1px solid color-mix(in srgb, var(--bz-accent) 18%, var(--colorNeutralStroke2)); }
-    .fd-counter { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); font-variant-numeric: tabular-nums; }
-    /* Vivid accent CTA for the Post button */
-    .fd-composer-foot .mv-btn-primary, .fd-composer-foot button[type="submit"] {
-        border: 0; color: #fff; font-weight: var(--fontWeightSemibold);
-        background: linear-gradient(120deg, var(--bz-accent), var(--bz-accent-2)) !important;
-        box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--bz-accent) 80%, transparent);
-        transition: transform var(--durationFaster) var(--curveEasyEase), box-shadow var(--durationFaster) var(--curveEasyEase), filter var(--durationFaster) var(--curveEasyEase); }
-    .fd-composer-foot .mv-btn-primary:hover, .fd-composer-foot button[type="submit"]:hover {
-        filter: brightness(1.05); transform: translateY(-1px);
-        box-shadow: 0 9px 22px -8px color-mix(in srgb, var(--bz-accent) 85%, transparent); }
+/* ---- composer ------------------------------------------------------- */
+.pl-feed-composer{background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:16px 18px}
+.pl-feed-composer-form{margin:0}
+.pl-feed-composer-row{display:flex;gap:12px;align-items:flex-start}
+.pl-feed-composer-field{flex:1;min-width:0}
+.pl-feed-composer-field .mv-field{margin:0}
+.pl-feed-composer-field textarea,.pl-feed-composer-field .mv-input,.pl-feed-composer-field input{width:100%;box-sizing:border-box;background:var(--pulse-surface-2);border:1px solid var(--pulse-border);border-radius:12px;color:var(--pulse-text);font:inherit;font-size:1rem;resize:none;padding:.7rem .9rem;min-height:64px}
+.pl-feed-composer-field textarea:focus,.pl-feed-composer-field .mv-input:focus,.pl-feed-composer-field input:focus{outline:none;border-color:var(--pulse-primary);box-shadow:0 0 0 3px var(--pulse-primary-soft)}
+.pl-feed-composer-field textarea::placeholder{color:var(--pulse-text-3)}
+.pl-feed-composer-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--pulse-border)}
+.pl-feed-counter{color:var(--pulse-text-3);font-size:.84rem;font-variant-numeric:tabular-nums}
+.pl-feed-composer-foot .mv-btn-primary,.pl-feed-composer-foot button[type="submit"]{background:var(--pulse-primary);color:#fff;border:0;cursor:pointer;font:inherit;font-weight:600;font-size:.92rem;padding:.55rem 1.15rem;border-radius:10px;line-height:1}
+.pl-feed-composer-foot .mv-btn-primary:hover,.pl-feed-composer-foot button[type="submit"]:hover{background:var(--pulse-primary-hover)}
 
-    .fd-ava { width: 40px; height: 40px; flex: 0 0 40px; border-radius: var(--borderRadiusCircular);
-        background: var(--colorNeutralBackground3); display: grid; place-items: center;
-        font-size: 1.3rem; box-shadow: inset 0 0 0 1px var(--colorNeutralStroke2); }
+/* ---- claim handle banner ------------------------------------------- */
+.pl-feed-claim{display:flex;align-items:flex-start;gap:12px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:16px 18px}
+.pl-feed-claim-ico{font-size:1.8rem;line-height:1}
+.pl-feed-claim-body strong{display:block;color:var(--pulse-text)}
+.pl-feed-claim-body p{margin:.3rem 0 0;color:var(--pulse-text-2);font-size:.9rem;line-height:1.45}
+.pl-feed-claim-body a{color:var(--pulse-primary);font-weight:600;text-decoration:none}
+.pl-feed-claim-body a:hover{text-decoration:underline}
 
-    .fd-claim { display: flex; align-items: center; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-bottom: 1px solid var(--colorNeutralStroke2); }
-    .fd-claim-ico { font-size: 1.8rem; }
-    .fd-claim strong { display: block; }
-    .fd-claim p { margin: var(--spacingVerticalXS) 0 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
-    .fd-claim a { color: var(--colorBrandForeground1); font-weight: var(--fontWeightSemibold); text-decoration: none; }
+/* ---- tabs ----------------------------------------------------------- */
+.pl-feed-tabs{display:flex;gap:4px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:14px;padding:4px}
+.pl-feed-tab{flex:1;text-align:center;text-decoration:none;color:var(--pulse-text-2);font-size:.9rem;font-weight:600;padding:.55rem .4rem;border-radius:10px;position:relative}
+.pl-feed-tab:hover{color:var(--pulse-text);background:var(--pulse-surface-2)}
+.pl-feed-tab-active{color:var(--pulse-primary)}
+.pl-feed-tab-active::after{content:"";position:absolute;left:30%;right:30%;bottom:3px;height:3px;border-radius:2px;background:var(--pulse-primary)}
 
-    /* Timeline — each post a single-border row, hover tint, clickable whole row */
-    .fd-stream { display: flex; flex-direction: column; }
-    .fd-post { position: relative; display: flex; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalM) var(--spacingHorizontalL);
-        border-bottom: 1px solid var(--colorNeutralStroke2); transition: background var(--durationFaster) var(--curveEasyEase); }
-    .fd-post:hover { background: var(--colorNeutralBackground1Hover, var(--colorNeutralBackground3)); }
-    /* Full-row click target sits under the body but above the card bg; real action
-       controls below raise their own z-index so they stay clickable. */
-    .fd-post-link { position: absolute; inset: 0; z-index: 0; }
-    .fd-ava, .fd-body { position: relative; z-index: 1; }
-    .fd-body { flex: 1; min-width: 0; }
-    .fd-post-head { display: flex; align-items: baseline; gap: var(--spacingHorizontalXS); font-size: var(--fontSizeBase300); }
-    .fd-name { font-weight: var(--fontWeightBold); color: var(--colorNeutralForeground1);
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
-    .fd-handle, .fd-dot, .fd-time { color: var(--colorNeutralForeground3); }
-    .fd-text { margin: var(--spacingVerticalXXS) 0 var(--spacingVerticalS); line-height: 1.4;
-        white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; color: var(--colorNeutralForeground1); }
+/* ---- stream / post cards ------------------------------------------- */
+.pl-feed-stream{background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;overflow:hidden}
+.pl-feed-post{position:relative;display:flex;gap:12px;padding:16px 18px}
+.pl-feed-post+.pl-feed-post{border-top:1px solid var(--pulse-border)}
+.pl-feed-post:hover{background:var(--pulse-surface-2)}
+.pl-feed-post-link{position:absolute;inset:0;z-index:0}
+.pl-feed-post .pl-feed-ava,.pl-feed-post-body{position:relative;z-index:1}
+.pl-feed-post-body{flex:1;min-width:0}
+.pl-feed-post-head{display:flex;align-items:baseline;gap:6px;font-size:.92rem}
+.pl-feed-post-name{font-weight:700;color:var(--pulse-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:42%}
+.pl-feed-post-handle,.pl-feed-post-dot,.pl-feed-post-time{color:var(--pulse-text-3);font-size:.86rem}
+.pl-feed-post-text{margin:4px 0 10px;color:var(--pulse-text);line-height:1.45;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}
+.pl-feed-post-actions{display:flex;align-items:center;gap:28px;color:var(--pulse-text-3)}
+.pl-feed-act{position:relative;z-index:1;display:inline-flex;align-items:center;gap:6px;background:none;border:0;cursor:pointer;color:inherit;font:inherit;line-height:1;font-size:.82rem;padding:.25rem .35rem;border-radius:999px;text-decoration:none}
+.pl-feed-act-ico{font-size:.95rem}
+.pl-feed-act-n{font-variant-numeric:tabular-nums}
+.pl-feed-act-reply:hover{color:var(--pulse-verified)}
+.pl-feed-act-repost:hover,.pl-feed-act-repost.is-on{color:var(--pulse-success)}
+.pl-feed-act-like:hover,.pl-feed-act-like.is-on{color:var(--pulse-danger)}
+.pl-feed-act-save:hover{color:var(--pulse-primary)}
 
-    .fd-actions { display: flex; align-items: center; justify-content: space-between; max-width: 425px;
-        color: var(--colorNeutralForeground3); }
-    .fd-act { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: var(--spacingHorizontalXXS);
-        background: none; border: 0; cursor: pointer; color: inherit; font: inherit; line-height: 1;
-        font-size: var(--fontSizeBase200); padding: var(--spacingVerticalXS) var(--spacingHorizontalXS);
-        border-radius: var(--borderRadiusCircular); text-decoration: none;
-        transition: color var(--durationFaster) var(--curveEasyEase), background var(--durationFaster) var(--curveEasyEase); }
-    .fd-act-ico { font-size: 1rem; }
-    .fd-act-n { font-variant-numeric: tabular-nums; }
-    .fd-act-reply:hover { color: var(--bz-accent); background: color-mix(in srgb, var(--bz-accent) 14%, transparent); }
-    .fd-act-repost:hover, .fd-act-repost.is-on { color: var(--colorStatusSuccessForeground1); }
-    .fd-act-repost:hover { background: color-mix(in srgb, var(--colorStatusSuccessForeground1) 12%, transparent); }
-    .fd-act-like:hover, .fd-act-like.is-on { color: var(--colorStatusDangerForeground1); }
-    .fd-act-like:hover { background: color-mix(in srgb, var(--colorStatusDangerForeground1) 12%, transparent); }
-    .fd-act-view:hover, .fd-act-share:hover { color: var(--bz-accent); background: color-mix(in srgb, var(--bz-accent) 14%, transparent); }
-    .fd-act-share { cursor: default; }
+/* ---- empty state ---------------------------------------------------- */
+.pl-feed-empty{text-align:center;padding:48px 24px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px}
+.pl-feed-empty-ico{font-size:2.2rem;display:block}
+.pl-feed-empty h3{margin:14px 0 6px;color:var(--pulse-text);font-size:1.05rem}
+.pl-feed-empty p{margin:0;color:var(--pulse-text-2);font-size:.92rem}
 
-    .fd-empty { text-align: center; padding: var(--spacingVerticalXXXL) var(--spacingHorizontalXL); color: var(--colorNeutralForeground3); }
-    .fd-empty-ico { font-size: 2.2rem; display: block; }
-    .fd-empty h3 { margin: var(--spacingVerticalM) 0 var(--spacingVerticalXS); color: var(--colorNeutralForeground1); }
-    .fd-empty p { margin: 0; font-size: var(--fontSizeBase300); }
+/* ---- pager ---------------------------------------------------------- */
+.pl-feed-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:14px 18px}
+.pl-feed-pager-btn{color:var(--pulse-primary);text-decoration:none;font-weight:600;font-size:.9rem;padding:.35rem .8rem;border-radius:999px}
+.pl-feed-pager-btn:hover{background:var(--pulse-surface-2)}
+.pl-feed-pager-info{color:var(--pulse-text-3);font-size:.82rem}
+.pl-feed-pager-sp{width:1px}
 
-    /* Right rail */
-    .fd-rail { display: flex; flex-direction: column; gap: var(--spacingVerticalL);
-        position: sticky; top: calc(48px + var(--spacingVerticalL)); }
-    .fd-panel { background: var(--colorNeutralBackground3); border-radius: var(--borderRadiusXLarge);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalL); overflow: hidden; }
-    .fd-panel.bz-card-accent { padding-top: calc(var(--spacingVerticalL) + 3px); }
-    .fd-panel-title { margin: 0 0 var(--spacingVerticalM); font-size: var(--fontSizeBase500); font-weight: 800; letter-spacing: -.02em; }
-    .fd-panel-empty { margin: 0; color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase300); }
+/* ---- right rail ----------------------------------------------------- */
+.pl-feed-rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:16px}
+.pl-feed-panel{background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:16px;padding:16px 18px}
+.pl-feed-panel-title{margin:0 0 14px;font-size:1.02rem;font-weight:700;color:var(--pulse-text);letter-spacing:-.01em}
+.pl-feed-panel-empty{margin:0;color:var(--pulse-text-3);font-size:.9rem}
 
-    .fd-suggest { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--spacingVerticalM); }
-    .fd-suggest-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalS); }
-    .fd-suggest-id { display: flex; align-items: center; gap: var(--spacingHorizontalS); text-decoration: none; color: inherit; min-width: 0; }
-    .fd-follow { border: 0; background: var(--colorNeutralForeground1); color: var(--colorNeutralBackground1);
-        font-weight: var(--fontWeightSemibold); font-size: var(--fontSizeBase200);
-        padding: var(--spacingVerticalXS) var(--spacingHorizontalM); border-radius: var(--borderRadiusCircular);
-        cursor: pointer; white-space: nowrap; transition: opacity var(--durationFaster) var(--curveEasyEase); }
-    .fd-follow:hover { opacity: .9; }
-    .fd-follow.is-on { background: transparent; color: var(--colorNeutralForeground1); box-shadow: inset 0 0 0 1px var(--colorNeutralStroke1); }
-    .fd-showmore { display: inline-block; margin-top: var(--spacingVerticalM); color: var(--bz-accent);
-        text-decoration: none; font-size: var(--fontSizeBase300); font-weight: var(--fontWeightSemibold); }
-    .fd-showmore:hover { text-decoration: underline; }
+.pl-feed-suggest{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.pl-feed-suggest-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pl-feed-suggest-id{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0}
+.pl-feed-suggest-main{display:flex;flex-direction:column;gap:1px;min-width:0}
+.pl-feed-suggest-name{color:var(--pulse-text);font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-feed-suggest-handle{color:var(--pulse-text-3);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-feed-follow{border:0;background:var(--pulse-text);color:var(--pulse-bg);font-weight:600;font-size:.8rem;padding:.35rem .85rem;border-radius:999px;cursor:pointer;white-space:nowrap}
+.pl-feed-follow:hover{opacity:.9}
+.pl-feed-follow.is-on{background:transparent;color:var(--pulse-text);box-shadow:inset 0 0 0 1px var(--pulse-border)}
+.pl-feed-showmore{display:inline-block;margin-top:12px;color:var(--pulse-primary);text-decoration:none;font-weight:600;font-size:.88rem}
+.pl-feed-showmore:hover{text-decoration:underline}
 
-    .fd-trends { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--spacingVerticalL); }
-    .fd-trend { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
-    .fd-trend-cat { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .fd-trend-tag { font-weight: 800; font-size: var(--fontSizeBase300); letter-spacing: -.01em; }
-    .fd-trend-n { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
+.pl-feed-trends{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px}
+.pl-feed-trend{display:flex;flex-direction:column;gap:2px}
+.pl-feed-trend-cat,.pl-feed-trend-n{color:var(--pulse-text-3);font-size:.78rem}
+.pl-feed-trend-tag{color:var(--pulse-text);font-weight:700;font-size:.95rem;letter-spacing:-.01em}
 
-    .fd-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-top: 1px solid var(--colorNeutralStroke3); }
-    .fd-pager-btn { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold);
-        font-size: var(--fontSizeBase300); padding: var(--spacingVerticalXS) var(--spacingHorizontalM);
-        border-radius: var(--borderRadiusCircular, 999px); }
-    .fd-pager-btn:hover { background: var(--colorSubtleBackgroundHover); }
-    .fd-pager-info { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .fd-pager-sp { width: 1px; }
-
-    @media (max-width: 1000px) {
-        .fd-wrap { grid-template-columns: minmax(0, 600px); }
-        .fd-rail { display: none; }
-    }
-    @media (max-width: 860px) {
-        .fd-head { top: 0; }
-    }
+@media (max-width:900px){.pl-feed-wrap{grid-template-columns:minmax(0,600px)}.pl-feed-rail{display:none}}
 </style>
 
 @code {
@@ -397,7 +343,7 @@
     };
     func emptyBody() : Text {
         if (followingTab) { "Follow a few people and their posts will show up here. Switch to For you to see everything." }
-        else { "Be the first to post and start the conversation on Bzzz." };
+        else { "Be the first to post and start the conversation on Pulse." };
     };
 
     func heart(id : Nat) : Text {
@@ -426,7 +372,7 @@
             toast("Couldn't post that — check the length.");
         } else {
             body := "";
-            toast("Posted to Bzzz.");
+            toast("Posted to Pulse.");
         };
         load(ctx);
     };

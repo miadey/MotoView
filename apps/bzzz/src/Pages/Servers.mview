@@ -1,15 +1,15 @@
 @page "/servers"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Communautés — Bzzz"
-@description "Parcourez et créez des communautés Bzzz — des espaces avec salons, rôles et modération, exécutés on-chain sur l'Internet Computer."
+@title "Communautés — Pulse"
+@description "Parcourez et créez des communautés Pulse — des espaces avec salons, rôles et modération, exécutés on-chain sur l'Internet Computer."
 
 <div class="pl-srv">
 
     <div class="pl-srv-head">
         <div>
             <h1 class="pl-srv-title">Mes communautés</h1>
-            <p class="pl-srv-sub">@(serverList.size()) @plural(serverList.size(), "communauté", "communautés") sur Bzzz</p>
+            <p class="pl-srv-sub">@(serverList.size()) @plural(serverList.size(), "communauté", "communautés") sur Pulse</p>
         </div>
         @if bound {
             <a class="pl-srv-add" href="#pl-srv-create" aria-label="Créer une communauté">+</a>

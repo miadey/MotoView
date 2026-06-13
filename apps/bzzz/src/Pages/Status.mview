@@ -1,81 +1,93 @@
 @page "/status"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Status — ephemeral 24-hour updates on Bzzz"
-@description "Post a colorful 24-hour status update and see what everyone on Bzzz is sharing right now — disappearing automatically after a day."
+@title "Statuts"
+@description "Partagez un statut éphémère qui disparaît après 24 heures et découvrez ce que tout le monde publie en ce moment sur Pulse."
 
-<section class="bz-status-head">
-    <div>
-        <h1>Status</h1>
-        <p>Share a thought that vanishes in 24 hours. @activeCount live · @authorCount @(authorWord)</p>
+<section class="st-head">
+    <div class="st-head-txt">
+        <h1>Statuts</h1>
+        <p>Une pensée qui s'efface au bout de 24 heures. @activeCount en direct · @authorCount @(authorWord)</p>
     </div>
 </section>
 
 @if bound {
-    <div class="bz-card bz-status-compose">
-        <h3>Post a status</h3>
+    <div class="st-compose">
+        <div class="st-compose-head">
+            <span class="st-compose-ring" style="--c:@defaultColor"><span class="st-compose-ico">✍️</span></span>
+            <div>
+                <h3 class="st-compose-title">Publier un statut</h3>
+                <p class="st-compose-sub">Visible 24 h, puis il disparaît automatiquement.</p>
+            </div>
+        </div>
         <form @submit="post" secure>
             <ValidationSummary />
-            <TextArea name="text" label="What's on your mind?" bind="@text" required />
+            <TextArea name="text" label="Quoi de neuf ?" bind="@text" required />
 
-            <div class="bz-swatches" role="radiogroup" aria-label="Status color">
+            <span class="st-field-label">Couleur</span>
+            <div class="st-swatches" role="radiogroup" aria-label="Couleur du statut">
                 @for sw in swatches {
-                    <label class="bz-swatch" style="--sw:@sw.hex" title="@sw.name">
+                    <label class="st-swatch" style="--sw:@sw.hex" title="@sw.name">
                         @if sw.checked {
                             <input type="radio" name="color" value="@sw.hex" checked />
                         } else {
                             <input type="radio" name="color" value="@sw.hex" />
                         }
-                        <span class="bz-swatch-dot"></span>
+                        <span class="st-swatch-dot"></span>
                     </label>
                 }
             </div>
 
-            <div class="bz-preview" style="--c:@defaultColor">
-                <span class="bz-preview-label">Preview</span>
-                <span class="bz-preview-text">@(previewText())</span>
+            <div class="st-preview" style="--c:@defaultColor">
+                <span class="st-preview-label">Aperçu</span>
+                <span class="st-preview-text">@(previewText())</span>
             </div>
 
-            <div class="bz-status-actions">
-                <Button kind="primary" type="submit">Share status</Button>
+            <div class="st-actions">
+                <Button kind="primary" type="submit">Partager le statut</Button>
             </div>
         </form>
     </div>
 } else {
     <MessageBar intent="info">
-        Pick a handle on your <a href="/me">profile</a> to post a status.
+        Choisissez un identifiant sur votre <a href="/me">profil</a> pour publier un statut.
     </MessageBar>
 }
 
-<h2 class="bz-section-title">Live now</h2>
+<h2 class="st-section-title">En direct</h2>
 
 @if (statuses.size() == 0) {
-    <div class="bz-empty bz-card">
-        <div class="bz-empty-ico">📭</div>
-        <p>No active statuses. Be the first to share something today.</p>
+    <div class="st-empty">
+        <div class="st-empty-ico">📭</div>
+        <h3>Aucun statut actif</h3>
+        <p>Soyez la première personne à partager quelque chose aujourd'hui.</p>
     </div>
 } else {
-    <div class="bz-status-grid">
+    <div class="st-grid">
         @for s in statuses {
-            <article class="bz-status-card" style="--c:@s.color">
-                <header class="bz-status-author">
-                    <Persona name="@("@" # s.authorHandle)" secondary="@(Status.relativeTime(s.at))" avatar="@(Identity.avatarOf(s.author))" />
-                    <span class="bz-status-kind">@(Status.kindLabel(s.kind))</span>
+            <article class="st-card" style="--c:@s.color">
+                <header class="st-card-author">
+                    <span class="st-ring"><span class="st-avatar">@(Identity.avatarOf(s.author))</span></span>
+                    <div class="st-meta">
+                        <span class="st-handle">@("@" # s.authorHandle)</span>
+                        <span class="st-time">@(Status.relativeTime(s.at))</span>
+                    </div>
+                    <span class="st-kind">@(Status.kindLabel(s.kind))</span>
                 </header>
                 @switch s.kind {
                     case (#Text) {
-                        <p class="bz-status-text">@s.text</p>
+                        <p class="st-text">@s.text</p>
                     }
                     case (#Image) {
-                        <div class="bz-status-image">
-                            <span class="bz-status-image-ico">🖼️</span>
-                            <span class="bz-status-image-ref">@s.text</span>
+                        <div class="st-image">
+                            <span class="st-image-ico">🖼️</span>
+                            <span class="st-image-ref">@s.text</span>
                         </div>
                     }
                 }
-                <footer class="bz-status-foot">
-                    <span class="bz-status-expires">⏳ @(Status.timeLeft(s.expiresAt))</span>
-                    <span class="bz-status-views">@s.views views</span>
+                <footer class="st-foot">
+                    <span class="st-expires">⏳ @(Status.timeLeft(s.expiresAt))</span>
+                    <span class="st-views">@s.views vues</span>
                 </footer>
             </article>
         }
@@ -83,63 +95,103 @@
 }
 
 <style>
-    .bz-status-head { margin-bottom: 1.25rem; }
-    .bz-status-head h1 { margin: 0 0 .25rem; font-size: 1.6rem; letter-spacing: -.02em; }
-    .bz-status-head p { margin: 0; color: var(--mv-text-soft); font-size: .9rem; }
+    :root {
+        --pulse-bg: #0a0a0f;
+        --pulse-surface: #15151e;
+        --pulse-surface-2: #1c1c27;
+        --pulse-border: #232331;
+        --pulse-primary: #8b5cf6;
+        --pulse-primary-hover: #7c3aed;
+        --pulse-primary-soft: rgba(139,92,246,.14);
+        --pulse-text: #f3f4f6;
+        --pulse-text-2: #9ca3af;
+        --pulse-text-3: #6b7280;
+        --pulse-success: #22c55e;
+        --pulse-warning: #f59e0b;
+        --pulse-danger: #ef4444;
+        --pulse-verified: #3b82f6;
+        --pulse-grad-profile: linear-gradient(135deg,#7c3aed,#3b82f6);
+    }
 
-    .bz-status-compose { padding: 1.2rem 1.3rem; margin-bottom: 1.5rem; }
-    .bz-status-compose h3 { margin: 0 0 .8rem; font-size: 1.1rem; }
+    .st-head { margin-bottom: 1.5rem; }
+    .st-head h1 { margin: 0 0 .3rem; font-size: 1.65rem; letter-spacing: -.02em; color: var(--pulse-text); }
+    .st-head p { margin: 0; color: var(--pulse-text-2); font-size: .92rem; }
 
-    .bz-swatches { display: flex; flex-wrap: wrap; gap: .55rem; margin: .8rem 0 .2rem; }
-    .bz-swatch { position: relative; cursor: pointer; display: inline-flex; }
-    .bz-swatch input { position: absolute; opacity: 0; width: 0; height: 0; }
-    .bz-swatch-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--sw);
-        display: inline-block; box-shadow: 0 0 0 2px var(--mv-surface), 0 0 0 3px var(--mv-border);
-        transition: transform .1s ease, box-shadow .1s ease; }
-    .bz-swatch:hover .bz-swatch-dot { transform: scale(1.08); }
-    .bz-swatch input:checked + .bz-swatch-dot { box-shadow: 0 0 0 2px var(--mv-surface), 0 0 0 4px var(--bz-accent); transform: scale(1.12); }
+    /* Composer */
+    .st-compose { background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px;
+        padding: 1.3rem 1.4rem; margin-bottom: 1.75rem; }
+    .st-compose-head { display: flex; align-items: center; gap: .85rem; margin-bottom: 1rem; }
+    .st-compose-ring { width: 46px; height: 46px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center;
+        background: var(--pulse-surface-2);
+        box-shadow: 0 0 0 2px var(--pulse-surface), 0 0 0 4px var(--c, var(--pulse-primary)); }
+    .st-compose-ico { font-size: 1.2rem; }
+    .st-compose-title { margin: 0; font-size: 1.1rem; color: var(--pulse-text); }
+    .st-compose-sub { margin: .15rem 0 0; font-size: .82rem; color: var(--pulse-text-3); }
 
-    .bz-preview { margin: .9rem 0 .2rem; border-radius: 3px; padding: 1.5rem 1.2rem; min-height: 64px;
+    .st-field-label { display: block; margin: 1rem 0 .1rem; font-size: .72rem; text-transform: uppercase;
+        letter-spacing: .08em; color: var(--pulse-text-3); }
+
+    .st-swatches { display: flex; flex-wrap: wrap; gap: .6rem; margin: .55rem 0 .2rem; }
+    .st-swatch { position: relative; cursor: pointer; display: inline-flex; }
+    .st-swatch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .st-swatch-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--sw);
+        display: inline-block; box-shadow: 0 0 0 2px var(--pulse-surface), 0 0 0 3px var(--pulse-border);
+        transition: transform .12s ease, box-shadow .12s ease; }
+    .st-swatch:hover .st-swatch-dot { transform: scale(1.08); }
+    .st-swatch input:checked + .st-swatch-dot {
+        box-shadow: 0 0 0 2px var(--pulse-surface), 0 0 0 4px var(--pulse-primary); transform: scale(1.12); }
+    .st-swatch input:focus-visible + .st-swatch-dot { box-shadow: 0 0 0 2px var(--pulse-surface), 0 0 0 4px var(--pulse-primary); }
+
+    .st-preview { margin: 1rem 0 .2rem; border-radius: 14px; padding: 1.5rem 1.3rem; min-height: 70px;
         background: var(--c); color: #fff; display: flex; flex-direction: column; gap: .35rem;
-        text-shadow: 0 1px 2px rgba(0,0,0,.25); }
-    .bz-preview-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; opacity: .8; }
-    .bz-preview-text { font-size: 1.25rem; font-weight: 700; word-break: break-word; }
+        text-shadow: 0 1px 2px rgba(0,0,0,.3); box-shadow: 0 8px 26px rgba(0,0,0,.35); }
+    .st-preview-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
+    .st-preview-text { font-size: 1.3rem; font-weight: 700; line-height: 1.25; word-break: break-word; }
 
-    .bz-status-actions { margin-top: 1rem; }
+    .st-actions { margin-top: 1.1rem; }
 
-    .bz-section-title { font-size: 1.15rem; margin: 0 0 1rem; }
+    .st-section-title { font-size: 1.18rem; margin: 0 0 1rem; color: var(--pulse-text); letter-spacing: -.01em; }
 
-    .bz-empty { text-align: center; padding: 2.5rem 1.5rem; color: var(--mv-text-soft); }
-    .bz-empty-ico { font-size: 2.2rem; }
-    .bz-empty p { margin: .6rem 0 0; }
+    /* Empty state */
+    .st-empty { text-align: center; padding: 2.75rem 1.5rem; color: var(--pulse-text-2);
+        background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 16px; }
+    .st-empty-ico { font-size: 2.4rem; }
+    .st-empty h3 { margin: .7rem 0 .35rem; color: var(--pulse-text); font-size: 1.05rem; }
+    .st-empty p { margin: 0; font-size: .9rem; }
 
-    .bz-status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
-    .bz-status-card { border-radius: 4px; overflow: hidden; background: var(--c); color: #fff;
-        box-shadow: 0 6px 20px rgba(16,16,40,.16); display: flex; flex-direction: column;
-        min-height: 180px; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
-    .bz-status-author { display: flex; align-items: center; gap: .55rem; padding: .85rem 1rem .25rem; }
-    .bz-status-ava { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.25);
-        display: grid; place-items: center; font-size: 1.1rem; text-shadow: none; flex: 0 0 auto; }
-    .bz-status-meta { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
-    .bz-status-handle { font-weight: 700; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bz-status-time { font-size: .75rem; opacity: .85; }
-    .bz-status-kind { margin-left: auto; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
-        background: rgba(255,255,255,.22); padding: .15rem .45rem; border-radius: 2px; flex: 0 0 auto; }
+    /* Status cards grid */
+    .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(264px, 1fr)); gap: 1.1rem; }
+    .st-card { position: relative; border-radius: 16px; overflow: hidden; background: var(--c); color: #fff;
+        box-shadow: 0 8px 26px rgba(0,0,0,.4); display: flex; flex-direction: column;
+        min-height: 190px; text-shadow: 0 1px 2px rgba(0,0,0,.28);
+        transition: transform .14s ease, box-shadow .14s ease; }
+    .st-card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,.5); }
 
-    .bz-status-text { flex: 1; margin: 0; padding: .6rem 1rem 1rem; font-size: 1.35rem; font-weight: 700;
+    .st-card-author { display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem .3rem; }
+    .st-ring { width: 40px; height: 40px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center;
+        background: rgba(255,255,255,.18);
+        box-shadow: 0 0 0 2px var(--c), 0 0 0 4px rgba(255,255,255,.7); }
+    .st-avatar { font-size: 1.15rem; text-shadow: none; }
+    .st-meta { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+    .st-handle { font-weight: 700; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .st-time { font-size: .75rem; opacity: .88; }
+    .st-kind { margin-left: auto; font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
+        background: rgba(255,255,255,.22); padding: .18rem .5rem; border-radius: 999px; flex: 0 0 auto; text-shadow: none; }
+
+    .st-text { flex: 1; margin: 0; padding: .7rem 1rem 1rem; font-size: 1.4rem; font-weight: 700;
         line-height: 1.3; word-break: break-word; display: flex; align-items: center; }
-    .bz-status-image { flex: 1; margin: 0; padding: .6rem 1rem 1rem; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; gap: .4rem; }
-    .bz-status-image-ico { font-size: 2rem; }
-    .bz-status-image-ref { font-size: .78rem; opacity: .85; word-break: break-all; text-align: center; }
+    .st-image { flex: 1; margin: 0; padding: .7rem 1rem 1rem; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: .45rem; }
+    .st-image-ico { font-size: 2.1rem; }
+    .st-image-ref { font-size: .78rem; opacity: .88; word-break: break-all; text-align: center; }
 
-    .bz-status-foot { display: flex; align-items: center; justify-content: space-between;
-        padding: .6rem 1rem .85rem; font-size: .76rem; background: rgba(0,0,0,.16); }
-    .bz-status-expires { font-weight: 600; }
-    .bz-status-views { opacity: .85; }
+    .st-foot { display: flex; align-items: center; justify-content: space-between;
+        padding: .65rem 1rem .9rem; font-size: .76rem; background: rgba(0,0,0,.22); }
+    .st-expires { font-weight: 600; }
+    .st-views { opacity: .88; }
 
     @media (max-width: 560px) {
-        .bz-status-grid { grid-template-columns: 1fr; }
+        .st-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -162,7 +214,7 @@
     var text : Text = "";
 
     // Color choices offered in the composer (label + #hex). The colors echo the
-    // Bzzz / forum palette from the build spec.
+    // Pulse / forum palette from the build spec.
     var swatches : [Swatch] = [
         { hex = "#075E54"; name = "Teal"; checked = true },
         { hex = "#6d28d9"; name = "Violet"; checked = false },

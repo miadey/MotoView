@@ -2,7 +2,7 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Chat en direct — #" # roomName
-@description "Discutez en direct dans le salon #" # roomName # " sur Bzzz : publiez des messages, réagissez, répondez et ouvrez des fils, dans un chat de style Discord propulsé par l'Internet Computer."
+@description "Discutez en direct dans le salon #" # roomName # " sur Pulse : publiez des messages, réagissez, répondez et ouvrez des fils, dans un chat de style Discord propulsé par l'Internet Computer."
 
 @if not exists {
     <div class="pl-card pl-missing">

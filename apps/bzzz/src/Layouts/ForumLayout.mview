@@ -58,7 +58,7 @@
            =================================================================== */
 
         /* ---- Top bar: the SHARED AppBar (.mv-appbar, 48px) — same header as the
-           rest of Bzzz. The forum keeps a burger button INSIDE it to toggle its
+           rest of Pulse. The forum keeps a burger button INSIDE it to toggle its
            category sidebar on mobile. ---- */
         .bz-brand-logo { font-size: 1.15rem; }
         .fl-burger { display: none; }
@@ -99,7 +99,7 @@
 
         .fl-sb-divider { height: 1px; background: var(--colorNeutralStroke2); margin: var(--spacingVerticalS) var(--spacingHorizontalM); }
 
-        /* Bzzz app-switcher (keeps the super-app reachable from the forum shell) */
+        /* Pulse app-switcher (keeps the super-app reachable from the forum shell) */
         .fl-apps { display: flex; align-items: center; gap: 2px; padding: var(--spacingVerticalS) var(--spacingHorizontalM); }
         .fl-app { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--borderRadiusMedium);
             text-decoration: none; font-size: 1.1rem; color: var(--colorNeutralForeground2); }
@@ -186,7 +186,7 @@
                 <a class="mv-acct-item" href="/status">My status</a>
                 <a class="mv-acct-item" href="/messages">Messages</a>
                 <a class="mv-acct-item" href="/admin">Admin console</a>
-                <a class="mv-acct-item" href="/about">About Bzzz</a>
+                <a class="mv-acct-item" href="/about">About Pulse</a>
                 <div class="mv-acct-sep"></div>
                 <button class="mv-acct-item mv-acct-out" type="button" data-mv-signout>Sign out</button>
             </div>
@@ -275,7 +275,7 @@
 
             <div class="fl-sb-divider"></div>
 
-            <!-- Bzzz app-switcher: keep the super-app reachable from the forum -->
+            <!-- Pulse app-switcher: keep the super-app reachable from the forum -->
             <div class="fl-apps-label">Apps Pulse</div>
             <div class="fl-apps">
                 <a class="fl-app" href="/" title="Home">🏠</a>

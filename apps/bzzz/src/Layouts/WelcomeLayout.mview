@@ -16,7 +16,7 @@
         <meta http-equiv="refresh" content="0; url=/">
     }
     <style>
-        /* The Bzzz front door: a full-bleed dark "hive at night" — near-black with
+        /* The Pulse front door: a full-bleed dark "hive at night" — near-black with
            a brand-blue dawn glow top-left and a faint honey-amber warmth bottom-right.
            Page content (Welcome.mview) owns the split / centered composition. */
         html, body { margin: 0; }

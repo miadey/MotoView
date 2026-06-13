@@ -2,9 +2,9 @@
 @layout AppLayout
 @authorize redirect="/welcome"
 @title "Hello"
-@description "A parameterized-route demo page (sign-in required, like all of Bzzz)."
+@description "A parameterized-route demo page (sign-in required, like all of Pulse)."
 <section class="bz-hero"><h1>Hello, @name 👋</h1>
-<p>A parameterized-route demo (/greet/{name}). Like every Bzzz page it requires sign-in; MotoView's wildcard certified-query support (@@cacheable on a parameterized route) is demonstrated elsewhere, since nothing in Bzzz is public.</p></section>
+<p>A parameterized-route demo (/greet/{name}). Like every Pulse page it requires sign-in; MotoView's wildcard certified-query support (@@cacheable on a parameterized route) is demonstrated elsewhere, since nothing in Pulse is public.</p></section>
 @code { }
 
 

@@ -406,7 +406,7 @@
     var exists : Bool = false;
     var categoryId : Nat = 0;
     var topicTitle : Text = "Topic";
-    var topicDescription : Text = "A discussion on the Bzzz forum.";
+    var topicDescription : Text = "A discussion on the Pulse forum.";
     var catName : Text = "";
     var catColor : Text = "#9aa0a6";
     var tags : [Text] = [];
@@ -462,7 +462,7 @@
                 exists := true;
                 categoryId := t.categoryId;
                 topicTitle := t.title;
-                topicDescription := "Discussion: " # t.title # " — on the Bzzz forum.";
+                topicDescription := "Discussion: " # t.title # " — on the Pulse forum.";
                 catName := Forum.categoryName(t.categoryId);
                 catColor := Forum.categoryColor(t.categoryId);
                 tags := t.tags;
