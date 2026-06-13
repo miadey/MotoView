@@ -1,152 +1,99 @@
 @page "/forum"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title "Forum — Bzzz community discussions"
-@description "Browse categories and the latest topics on the Bzzz forum — a Discourse-style on-chain discussion board running on the Internet Computer."
+@title "Forums"
+@description "Parcourez les catégories et les sujets récents des forums Bzzz — un espace de discussion communautaire on-chain sur l'Internet Computer."
 
-<div class="fl-col">
+<div class="pl-forum">
 
-    <Breadcrumb>
-        <BreadcrumbItem href="/">Home</BreadcrumbItem>
-        <BreadcrumbItem current="true">Forum</BreadcrumbItem>
-    </Breadcrumb>
+    <!-- intro row + primary action -->
+    <div class="pl-forum-head">
+        <div class="pl-forum-intro">
+            <h1 class="pl-forum-title">Forums</h1>
+            <p class="pl-forum-sub">Catégories et derniers sujets de la communauté Bzzz.</p>
+        </div>
+        <a class="pl-forum-new" href="/forum/new">+ Nouveau sujet</a>
+    </div>
 
-    <!-- controls: category/tag/all pills + the latest/new/unread tabs share one row (Discourse) -->
-    <div class="fl-controls">
-        <div class="fl-pills">
-            <details class="fl-pill">
-                <summary class="fl-pill-trigger">Categories <span class="fl-pill-caret">›</span></summary>
-                <div class="fl-pop">
-                    <a class="fl-pop-item" href="/forum">All categories</a>
+    <div class="pl-forum-grid">
+
+        <!-- LEFT: Catégories -->
+        <section class="pl-card pl-cats">
+            <header class="pl-card-head">
+                <h2 class="pl-card-title">Catégories</h2>
+            </header>
+            @if (categories.size() == 0) {
+                <div class="pl-empty">Aucune catégorie pour l'instant.</div>
+            } else {
+                <div class="pl-catlist">
                     @for c in categories {
-                        <a class="fl-pop-item" href="/forum/c/@(c.id)">
-                            <span class="fl-sq" style="background:@c.color"></span>
-                            <span class="fl-pop-name">@c.name</span>
+                        <a class="pl-catrow" href="/forum/c/@(c.id)">
+                            <span class="pl-cat-chip" style="background:@c.color"></span>
+                            <span class="pl-cat-body">
+                                <span class="pl-cat-name">@c.name</span>
+                                <span class="pl-cat-desc">@c.description</span>
+                            </span>
+                            <span class="pl-cat-count">
+                                <span class="pl-cat-num">@(c.topicCount)</span>
+                                <span class="pl-cat-lbl">sujets</span>
+                            </span>
                         </a>
                     }
                 </div>
-            </details>
-            <details class="fl-pill">
-                <summary class="fl-pill-trigger">Tags <span class="fl-pill-caret">›</span></summary>
-                <div class="fl-pop">
-                    @if hasTags {
-                        @for tag in allTags {
-                            <a class="fl-pop-item" href="/forum">
-                                <span class="fl-pop-tag">🏷 @tag</span>
-                            </a>
-                        }
-                    } else {
-                        <span class="fl-pop-empty">No tags yet</span>
+                <a class="pl-cat-all" href="/forum?sort=categories">Toutes les catégories →</a>
+            }
+        </section>
+
+        <!-- RIGHT: Sujets récents -->
+        <section class="pl-card pl-topics">
+            <header class="pl-card-head">
+                <h2 class="pl-card-title">Sujets récents</h2>
+            </header>
+            @if (topics.size() == 0) {
+                <div class="pl-empty">Aucun sujet pour l'instant. <a href="/forum/new">Créer le premier →</a></div>
+            } else {
+                <div class="pl-topiclist">
+                    @for t in topics {
+                        <a class="pl-topic" href="/forum/t/@(t.id)">
+                            <span class="pl-topic-ava">@authorAvatar(t.author)</span>
+                            <span class="pl-topic-body">
+                                <span class="pl-topic-titleline">
+                                    @if pinned(t.id) { <span class="pl-glyph" title="Épinglé">📌</span> }
+                                    @if closed(t.id) { <span class="pl-glyph" title="Fermé">🔒</span> }
+                                    @if solved(t.id) { <span class="pl-glyph pl-glyph-ok" title="Résolu">✓</span> }
+                                    <span class="pl-topic-title">@t.title</span>
+                                </span>
+                                <span class="pl-topic-tags">
+                                    <span class="pl-cat-tag">
+                                        <span class="pl-cat-dot" style="background:@catColor(t.categoryId)"></span>
+                                        @catName(t.categoryId)
+                                    </span>
+                                    @for tag in t.tags {
+                                        <span class="pl-tag">@tag</span>
+                                    }
+                                </span>
+                            </span>
+                            <span class="pl-topic-aside">
+                                <span class="pl-topic-replies" title="Réponses">
+                                    <span class="pl-topic-ico">💬</span>
+                                    <span class="pl-topic-rn">@replies(t.id)</span>
+                                </span>
+                                <span class="pl-topic-time">@activity(t.id)</span>
+                            </span>
+                        </a>
                     }
                 </div>
-            </details>
-            <details class="fl-pill">
-                <summary class="fl-pill-trigger">All <span class="fl-pill-caret">›</span></summary>
-                <div class="fl-pop">
-                    <a class="fl-pop-item" href="/forum">All topics</a>
-                    <a class="fl-pop-item" href="/forum?sort=new">New</a>
-                    <a class="fl-pop-item" href="/forum?sort=unread">Unread</a>
-                    <a class="fl-pop-item" href="/forum?sort=top">Top</a>
-                </div>
-            </details>
-        </div>
-        <nav class="fl-tabs">
-            <a class="fl-tab @tabRecents" href="/forum">Latest</a>
-            <a class="fl-tab @tabCategories" href="/forum?sort=categories">Categories</a>
-            <a class="fl-tab @tabNew" href="/forum?sort=new">New <span class="fl-tab-n">(@newCount)</span></a>
-            <a class="fl-tab @tabUnread" href="/forum?sort=unread">Unread <span class="fl-tab-n">(@unreadCount)</span></a>
-            <a class="fl-tab @tabPopular" href="/forum?sort=popular">Popular</a>
-            <a class="fl-tab @tabTop" href="/forum?sort=top">Top</a>
-        </nav>
-    </div>
-
-    <!-- create-topic button on its own row, left-aligned (Discourse "Créer un sujet") -->
-    <div class="fl-createbar">
-        <div class="fl-split">
-            <a class="fl-newbtn" href="/forum/new">✏ Create Topic</a>
-            <details class="fl-pill fl-split-more">
-                <summary class="fl-newbtn fl-newbtn-caret">▾</summary>
-                <div class="fl-pop fl-pop-right">
-                    <a class="fl-pop-item" href="/forum/new">＋ New topic</a>
-                </div>
-            </details>
-        </div>
-    </div>
-
-    @if (sort == "categories") {
-        <!-- Categories view: one row per category -->
-        @if (categories.size() == 0) {
-            <div class="fl-empty">Aucune catégorie pour l'instant.</div>
-        } else {
-            <div class="fl-catlist">
-                @for c in categories {
-                    <a class="fl-catrow" href="/forum/c/@(c.id)">
-                        <span class="fl-sq fl-sq-lg" style="background:@c.color"></span>
-                        <span class="fl-catrow-body">
-                            <span class="fl-catrow-name">@c.name</span>
-                            <span class="fl-catrow-desc">@c.description</span>
-                        </span>
-                        <span class="fl-catrow-counts">
-                            <span class="fl-catrow-num">@(c.topicCount)</span>
-                            <span class="fl-catrow-lbl">sujets</span>
-                        </span>
-                    </a>
+                @if (showNewer or showOlder) {
+                    <nav class="pl-pager" aria-label="Pages du forum">
+                        @if showNewer { <a class="pl-pager-btn" href="@(pageHref(page - 1))">← Plus récents</a> } else { <span class="pl-pager-sp"></span> }
+                        <span class="pl-pager-at">Page @(page + 1)</span>
+                        @if showOlder { <a class="pl-pager-btn" href="@(pageHref(page + 1))">Plus anciens →</a> } else { <span class="pl-pager-sp"></span> }
+                    </nav>
                 }
-            </div>
-        }
-    } else {
-        <!-- the topic table -->
-        @if (topics.size() == 0) {
-            <div class="fl-empty">Aucun sujet pour l'instant. <a href="/forum/new">Créer le premier →</a></div>
-        } else {
-            <div class="fl-table">
-                <div class="fl-thead">
-                    <span class="fl-th fl-th-topic">Topic</span>
-                    <span class="fl-th fl-th-num">Replies</span>
-                    <span class="fl-th fl-th-num">Views</span>
-                    <span class="fl-th fl-th-act">Activity</span>
-                </div>
-
-                @for t in topics {
-                    <a class="fl-row" href="/forum/t/@(t.id)">
-                        <span class="fl-cell-topic">
-                            <span class="fl-title-line">
-                                @if pinned(t.id) { <span class="fl-glyph" title="Épinglé">📌</span> }
-                                @if closed(t.id) { <span class="fl-glyph" title="Fermé">🔒</span> }
-                                @if solved(t.id) { <span class="fl-glyph fl-glyph-ok" title="Résolu">✓</span> }
-                                <span class="fl-title @(titleClass(t.id))">@t.title</span>
-                                @if hasReplies(t.id) { <span class="fl-bubble">@replies(t.id)</span> }
-                            </span>
-                            <span class="fl-meta">
-                                <span class="fl-badge">
-                                    <span class="fl-sq fl-sq-sm" style="background:@catColor(t.categoryId)"></span>
-                                    <span class="fl-badge-name">@catName(t.categoryId)</span>
-                                </span>
-                                @for tag in t.tags {
-                                    <span class="fl-tag">@tag</span>
-                                }
-                            </span>
-                        </span>
-                        <span class="fl-cell-posters">
-                            <span class="fl-cluster">
-                                <span class="fl-ava">@authorAvatar(t.author)</span>
-                            </span>
-                        </span>
-                        <span class="fl-cell-num @(heatClass(replies(t.id)))">@replies(t.id)</span>
-                        <span class="fl-cell-num @(heatClass(t.views))">@views(t.views)</span>
-                        <span class="fl-cell-act">@activity(t.id)</span>
-                    </a>
-                }
-            </div>
-            @if (showNewer or showOlder) {
-                <nav class="fl-pager" aria-label="Board pages">
-                    @if showNewer { <a class="fl-pager-btn" href="@(pageHref(page - 1))">← Newer</a> } else { <span class="fl-pager-sp"></span> }
-                    <span class="fl-pager-at">Page @(page + 1)</span>
-                    @if showOlder { <a class="fl-pager-btn" href="@(pageHref(page + 1))">Older →</a> } else { <span class="fl-pager-sp"></span> }
-                </nav>
             }
-        }
-    }
+        </section>
+
+    </div>
 </div>
 
 @code {
@@ -267,161 +214,100 @@
 
 <style>
 /* The page renders only the MAIN COLUMN; ForumLayout owns the top bar + sidebar.
-       Discourse "Latest" is LEFT-ALIGNED and FULL-WIDTH: no max-width cap, no centering. */
-    .fl-col { width: 100%; color: var(--colorNeutralForeground1);
-        font-size: 15px; }
+       Pulse dark surfaces, 16px cards, violet accents, French throughout. */
+    .pl-forum { width: 100%; color: var(--pulse-text); font-size: 15px; }
 
-    /* ---- pill dropdown row: light-gray rounded pills, 13px / weight 500 ---- */
-    .fl-controls { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap;
-        margin-bottom: var(--spacingVerticalS); }
-    .fl-pills { display: flex; align-items: center; gap: var(--spacingHorizontalS); flex-wrap: wrap; }
-    .fl-createbar { display: flex; margin: var(--spacingVerticalXS) 0 var(--spacingVerticalL); }
-    .fl-pill { position: relative; }
-    .fl-pill-trigger { list-style: none; cursor: pointer; display: inline-flex; align-items: center;
-        gap: var(--spacingHorizontalXXS); background: var(--colorNeutralBackground3);
-        color: var(--colorNeutralForeground2);
-        border: 1px solid var(--colorNeutralStroke2);
-        border-radius: var(--borderRadiusCircular, 999px);
-        padding: 5px 14px; font-size: 13px;
-        font-weight: var(--fontWeightMedium, 500); white-space: nowrap; user-select: none; }
-    .fl-pill-trigger::-webkit-details-marker { display: none; }
-    .fl-pill-trigger:hover { background: var(--colorNeutralBackground3Hover, #e8eaed); }
-    .fl-pill-caret { color: var(--colorNeutralForeground4); transition: transform var(--durationFaster, .1s) ease; }
-    .fl-pill[open] .fl-pill-caret { transform: rotate(90deg); }
+    /* ---- intro row + primary action ---- */
+    .pl-forum-head { display: flex; align-items: flex-end; justify-content: space-between;
+        gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+    .pl-forum-intro { min-width: 0; }
+    .pl-forum-title { margin: 0; font-size: 26px; font-weight: 700; color: var(--pulse-text); }
+    .pl-forum-sub { margin: 4px 0 0; font-size: 14px; color: var(--pulse-text-2); }
+    .pl-forum-new { flex: none; text-decoration: none; background: var(--pulse-primary);
+        color: #fff; font-weight: 600; font-size: 14px; padding: 10px 18px;
+        border-radius: 10px; white-space: nowrap; transition: background .12s ease; }
+    .pl-forum-new:hover { background: var(--pulse-primary-hover); color: #fff; }
 
-    .fl-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 220px;
-        background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
-        border-radius: var(--borderRadiusMedium); box-shadow: var(--shadow8);
-        padding: var(--spacingVerticalXS); display: flex; flex-direction: column; }
-    .fl-pop-right { left: auto; right: 0; }
-    .fl-pop-item { display: flex; align-items: center; gap: var(--spacingHorizontalS);
-        text-decoration: none; color: var(--colorNeutralForeground1); font-size: var(--fontSizeBase200);
-        padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS); border-radius: var(--borderRadiusSmall); }
-    .fl-pop-item:hover { background: var(--colorNeutralBackground2); }
-    .fl-pop-name { font-weight: var(--fontWeightMedium, 500); }
-    .fl-pop-tag { color: var(--colorNeutralForeground2); }
-    .fl-pop-empty { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200);
-        padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS); }
+    /* ---- two-panel grid (stack < 900px) ---- */
+    .pl-forum-grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+        gap: 18px; align-items: start; }
 
-    /* ---- tabs nav: active = brand-blue text + 2px underline ---- */
-    .fl-tabs { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; min-width: 0; }
-    .fl-tab { position: relative; text-decoration: none; color: var(--colorNeutralForeground2);
-        font-size: 14px; font-weight: var(--fontWeightMedium, 500);
-        padding: 10px 0 9px; white-space: nowrap; }
-    .fl-tab:hover { color: var(--colorNeutralForeground1); }
-    .fl-tab.is-active { color: var(--colorBrandForeground1); }
-    .fl-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
-        height: 2px; background: var(--colorBrandForeground1); border-radius: 2px; }
-    .fl-tab-n { color: var(--colorNeutralForeground4); font-weight: var(--fontWeightRegular, 400); }
+    /* ---- shared card ---- */
+    .pl-card { background: var(--pulse-surface); border: 1px solid var(--pulse-border);
+        border-radius: 16px; padding: 8px; }
+    .pl-card-head { display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 12px 10px; }
+    .pl-card-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--pulse-text);
+        letter-spacing: .01em; }
 
-    /* ---- New Topic split-button (solid brand-blue, white text) ---- */
-    .fl-split { display: flex; align-items: stretch; flex: none; padding-bottom: var(--spacingVerticalXS); }
-    .fl-newbtn { text-decoration: none; background: var(--colorBrandBackground);
-        color: #fff; font-weight: var(--fontWeightSemibold);
-        font-size: 13px; padding: 7px 14px;
-        border-radius: var(--borderRadiusMedium) 0 0 var(--borderRadiusMedium); white-space: nowrap;
-        display: inline-flex; align-items: center; gap: 4px; }
-    .fl-newbtn:hover { background: var(--colorBrandBackgroundHover, #115ea3); color: #fff; }
-    .fl-split-more { display: flex; }
-    .fl-newbtn-caret { list-style: none; cursor: pointer; border-radius: 0 var(--borderRadiusMedium) var(--borderRadiusMedium) 0;
-        border-left: 1px solid rgba(255,255,255,.25); padding: 7px 8px; }
-    .fl-newbtn-caret::-webkit-details-marker { display: none; }
-
-    /* ---- shared square chip ---- */
-    .fl-sq { display: inline-block; width: 14px; height: 14px; border-radius: 2px; flex: none; }
-    .fl-sq-sm { width: 10px; height: 10px; border-radius: 2px; }
-    .fl-sq-lg { width: 26px; height: 26px; border-radius: 2px; }
-
-    /* ---- topic table ---- */
-    .fl-table { display: flex; flex-direction: column; }
-    .fl-thead { display: flex; align-items: center; gap: 16px;
-        padding: 10px 8px;
-        border-bottom: 1px solid var(--colorNeutralStroke2); }
-    .fl-th { color: var(--colorNeutralForeground3); font-size: 13px;
-        font-weight: var(--fontWeightRegular, 400); }
-    .fl-th-topic { flex: 1; min-width: 0; text-align: left; }
-    .fl-th-num { width: 70px; text-align: right; flex: none; }
-    .fl-th-act { width: 90px; text-align: right; flex: none; }
-
-    .fl-row { display: flex; align-items: center; gap: 16px;
-        min-height: 64px;
-        padding: 12px 8px;
-        border-bottom: 1px solid var(--colorNeutralStroke2);
-        text-decoration: none; color: inherit; }
-    .fl-row:hover { background: var(--colorNeutralBackground2); }
-
-    .fl-cell-topic { flex: 1; min-width: 0; display: flex; flex-direction: column;
-        gap: 6px; }
-    .fl-title-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .fl-glyph { font-size: 13px; }
-    .fl-glyph-ok { color: var(--colorStatusSuccessForeground1, #0f7b0f); font-weight: var(--fontWeightBold); }
-    .fl-title { font-size: 16px; font-weight: var(--fontWeightMedium, 500);
-        color: var(--colorNeutralForeground3); line-height: 1.35; }
-    .fl-title.is-unread { color: var(--colorNeutralForeground1); }
-    .fl-row:hover .fl-title { color: var(--colorBrandForeground1); }
-    .fl-bubble { display: inline-flex; align-items: center; justify-content: center;
-        min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--borderRadiusCircular, 999px);
-        background: var(--colorBrandBackground); color: #fff; font-size: 11px;
-        font-weight: var(--fontWeightSemibold); font-variant-numeric: tabular-nums; }
-
-    .fl-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .fl-badge { display: inline-flex; align-items: center; gap: 5px;
-        font-size: 13px; color: var(--colorNeutralForeground2);
-        font-weight: var(--fontWeightRegular, 400); }
-    .fl-tag { display: inline-flex; align-items: center; background: var(--colorNeutralBackground3);
-        color: var(--colorNeutralForeground3); border-radius: var(--borderRadiusSmall);
-        padding: 2px 7px; font-size: 12px;
-        font-weight: var(--fontWeightRegular, 400); }
-
-    /* ---- participants cluster (author avatar only — no fabricated participants) ---- */
-    .fl-cell-posters { width: 110px; flex: none; }
-    .fl-cluster { display: inline-flex; align-items: center; }
-    .fl-cluster .fl-ava + .fl-ava { margin-left: -8px; }
-    .fl-ava { width: 25px; height: 25px; border-radius: 50%; display: inline-grid; place-items: center;
-        font-size: 13px; background: linear-gradient(135deg, #ede7fb, #e2d9fa);
-        box-shadow: inset 0 0 0 1px rgba(15,108,189,.14), 0 0 0 2px var(--colorNeutralBackground1); }
-
-    /* ---- right-aligned numeric columns: regular weight, not bold ---- */
-    .fl-cell-num { width: 70px; flex: none; text-align: right; color: var(--colorNeutralForeground2);
-        font-weight: var(--fontWeightRegular, 400); font-size: 14px;
-        font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .fl-cell-num.is-hot { color: #d13438; font-weight: var(--fontWeightSemibold); }
-    .fl-cell-act { width: 90px; flex: none; text-align: right; color: var(--colorNeutralForeground3);
-        font-size: 13px; white-space: nowrap; }
-
-    /* ---- categories tab ---- */
-    .fl-catlist { display: flex; flex-direction: column; }
-    .fl-catrow { display: flex; align-items: center; gap: 16px;
-        padding: 12px 8px;
-        border-bottom: 1px solid var(--colorNeutralStroke2); text-decoration: none; color: inherit; }
-    .fl-catrow:hover { background: var(--colorNeutralBackground2); }
-    .fl-catrow-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .fl-catrow-name { font-weight: var(--fontWeightMedium, 500); color: var(--colorNeutralForeground1);
-        font-size: 16px; }
-    .fl-catrow:hover .fl-catrow-name { color: var(--colorBrandForeground1); }
-    .fl-catrow-desc { font-size: 13px; color: var(--colorNeutralForeground3); }
-    .fl-catrow-counts { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
-    .fl-catrow-num { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground1);
+    /* ---- LEFT: categories ---- */
+    .pl-catlist { display: flex; flex-direction: column; }
+    .pl-catrow { display: flex; align-items: center; gap: 12px; padding: 11px 12px;
+        border-radius: 12px; text-decoration: none; color: inherit; transition: background .12s ease; }
+    .pl-catrow:hover { background: var(--pulse-surface-2); }
+    .pl-cat-chip { width: 34px; height: 34px; border-radius: 10px; flex: none;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+    .pl-cat-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .pl-cat-name { font-weight: 600; font-size: 14px; color: var(--pulse-text);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-catrow:hover .pl-cat-name { color: var(--pulse-primary); }
+    .pl-cat-desc { font-size: 12px; color: var(--pulse-text-3); line-height: 1.35;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-cat-count { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
+    .pl-cat-num { font-weight: 700; font-size: 15px; color: var(--pulse-text);
         font-variant-numeric: tabular-nums; }
-    .fl-catrow-lbl { font-size: var(--fontSizeBase100); color: var(--colorNeutralForeground3); }
+    .pl-cat-lbl { font-size: 11px; color: var(--pulse-text-3); }
+    .pl-cat-all { display: block; margin: 6px 8px 8px; padding: 8px 4px; text-decoration: none;
+        font-size: 13px; font-weight: 500; color: var(--pulse-text-2); }
+    .pl-cat-all:hover { color: var(--pulse-primary); }
+
+    /* ---- RIGHT: recent topics ---- */
+    .pl-topiclist { display: flex; flex-direction: column; }
+    .pl-topic { display: flex; align-items: center; gap: 12px; padding: 13px 12px;
+        border-radius: 12px; text-decoration: none; color: inherit; transition: background .12s ease; }
+    .pl-topic + .pl-topic { border-top: 1px solid var(--pulse-border); border-top-left-radius: 0; border-top-right-radius: 0; }
+    .pl-topic:hover { background: var(--pulse-surface-2); }
+    .pl-topic-ava { width: 36px; height: 36px; border-radius: 50%; flex: none;
+        display: inline-grid; place-items: center; font-size: 17px;
+        background: var(--pulse-grad-profile); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+    .pl-topic-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .pl-topic-titleline { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .pl-glyph { font-size: 12px; flex: none; }
+    .pl-glyph-ok { color: var(--pulse-success); font-weight: 700; }
+    .pl-topic-title { font-size: 15px; font-weight: 600; color: var(--pulse-text); line-height: 1.3;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-topic:hover .pl-topic-title { color: var(--pulse-primary); }
+    .pl-topic-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .pl-cat-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+        font-weight: 500; color: var(--pulse-text-2); }
+    .pl-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex: none;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+    .pl-tag { display: inline-flex; align-items: center; background: var(--pulse-primary-soft);
+        color: var(--pulse-primary); border-radius: 999px; padding: 2px 9px; font-size: 11px;
+        font-weight: 500; }
+    .pl-topic-aside { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .pl-topic-replies { display: inline-flex; align-items: center; gap: 5px; color: var(--pulse-text);
+        font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .pl-topic-ico { font-size: 12px; opacity: .85; }
+    .pl-topic-time { font-size: 12px; color: var(--pulse-text-3); white-space: nowrap; }
+
+    /* ---- pager ---- */
+    .pl-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px 12px 8px; margin-top: 4px; border-top: 1px solid var(--pulse-border); }
+    .pl-pager-btn { color: var(--pulse-primary); text-decoration: none; font-weight: 600;
+        font-size: 13px; padding: 6px 12px; border-radius: 999px; }
+    .pl-pager-btn:hover { background: var(--pulse-primary-soft); }
+    .pl-pager-at { color: var(--pulse-text-3); font-size: 12px; }
+    .pl-pager-sp { width: 1px; }
 
     /* ---- empty ---- */
-    .fl-empty { padding: var(--spacingVerticalXXL); text-align: center;
-        color: var(--colorNeutralForeground3); }
-    .fl-empty a { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold); }
+    .pl-empty { padding: 40px 16px; text-align: center; color: var(--pulse-text-3); font-size: 14px; }
+    .pl-empty a { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
 
-    .fl-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
-        padding: var(--spacingVerticalL) var(--spacingHorizontalL); border-top: 1px solid var(--colorNeutralStroke3); }
-    .fl-pager-btn { color: var(--colorBrandForeground1); text-decoration: none; font-weight: var(--fontWeightSemibold);
-        font-size: var(--fontSizeBase300); padding: var(--spacingVerticalXS) var(--spacingHorizontalM);
-        border-radius: var(--borderRadiusCircular, 999px); }
-    .fl-pager-btn:hover { background: var(--colorSubtleBackgroundHover); }
-    .fl-pager-at { color: var(--colorNeutralForeground3); font-size: var(--fontSizeBase200); }
-    .fl-pager-sp { width: 1px; }
-
-    @media (max-width: 720px) {
-        .fl-cell-posters { display: none; }
-        .fl-cell-num:nth-of-type(3) { display: none; } /* hide Views */
-        .fl-th-num + .fl-th-num { display: none; }
+    @media (max-width: 900px) {
+        .pl-forum-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 520px) {
+        .pl-topic-aside { display: none; }
     }
 </style>
