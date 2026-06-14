@@ -246,7 +246,7 @@
         letter-spacing: -.02em; color: var(--pulse-text); }
     .pdm-empty p { margin: 0; max-width: 42ch; color: var(--pulse-text-2); }
     .pdm-empty a { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
-    .pdm-empty a:hover { color: var(--pulse-primary-hover); text-decoration: underline; }
+    .pdm-empty a:hover { color: var(--pulse-primary-hover); }
 
     /* ---- thread shell --------------------------------------------------- */
     .pdm-thread { flex: 1; display: flex; flex-direction: column; min-width: 0;

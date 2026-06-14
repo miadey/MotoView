@@ -293,7 +293,7 @@
     .pp-empty h2 { margin: 16px 0 4px; color: var(--pulse-text); }
     .pp-empty p { margin: 0 0 16px; }
     .pp-link { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
-    .pp-link:hover { color: var(--pulse-primary-hover); text-decoration: underline; }
+    .pp-link:hover { color: var(--pulse-primary-hover); }
 
     /* Rail de droite */
     .pp-rail { display: flex; flex-direction: column; gap: 16px;

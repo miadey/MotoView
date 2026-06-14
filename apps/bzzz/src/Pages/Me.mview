@@ -215,7 +215,7 @@
     .pl-me-emptyfeed { text-align: center; padding: 2rem 1rem; color: var(--pulse-text-2); }
     .pl-me-emptyfeed-ico { font-size: 2rem; margin-bottom: .4rem; }
     .pl-me-link { color: var(--pulse-primary); font-weight: 600; text-decoration: none; }
-    .pl-me-link:hover { color: var(--pulse-primary-hover); text-decoration: underline; }
+    .pl-me-link:hover { color: var(--pulse-primary-hover); }
 
     @media (max-width: 820px) {
         .pl-me-grid { grid-template-columns: 1fr; }

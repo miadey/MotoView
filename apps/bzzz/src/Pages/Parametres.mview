@@ -159,12 +159,12 @@
     .pl-set-comm-sum { color: var(--pulse-text-2); font-size: .8rem; }
     .pl-set-comm-link { flex: 0 0 auto; color: var(--pulse-primary); font-weight: 600;
         font-size: .85rem; text-decoration: none; }
-    .pl-set-comm-link:hover { color: var(--pulse-primary-hover); text-decoration: underline; }
+    .pl-set-comm-link:hover { color: var(--pulse-primary-hover); }
 
     .pl-set-empty { text-align: center; padding: 1.6rem 1rem; color: var(--pulse-text-2); }
     .pl-set-empty-ico { font-size: 1.9rem; margin-bottom: .4rem; }
     .pl-set-link { color: var(--pulse-primary); font-weight: 600; text-decoration: none; }
-    .pl-set-link:hover { color: var(--pulse-primary-hover); text-decoration: underline; }
+    .pl-set-link:hover { color: var(--pulse-primary-hover); }
 
     .pl-set-out { background: transparent; color: var(--pulse-danger);
         border: 1px solid var(--pulse-border); border-radius: 10px;

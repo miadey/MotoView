@@ -316,7 +316,7 @@
         color: var(--pulse-text); }
     .pl-msg-empty-sub { max-width: 36ch; margin: 0 auto; font-size: .9rem; }
     .pl-msg-link { color: var(--pulse-primary); text-decoration: none; font-weight: 600; }
-    .pl-msg-link:hover { text-decoration: underline; }
+    .pl-msg-link:hover { color: var(--pulse-primary-hover); }
 
     /* ---- floating action buttons (FAB) --------------------------------- */
     .pl-msg-fab { position: fixed; right: 24px; bottom: 24px; z-index: 40;

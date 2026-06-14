@@ -16,6 +16,8 @@
         <meta http-equiv="refresh" content="0; url=/">
     }
     <style>
+        /* Hover affordance: a subtle color shift, never the default underline. */
+        a:hover { text-decoration: none; color: var(--pulse-primary-hover, #7c3aed); }
         /* The Pulse front door: a full-bleed dark "hive at night" — near-black with
            a brand-blue dawn glow top-left and a faint honey-amber warmth bottom-right.
            Page content (Welcome.mview) owns the split / centered composition. */

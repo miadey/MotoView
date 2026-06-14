@@ -9,6 +9,8 @@
     <title>@View.title</title>
     @head
     <style>
+        /* Hover affordance: a subtle color shift, never the default underline. */
+        a:hover { text-decoration: none; color: var(--pulse-primary-hover, #7c3aed); }
         body { margin: 0; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground1);
             font-family: var(--fontFamilyBase); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility; }

@@ -166,7 +166,7 @@
     .pp-empty { text-align: center; padding: 2rem 1rem; color: var(--pulse-text-2); }
     .pp-empty-ico { font-size: 2rem; margin-bottom: .4rem; }
     .pp-link { color: var(--pulse-primary); font-weight: 600; text-decoration: none; }
-    .pp-link:hover { text-decoration: underline; }
+    .pp-link:hover { color: var(--pulse-primary-hover); }
 
     @media (max-width: 520px) {
         .pp-head-row { flex-direction: column; }
