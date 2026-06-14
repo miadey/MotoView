@@ -634,6 +634,12 @@ module {
 
     func trim(t : Text) : Text { Text.trim(t, #char ' ') };
 
+    // One-time brand rename: the live mainnet was first seeded BEFORE the Pulse
+    // rename, so stored community names can still read "Bzzz" (e.g. "Bzzz HQ").
+    // mvStableLoad applies this to each loaded name; idempotent (a no-op once no
+    // "Bzzz" remains), and only touches the brand token — never other content.
+    func brandFix(t : Text) : Text { Text.replace(t, #text "Bzzz", "Pulse") };
+
     // -----------------------------------------------------------------
     // Upgrade-stable persistence
     //
@@ -703,7 +709,7 @@ module {
 
           // servers_ : HashMap<Nat, Server>
           for (k in Iter.toArray(servers_.keys()).vals()) { servers_.delete(k) };
-          for ((k, v) in serversArr.vals()) { servers_.put(k, v) };
+          for ((k, v) in serversArr.vals()) { servers_.put(k, { v with name = brandFix(v.name) }) };
 
           // roles : HashMap<Nat, HashMap<Principal, Role>>
           for (k in Iter.toArray(roles.keys()).vals()) { roles.delete(k) };
