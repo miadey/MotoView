@@ -32,14 +32,14 @@
                             <li>
                                 <a class="pl-chan @(activeClass(c.id))" href="/channel/@(c.id)">
                                     <span class="pl-chan-ico pl-chan-lock">🔒</span>
-                                    <span class="pl-chan-name">@c.name</span>
+                                    <span class="pl-chan-name">@(chanDisplay(c.name))</span>
                                 </a>
                             </li>
                         } else {
                             <li>
                                 <a class="pl-chan @(activeClass(c.id))" href="/channel/@(c.id)">
                                     <span class="pl-chan-ico">#</span>
-                                    <span class="pl-chan-name">@c.name</span>
+                                    <span class="pl-chan-name">@(chanDisplay(c.name))</span>
                                 </a>
                             </li>
                         }
@@ -589,6 +589,17 @@
         0;
     };
 
+    // Accented French display names for the seeded ASCII channel slugs (the slug
+    // stays the routable id; this is presentation only).
+    func chanDisplay(name : Text) : Text {
+        switch name {
+            case ("general") { "général" };
+            case ("developpeurs") { "développeurs" };
+            case ("evenements") { "événements" };
+            case (_) { name };
+        };
+    };
+
     func onLoad(ctx : Context) {
         rid := paramNat(ctx, "rid");
         me := ctx.caller;
@@ -601,7 +612,7 @@
             case null { exists := false };
             case (?r) {
                 exists := true;
-                roomName := r.name;
+                roomName := chanDisplay(r.name);
                 serverId := r.serverId;
             };
         };
