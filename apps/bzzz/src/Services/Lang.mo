@@ -235,8 +235,8 @@ module {
         case ("annonces.read") { ("Lire", "Read", "Leer") };
         case ("channel.not_found") { ("Salon introuvable", "Channel not found", "Canal no encontrado") };
         case ("channel.not_found_desc") { ("Ce salon n'existe pas.", "This channel doesn't exist.", "Este canal no existe.") };
-        case ("channel.browse_servers") { ("Parcourir les serveurs", "Browse servers", "Explorar servidores") };
-        case ("channel.back_to_server") { ("Retour au serveur", "Back to server", "Volver al servidor") };
+        case ("channel.browse_servers") { ("Parcourir les communautés", "Browse communities", "Explorar comunidades") };
+        case ("channel.back_to_server") { ("Retour à la communauté", "Back to community", "Volver a la comunidad") };
         case ("channel.search_channel_ph") { ("Rechercher un salon", "Search a channel", "Buscar un canal") };
         case ("channel.channels") { ("Salons", "Channels", "Canales") };
         case ("channel.voice_channels") { ("Salons vocaux", "Voice channels", "Canales de voz") };
@@ -264,7 +264,7 @@ module {
         case ("channel.is_typing") { ("est en train d'écrire…", "is typing…", "está escribiendo…") };
         case ("channel.replying_to") { ("Réponse à", "Replying to", "Respondiendo a") };
         case ("channel.locked_notice") { ("Ce salon est verrouillé. Seuls les modérateurs peuvent publier pour le moment.", "This channel is locked. Only moderators can post right now.", "Este canal está bloqueado. Por ahora solo los moderadores pueden publicar.") };
-        case ("channel.muted_notice") { ("Vous êtes réduit au silence sur ce serveur et ne pouvez pas publier.", "You are muted on this server and can't post.", "Estás silenciado en este servidor y no puedes publicar.") };
+        case ("channel.muted_notice") { ("Vous êtes réduit au silence dans cette communauté et ne pouvez pas publier.", "You are muted in this community and can't post.", "Estás silenciado en esta comunidad y no puedes publicar.") };
         case ("channel.choose_handle") { ("Choisissez un pseudo", "Choose a handle", "Elige un usuario") };
         case ("channel.join_conversation") { ("pour rejoindre la conversation.", "to join the conversation.", "para unirte a la conversación.") };
         case ("channel.attach_file") { ("Joindre un fichier", "Attach a file", "Adjuntar un archivo") };
@@ -295,7 +295,7 @@ module {
         case ("feed.claim_title") { ("Choisissez un pseudo pour commencer à publier.", "Choose a username to start posting.", "Elige un nombre de usuario para empezar a publicar.") };
         case ("feed.claim_body_pre") { ("Définissez votre pseudo sur la page ", "Set your username on the ", "Define tu nombre de usuario en la página ") };
         case ("feed.claim_link") { ("profil", "profile", "perfil") };
-        case ("feed.claim_body_post") { (" page, puis revenez partager votre première publication.", " page, then come back to share your first post.", ", luego vuelve para compartir tu primera publicación.") };
+        case ("feed.claim_body_post") { (", puis revenez partager votre première publication.", " page, then come back to share your first post.", ", luego vuelve para compartir tu primera publicación.") };
         case ("feed.tabs_aria") { ("Filtres du fil", "Feed filters", "Filtros del feed") };
         case ("feed.tab_foryou") { ("Pour vous", "For you", "Para ti") };
         case ("feed.tab_following") { ("Abonnements", "Following", "Siguiendo") };
@@ -671,9 +671,9 @@ module {
         case ("admin.change_denied") { ("Vous ne pouvez pas effectuer cette modification.", "You can't make that change.", "No puedes realizar ese cambio.") };
         case ("admin.role_revoked") { ("Rôle révoqué.", "Role revoked.", "Rol revocado.") };
         case ("admin.revoke_denied") { ("Vous ne pouvez pas révoquer ce rôle.", "You can't revoke that role.", "No puedes revocar ese rol.") };
-        case ("admin.delete_super_only") { ("Seul un super-administrateur peut supprimer des communautés.", "Only a Super Admin can delete servers.", "Solo un superadministrador puede eliminar comunidades.") };
-        case ("admin.server_deleted") { ("Communauté supprimée.", "Server deleted.", "Comunidad eliminada.") };
-        case ("admin.server_delete_failed") { ("Impossible de supprimer cette communauté.", "Couldn't delete that server.", "No se pudo eliminar esa comunidad.") };
+        case ("admin.delete_super_only") { ("Seul un super-administrateur peut supprimer des communautés.", "Only a Super Admin can delete communities.", "Solo un superadministrador puede eliminar comunidades.") };
+        case ("admin.server_deleted") { ("Communauté supprimée.", "Community deleted.", "Comunidad eliminada.") };
+        case ("admin.server_delete_failed") { ("Impossible de supprimer cette communauté.", "Couldn't delete that community.", "No se pudo eliminar esa comunidad.") };
         case ("annonces.title") { ("Annonces", "Announcements", "Anuncios") };
         case ("annonces.desc") { ("Les dernières annonces de la communauté Pulse, en direct.", "The latest announcements from the Pulse community, live.", "Los últimos anuncios de la comunidad Pulse, en directo.") };
         case ("annonces.marked_read") { ("Annonce marquée comme lue.", "Announcement marked as read.", "Anuncio marcado como leído.") };
@@ -772,8 +772,8 @@ module {
         case ("server.desc") { ("Communauté Pulse : salons, membres, rôles et modération pour un espace de discussion natif sur l'Internet Computer.", "Pulse community: channels, members, roles and moderation for a discussion space native to the Internet Computer.", "Comunidad Pulse: salas, miembros, roles y moderación para un espacio de conversación nativo en Internet Computer.") };
         case ("server.need_channel_name") { ("Nommez le salon.", "Name the channel.", "Asigna un nombre al canal.") };
         case ("server.channel_name_min") { ("Le nom du salon doit comporter au moins 2 caractères.", "Channel name must be at least 2 characters.", "El nombre del canal debe tener al menos 2 caracteres.") };
-        case ("server.joined") { ("Vous avez rejoint la communauté.", "Joined the server.", "Te has unido al servidor.") };
-        case ("server.left") { ("Vous avez quitté la communauté.", "Left the server.", "Has salido del servidor.") };
+        case ("server.joined") { ("Vous avez rejoint la communauté.", "Joined the community.", "Te has unido a la comunidad.") };
+        case ("server.left") { ("Vous avez quitté la communauté.", "Left the community.", "Has salido de la comunidad.") };
         case ("server.no_perm_add_channel") { ("Vous n'avez pas l'autorisation d'ajouter un salon ici.", "You don't have permission to add a channel here.", "No tienes permiso para añadir un canal aquí.") };
         case ("server.invalid_channel_name") { ("Choisissez un nom de salon valide (a-z, 0-9, - ou _).", "Pick a valid channel name (a-z, 0-9, - or _).", "Elige un nombre de canal válido (a-z, 0-9, - o _).") };
         case ("server.add_channel_failed") { ("Impossible d'ajouter le salon.", "Couldn't add the channel.", "No se pudo añadir el canal.") };
