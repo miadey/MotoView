@@ -37,7 +37,7 @@
         <div class="pl-srv-list">
             @for s in serverList {
                 <a class="pl-srv-row" href="/communautes/@(s.id)">
-                    <span class="pl-srv-avatar">@s.name</span>
+                    <span class="pl-srv-avatar">@(initials(s.name))</span>
                     <span class="pl-srv-main">
                         <span class="pl-srv-name">@s.name</span>
                         <span class="pl-srv-meta">
@@ -164,6 +164,22 @@
     // create-server form fields (auto-populated from the secure form)
     var name : Text = "";
     var kind : Text = "Discussion";
+
+    // 2-letter avatar initial: first letter of the first two words (e.g.
+    // "Pulse HQ" -> "PH", "Motoko Builders" -> "MB"); single word -> first 2.
+    func up1(c : Char) : Text {
+        Text.fromChar(if (c >= 'a' and c <= 'z') { Char.fromNat32(Char.toNat32(c) - 32) } else { c });
+    };
+    func initials(name : Text) : Text {
+        let parts = Iter.toArray(Text.tokens(name, #char ' '));
+        if (parts.size() >= 2) {
+            let a0 = Text.toArray(parts[0]); let a1 = Text.toArray(parts[1]);
+            (if (a0.size() > 0) { up1(a0[0]) } else { "" }) # (if (a1.size() > 0) { up1(a1[0]) } else { "" })
+        } else if (parts.size() == 1) {
+            let a = Text.toArray(parts[0]);
+            if (a.size() >= 2) { up1(a[0]) # up1(a[1]) } else if (a.size() == 1) { up1(a[0]) } else { "#" }
+        } else { "#" };
+    };
 
     func onLoad(ctx : Context) {
         me := ctx.caller;
