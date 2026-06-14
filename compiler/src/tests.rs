@@ -2717,3 +2717,16 @@ mod r13_var_template_map {
         let _ = std::fs::remove_file(project::source_map_path(&out));
     }
 }
+
+
+#[test]
+fn validate_message_accepts_expression() {
+    // `required @(expr)` emits the expression verbatim as the error message,
+    // instead of splitting at the first inner quote (which would mangle an
+    // i18n call like Lang.tc(ctx.caller, "key")). Backward compatible: a plain
+    // "literal" still works (covered by other forms).
+    let src = "@page \"/t\"\n<form @submit=\"save\" secure></form>\n@code {\n  var handle : Text = \"\";\n  func save(ctx : Context) : async () {\n    validate { handle required @(Lang.tc(ctx.caller, \"x.key\")); };\n  };\n}";
+    let out = page(src);
+    assert!(out.contains("Lang.tc(ctx.caller, \"x.key\")"), "expr message must be emitted verbatim:\n{out}");
+    assert!(!out.contains("(\"handle\", \"x.key\")"), "must not mangle into the bare key literal:\n{out}");
+}

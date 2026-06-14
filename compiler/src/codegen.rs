@@ -3514,9 +3514,22 @@ fn gen_validate_block(target: &str, block: &str) -> String {
         if rule.is_empty() {
             continue;
         }
-        // FIELD CHECK [ARG] ["message"]
-        let (head, msg) = match rule.find('"') {
-            Some(q) => (rule[..q].trim().to_string(), rule[q..].trim().to_string()),
+        // FIELD CHECK [ARG] [MESSAGE]  — MESSAGE is a "literal" OR @(expr).
+        // The expression form lets the message be computed (e.g. i18n:
+        // `handle required @(Lang.tc(ctx.caller, "key"))`); without it the rule
+        // would split at the first inner quote and mangle the call.
+        let msg_start = {
+            let q = rule.find('"');
+            let a = rule.find("@(");
+            match (q, a) {
+                (Some(q), Some(a)) => Some(q.min(a)),
+                (Some(q), None) => Some(q),
+                (None, Some(a)) => Some(a),
+                (None, None) => None,
+            }
+        };
+        let (head, msg) = match msg_start {
+            Some(p) => (rule[..p].trim().to_string(), rule[p..].trim().to_string()),
             None => (rule.to_string(), String::new()),
         };
         let toks: Vec<&str> = head.split_whitespace().collect();
@@ -3527,6 +3540,9 @@ fn gen_validate_block(target: &str, block: &str) -> String {
         let check = toks[1];
         let msg_expr = if msg.is_empty() {
             format!("\"{} is invalid\"", field)
+        } else if msg.starts_with("@(") && msg.ends_with(')') {
+            // expression message: `@(<expr>)` -> emit <expr> verbatim (must be Text)
+            msg[2..msg.len() - 1].trim().to_string()
         } else {
             msg
         };
