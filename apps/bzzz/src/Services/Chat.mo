@@ -573,8 +573,22 @@ module {
             for ((h, t) in entries.vals()) { inner.put(h, t) };
             membersByRoom.put(k, inner);
           };
+          ensureDefaultChannels();
         };
         case null {};
+      };
+    };
+
+    // Default global "Chat en direct" channels (serverId 0). Idempotent: creates
+    // a channel only if missing, so it seeds fresh installs AND back-fills
+    // existing canisters on upgrade (called from mvStableLoad).
+    func hasRoomNamed(serverId : Nat, name : Text) : Bool {
+      for (r in rooms.vals()) { if (r.serverId == serverId and r.name == name) { return true } };
+      false;
+    };
+    func ensureDefaultChannels() {
+      for (name in ["general", "support-rapide", "developpeurs", "annonces-live", "off-topic", "evenements"].vals()) {
+        if (not hasRoomNamed(0, name)) { ignore createRoom(name, 0) };
       };
     };
 
@@ -583,7 +597,6 @@ module {
     // No fabricated user metrics or messages — just empty channels to post into.
     // Runs after all helpers/methods are defined (Motoko evaluates the class
     // body top-to-bottom, so seeding must come last).
-    ignore createRoom("general", 0);
-    ignore createRoom("random", 0);
+    ensureDefaultChannels();
   };
 };
