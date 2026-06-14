@@ -1,8 +1,8 @@
 @page "/chat"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Chat en direct"
-@description "Salons de discussion en direct de vos communautés sur Pulse."
+@title Lang.tc(ctx.caller, "chat.title")
+@description Lang.tc(ctx.caller, "chat.desc")
 
 <section class="bz-card" style="padding:2.75rem 2rem;text-align:center;border:1px solid var(--pulse-border);border-radius:16px;">
     <h2 style="color:var(--pulse-text);margin:0 0 .4rem;font-size:1.3rem;">@Lang.tc(ctx.caller, "nav.chat")</h2>

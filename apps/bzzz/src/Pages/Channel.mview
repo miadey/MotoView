@@ -1,8 +1,8 @@
 @page "/channel/{rid:Nat}"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Chat en direct — #" # roomName
-@description "Discutez en direct dans le salon #" # roomName # " sur Pulse : publiez des messages, réagissez, répondez et ouvrez des fils, dans un chat de style Discord propulsé par l'Internet Computer."
+@title Lang.tc(ctx.caller, "channel.title") # " — #" # roomName
+@description Lang.tc(ctx.caller, "channel.desc_a") # " #" # roomName # " " # Lang.tc(ctx.caller, "channel.desc_b")
 
 @if not exists {
     <div class="pl-card pl-missing">
@@ -784,12 +784,12 @@
     // ---- mutating handlers (re-read the room id from ctx for correctness) ----
     func send(ctx : Context) : async () {
         validate {
-            draft required "Type a message.";
+            draft required @(Lang.tc(ctx.caller, "channel.need_message"));
         };
         let roomId = paramNat(ctx, "rid");
         let newId = Chat.post(ctx.caller, Identity.handleOf(ctx.caller), roomId, draft, replyingTo);
         if (newId == 0) {
-            toast("Could not send — channel may be missing.");
+            toast(Lang.tc(ctx.caller, "channel.send_failed"));
             return;
         };
         draft := "";
@@ -817,19 +817,19 @@
 
     func saveEdit(ctx : Context) : async () {
         validate {
-            editText required "Message can't be empty.";
+            editText required @(Lang.tc(ctx.caller, "channel.need_edit"));
         };
         if (editingId != 0) {
             ignore Chat.edit(ctx.caller, editingId, editText);
         };
         editingId := 0;
         editText := "";
-        toast("Message updated.");
+        toast(Lang.tc(ctx.caller, "channel.msg_updated"));
     };
 
     func del(ctx : Context, id : Nat) : async () {
         ignore Chat.del(ctx.caller, id);
-        toast("Message deleted.");
+        toast(Lang.tc(ctx.caller, "channel.msg_deleted_toast"));
     };
 
     func openThread(id : Nat) : async () {
@@ -838,12 +838,12 @@
 
     func postThread(ctx : Context) : async () {
         validate {
-            threadText required "Type a thread reply.";
+            threadText required @(Lang.tc(ctx.caller, "channel.need_thread_reply"));
         };
         if (openThreadId != 0) {
             ignore Chat.replyThread(ctx.caller, Identity.handleOf(ctx.caller), openThreadId, threadText);
         };
         threadText := "";
-        toast("Thread reply posted.");
+        toast(Lang.tc(ctx.caller, "channel.thread_reply_posted"));
     };
 }

@@ -1,8 +1,8 @@
 @page "/evenements"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Événements"
-@description "Organisez et retrouvez les événements de vos communautés sur Pulse."
+@title Lang.tc(ctx.caller, "evenements.title")
+@description Lang.tc(ctx.caller, "evenements.desc")
 
 <div class="pl-evt">
 

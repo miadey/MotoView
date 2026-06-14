@@ -1,8 +1,8 @@
 @page "/status"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Statuts"
-@description "Partagez un statut éphémère qui disparaît après 24 heures et découvrez ce que tout le monde publie en ce moment sur Pulse."
+@title Lang.tc(ctx.caller, "status.title")
+@description Lang.tc(ctx.caller, "status.desc")
 
 <section class="st-head">
     <div class="st-head-txt">
@@ -249,8 +249,8 @@
 
     func post(ctx : Context) : async () {
         validate {
-            text required "Write something to share.";
-            text minLength 1 "Write something to share.";
+            text required @(Lang.tc(ctx.caller, "status.need_text"));
+            text minLength 1 @(Lang.tc(ctx.caller, "status.need_text"));
         };
         let handle = Identity.handleOf(ctx.caller);
         let picked = formField(ctx, "color");
@@ -262,6 +262,6 @@
         activeCount := sm.activeCount;
         authorCount := sm.authorCount;
         authorWord := if (authorCount == 1) "author" else "authors";
-        toast("Status posted — live for 24 hours.");
+        toast(Lang.tc(ctx.caller, "status.posted"));
     };
 }

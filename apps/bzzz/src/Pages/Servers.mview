@@ -1,8 +1,8 @@
 @page "/communautes"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Communautés — Pulse"
-@description "Parcourez et créez des communautés Pulse — des espaces avec salons, rôles et modération, exécutés on-chain sur l'Internet Computer."
+@title Lang.tc(ctx.caller, "servers.title")
+@description Lang.tc(ctx.caller, "servers.desc")
 
 <div class="pl-srv">
 
@@ -187,8 +187,8 @@
     // unifies with the service's ServerKind type without naming it from the page.
     func create(ctx : Context) : async () {
         validate {
-            name required "Give your server a name.";
-            name minLength 2 "Server name must be at least 2 characters.";
+            name required @(Lang.tc(ctx.caller, "servers.need_name"));
+            name minLength 2 @(Lang.tc(ctx.caller, "servers.name_min"));
         };
         let newId = if (kind == "Forum") {
             Servers.createServer(ctx.caller, name, #Forum);
@@ -200,18 +200,18 @@
         ignore Servers.joinAs(ctx.caller, newId, Identity.handleOf(ctx.caller));
         serverList := Servers.servers();
         name := "";
-        toast("Server created!");
+        toast(Lang.tc(ctx.caller, "servers.created"));
     };
 
     func join(ctx : Context, id : Nat) : async () {
         ignore Servers.joinAs(ctx.caller, id, Identity.handleOf(ctx.caller));
         serverList := Servers.servers();
-        toast("Joined the server.");
+        toast(Lang.tc(ctx.caller, "servers.joined"));
     };
 
     func leave(ctx : Context, id : Nat) : async () {
         ignore Servers.leave(ctx.caller, id);
         serverList := Servers.servers();
-        toast("Left the server.");
+        toast(Lang.tc(ctx.caller, "servers.left"));
     };
 }

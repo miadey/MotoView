@@ -182,8 +182,8 @@
     var display : Text = "";
     var bio : Text = "";
     var avatar : Text = "🐝";
-    var pageTitle : Text = "Profile — Pulse";
-    var pageDesc : Text = "A Pulse user profile — their posts, followers and bio.";
+    var pageTitle : Text = "Profil — Pulse";
+    var pageDesc : Text = "Un profil d'utilisateur Pulse — ses publications, ses abonnés et sa bio.";
     var target : Principal = Principal.fromText("aaaaa-aa");
     var followers : Nat = 0;
     var followingN : Nat = 0;
@@ -213,13 +213,13 @@
                 posts := Feed.byAuthor(p.handle);
                 postCount := posts.size();
                 pageTitle := p.display # " (@" # p.handle # ") — Pulse";
-                pageDesc := p.display # " on Pulse: " # Nat.toText(followers) # " followers, " # Nat.toText(postCount) # " posts." # (if (Text.size(p.bio) > 0) { " " # p.bio } else { "" });
+                pageDesc := p.display # Lang.tc(ctx.caller, "profile.desc_on") # Nat.toText(followers) # Lang.tc(ctx.caller, "profile.desc_followers") # Nat.toText(postCount) # Lang.tc(ctx.caller, "profile.desc_posts") # (if (Text.size(p.bio) > 0) { " " # p.bio } else { "" });
             };
             case null {
                 exists := false;
                 posts := [];
-                pageTitle := "Profile not found — Pulse";
-                pageDesc := "No Pulse user with that handle yet.";
+                pageTitle := Lang.tc(ctx.caller, "profile.title_not_found");
+                pageDesc := Lang.tc(ctx.caller, "profile.desc_not_found");
             };
         };
     };
@@ -228,9 +228,9 @@
 
     func toggleFollow(ctx : Context) : async () {
         if (Feed.follow(ctx.caller, target)) {
-            toast("Following " # display # ".");
+            toast(Lang.tc(ctx.caller, "profile.now_following") # display # ".");
         } else {
-            toast("Unfollowed " # display # ".");
+            toast(Lang.tc(ctx.caller, "profile.unfollowed") # display # ".");
         };
         load(ctx);
     };

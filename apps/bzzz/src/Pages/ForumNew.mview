@@ -1,8 +1,8 @@
 @page "/forum/new"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title "Nouveau sujet — Forum Pulse"
-@description "Lancez une nouvelle discussion sur le forum Pulse : choisissez une catégorie, ajoutez des tags et rédigez votre sujet."
+@title Lang.tc(ctx.caller, "forumnew.title_meta")
+@description Lang.tc(ctx.caller, "forumnew.desc")
 
 <div class="fn-wrap">
 
@@ -204,9 +204,9 @@
 
     func create(ctx : Context) : async () {
         validate {
-            title required "Give your topic a title.";
-            title minLength 3 "Title must be at least 3 characters.";
-            body required "Write something in the body.";
+            title required @(Lang.tc(ctx.caller, "forumnew.need_title"));
+            title minLength 3 @(Lang.tc(ctx.caller, "forumnew.title_min"));
+            body required @(Lang.tc(ctx.caller, "forumnew.need_body"));
         };
         let cid = chosenCategory(ctx);
         categoryId := cid;
@@ -216,7 +216,7 @@
         title := "";
         tags := "";
         body := "";
-        toast("Topic created!");
+        toast(Lang.tc(ctx.caller, "forumnew.created"));
         // Land on the freshly created topic (Discourse behavior). mvRedirect is
         // the page object's navigation sink; the runtime turns a non-empty value
         // into a client redirect after dispatch.

@@ -1,8 +1,8 @@
 @page "/messages/{id:Nat}"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Conversation privée"
-@description "Une conversation privée et chiffrée de bout en bout sur Pulse. Les messages sont stockés sous forme d'enveloppes chiffrées et ne sont déchiffrés que dans votre client — jamais sur la chaîne."
+@title Lang.tc(ctx.caller, "conversation.title")
+@description Lang.tc(ctx.caller, "conversation.desc")
 
 <div class="pdm">
     @if (not member) {
@@ -214,13 +214,13 @@
     func sendMsg(ctx : Context) : async () {
         let envs = parseEnvelopes(formGet(ctx, "draft"));
         if (envs.size() == 0) {
-            toast("Type a message to send.");
+            toast(Lang.tc(ctx.caller, "conversation.type_message"));
             return;
         };
         let handle = Identity.handleOf(ctx.caller);
         let mid = Messenger.send(ctx.caller, id, handle, envs);
         if (mid == 0) {
-            toast("Couldn't send — you're not a member of this conversation.");
+            toast(Lang.tc(ctx.caller, "conversation.send_not_member"));
         } else {
             // Refresh the stream so the new bubble (carrying MY envelope) renders
             // and the glue decrypts it in place.

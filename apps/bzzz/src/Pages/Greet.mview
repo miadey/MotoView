@@ -1,8 +1,8 @@
 @page "/greet/{name}"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Hello"
-@description "A parameterized-route demo page (sign-in required, like all of Pulse)."
+@title Lang.tc(ctx.caller, "greet.title")
+@description Lang.tc(ctx.caller, "greet.desc")
 <section class="bz-hero"><h1>@Lang.tc(ctx.caller, "greet.hello"), @name 👋</h1>
 <p>@Lang.tc(ctx.caller, "greet.demo")</p></section>
 @code { }

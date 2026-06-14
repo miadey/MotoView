@@ -1,8 +1,8 @@
 @page "/forum"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title "Forums"
-@description "Parcourez les catégories et les sujets récents des forums Pulse — un espace de discussion communautaire on-chain sur l'Internet Computer."
+@title Lang.tc(ctx.caller, "forum.title")
+@description Lang.tc(ctx.caller, "forum.desc")
 
 <div class="pl-forum">
 

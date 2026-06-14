@@ -1,8 +1,8 @@
 @page "/search"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Recherche"
-@description "Recherchez des sujets, des personnes et des communautés sur Pulse."
+@title Lang.tc(ctx.caller, "search.title")
+@description Lang.tc(ctx.caller, "search.desc")
 
 <div class="pl-search">
 

@@ -1,8 +1,8 @@
 @page "/me"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Profil"
-@description "Gérez votre identifiant Pulse, votre nom affiché et votre bio, consultez vos abonnés et abonnements, et relisez tout ce que vous avez publié."
+@title Lang.tc(ctx.caller, "me.title")
+@description Lang.tc(ctx.caller, "me.desc")
 
 <section class="pl-me-profile mv-anim-fadein">
     <div class="pl-me-banner"></div>
@@ -268,23 +268,23 @@
 
     func saveIdentity(ctx : Context) : async () {
         validate {
-            handle required "Choose a handle.";
+            handle required @(Lang.tc(ctx.caller, "me.need_handle"));
         };
         // bindChecked validates FORMAT then UNIQUENESS, and links the handle to
         // the caller's II principal — the one rule used everywhere.
         switch (Identity.bindChecked(ctx.caller, handle, display)) {
-            case (#ok h) { toast("Profile saved — you're now @" # h # "."); };
-            case (#taken) { toast("That handle is already taken — try another."); };
-            case (#invalid msg) { toast(msg); };
+            case (#ok h) { toast(Lang.tc(ctx.caller, "me.saved") # " @" # h # "."); };
+            case (#taken) { toast(Lang.tc(ctx.caller, "me.taken")); };
+            case (#invalid msg) { toast(Lang.tc(ctx.caller, msg)); };
         };
         load(ctx);
     };
 
     func saveBio(ctx : Context) : async () {
         if (Identity.setBio(ctx.caller, bio)) {
-            toast("Bio updated.");
+            toast(Lang.tc(ctx.caller, "me.bio_updated"));
         } else {
-            toast("Claim a handle before adding a bio.");
+            toast(Lang.tc(ctx.caller, "me.need_handle_first"));
         };
         load(ctx);
     };

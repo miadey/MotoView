@@ -1,8 +1,8 @@
 @page "/admin"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Administration — Pulse"
-@description "Console super-admin de Pulse : gérez les rôles du personnel global, consultez les statistiques de la plateforme et administrez chaque communauté. Réservée à la liste d'autorisation des rôles globaux on-chain."
+@title Lang.tc(ctx.caller, "admin.title")
+@description Lang.tc(ctx.caller, "admin.desc")
 
 @if needsBootstrap {
     <section class="ac-center">
@@ -480,30 +480,30 @@
     func claim(ctx : Context) : async () {
         let handle = Identity.handleOf(ctx.caller);
         if (Admin.claimBootstrap(ctx.caller, handle)) {
-            toast("You are now the founding Super Admin of Pulse.");
+            toast(Lang.tc(ctx.caller, "admin.claim_ok"));
         } else {
-            toast("Bootstrap is no longer available — staff already exist.");
+            toast(Lang.tc(ctx.caller, "admin.claim_unavailable"));
         };
         reload(ctx);
     };
 
     func grant(ctx : Context) : async () {
         validate {
-            grantHandle required "Enter a handle to grant a role.";
+            grantHandle required @(Lang.tc(ctx.caller, "admin.need_handle"));
         };
         let roleName = formField(ctx, "role");
         let role = roleFromName(roleName);
         switch (Identity.byHandleLookup(grantHandle)) {
             case (?prof) {
                 if (Admin.setRole(ctx.caller, prof.principal, prof.handle, role)) {
-                    toast("Granted " # roleName # " to @" # prof.handle # ".");
+                    toast(Lang.tc(ctx.caller, "admin.granted") # " " # roleName # " @" # prof.handle # ".");
                     grantHandle := "";
                 } else {
-                    toast("That grant isn't allowed for your role.");
+                    toast(Lang.tc(ctx.caller, "admin.grant_denied"));
                 };
             };
             case null {
-                toast("No member found with that handle.");
+                toast(Lang.tc(ctx.caller, "admin.no_member"));
             };
         };
         reload(ctx);
@@ -514,9 +514,9 @@
         let role = roleFromName(roleName);
         let handle = Identity.handleOf(target);
         if (Admin.setRole(ctx.caller, target, handle, role)) {
-            toast("Role updated to " # roleName # ".");
+            toast(Lang.tc(ctx.caller, "admin.role_updated") # " " # roleName # ".");
         } else {
-            toast("You can't make that change.");
+            toast(Lang.tc(ctx.caller, "admin.change_denied"));
         };
         reload(ctx);
     };
@@ -530,9 +530,9 @@
     func revokeStaff(ctx : Context, pidText : Text) : async () {
         let target = Principal.fromText(pidText);
         if (Admin.removeRole(ctx.caller, target)) {
-            toast("Role revoked.");
+            toast(Lang.tc(ctx.caller, "admin.role_revoked"));
         } else {
-            toast("You can't revoke that role.");
+            toast(Lang.tc(ctx.caller, "admin.revoke_denied"));
         };
         reload(ctx);
     };
@@ -541,14 +541,14 @@
         // Re-check privilege on the server side of the round-trip before the
         // privileged forceDelete (which itself does NO authorization).
         if (not Admin.isSuperAdmin(ctx.caller)) {
-            toast("Only a Super Admin can delete servers.");
+            toast(Lang.tc(ctx.caller, "admin.delete_super_only"));
             reload(ctx);
             return;
         };
         if (Servers.forceDelete(id)) {
-            toast("Server deleted.");
+            toast(Lang.tc(ctx.caller, "admin.server_deleted"));
         } else {
-            toast("Couldn't delete that server.");
+            toast(Lang.tc(ctx.caller, "admin.server_delete_failed"));
         };
         reload(ctx);
     };

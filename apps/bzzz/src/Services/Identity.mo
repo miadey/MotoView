@@ -40,12 +40,12 @@ module {
     public func validateHandle(handle : Text) : ?Text {
       let chars = Text.toArray(normalize(handle));
       let n = chars.size();
-      if (n < 2) { return ?"Handle must be at least 2 characters." };
-      if (n > 20) { return ?"Handle must be 20 characters or fewer." };
-      if (not isLetter(chars[0])) { return ?"Handle must start with a letter (a–z)." };
+      if (n < 2) { return ?"valid.handle_min" };
+      if (n > 20) { return ?"valid.handle_max" };
+      if (not isLetter(chars[0])) { return ?"valid.handle_start" };
       for (c in chars.vals()) {
         if (not (isLetter(c) or isDigit(c) or c == '_')) {
-          return ?"Use only lowercase letters, numbers and underscores.";
+          return ?"valid.handle_chars";
         };
       };
       null;

@@ -382,17 +382,17 @@
                 replies := Feed.replies(id);
                 hasReplies := replies.size() > 0;
                 let who = Identity.displayOf(p.author);
-                pageTitle := who # " on Pulse: \"" # snippet(p.text) # "\"";
-                pageDesc := who # " (@" # p.authorHandle # ") posted on Pulse — "
-                    # Nat.toText(p.likes) # " likes, " # Nat.toText(p.reposts) # " reposts, "
-                    # Nat.toText(p.replyCount) # " replies.";
+                pageTitle := who # Lang.tc(ctx.caller, "feedpost.title_on_pulse") # " \"" # snippet(p.text) # "\"";
+                pageDesc := who # " (@" # p.authorHandle # ") " # Lang.tc(ctx.caller, "feedpost.desc_posted") # " — "
+                    # Nat.toText(p.likes) # " " # Lang.tc(ctx.caller, "feedpost.desc_likes") # ", " # Nat.toText(p.reposts) # " " # Lang.tc(ctx.caller, "feedpost.desc_reposts") # ", "
+                    # Nat.toText(p.replyCount) # " " # Lang.tc(ctx.caller, "feedpost.desc_replies") # ".";
             };
             case null {
                 exists := false;
                 replies := [];
                 hasReplies := false;
-                pageTitle := "Post not found — Pulse";
-                pageDesc := "This Pulse post doesn't exist.";
+                pageTitle := Lang.tc(ctx.caller, "feedpost.title_not_found");
+                pageDesc := Lang.tc(ctx.caller, "feedpost.desc_not_found");
             };
         };
 
@@ -445,14 +445,14 @@
     // ---- handlers ----
     func sendReply(ctx : Context) : async () {
         validate {
-            body required "Write a reply first.";
+            body required @(Lang.tc(ctx.caller, "feedpost.need_reply"));
         };
         let rid = Feed.reply(ctx.caller, Identity.handleOf(ctx.caller), id, body);
         if (rid == 0) {
-            toast("Couldn't post that reply — check the length.");
+            toast(Lang.tc(ctx.caller, "feedpost.reply_failed"));
         } else {
             body := "";
-            toast("Reply posted.");
+            toast(Lang.tc(ctx.caller, "feedpost.reply_posted"));
         };
         load(ctx);
         if (rid != 0) { scrollTo("#post-" # Nat.toText(rid)) };
@@ -472,10 +472,10 @@
         switch (Identity.byHandleLookup(handle)) {
             case (?prof) {
                 let nowFollowing = Feed.follow(ctx.caller, prof.principal);
-                if (nowFollowing) { toast("Following @" # handle); }
-                else { toast("Unfollowed @" # handle); };
+                if (nowFollowing) { toast(Lang.tc(ctx.caller, "feedpost.now_following") # " @" # handle); }
+                else { toast(Lang.tc(ctx.caller, "feedpost.unfollowed") # " @" # handle); };
             };
-            case null { toast("Couldn't find that user."); };
+            case null { toast(Lang.tc(ctx.caller, "feedpost.user_not_found")); };
         };
         load(ctx);
     };

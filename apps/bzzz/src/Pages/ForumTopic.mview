@@ -1,8 +1,8 @@
 @page "/forum/t/{id:Nat}"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title (topicTitle # " — Forum Pulse")
-@description ("Sujet de discussion : " # topicTitle # " sur le forum Pulse.")
+@title (topicTitle # Lang.tc(ctx.caller, "forumtopic.title_suffix"))
+@description (Lang.tc(ctx.caller, "forumtopic.desc_prefix") # topicTitle # Lang.tc(ctx.caller, "forumtopic.desc_suffix"))
 
 <div class="ft-wrap">
 
@@ -536,22 +536,22 @@
 
     func acceptPost(ctx : Context, postId : Nat) : async () {
         if (Forum.accept(ctx.caller, id, postId)) {
-            toast("Marked as the solution.");
+            toast(Lang.tc(ctx.caller, "forumtopic.marked_solution"));
         } else {
-            toast("Only the topic author can accept an answer.");
+            toast(Lang.tc(ctx.caller, "forumtopic.only_author_accept"));
         };
         load(ctx);
     };
 
     func unaccept(ctx : Context) : async () {
         ignore Forum.accept(ctx.caller, id, 0);
-        toast("Solution cleared.");
+        toast(Lang.tc(ctx.caller, "forumtopic.solution_cleared"));
         load(ctx);
     };
 
     func clearSolution(ctx : Context) : async () {
         ignore Forum.accept(ctx.caller, id, 0);
-        toast("Solution cleared.");
+        toast(Lang.tc(ctx.caller, "forumtopic.solution_cleared"));
         load(ctx);
     };
 
@@ -567,15 +567,15 @@
 
     func submitReply(ctx : Context) : async () {
         validate {
-            body required "Write a reply before posting.";
+            body required @(Lang.tc(ctx.caller, "forumtopic.need_reply"));
         };
         let handle = Identity.handleOf(ctx.caller);
         let pid = Forum.reply(ctx.caller, handle, id, body, 0);
         if (pid == 0) {
-            toast("This topic is closed.");
+            toast(Lang.tc(ctx.caller, "forumtopic.topic_closed"));
         } else {
             body := "";
-            toast("Reply posted.");
+            toast(Lang.tc(ctx.caller, "forumtopic.reply_posted"));
         };
         load(ctx);
         if (pid != 0) { scrollTo("#post-" # Nat.toText(pid)) };

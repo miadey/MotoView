@@ -1,8 +1,8 @@
 @page "/feed"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Fil"
-@description "Votre fil Pulse : publiez de courtes mises à jour, suivez des membres, reposter et aimer — un fil public à la X, entièrement on-chain dans un seul canister sur l'Internet Computer."
+@title Lang.tc(ctx.caller, "feed.title")
+@description Lang.tc(ctx.caller, "feed.desc")
 
 <div class="pl-feed-wrap">
  <div class="pl-feed-main">
@@ -365,14 +365,14 @@
     // ---- handlers: mutate the service with ctx.caller; refresh vars via load() ----
     func post(ctx : Context) : async () {
         validate {
-            body required "Write something first.";
+            body required @(Lang.tc(ctx.caller, "feed.need_body"));
         };
         let id = Feed.post(ctx.caller, Identity.handleOf(ctx.caller), body);
         if (id == 0) {
-            toast("Couldn't post that — check the length.");
+            toast(Lang.tc(ctx.caller, "feed.post_failed"));
         } else {
             body := "";
-            toast("Posted to Pulse.");
+            toast(Lang.tc(ctx.caller, "feed.posted"));
         };
         load(ctx);
     };
@@ -391,10 +391,10 @@
         switch (Identity.byHandleLookup(handle)) {
             case (?prof) {
                 let nowFollowing = Feed.follow(ctx.caller, prof.principal);
-                if (nowFollowing) { toast("Following @" # handle); }
-                else { toast("Unfollowed @" # handle); };
+                if (nowFollowing) { toast(Lang.tc(ctx.caller, "feed.now_following") # " @" # handle); }
+                else { toast(Lang.tc(ctx.caller, "feed.unfollowed") # " @" # handle); };
             };
-            case null { toast("Couldn't find that user."); };
+            case null { toast(Lang.tc(ctx.caller, "feed.user_not_found")); };
         };
         load(ctx);
     };

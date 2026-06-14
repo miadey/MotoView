@@ -1,7 +1,7 @@
 @page "/forum/c/{id:Nat}"
 @layout ForumLayout
 @authorize redirect="/welcome"
-@title (catName # " — Catégorie du forum Pulse")
+@title (catName # Lang.tc(ctx.caller, "forumcat.title_suffix"))
 @description catDescription
 
 <div class="pc-col">

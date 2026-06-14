@@ -1,8 +1,8 @@
 @page "/"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Accueil"
-@description "Votre fil Pulse : les dernières publications de votre communauté, en direct et entièrement on-chain dans un seul canister."
+@title Lang.tc(ctx.caller, "home.title")
+@description Lang.tc(ctx.caller, "home.desc")
 <div class="pl-home-wrap">
  <div class="pl-home-main">
   @if showPersonalize {
@@ -223,15 +223,15 @@
     // gate, so never trust the markup to have filtered the caller.
     func rename(ctx : Context) : async () {
         if (not (ctx.isAuthenticated and Identity.isBound(ctx.caller))) {
-            toast("Sign in with Internet Identity first.");
+            toast(Lang.tc(ctx.caller, "home.signin_first"));
             load(ctx);
             return;
         };
-        validate { newHandle required "Choose a handle."; };
+        validate { newHandle required @(Lang.tc(ctx.caller, "home.need_handle")); };
         switch (Identity.bindChecked(ctx.caller, newHandle, "")) {
             case (#ok _) { redirect("/"); };
-            case (#taken) { toast("That handle is already taken — try another."); };
-            case (#invalid m) { toast(m); };
+            case (#taken) { toast(Lang.tc(ctx.caller, "home.taken")); };
+            case (#invalid m) { toast(Lang.tc(ctx.caller, m)); };
         };
         load(ctx);
     };

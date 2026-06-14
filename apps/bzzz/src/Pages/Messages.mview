@@ -1,8 +1,8 @@
 @page "/messages"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Messages"
-@description "Vos conversations privées et chiffrées de bout en bout sur Pulse : messages directs 1:1 et discussions de groupe, entièrement sur la chaîne sur l'Internet Computer."
+@title Lang.tc(ctx.caller, "messages.title")
+@description Lang.tc(ctx.caller, "messages.desc")
 
 <div class="pl-msg">
     @if bound {
@@ -191,14 +191,14 @@
 
     func startChat(ctx : Context) : async () {
         validate {
-            peerHandle required "Enter a handle to message.";
-            peerHandle minLength 2 "Handles are at least 2 characters.";
+            peerHandle required @(Lang.tc(ctx.caller, "messages.need_handle"));
+            peerHandle minLength 2 @(Lang.tc(ctx.caller, "messages.handle_min"));
         };
         switch (Identity.byHandleLookup(peerHandle)) {
-            case null { toast("No Pulse user with that handle."); };
+            case null { toast(Lang.tc(ctx.caller, "messages.no_user")); };
             case (?prof) {
                 if (prof.principal == ctx.caller) {
-                    toast("You can't start a chat with yourself.");
+                    toast(Lang.tc(ctx.caller, "messages.no_self"));
                 } else {
                     let id = Messenger.startDirect(ctx.caller, prof.principal);
                     peerHandle := "";
@@ -213,7 +213,7 @@
 
     func startGroupChat(ctx : Context) : async () {
         validate {
-            groupName required "Give your group a name.";
+            groupName required @(Lang.tc(ctx.caller, "messages.need_group_name"));
         };
         // Resolve comma-separated handles to principals; skip unknown / self.
         var members : [Principal] = [];
@@ -235,7 +235,7 @@
         groupName := "";
         groupHandles := "";
         if (missing > 0) {
-            toast(Nat.toText(missing) # " handle(s) weren't found.");
+            toast(Nat.toText(missing) # " " # Lang.tc(ctx.caller, "messages.handles_missing"));
         };
         mvRedirect := "/messages/" # Nat.toText(id);
     };

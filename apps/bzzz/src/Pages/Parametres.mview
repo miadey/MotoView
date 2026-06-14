@@ -1,8 +1,8 @@
 @page "/parametres"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title "Paramètres"
-@description "Gérez votre profil Pulse, vos communautés et votre compte. Modifiez votre identifiant, votre nom affiché et votre bio, puis déconnectez-vous en toute sécurité."
+@title Lang.tc(ctx.caller, "parametres.title")
+@description Lang.tc(ctx.caller, "parametres.desc")
 
 <section class="pl-set-head mv-anim-fadein">
     <h1 class="pl-set-title">@Lang.tc(ctx.caller, "nav.parametres")</h1>
@@ -225,12 +225,12 @@
     // links the handle to the caller's II principal).
     func saveIdentity(ctx : Context) : async () {
         validate {
-            handle required "Choisissez un identifiant.";
+            handle required @(Lang.tc(ctx.caller, "parametres.need_handle"));
         };
         switch (Identity.bindChecked(ctx.caller, handle, display)) {
             case (#ok h) { toast(Lang.tc(ctx.caller, "parametres.t_saved") # " @" # h # "."); };
             case (#taken) { toast(Lang.tc(ctx.caller, "parametres.t_taken")); };
-            case (#invalid msg) { toast(msg); };
+            case (#invalid msg) { toast(Lang.tc(ctx.caller, msg)); };
         };
         load(ctx);
     };

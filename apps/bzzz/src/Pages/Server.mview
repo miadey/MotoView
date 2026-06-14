@@ -1,8 +1,8 @@
 @page "/communautes/{id:Nat}"
 @layout AppLayout
 @authorize redirect="/welcome"
-@title serverName # " — Communauté Pulse"
-@description "Communauté Pulse : salons, membres, rôles et modération pour un espace de discussion natif sur l'Internet Computer."
+@title serverName # Lang.tc(ctx.caller, "server.title_suffix")
+@description Lang.tc(ctx.caller, "server.desc")
 
 @if not exists {
     <div class="cm-card cm-missing">
@@ -340,19 +340,19 @@
     func join(ctx : Context) : async () {
         let sid = paramNat(ctx, "id");
         ignore Servers.joinAs(ctx.caller, sid, Identity.handleOf(ctx.caller));
-        toast("Joined the server.");
+        toast(Lang.tc(ctx.caller, "server.joined"));
     };
 
     func leave(ctx : Context) : async () {
         let sid = paramNat(ctx, "id");
         ignore Servers.leave(ctx.caller, sid);
-        toast("Left the server.");
+        toast(Lang.tc(ctx.caller, "server.left"));
     };
 
     func createChannel(ctx : Context) : async () {
         validate {
-            channelName required "Name the channel.";
-            channelName minLength 2 "Channel name must be at least 2 characters.";
+            channelName required @(Lang.tc(ctx.caller, "server.need_channel_name"));
+            channelName minLength 2 @(Lang.tc(ctx.caller, "server.channel_name_min"));
         };
         let sid = paramNat(ctx, "id");
         // Permission FIRST (before creating an orphan room): a moderator of THIS
@@ -360,54 +360,54 @@
         // events dispatch even when the form isn't rendered.
         let serverMod = Servers.canModerate(sid, ctx.caller);
         if (not (serverMod or Admin.isMod(ctx.caller))) {
-            toast("You don't have permission to add a channel here.");
+            toast(Lang.tc(ctx.caller, "server.no_perm_add_channel"));
             return;
         };
         let newRid = Chat.createRoom(channelName, sid);
         if (newRid == 0) {
-            toast("Pick a valid channel name (a-z, 0-9, - or _).");
+            toast(Lang.tc(ctx.caller, "server.invalid_channel_name"));
             return;
         };
         // Attach via the server-mod path, or the privileged global-staff path.
         let attached = if (serverMod) { Servers.addChannel(ctx.caller, sid, newRid) }
                        else { Servers.forceAddChannel(sid, newRid) };
-        if (not attached) { toast("Couldn't add the channel."); return; };
+        if (not attached) { toast(Lang.tc(ctx.caller, "server.add_channel_failed")); return; };
         channelName := "";
-        toast("Channel created.");
+        toast(Lang.tc(ctx.caller, "server.channel_created"));
     };
 
     func lock(ctx : Context, rid : Nat) : async () {
         let sid = paramNat(ctx, "id");
         let ok = if (Servers.canModerate(sid, ctx.caller)) { Servers.lock(ctx.caller, sid, rid, true) }
                  else if (Admin.isMod(ctx.caller)) { Servers.forceLock(rid, true) } else { false };
-        if (ok) { toast("Channel locked.") } else { toast("You don't have permission to lock channels here.") };
+        if (ok) { toast(Lang.tc(ctx.caller, "server.channel_locked")) } else { toast(Lang.tc(ctx.caller, "server.no_perm_lock")) };
     };
 
     func unlock(ctx : Context, rid : Nat) : async () {
         let sid = paramNat(ctx, "id");
         let ok = if (Servers.canModerate(sid, ctx.caller)) { Servers.lock(ctx.caller, sid, rid, false) }
                  else if (Admin.isMod(ctx.caller)) { Servers.forceLock(rid, false) } else { false };
-        if (ok) { toast("Channel unlocked.") } else { toast("You don't have permission to unlock channels here.") };
+        if (ok) { toast(Lang.tc(ctx.caller, "server.channel_unlocked")) } else { toast(Lang.tc(ctx.caller, "server.no_perm_unlock")) };
     };
 
     func makeMod(ctx : Context, targetText : Text) : async () {
         let sid = paramNat(ctx, "id");
         let target = Principal.fromText(targetText);
         if (Servers.canAdmin(sid, ctx.caller)) { ignore Servers.grant(ctx.caller, sid, target, #Moderator) } else if (Admin.isAdmin(ctx.caller)) { ignore Servers.forceSetRole(sid, target, #Moderator) };
-        toast("Granted moderator.");
+        toast(Lang.tc(ctx.caller, "server.granted_mod"));
     };
 
     func makeAdmin(ctx : Context, targetText : Text) : async () {
         let sid = paramNat(ctx, "id");
         let target = Principal.fromText(targetText);
         if (Servers.canAdmin(sid, ctx.caller)) { ignore Servers.grant(ctx.caller, sid, target, #Admin) } else if (Admin.isAdmin(ctx.caller)) { ignore Servers.forceSetRole(sid, target, #Admin) };
-        toast("Granted admin.");
+        toast(Lang.tc(ctx.caller, "server.granted_admin"));
     };
 
     func revoke(ctx : Context, targetText : Text) : async () {
         let sid = paramNat(ctx, "id");
         let target = Principal.fromText(targetText);
         if (Servers.canAdmin(sid, ctx.caller)) { ignore Servers.revoke(ctx.caller, sid, target) } else if (Admin.isAdmin(ctx.caller)) { ignore Servers.forceSetRole(sid, target, #None) };
-        toast("Role revoked.");
+        toast(Lang.tc(ctx.caller, "server.role_revoked"));
     };
 }
