@@ -149,7 +149,7 @@
                                     <div class="pl-msg-head">
                                         <span class="pl-author pl-role-@(roleClassOf(m.author))">@(authorLabel(m.authorHandle, m.author))</span>
                                         @if isStaff(m.author) {
-                                            <span class="pl-author-tag pl-role-@(roleClassOf(m.author))">@(roleOfP(m.author))</span>
+                                            <span class="pl-author-tag pl-role-@(roleClassOf(m.author))">@(Lang.tc(ctx.caller, roleOfP(m.author)))</span>
                                         }
                                         <span class="pl-time">@(timeOf(m.at))</span>
                                     </div>
@@ -260,7 +260,7 @@
                             <span class="pl-mem-id">
                                 <span class="pl-mem-name pl-role-@(roleClassOfH(h))">@h</span>
                             </span>
-                            <span class="pl-mem-dot pl-role-@(roleClassOfH(h))" title='@(roleOfH(h))'></span>
+                            <span class="pl-mem-dot pl-role-@(roleClassOfH(h))" title='@(Lang.tc(ctx.caller, roleOfH(h)))'></span>
                         </li>
                     }
                 </ul>
@@ -718,7 +718,7 @@
         switch (principalOfHandle(h)) { case (?p) roleClassOf(p); case null "member" };
     };
     func roleOfH(h : Text) : Text {
-        switch (principalOfHandle(h)) { case (?p) roleOfP(p); case null "Member" };
+        switch (principalOfHandle(h)) { case (?p) roleOfP(p); case null "role.member" };
     };
     func avatarOfH(h : Text) : Text {
         switch (Identity.byHandleLookup(h)) { case (?p) p.avatar; case null "🐝" };

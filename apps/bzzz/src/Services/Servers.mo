@@ -191,10 +191,10 @@ module {
 
     public func roleLabel(serverId : Nat, principal : Principal) : Text {
       switch (roleOf(serverId, principal)) {
-        case (#Owner) "Owner";
-        case (#Admin) "Admin";
-        case (#Moderator) "Moderator";
-        case (#None) "Member";
+        case (#Owner) "role.owner";
+        case (#Admin) "role.admin";
+        case (#Moderator) "role.moderator";
+        case (#None) "role.member";
       };
     };
 
@@ -538,10 +538,16 @@ module {
 
     public func kindLabel(kind : ServerKind) : Text {
       switch (kind) {
-        case (#Discussion) "Discussion";
-        case (#Forum) "Forum";
-        case (#Feed) "Feed";
+        case (#Discussion) "servers.kind_discussion";
+        case (#Forum) "servers.kind_forum";
+        case (#Feed) "servers.kind_feed";
       };
+    };
+
+    // Raw English kind label for the legacy summaryOf only (kindLabel now
+    // returns an i18n key; the presentation layer translates it via Lang.tc).
+    func kindRaw(kind : ServerKind) : Text {
+      switch (kind) { case (#Discussion) "Discussion"; case (#Forum) "Forum"; case (#Feed) "Feed" };
     };
 
     /// Compact human summary, e.g. "Discussion · 3 channels · 12 members".
@@ -549,7 +555,7 @@ module {
       switch (servers_.get(serverId)) {
         case null { "" };
         case (?srv) {
-          kindLabel(srv.kind)
+          kindRaw(srv.kind)
           # " · " # Nat.toText(srv.channelIds.size()) # plural(srv.channelIds.size(), " channel", " channels")
           # " · " # Nat.toText(memberCount(serverId)) # plural(memberCount(serverId), " member", " members")
         };

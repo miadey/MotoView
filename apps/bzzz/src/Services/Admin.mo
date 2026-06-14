@@ -65,10 +65,10 @@ module {
 
     func labelOf(r : Role) : Text {
       switch r {
-        case (#SuperAdmin) "Super Admin";
-        case (#Admin) "Admin";
-        case (#Moderator) "Moderator";
-        case (#None) "Member";
+        case (#SuperAdmin) "admin.role_super";
+        case (#Admin) "admin.role_admin";
+        case (#Moderator) "admin.role_mod";
+        case (#None) "admin.role_member";
       };
     };
 

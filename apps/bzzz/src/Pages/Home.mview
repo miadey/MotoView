@@ -147,6 +147,19 @@
 
     func onLoad(ctx : Context) { load(ctx); };
 
+    func srvSummary(ctx : Context, id : Nat) : Text {
+        switch (Servers.server(id)) {
+            case null { "" };
+            case (?s) {
+                let ch = Servers.channelCount(id);
+                let mem = Servers.memberCount(id);
+                Lang.tc(ctx.caller, Servers.kindLabel(s.kind)) # " · "
+                # Nat.toText(ch) # " " # Lang.tc(ctx.caller, if (ch == 1) { "summary.channel" } else { "summary.channels" }) # " · "
+                # Nat.toText(mem) # " " # Lang.tc(ctx.caller, if (mem == 1) { "summary.member" } else { "summary.members" })
+            };
+        };
+    };
+
     func load(ctx : Context) {
         // `@authorize redirect="/welcome"` gates this route server-side on every
         // path (full GET, /_motoview/render, /_motoview/event), so an anonymous
@@ -188,7 +201,7 @@
                         case null {};
                     };
                 };
-                rows := Array.append(rows, [{ id = s.id; name = s.name; summary = Servers.summaryOf(s.id); activity = act }]);
+                rows := Array.append(rows, [{ id = s.id; name = s.name; summary = srvSummary(ctx, s.id); activity = act }]);
             };
         };
         serverRows := rows;

@@ -124,7 +124,7 @@
                         <ul class="cm-members">
                             @for mr in memberRows {
                                 <li class="cm-member">
-                                    <Persona name="@(handleOf(mr.principal))" secondary="@(roleLabel(mr.principal))" avatar="@(avatarOf(mr.principal))" />
+                                    <Persona name="@(handleOf(mr.principal))" secondary="@(Lang.tc(ctx.caller, roleLabel(mr.principal)))" avatar="@(avatarOf(mr.principal))" />
                                     @if canAdmin {
                                         @if isOwnerPrincipal(mr.principal) {
                                             <span class="cm-member-actions cm-owner-pill">@Lang.tc(ctx.caller, "server.owner")</span>
@@ -261,7 +261,7 @@
     var isOwner : Bool = false;
     var canMod : Bool = false;
     var canAdmin : Bool = false;
-    var myRole : Text = "Member";
+    var myRole : Text = "";
 
     // create-channel form field (auto-populated from the secure form)
     var channelName : Text = "";
@@ -279,7 +279,7 @@
             case (?s) {
                 exists := true;
                 serverName := s.name;
-                kindLabel := Servers.kindLabel(s.kind);
+                kindLabel := Lang.tc(ctx.caller, Servers.kindLabel(s.kind));
                 kindClass := (switch (s.kind) {
                     case (#Discussion) "discussion";
                     case (#Forum) "forum";
@@ -298,7 +298,7 @@
         // Cross-scope: a global Moderator/Admin can act in any server.
         canMod := Servers.canModerate(id, ctx.caller) or Admin.isMod(ctx.caller);
         canAdmin := Servers.canAdmin(id, ctx.caller) or Admin.isAdmin(ctx.caller);
-        myRole := Servers.roleLabel(id, ctx.caller);
+        myRole := Lang.tc(ctx.caller, Servers.roleLabel(id, ctx.caller));
     };
 
     // ---- display helpers (thin: services do the work) ----

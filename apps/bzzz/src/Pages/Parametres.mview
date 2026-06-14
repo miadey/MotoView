@@ -93,7 +93,7 @@
                             </div>
                             <div class="pl-set-comm-body">
                                 <a class="pl-set-comm-name" href="/server/@s.id">@s.name</a>
-                                <span class="pl-set-comm-sum">@(summaryOf(s.id))</span>
+                                <span class="pl-set-comm-sum">@(srvSummary(ctx, s.id))</span>
                             </div>
                             <a class="pl-set-comm-link" href="/server/@s.id">@Lang.tc(ctx.caller, "parametres.open") →</a>
                         </li>
@@ -218,7 +218,18 @@
     };
 
     // ---- thin display helpers (logic lives in the services) ----
-    func summaryOf(id : Nat) : Text { Servers.summaryOf(id) };
+    func srvSummary(ctx : Context, id : Nat) : Text {
+        switch (Servers.server(id)) {
+            case null { "" };
+            case (?s) {
+                let ch = Servers.channelCount(id);
+                let mem = Servers.memberCount(id);
+                Lang.tc(ctx.caller, Servers.kindLabel(s.kind)) # " · "
+                # Nat.toText(ch) # " " # Lang.tc(ctx.caller, if (ch == 1) { "summary.channel" } else { "summary.channels" }) # " · "
+                # Nat.toText(mem) # " " # Lang.tc(ctx.caller, if (mem == 1) { "summary.member" } else { "summary.members" })
+            };
+        };
+    };
 
     // Reuse the SAME secure handlers as Me.mview — bindChecked is the single
     // chokepoint for handle creation (validates format, then uniqueness, then

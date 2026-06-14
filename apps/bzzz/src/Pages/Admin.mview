@@ -307,7 +307,7 @@
 
     var myPrincipal : Text = "";
     var myRole = Admin.roleOf(Principal.fromText("2vxsx-fae")); // inferred Role; reset in onLoad
-    var myRoleLabel : Text = "Member";
+    var myRoleLabel : Text = "";
     var isStaff : Bool = false;
     var isAdmin : Bool = false;
     var isSuperAdmin : Bool = false;
@@ -339,7 +339,7 @@
         let who = Admin.whoami(ctx.caller);
         myPrincipal := who.principalText;
         myRole := who.role;
-        myRoleLabel := who.roleLabel;
+        myRoleLabel := Lang.tc(ctx.caller, who.roleLabel);
         isStaff := who.isStaff;
         isAdmin := who.isAdmin;
         isSuperAdmin := who.isSuperAdmin;
@@ -352,7 +352,7 @@
     func reload(ctx : Context) {
         let who = Admin.whoami(ctx.caller);
         myRole := who.role;
-        myRoleLabel := who.roleLabel;
+        myRoleLabel := Lang.tc(ctx.caller, who.roleLabel);
         isStaff := who.isStaff;
         isAdmin := who.isAdmin;
         isSuperAdmin := who.isSuperAdmin;

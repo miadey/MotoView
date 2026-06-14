@@ -72,7 +72,7 @@
                         <span class="st-handle">@("@" # s.authorHandle)</span>
                         <span class="st-time">@(Status.relativeTime(s.at))</span>
                     </div>
-                    <span class="st-kind">@(Status.kindLabel(s.kind))</span>
+                    <span class="st-kind">@(Lang.tc(ctx.caller, Status.kindLabel(s.kind)))</span>
                 </header>
                 @switch s.kind {
                     case (#Text) {

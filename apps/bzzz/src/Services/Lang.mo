@@ -799,6 +799,16 @@ module {
         case ("welcome.signin_first") { ("Connectez-vous d'abord avec Internet Identity.", "Sign in with Internet Identity first.", "Primero inicia sesión con Internet Identity.") };
         case ("welcome.need_handle") { ("Choisissez un identifiant.", "Choose a handle.", "Elige un nombre de usuario.") };
         case ("welcome.handle_taken") { ("Cet identifiant est déjà pris — essayez-en un autre.", "That handle is already taken — try another.", "Ese nombre de usuario ya está en uso, prueba con otro.") };
+        case ("role.owner") { ("Propriétaire", "Owner", "Propietario") };
+        case ("role.admin") { ("Admin", "Admin", "Admin") };
+        case ("role.moderator") { ("Modérateur", "Moderator", "Moderador") };
+        case ("role.member") { ("Membre", "Member", "Miembro") };
+        case ("skind.text") { ("Texte", "Text", "Texto") };
+        case ("skind.photo") { ("Photo", "Photo", "Foto") };
+        case ("summary.channel") { ("canal", "channel", "canal") };
+        case ("summary.channels") { ("canaux", "channels", "canales") };
+        case ("summary.member") { ("membre", "member", "miembro") };
+        case ("summary.members") { ("membres", "members", "miembros") };
         // <<I18N_PAGE_KEYS>>
 
         case (_) { ("", "", "") };

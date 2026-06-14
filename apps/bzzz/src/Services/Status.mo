@@ -216,7 +216,7 @@ module {
 
     /// Label for a status kind ("Text" / "Photo").
     public func kindLabel(kind : Kind) : Text {
-      switch (kind) { case (#Text) "Text"; case (#Image) "Photo" };
+      switch (kind) { case (#Text) "skind.text"; case (#Image) "skind.photo" };
     };
 
     // ---- helpers ----
